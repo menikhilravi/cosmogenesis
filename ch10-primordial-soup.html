@@ -1,0 +1,2178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Primordial Soup · Cosmogenesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="cosmos.css">
+<style>
+  #ps-gl { cursor: crosshair; }
+  #ps-ov { pointer-events: none; }
+  body.ps-heating #ps-gl { cursor: none; }
+  body.ps-stirring #ps-gl { cursor: grabbing; }
+  .ps-scale {
+    position: fixed; z-index: 6; pointer-events: none; left: 50%; transform: translateX(-50%);
+    bottom: calc(var(--foot-h) + env(safe-area-inset-bottom, 0px) + 16px);
+    display: grid; justify-items: center; gap: 5px; font: 500 10.5px/1 var(--f-mono); color: var(--star); letter-spacing: .08em;
+    text-shadow: 0 1px 6px rgba(0,0,0,.9); transition: opacity .5s var(--ease);
+  }
+  .ps-scale i { display: block; height: 3px; border: 1px solid rgba(236,230,214,.85); border-top: 0; box-shadow: 0 1px 6px rgba(0,0,0,.8); }
+  .ps-scale small { color: var(--faint); font-size: 9.5px; letter-spacing: .1em; }
+  .ps-log {
+    position: fixed; z-index: 6; pointer-events: none; left: var(--gutter);
+    display: grid; gap: 3px; font: 500 10.5px/1.35 var(--f-mono); color: var(--dust); max-width: min(420px, 60vw);
+    text-shadow: 0 1px 8px rgba(0,0,0,.95); transition: opacity .5s var(--ease);
+  }
+  .ps-log div { opacity: 0; transform: translateY(-4px); transition: opacity .6s var(--ease), transform .6s var(--ease); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ps-log div.on { opacity: 1; transform: none; }
+  .ps-log div.old { opacity: .45; }
+  .ps-log b { color: var(--era); font-weight: 500; }
+  .ps-log em { color: var(--faint); font-style: normal; margin-right: 8px; }
+  body.cz-cinema .ps-log, body.cz-cinema .ps-scale { opacity: 0; }
+  .ps-mat { touch-action: none; cursor: ns-resize; }
+  .ps-thumbs { cursor: pointer; touch-action: pan-y; }
+  .ps-petri { touch-action: pan-y; }
+  .ps-status { font: 500 11px/1.4 var(--f-mono); color: var(--dust); display: flex; justify-content: space-between; gap: 8px; }
+  .ps-status b { color: var(--era); font-weight: 500; }
+  .ps-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font: 500 10.5px/1.3 var(--f-mono); color: var(--dust); }
+  .ps-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 0; box-shadow: 0 0 6px currentColor; }
+  .ps-nb { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; margin: 0 0 14px; }
+  .ps-nb strong { font: italic 500 17px/1.2 var(--f-display); color: var(--star); display: block; }
+  .ps-nb-meta { display: block; font: 500 10.5px/1.5 var(--f-mono); color: var(--faint); margin: 2px 0 4px; }
+  .ps-nb p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--dust); }
+  .ps-nb-mat { display: grid; gap: 3px; width: 64px; padding-top: 3px; }
+  .ps-nb-dots { display: grid; grid-template-columns: repeat(var(--k), 1fr); gap: 1px; }
+  .ps-nb-dots b { display: block; height: 3px; border-radius: 2px; box-shadow: 0 0 4px currentColor; }
+  .ps-nb-grid { display: grid; grid-template-columns: repeat(var(--k), 1fr); gap: 1px; }
+  .ps-nb-grid i { display: block; aspect-ratio: 1; border-radius: 1px; }
+  .ps-hud-sp b { font-weight: 400; margin-right: 2px; text-shadow: 0 0 6px currentColor; }
+  .ps-tip {
+    position: fixed; z-index: 60; pointer-events: none; padding: 6px 9px; border-radius: 6px; background: var(--panel-solid); border: 1px solid var(--line-strong);
+    font: 500 11px/1.35 var(--f-mono); color: var(--star); opacity: 0; transition: opacity .15s; white-space: nowrap;
+  }
+  .ps-tip.on { opacity: 1; }
+  @media (max-width: 760px) {
+    .ps-scale { left: auto; right: var(--gutter); transform: none; justify-items: end; bottom: auto; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 14px); }
+    .ps-log { max-width: 70vw; font-size: 9.5px; }
+  }
+</style>
+</head>
+<body>
+<script src="cosmos.js"></script>
+<script>
+/*CORE-BEGIN*/
+function PLCore() {
+  'use strict';
+  // Half-shell neighbour offsets: each unordered pair of cells is visited once.
+  const OX = [0, 1, -1, 0, 1], OY = [0, 0, 1, 1, 1];
+
+  function rng(seed) {
+    let s = seed >>> 0;
+    return function () { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+
+  function create() {
+    const S = {
+      N: 0, K: 4, W: 480, H: 300, rMax: 12, beta: 0.3, rep: 1, noise: 0, halfLife: 0.04, forceK: 10, dt: 0.02, vMax: 0,
+      A: new Float32Array(64), steps: 0, time: 0, seed: 1,
+      linkFrac: 0.33, minPts: 6, minSize: 12,
+    };
+    let cap = 0;
+    let x, y, vx, vy, sp;                 // identity order
+    let sx, sy, svx, svy, ssp, fx, fy, order, cellOf, nbc, parent; // sorted order
+    let lab, prevLab;                     // identity order cluster labels
+    let cols = 0, rows = 0, cw = 1, chh = 1, nc = 0, cellStart = null, cursor = null, gridKey = '';
+    const kicks = [];                     // pending velocity perturbations {x,y,r,vx,vy,heat}
+    let nrs = 1;                          // xorshift state for Brownian noise
+
+    function alloc(n) {
+      if (n <= cap) return;
+      const c = Math.ceil(n * 1.25);
+      const grow = (Old, T) => { const a = new T(c); if (Old) a.set(Old.subarray(0, Math.min(Old.length, c))); return a; };
+      x = grow(x, Float32Array); y = grow(y, Float32Array); vx = grow(vx, Float32Array); vy = grow(vy, Float32Array); sp = grow(sp, Uint8Array);
+      lab = grow(lab, Int32Array); prevLab = grow(prevLab, Int32Array);
+      sx = new Float32Array(c); sy = new Float32Array(c); svx = new Float32Array(c); svy = new Float32Array(c); ssp = new Uint8Array(c);
+      fx = new Float32Array(c); fy = new Float32Array(c); order = new Int32Array(c); cellOf = new Int32Array(c); nbc = new Uint16Array(c); parent = new Int32Array(c);
+      cap = c;
+    }
+    function grid() {
+      const key = S.W + ':' + S.H + ':' + S.rMax;
+      if (key === gridKey) return;
+      gridKey = key;
+      cols = Math.max(3, Math.floor(S.W / S.rMax)); rows = Math.max(3, Math.floor(S.H / S.rMax));
+      cw = S.W / cols; chh = S.H / rows; nc = cols * rows;
+      cellStart = new Int32Array(nc + 1); cursor = new Int32Array(nc + 1);
+    }
+    function scatter(i0, i1, r) {
+      for (let i = i0; i < i1; i++) { x[i] = r() * S.W; y[i] = r() * S.H; vx[i] = 0; vy[i] = 0; sp[i] = i % S.K; lab[i] = -1; prevLab[i] = -1; }
+    }
+    S.init = function (o) {
+      Object.assign(S, o || {});
+      if (S.W < 3 * S.rMax) S.W = 3 * S.rMax; if (S.H < 3 * S.rMax) S.H = 3 * S.rMax;
+      alloc(S.N); grid();
+      const r = rng(S.seed);
+      scatter(0, S.N, r);
+      S.steps = 0; S.time = 0; kicks.length = 0; nrs = (S.seed ^ 0x9e3779b9) >>> 0 || 1;
+    };
+    S.setMatrix = function (a, K) { if (K != null) S.K = K; S.A.fill(0); for (let i = 0; i < S.K * S.K; i++) S.A[i] = a[i] || 0; };
+    S.setSpecies = function (K) { S.K = K; for (let i = 0; i < S.N; i++) sp[i] = i % K; };
+    S.setCount = function (n, seed) {
+      const old = S.N; alloc(n); S.N = n;
+      if (n > old) scatter(old, n, rng(seed || (S.steps + 7)));
+    };
+    S.setWorld = function (W, H) {
+      // rescale positions into a new torus
+      const kx = W / S.W, ky = H / S.H;
+      for (let i = 0; i < S.N; i++) { x[i] = Math.min(W - 1e-3, x[i] * kx); y[i] = Math.min(H - 1e-3, y[i] * ky); }
+      S.W = W; S.H = H; grid();
+    };
+    S.set = function (o) { Object.assign(S, o); if (S.W < 3 * S.rMax) S.rMax = S.W / 3; if (S.H < 3 * S.rMax) S.rMax = S.H / 3; grid(); };
+    S.kick = function (k) { kicks.push(k); };
+    S.arrays = () => ({ x, y, vx, vy, sp, lab });
+
+    function bin() {
+      const N = S.N, invCw = 1 / cw, invCh = 1 / chh;
+      cellStart.fill(0);
+      for (let i = 0; i < N; i++) {
+        let cx = (x[i] * invCw) | 0, cy = (y[i] * invCh) | 0;
+        if (cx >= cols) cx = cols - 1; else if (cx < 0) cx = 0;
+        if (cy >= rows) cy = rows - 1; else if (cy < 0) cy = 0;
+        const c = cy * cols + cx; cellOf[i] = c; cellStart[c + 1]++;
+      }
+      for (let c = 0; c < nc; c++) cellStart[c + 1] += cellStart[c];
+      cursor.set(cellStart);
+      for (let i = 0; i < N; i++) {
+        const k = cursor[cellOf[i]]++;
+        order[k] = i; sx[k] = x[i]; sy[k] = y[i]; svx[k] = vx[i]; svy[k] = vy[i]; ssp[k] = sp[i];
+      }
+    }
+
+    function forces() {
+      const N = S.N, K = S.K, A = S.A, W = S.W, H = S.H, rMax = S.rMax, rMax2 = rMax * rMax, invR = 1 / rMax;
+      const beta = S.beta, invBeta = 1 / beta, inv1b = 1 / (1 - beta), onePb = 1 + beta, rep = S.rep;
+      fx.fill(0, 0, N); fy.fill(0, 0, N);
+      for (let cy = 0; cy < rows; cy++) {
+        for (let cx = 0; cx < cols; cx++) {
+          const c = cy * cols + cx, a0 = cellStart[c], a1 = cellStart[c + 1];
+          if (a0 === a1) continue;
+          for (let nb = 0; nb < 5; nb++) {
+            let nx = cx + OX[nb], ny = cy + OY[nb], shx = 0, shy = 0;
+            if (nx < 0) { nx += cols; shx = -W; } else if (nx >= cols) { nx -= cols; shx = W; }
+            if (ny >= rows) { ny -= rows; shy = H; }
+            const c2 = ny * cols + nx, b0 = cellStart[c2], b1 = cellStart[c2 + 1];
+            if (b0 === b1) continue;
+            const self = nb === 0;
+            for (let i = a0; i < a1; i++) {
+              const xi = sx[i] - shx, yi = sy[i] - shy, si = ssp[i], rowI = si * K;
+              let fxi = 0, fyi = 0;
+              for (let j = self ? i + 1 : b0; j < b1; j++) {
+                const dx = sx[j] - xi, dy = sy[j] - yi, r2 = dx * dx + dy * dy;
+                if (r2 >= rMax2 || r2 < 1e-12) continue;
+                const r = Math.sqrt(r2), q = r * invR, ir = 1 / r;
+                let fi, fj;
+                if (q < beta) { fi = fj = (q * invBeta - 1) * rep; }
+                else {
+                  const t = 1 - Math.abs(2 * q - onePb) * inv1b, sj = ssp[j];
+                  fi = A[rowI + sj] * t; fj = A[sj * K + si] * t;
+                }
+                const ux = dx * ir, uy = dy * ir;
+                fxi += fi * ux; fyi += fi * uy;
+                fx[j] -= fj * ux; fy[j] -= fj * uy;
+              }
+              fx[i] += fxi; fy[i] += fyi;
+            }
+          }
+        }
+      }
+    }
+
+    function integrate() {
+      const N = S.N, W = S.W, H = S.H, dt = S.dt;
+      const fr = Math.pow(0.5, dt / S.halfLife), fs = S.rMax * S.forceK * dt;
+      const vMax = S.vMax > 0 ? S.vMax : S.rMax * 40, vMax2 = vMax * vMax;
+      let nk = kicks.length;
+      const nz = S.noise * 3.4641016 / 4294967296; // uniform in ±√3·σ per axis → rms σ
+      let rs = nrs;
+      for (let k = 0; k < N; k++) {
+        let ux = svx[k] * fr + fx[k] * fs, uy = svy[k] * fr + fy[k] * fs;
+        if (nz) {
+          rs ^= rs << 13; rs ^= rs >>> 17; rs ^= rs << 5; ux += ((rs >>> 0) - 2147483648) * nz;
+          rs ^= rs << 13; rs ^= rs >>> 17; rs ^= rs << 5; uy += ((rs >>> 0) - 2147483648) * nz;
+        }
+        if (nk) {
+          for (let q = 0; q < nk; q++) {
+            const kk = kicks[q];
+            let dx = sx[k] - kk.x, dy = sy[k] - kk.y;
+            if (dx > W * 0.5) dx -= W; else if (dx < -W * 0.5) dx += W;
+            if (dy > H * 0.5) dy -= H; else if (dy < -H * 0.5) dy += H;
+            const d2 = dx * dx + dy * dy, r2 = kk.r * kk.r;
+            if (d2 > r2) continue;
+            const w = 1 - d2 / r2;
+            ux += kk.vx * w; uy += kk.vy * w;
+            if (kk.radial) { const d = Math.sqrt(d2) + 1e-3; ux += dx / d * kk.radial * w; uy += dy / d * kk.radial * w; }
+            if (kk.heat) { ux += (kk.rnd() - 0.5) * kk.heat * w; uy += (kk.rnd() - 0.5) * kk.heat * w; }
+          }
+        }
+        const v2 = ux * ux + uy * uy;
+        if (!(v2 <= vMax2)) { if (v2 > vMax2) { const s = vMax / Math.sqrt(v2); ux *= s; uy *= s; } else { ux = 0; uy = 0; } }
+        let px = sx[k] + ux * dt, py = sy[k] + uy * dt;
+        if (px < 0) px += W; else if (px >= W) px -= W;
+        if (py < 0) py += H; else if (py >= H) py -= H;
+        if (!(px >= 0 && px < W)) px = Math.random() * W;
+        if (!(py >= 0 && py < H)) py = Math.random() * H;
+        const id = order[k];
+        x[id] = px; y[id] = py; vx[id] = ux; vy[id] = uy;
+      }
+      kicks.length = 0; nrs = rs;
+    }
+
+    S.step = function (n) {
+      n = n || 1;
+      for (let s = 0; s < n; s++) {
+        bin(); forces(); integrate();
+        S.steps++; S.time += S.dt;
+      }
+    };
+
+    /* ---- cluster statistics (DBSCAN-like on the cell grid) ---- */
+    function find(a) { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; }
+    S.stats = function (maxList) {
+      const N = S.N, W = S.W, H = S.H, eps = S.rMax * S.linkFrac, eps2 = eps * eps, minPts = S.minPts;
+      bin();
+      nbc.fill(0, 0, N);
+      // pass 1: neighbour counts within eps
+      for (let cy = 0; cy < rows; cy++) for (let cx = 0; cx < cols; cx++) {
+        const c = cy * cols + cx, a0 = cellStart[c], a1 = cellStart[c + 1];
+        if (a0 === a1) continue;
+        for (let nb = 0; nb < 5; nb++) {
+          let nx = cx + OX[nb], ny = cy + OY[nb], shx = 0, shy = 0;
+          if (nx < 0) { nx += cols; shx = -W; } else if (nx >= cols) { nx -= cols; shx = W; }
+          if (ny >= rows) { ny -= rows; shy = H; }
+          const c2 = ny * cols + nx, b0 = cellStart[c2], b1 = cellStart[c2 + 1];
+          for (let i = a0; i < a1; i++) {
+            const xi = sx[i] - shx, yi = sy[i] - shy;
+            for (let j = nb === 0 ? i + 1 : b0; j < b1; j++) {
+              const dx = sx[j] - xi, dy = sy[j] - yi;
+              if (dx * dx + dy * dy < eps2) { nbc[i]++; nbc[j]++; }
+            }
+          }
+        }
+      }
+      for (let i = 0; i < N; i++) parent[i] = i;
+      // pass 2: link core-core pairs, and border points to a core
+      for (let cy = 0; cy < rows; cy++) for (let cx = 0; cx < cols; cx++) {
+        const c = cy * cols + cx, a0 = cellStart[c], a1 = cellStart[c + 1];
+        if (a0 === a1) continue;
+        for (let nb = 0; nb < 5; nb++) {
+          let nx = cx + OX[nb], ny = cy + OY[nb], shx = 0, shy = 0;
+          if (nx < 0) { nx += cols; shx = -W; } else if (nx >= cols) { nx -= cols; shx = W; }
+          if (ny >= rows) { ny -= rows; shy = H; }
+          const c2 = ny * cols + nx, b0 = cellStart[c2], b1 = cellStart[c2 + 1];
+          for (let i = a0; i < a1; i++) {
+            const ci = nbc[i] >= minPts;
+            const xi = sx[i] - shx, yi = sy[i] - shy;
+            for (let j = nb === 0 ? i + 1 : b0; j < b1; j++) {
+              const cj = nbc[j] >= minPts;
+              if (!ci && !cj) continue;
+              const dx = sx[j] - xi, dy = sy[j] - yi;
+              if (dx * dx + dy * dy < eps2) {
+                if (ci && cj) { const ra = find(i), rb = find(j); if (ra !== rb) { if (ra < rb) parent[rb] = ra; else parent[ra] = rb; } }
+                else if (ci) { if (parent[j] === j) parent[j] = find(i); }
+                else { if (parent[i] === i) parent[i] = find(j); }
+              }
+            }
+          }
+        }
+      }
+      // gather clusters
+      const rootId = new Map();
+      const cl = [];
+      for (let k = 0; k < N; k++) {
+        const r = find(k);
+        let id = rootId.get(r);
+        if (id === undefined) { id = cl.length; rootId.set(r, id); cl.push({ n: 0, rx: sx[k], ry: sy[k], sx: 0, sy: 0, sxx: 0, syy: 0, sxy: 0, svx: 0, svy: 0, sv2: 0, L: 0, sp: new Int32Array(S.K), id }); }
+        const c = cl[id];
+        let dx = sx[k] - c.rx, dy = sy[k] - c.ry;
+        if (dx > W * 0.5) dx -= W; else if (dx < -W * 0.5) dx += W;
+        if (dy > H * 0.5) dy -= H; else if (dy < -H * 0.5) dy += H;
+        const u = svx[k], v = svy[k];
+        c.n++; c.sx += dx; c.sy += dy; c.sxx += dx * dx; c.syy += dy * dy; c.sxy += dx * dy; c.svx += u; c.svy += v; c.sv2 += u * u + v * v; c.L += dx * v - dy * u;
+        c.sp[ssp[k]]++;
+        cellOf[k] = id; // reuse: sorted index -> cluster id
+      }
+      const minSize = S.minSize;
+      let nBig = 0, inBig = 0, speedSum = 0, tSum = 0, cohSum = 0, rotSum = 0, rgSum = 0, elongSum = 0, mixSum = 0;
+      for (let k = 0; k < N; k++) speedSum += Math.sqrt(svx[k] * svx[k] + svy[k] * svy[k]);
+      const big = [];
+      for (const c of cl) {
+        const n = c.n, mx = c.sx / n, my = c.sy / n, vxm = c.svx / n, vym = c.svy / n;
+        const cxx = c.sxx / n - mx * mx, cyy = c.syy / n - my * my, cxy = c.sxy / n - mx * my;
+        const I = (cxx + cyy) * n;
+        c.cx = c.rx + mx; c.cy = c.ry + my; if (c.cx < 0) c.cx += W; else if (c.cx >= W) c.cx -= W; if (c.cy < 0) c.cy += H; else if (c.cy >= H) c.cy -= H;
+        c.vx = vxm; c.vy = vym; c.rg = Math.sqrt(Math.max(0, cxx + cyy));
+        const tr = cxx + cyy, det = cxx * cyy - cxy * cxy, disc = Math.sqrt(Math.max(0, tr * tr / 4 - det));
+        const l1 = tr / 2 + disc, l2 = Math.max(1e-9, tr / 2 - disc);
+        c.elong = Math.sqrt(l1 / l2);
+        c.omega = n > 1 && I > 1e-9 ? (c.L - n * (mx * vym - my * vxm)) / I : 0;
+        c.tint = Math.max(0, c.sv2 / n - vxm * vxm - vym * vym);
+        if (n >= minSize) {
+          nBig++; inBig += n; tSum += c.tint * n; cohSum += Math.sqrt(vxm * vxm + vym * vym) * n; rotSum += Math.abs(c.omega) * n; rgSum += c.rg * n; elongSum += c.elong * n;
+          let nsp = 0, H2 = 0; for (let s = 0; s < S.K; s++) if (c.sp[s]) { const p = c.sp[s] / n; H2 -= p * Math.log(p); nsp++; }
+          c.mix = S.K > 1 ? H2 / Math.log(S.K) : 0; mixSum += c.mix * n;
+          big.push(c);
+        } else {
+          tSum += c.tint * n + (vxm * vxm + vym * vym) * n; // free particles: all motion is thermal
+        }
+      }
+      // shell structure: radial position of each species inside big clusters (second pass)
+      let shell = 0;
+      if (big.length) {
+        const rs = new Float64Array(cl.length * S.K), rn = new Float64Array(cl.length * S.K);
+        for (let k = 0; k < N; k++) {
+          const c = cl[cellOf[k]]; if (c.n < minSize) continue;
+          let dx = sx[k] - c.cx, dy = sy[k] - c.cy;
+          if (dx > W * 0.5) dx -= W; else if (dx < -W * 0.5) dx += W;
+          if (dy > H * 0.5) dy -= H; else if (dy < -H * 0.5) dy += H;
+          const idx = c.id * S.K + ssp[k]; rs[idx] += Math.sqrt(dx * dx + dy * dy); rn[idx]++;
+        }
+        let wsum = 0;
+        for (const c of big) {
+          let lo = Infinity, hi = -Infinity;
+          for (let s = 0; s < S.K; s++) { const n = rn[c.id * S.K + s]; if (n >= Math.max(4, c.n * 0.08)) { const m = rs[c.id * S.K + s] / n; lo = Math.min(lo, m); hi = Math.max(hi, m); } }
+          c.shell = hi > lo && c.rg > 0 ? (hi - lo) / c.rg : 0;
+          shell += c.shell * c.n; wsum += c.n;
+        }
+        shell /= wsum || 1;
+      }
+      // identity labels + persistence / divisions against the previous call
+      for (let k = 0; k < N; k++) { const id = order[k]; const c = cl[cellOf[k]]; lab[id] = c.n >= minSize ? c.id : -1; }
+      let persist = 0, splits = 0, merges = 0, cleanSplits = 0, cellSplits = 0; const events = [];
+      if (S._hadPrev) {
+        const pairs = new Map(); const prevSize = new Map();
+        for (let i = 0; i < N; i++) {
+          const p = prevLab[i], q = lab[i];
+          if (p >= 0) prevSize.set(p, (prevSize.get(p) || 0) + 1);
+          if (p >= 0 && q >= 0) { const key = p * 1048576 + q; pairs.set(key, (pairs.get(key) || 0) + 1); }
+        }
+        const bestOfCur = new Map(), kidsOfPrev = new Map(), parentsOfCur = new Map();
+        pairs.forEach((cnt, key) => {
+          const p = Math.floor(key / 1048576), q = key - p * 1048576;
+          if (cnt > (bestOfCur.get(q) || 0)) bestOfCur.set(q, cnt);
+          const ps = prevSize.get(p) || 1, qs = cl[q].n;
+          if (cnt >= 0.25 * ps && cnt >= S.minSize * 0.6 && qs >= S.minSize) { (kidsOfPrev.get(p) || kidsOfPrev.set(p, []).get(p)).push(q); }
+          if (cnt >= 0.25 * qs && cnt >= S.minSize * 0.6) { parentsOfCur.set(q, (parentsOfCur.get(q) || 0) + 1); }
+        });
+        let pw = 0;
+        for (const c of big) { persist += (bestOfCur.get(c.id) || 0); pw += c.n; }
+        persist = pw ? persist / pw : 0;
+        kidsOfPrev.forEach((kids, p) => {
+          if (kids.length >= 2) {
+            // a division only counts if the daughters did not also come from other parents (that would be a reshuffle)
+            let clean = kids.filter((q) => (parentsOfCur.get(q) || 0) === 1);
+            if (clean.length >= 2) {
+              splits++;
+              clean.sort((u, v) => cl[v].n - cl[u].n);
+              const a = cl[clean[0]], b = cl[clean[1]], ps = prevSize.get(p) || 1;
+              const ev = { type: 'split', x: a.cx, y: a.cy, x2: b.cx, y2: b.cy, n: ps, n1: a.n, n2: b.n };
+              if (ps >= 2 * S.minSize && b.n >= 0.3 * ps && a.n <= 0.75 * ps * 1.4) {
+                cleanSplits++; ev.clean = true;
+                const psh = S._prevShell ? S._prevShell.get(p) || 0 : 0;
+                ev.shell = psh;
+                if (psh > 0.6 && (a.shell || 0) > 0.45 && (b.shell || 0) > 0.45 && b.n >= 25) { cellSplits++; ev.cell = true; }
+              }
+              events.push(ev);
+            }
+          }
+        });
+        parentsOfCur.forEach((n) => { if (n >= 2) merges++; });
+      }
+      const t = prevLab; prevLab = lab; lab = t; S._hadPrev = true;
+      const shMap = new Map(); for (const c of big) shMap.set(c.id, c.shell || 0); S._prevShell = shMap;
+      big.sort((a, b) => b.n - a.n);
+      const out = {
+        steps: S.steps, time: S.time, N,
+        clusters: nBig, clusteredFrac: inBig / N,
+        meanSpeed: speedSum / N, temperature: tSum / N / 2,
+        coherent: inBig ? cohSum / inBig : 0, rotation: inBig ? rotSum / inBig : 0, rg: inBig ? rgSum / inBig : 0,
+        elong: inBig ? elongSum / inBig : 0, mix: inBig ? mixSum / inBig : 0, shell,
+        meanSize: nBig ? inBig / nBig : 0, maxSize: big.length ? big[0].n : 0,
+        persist, splits, merges, cleanSplits, cellSplits, events,
+      };
+      if (maxList) out.list = big.slice(0, maxList).map((c) => ({ x: c.cx, y: c.cy, n: c.n, vx: c.vx, vy: c.vy, rg: c.rg, omega: c.omega, elong: c.elong, shell: c.shell || 0, sp: Array.from(c.sp) }));
+      return out;
+    };
+    return S;
+  }
+
+  /* ---- lifelikeness score from a time series of stats (search for life) ---- */
+  function score(hist, o) {
+    // hist: array of stats objects from the measurement window
+    const n = hist.length; if (!n) return { score: 0 };
+    const avg = (f) => hist.reduce((s, h) => s + f(h), 0) / n;
+    const rMax = o.rMax;
+    const clusters = avg((h) => h.clusters), frac = avg((h) => h.clusteredFrac), persist = avg((h) => h.persist);
+    const speed = avg((h) => h.meanSpeed) / rMax, coh = avg((h) => h.coherent) / rMax, rot = avg((h) => h.rotation);
+    const temp = avg((h) => h.temperature) / (rMax * rMax), mix = avg((h) => h.mix), shell = avg((h) => h.shell), elong = avg((h) => h.elong);
+    const meanSize = avg((h) => h.meanSize), splits = hist.reduce((s, h) => s + h.splits, 0), maxFrac = avg((h) => h.maxSize / h.N);
+    const expected = o.N / 60; // ~ one cluster per 60 particles is a crowded, cell-like field
+    const cCount = Math.min(1, clusters / Math.max(2, expected * 0.35)) * (maxFrac > 0.5 ? 0.3 : 1);
+    const cFrac = Math.min(1, frac / 0.6);
+    const alive = Math.min(1, (coh + 0.4 * rot) / 0.25);             // movement of whole bodies
+    const notGas = 1 / (1 + Math.pow(temp / 0.35, 2));                // hot, jittery soup is penalised
+    const stable = Math.pow(Math.max(0, persist), 1.5);
+    const organ = 0.5 + 0.5 * Math.min(1, mix * 1.4) * Math.min(1, shell * 1.5 + 0.25);
+    const s = cCount * cFrac * stable * (0.35 + 0.65 * alive) * notGas * organ;
+    return { score: s, clusters, frac, persist, speed, coh, rot, temp, mix, shell, elong, meanSize, splits, maxFrac };
+  }
+
+  return { create, score, rng };
+}
+/*CORE-END*/
+</script>
+<script>
+(function () {
+'use strict';
+
+/* =====================================================================
+   Chapter 10 · Primordial Soup
+   Particle Life (Ventrella's Clusters, Mohr's formulation): K species, an
+   asymmetric K×K attraction matrix, cell-list neighbour search in a Web
+   Worker, a second worker that searches rule space for lifelike worlds,
+   and a WebGL2 dark-field microscope with persistence trails and bloom.
+   ===================================================================== */
+
+const U = Cosmos.util, F = Cosmos.fmt;
+const small = window.matchMedia('(max-width: 760px)').matches;
+const PALETTE = ['#4fe3c1', '#ff5fa2', '#ffc24a', '#5b8cff', '#b7f25a', '#c38bff', '#ff8a5c', '#bfeaff'];
+const GREEK = ['α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η', 'θ'];
+const PAL_F = PALETTE.map((h) => U.rgbf(h));
+
+/* ------------------------------------------------------------ presets */
+// Each preset is a matrix + parameters + seed. Found with the search in tools (see the Notebook tab).
+const PRESETS = [
+  { id: 'cells', name: 'Cells with membranes', K: 3, seed: 1140, A: [-0.25, -0.03, 0.18, -0.77, -0.69, 0.52, 0.53, 0.92, 0.75],
+    note: 'A gold nucleus inside a ring of teal, with pink arcs outside, nested like the layers of a cell. Each layer settles where its attractions balance. Found among 400 random tables by the shell score.' },
+  { id: 'rotors', name: 'Rotors', K: 3, seed: 1163, A: [-0.8, 0.95, -0.01, 0.42, -0.15, 0.81, 0.71, -0.31, 0.19],
+    note: 'Striped balls that spin at about 1.5 rad/s. α is drawn to β, β to γ and γ back to α, and each pull is stronger than the one returned, so the stripes push each other around the ring. Evolved for eight generations from a random table.' },
+  { id: 'worms', name: 'Worms', K: 3, seed: 858481260, A: [-0.01, 0.7, -0.74, -0.95, -0.98, 0.98, -0.05, 0.55, -0.43],
+    note: 'Pink and gold segments alternate down bodies up to a few hundred particles long, which crawl, coil and break. β shuns itself but clings to γ, so the only stable shape is a chain. Evolved for elongation and motion from a predator–prey table.' },
+  { id: 'predator', name: 'Predator and prey', K: 3, seed: 5030, A: [0.2, 0.85, 0.54, -0.8, -0.43, 0.81, 0.4, -0.86, 0.95],
+    note: 'Teal hunts pink (+0.85) and pink flees teal (−0.80). Teal and gold hunters plough through a field of pink prey that scatters in pairs. Found by a targeted search that demanded motion lasting 30 seconds.' },
+  { id: 'mitosis', name: 'Mitosis', K: 4, seed: 1313, A: [0.52, 0.63, -0.89, 0.57, 0.41, 0.78, 0.67, -0.67, -0.08, 0.08, -0.12, -0.34, 0.37, -0.32, -0.84, -0.39], zoom: 2.2,
+    note: 'Teal and pink cores pair up inside blue and gold membranes, then pull apart like chromosomes in a dividing cell. Found by counting divisions in which a membrane-bounded body split into two membrane-bounded bodies.' },
+  { id: 'galaxies', name: 'Galaxies', K: 3, seed: 9004, A: [0.48, 0.26, 0.27, 0.25, 0.01, 0.06, -0.17, 0.82, -0.91], rMax: 21, halfLife: 0.099, forceK: 7, N: 5000, zoom: 1.5,
+    note: 'A gold bulge, a teal disc and a pink ring spin at about 2 rad/s and fling gold arms behind them. It needs a longer reach and less friction, so it came from a search that also varied the physics.' },
+  { id: 'tissue', name: 'Tissue', K: 3, seed: 1247, A: [-0.11, -0.47, -0.4, -0.23, 0.54, -0.89, -0.94, 0.97, 0.08],
+    note: 'Pink nuclei spaced out in a teal honeycomb, like a sheet of epithelium seen from above, with gold droplets in the gaps.' },
+  { id: 'labyrinth', name: 'Labyrinth', K: 3, seed: 1021, A: [0.13, -0.31, -0.37, 0.14, -0.21, -0.7, 0.28, -0.82, 0.03],
+    note: 'Paired teal and pink membranes fold into a maze that slowly coarsens, the kind of pattern Turing predicted for reacting chemicals.' },
+];
+const DEFAULTS = { rMax: 10, halfLife: 0.04, forceK: 10, dt: 0.02, beta: 0.3, density: 12, noise: 1 };
+
+/* ------------------------------------------------------------ text */
+const NOTES = `
+<p>You are looking down a dark-field microscope at a drop of something like the young Earth’s broth. Thousands of glowing particles of a few kinds drift in it. Each kind follows one rule for every other kind: come closer or keep away. Nothing tells them to build anything. The drop starts hot and cools, and within seconds the particles gather into bodies with a core, a skin and sometimes a tail. The edge of each body scatters the light, so it glows like the rim of a cell under a dark-field lens.</p>
+<p>The rules are lopsided. A teal particle can be drawn to a gold one while the gold one flees. For two isolated objects, Newton’s third law forbids that. Particles that feel each other through a flowing, energy-fed medium can break it, because the medium takes up the difference. That lopsidedness is the engine here: it turns a small table of numbers into membranes, spinning rotors and swimming worms.</p>
+<p>About four billion years ago, Earth’s oceans, ponds and hot springs probably held a thin soup of organic molecules. Somewhere in it, chemistry became biology. Nobody knows exactly how. This dish is not that chemistry. It is a picture of its central surprise: structure that holds itself together can come from simple local rules, with no designer.</p>
+<p>Press <strong>Search for life</strong> and a second laboratory starts in the background. It invents random rule tables, grows each one in a small dish for nine simulated seconds and scores what it sees: many bodies, bodies that last, bodies that move. The best rules are mutated and tried again. It is an origin-of-life experiment run by a machine, and a map in the deck fills in to show where in the space of rules the lifelike tables live.</p>
+<h4>Try this</h4>
+<ul>
+<li>Drag through the dish to stir it. Press and hold to heat a patch, then let go and watch the cells re-form. Double-click a cell to follow it.</li>
+<li>Press <strong>Morph</strong> or <kbd>G</kbd>. The rules slide into the next set while the dish keeps running: cells spin up into rotors, and rotors unroll into striped rings.</li>
+<li>Load <strong>Predator and prey</strong> and press <strong>Sweep λ</strong>. The lopsidedness of the rules climbs from 0 to 2 while the deck plots how fast the bodies drift and spin. Nothing swims until λ passes about 0.6. <strong>Symmetrise</strong> (<kbd>S</kbd>) slides λ to 0 and the swimmers stop dead.</li>
+<li>Start the search, then click the brightest dish in the strip to grow it at full size.</li>
+</ul>`;
+
+const SCIENCE = `
+<h4>Particle Life</h4>
+<p>N particles of K species move in a flat box whose edges wrap around (a torus). Particle i feels every particle j closer than the interaction radius r<sub>max</sub>:</p>
+<span class="eq">F<sub>i</sub> = k r<sub>max</sub> Σ<sub>j</sub> f( r<sub>ij</sub> / r<sub>max</sub> ; a<sub>s(i) s(j)</sub> ) r̂<sub>ij</sub></span>
+<span class="eq">f(q; a) = q/β − 1 &nbsp;(q &lt; β), &nbsp; a [1 − |2q − 1 − β| / (1 − β)] &nbsp;(β ≤ q &lt; 1), &nbsp; 0 &nbsp;(q ≥ 1)</span>
+<p>The first branch is a short-range repulsion shared by every pair, so particles never sit on top of each other. The second is a triangular bump of height a that peaks at q = (1 + β)/2. The number a<sub>αβ</sub> is the matrix entry: how strongly species α is drawn to (a &gt; 0) or pushed from (a &lt; 0) species β. Here β = 0.3.</p>
+<p>Motion is integrated with strong friction:</p>
+<span class="eq">v ← 2<sup>−Δt / t<sub>½</sub></sup> v + F Δt, &nbsp;&nbsp; x ← x + v Δt</span>
+<p>with velocity half-life t<sub>½</sub> = 40 ms, time step Δt = 20 ms, force scale k = 10 s⁻² and r<sub>max</sub> = 10 µm. The friction is so strong that a particle forgets its velocity within a few steps, as microscopic objects in water do. Each step also adds a small random velocity kick, uniform with an rms of σ = 1 µm/s per axis, standing in for Brownian motion. The dish holds 12 particles per (10 µm)²: 12,000 particles in 0.1 mm² on a laptop, 4,200 in 0.035 mm² on a phone. The Galaxies rule set uses r<sub>max</sub> = 21 µm, t<sub>½</sub> = 99 ms and k = 7 s⁻² in a smaller dish of 5,000 particles.</p>
+<h4>Why lopsided rules make life-like motion</h4>
+<p>When a<sub>αβ</sub> ≠ a<sub>βα</sub>, particle i can pull j harder than j pulls i. Momentum is then not conserved and there is no energy function for the system to slide down. A pair of species that chase each other becomes a self-propelled swimmer, and a ring of chasers becomes a rotor. Fruchart and colleagues showed in 2021 that such non-reciprocal interactions generically produce time-dependent phases, chasing and rotating states, in active matter from bird flocks to mixtures of self-propelled particles. Press Symmetrise to set a<sub>αβ</sub> = a<sub>βα</sub>: every force becomes one half of an equal and opposite pair, friction drains the motion, and the dish freezes into a static arrangement. The deck’s non-reciprocity readout is η = ‖A<sub>a</sub>‖ / ‖A‖, the share of the matrix in its antisymmetric part A<sub>a</sub> = (A − Aᵀ)/2 (Frobenius norms): 0 for Newtonian rules and around 0.6 for random ones. The graph under the matrix draws an arrow wherever a<sub>αβ</sub> &gt; 0.25 and marks it gold when β pushes back.</p>
+<h4>The reciprocity dial</h4>
+<p>Any matrix splits into a symmetric part, which obeys the third law, and an antisymmetric part, which breaks it. The λ slider keeps the first and scales the second:</p>
+<span class="eq">A(λ) = A<sub>s</sub> + λ A<sub>a</sub>, &nbsp; A<sub>s</sub> = (A + Aᵀ)/2, &nbsp; A<sub>a</sub> = (A − Aᵀ)/2</span>
+<p>with each entry clipped to ±1. λ = 0 is Newtonian, λ = 1 is the rule set as written and λ = 2 doubles its lopsidedness. The diagonal a<sub>αα</sub> does not change. The plot in the deck records the mean drift speed of bodies, |v̄<sub>body</sub>| in µm/s, and their mean spin |ω| in rad/s, both weighted by body size, against λ. In offline runs of Predator and prey (3,000 particles, 8 s at each λ), bodies drifted at 0.3 µm/s at λ = 0, 1.0 µm/s at 0.6 and 6 µm/s at 1, and their spin rose from 0.06 to 2.6 rad/s. In Rotors the balls sat still (|ω| ≤ 0.12 rad/s) up to λ = 0.6 and spun at 1.4 rad/s at λ = 1. Motion switches on at a threshold, not gradually. It is a small cousin of the non-reciprocal phase transitions that Fruchart and colleagues describe. Because bodies need a second or so to respond, a sweep traces the curve slightly late.</p>
+<h4>What is measured</h4>
+<p><strong>Protocells</strong> are found by density-based clustering on the same grid. A particle with at least 6 neighbours within 0.33 r<sub>max</sub> is a core; cores closer than that link up, and their neighbours join them. Bodies of 12 or more particles count. <strong>Temperature</strong> is the kinetic energy per particle of the velocity scatter about the drift of its body, T = ⟨|v − v̄<sub>body</sub>|²⟩ / 2 per unit mass, in µm²/s²; a lone particle counts all of its motion. <strong>Persistence</strong> is the fraction of particles in bodies that were in the same body 0.2 s earlier. A <strong>division</strong> is logged when a body of at least 24 particles ends up as two new bodies that each took at least a quarter of it and came from no other body. It is a <strong>cell division</strong> when the parent and both daughters are layered, with their species sorted into shells.</p>
+<h4>The search for life</h4>
+<p>Each experiment draws K between 3 and 7 and every matrix entry uniformly from −1 to +1, then grows 1,400 particles (900 on a phone) at the same density in a separate worker thread: 300 steps to settle, then 8 samples 20 steps apart. Once four good dishes exist, 60% of new experiments are mutants of the best: every entry nudged by a Gaussian with σ between 0.12 and 0.30, and one in eight redrawn. Dishes that stay a thin gas or collapse into one clump are rejected early. The rest are scored</p>
+<span class="eq">S = C · Φ · P<sup>1.5</sup> · (0.35 + 0.65 M) · Θ · O</span>
+<p>where C rewards many bodies, Φ is the fraction of particles in bodies, P is persistence, M is the motion of whole bodies (drift plus spin), Θ = 1/(1 + (T/T₀)²) with T₀ = 0.35 r<sub>max</sub>² s⁻² penalises a boiling soup, and O rewards bodies built from several species arranged in shells. It is a heuristic stand-in for “looks alive”, run at about one to three experiments per second on a laptop, depending on how many are rejected early.</p>
+<p>The <strong>map of rule space</strong> places every experiment by its non-reciprocity η (across) and its mean self-interaction ⟨a<sub>αα</sub>⟩ (up), how much each species likes its own kind. Colour and size show the score, and a smoothed average of the scores glows underneath. The λ dial moves the dish on stage straight across the map, because it leaves the diagonal alone. In a test of 160 random tables, those with ⟨a<sub>αα</sub>⟩ &lt; 0 averaged a score of 0.42 and those with ⟨a<sub>αα</sub>⟩ ≥ 0 averaged 0.17. Species that shun their own kind can only cluster with other species, and the score rewards mixed, layered bodies. The score barely depends on η, because it rewards bodies that last more than bodies that move.</p>
+<h4>The real primordial soup</h4>
+<p>In the 1920s Aleksandr Oparin and J. B. S. Haldane independently proposed that energy acting on the young Earth’s atmosphere filled the oceans with organic molecules, Haldane’s “hot dilute soup”, from which the first cells assembled. In 1953 Stanley Miller ran sparks through methane, ammonia, hydrogen and water for a week and found amino acids, including glycine and alanine, in the flask. It was the first test of the idea, and it worked.</p>
+<p>Walter Gilbert named the <em>RNA world</em> in 1986: before DNA and proteins, RNA may have been both gene and enzyme. Catalytic RNA exists, and the heart of every ribosome, where proteins are joined, is RNA. Fatty acids self-assemble into hollow vesicles in water, and Jack Szostak’s group has made vesicles that grow and divide. A replicating RNA inside a growing vesicle is one proposal for the first protocell. Alkaline hydrothermal vents offer another setting, with natural chemical gradients across thin mineral walls. Tracing 355 protein families found across all life, Weiss and colleagues reconstructed LUCA, the last universal common ancestor, as an anaerobe that lived on hydrogen and carbon dioxide in a hot, vent-like place.</p>
+<h4>What is simplified</h4>
+<p>This is not chemistry. The particles are not molecules: nothing bonds, reacts, copies itself or uses up fuel. The motion is paid for by the broken third law, an invisible and endless energy supply. None of these bodies carries heredity, which any real definition of life requires. The world is two-dimensional. The glowing rims are drawn at a fixed contour of the smoothed particle density: they show where dark-field light would catch the edge of a body, not a modelled membrane. The dish opens hot, with σ = 16 µm/s of Brownian motion cooling to 1 µm/s over about 4 s, so that you see the bodies condense. The scale bar gives a sense of size only; r<sub>max</sub> = 10 µm makes the bodies about as large as real lipid vesicles. Colours are rendering choices. The presets were found by running the same measurements offline on dishes of 1,600 to 3,000 particles, then checked by eye at full size (see the Notebook tab).</p>
+<span class="cite">Ventrella, J. (2017). Clusters. Interactive simulation, ventrella.com.</span>
+<span class="cite">Fruchart, M., Hanai, R., Littlewood, P. B. &amp; Vitelli, V. (2021). Non-reciprocal phase transitions. Nature 592, 363–369.</span>
+<span class="cite">Miller, S. L. (1953). A production of amino acids under possible primitive Earth conditions. Science 117, 528–529.</span>
+<span class="cite">Gilbert, W. (1986). Origin of life: The RNA world. Nature 319, 618.</span>
+<span class="cite">Szostak, J. W., Bartel, D. P. &amp; Luisi, P. L. (2001). Synthesizing life. Nature 409, 387–390.</span>
+<span class="cite">Weiss, M. C. et al. (2016). The physiology and habitat of the last universal common ancestor. Nature Microbiology 1, 16116.</span>`;
+
+function notebookHTML() {
+  const mini = (p) => {
+    let cells = '';
+    for (let i = 0; i < p.K; i++) for (let j = 0; j < p.K; j++) {
+      const v = p.A[i * p.K + j], a = (0.1 + 0.85 * Math.abs(v)).toFixed(2);
+      cells += `<i style="background:${v >= 0 ? 'rgba(79,227,193,' + a + ')' : 'rgba(255,86,120,' + a + ')'}" title="${GREEK[i]} → ${GREEK[j]}: ${v.toFixed(2)}"></i>`;
+    }
+    const pc = (i) => PALETTE[p.pal ? p.pal[i] : i];
+    const dots = Array.from({ length: p.K }, (_, i) => `<b style="background:${pc(i)};color:${pc(i)}"></b>`).join('');
+    return `<span class="ps-nb-mat" style="--k:${p.K}"><span class="ps-nb-dots">${dots}</span><span class="ps-nb-grid">${cells}</span></span>`;
+  };
+  return `<h4>How the rule sets were found</h4>
+<p>None of these worlds was designed by hand. A script ran this page’s own simulation code in Node.js on small dishes of 1,600 to 3,000 particles. It drew about 2,500 random rule tables from four families: fully random, cyclic chasers (each species drawn to the next), predator–prey templates (one species drawn to a second that flees it) and random tables with random physics. Each dish was measured with the same cluster statistics you see in the deck and ranked for one target behaviour: layered shells, spin, long moving bodies, lasting pursuit, divisions of layered bodies, or large spinning bodies. The best were mutated for up to ten generations and re-run on fresh seeds, then grown for 40 to 60 simulated seconds at full size and checked by eye. Each is stored as a matrix, parameters and a random seed, so it replays the same way on the same screen.</p>
+${PRESETS.map((p) => `<div class="ps-nb">${mini(p)}<div><strong>${p.name}</strong><span class="ps-nb-meta">K = ${p.K} · seed ${p.seed}${p.rMax ? ' · r<sub>max</sub> ' + p.rMax + ' µm' : ''}${p.halfLife ? ' · t<sub>½</sub> ' + Math.round(p.halfLife * 1000) + ' ms' : ''}</span><p>${p.note || ''}</p></div></div>`).join('')}
+<p>Press <kbd>1</kbd> to <kbd>${PRESETS.length}</kbd> to load them. The squares read like the deck’s editor: row species feels column species, green attracts, red repels.</p>`;
+}
+const ch = Cosmos.chapter({ id: 'primordial-soup', notes: NOTES, science: SCIENCE, tabs: [{ id: 'notebook', label: 'Notebook', html: notebookHTML() }] });
+const ERA = U.rgbf(ch.meta.accent);
+
+/* ------------------------------------------------------------ state */
+const P = {
+  K: 3, A: new Float32Array(64), seed: 1, preset: null,
+  N: small ? 4200 : 12000,
+  rMax: DEFAULTS.rMax, halfLife: DEFAULTS.halfLife, forceK: DEFAULTS.forceK, dt: DEFAULTS.dt, beta: DEFAULTS.beta,
+  W: 400, H: 250, trails: true, speed: 1, noise: DEFAULTS.noise, pal: [0, 1, 2, 3, 4, 5, 6, 7],
+  base: new Float32Array(64), lam: 1, halos: true,   // A = A_s + λ A_a, built from the rule set as written (base)
+};
+/* The reciprocity dial: keep the symmetric part of the rules, scale the antisymmetric part by λ. */
+function applyLam() {
+  const K = P.K, B = P.base, l = P.lam;
+  for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) {
+    const a = B[i * K + j], b = B[j * K + i];
+    P.A[i * K + j] = Math.max(-1, Math.min(1, 0.5 * (a + b) + l * 0.5 * (a - b)));
+  }
+}
+function rebase() { P.base.set(P.A); P.lam = 1; if (typeof sLam !== 'undefined') sLam.set(1); if (typeof lamAnim !== 'undefined') lamAnim.on = false; }
+function etaOf(A, K) { let num = 0, den = 0; for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) { const a = A[i * K + j], b = A[j * K + i]; num += (a - b) * (a - b); den += (a - b) * (a - b) + (a + b) * (a + b); } return den > 0 ? Math.sqrt(num / den) : 0; }
+// Opening: the soup starts hot and cools, so the first seconds show bodies condensing out of a gas.
+const anneal = { on: true, t: 0, from: 16, delay: 0.5, dur: 3.4, frame: 0 };
+function annealTick(dt) {
+  if (!anneal.on || ch.paused) return;
+  anneal.t += dt;
+  const u = U.clamp((anneal.t - anneal.delay) / anneal.dur, 0, 1), v = DEFAULTS.noise + (anneal.from - DEFAULTS.noise) * Math.pow(1 - u, 2.2);
+  P.noise = v;
+  if (anneal.frame++ % 3 === 0 || u >= 1) { sendParams(); sNoise.set(Math.round(v * 2) / 2); }
+  if (u >= 1) { anneal.on = false; P.noise = DEFAULTS.noise; sendParams(); sNoise.set(P.noise); }
+}
+function selfOf(A, K) { let s = 0; for (let i = 0; i < K; i++) s += A[i * K + i]; return s / K; }
+// World: a torus whose aspect matches the first viewport, holding DEFAULTS.density particles per (10 µm)².
+const N_DEFAULT = P.N, N_SCALE = small ? 0.35 : 1;
+P.asp = Math.max(320, innerWidth) / Math.max(320, innerHeight);
+function sizeWorld() {
+  const area = P.N / DEFAULTS.density * DEFAULTS.rMax * DEFAULTS.rMax;
+  P.W = Math.sqrt(area * P.asp); P.H = P.W / P.asp;
+}
+sizeWorld();
+
+/* ------------------------------------------------------------ sim worker */
+function simWorkerMain() {
+  const PL = PLCore();
+  const sim = PL.create();
+  let lastStats = -1e9, statsEvery = 10, spVersion = 0, sentSp = -1, rnd = PL.rng(12345);
+  function spCopy() { const a = sim.arrays().sp; return a.slice(0, sim.N); }
+  onmessage = function (e) {
+    const m = e.data;
+    if (m.type === 'init') {
+      sim.init(m.cfg); sim.setMatrix(m.A, m.K); sim.setSpecies(m.K); spVersion++; lastStats = -1e9;
+      if (m.warm) sim.step(m.warm);
+    } else if (m.type === 'matrix') {
+      const kChanged = m.K !== sim.K; sim.setMatrix(m.A, m.K); if (kChanged) { sim.setSpecies(m.K); spVersion++; }
+    } else if (m.type === 'set') {
+      sim.set(m.o);
+    } else if (m.type === 'count') {
+      sim.setCount(m.N, m.seed); sim.setSpecies(sim.K); spVersion++;
+    } else if (m.type === 'step') {
+      if (m.kicks) for (const k of m.kicks) { if (k.heat) k.rnd = rnd; sim.kick(k); }
+      const t0 = performance.now();
+      sim.step(m.n || 1);
+      const ms = (performance.now() - t0) / (m.n || 1);
+      let stats = null;
+      if (sim.steps - lastStats >= statsEvery) { stats = sim.stats(64); lastStats = sim.steps; stats.ms = performance.now() - t0; }
+      let out = new Float32Array(m.buf);
+      const N = sim.N;
+      if (out.length < N * 4) out = new Float32Array(N * 4 + 4096);
+      const a = sim.arrays(), x = a.x, y = a.y, vx = a.vx, vy = a.vy;
+      for (let i = 0, o = 0; i < N; i++, o += 4) { out[o] = x[i]; out[o + 1] = y[i]; out[o + 2] = vx[i]; out[o + 3] = vy[i]; }
+      const msg = { type: 'frame', buf: out.buffer, N, steps: sim.steps, time: sim.time, ms, stats, id: m.id, g: m.g };
+      const tr = [out.buffer];
+      if (sentSp !== spVersion) { msg.sp = spCopy(); sentSp = spVersion; tr.push(msg.sp.buffer); }
+      postMessage(msg, tr);
+    }
+  };
+}
+let simW;
+try {
+  const src = PLCore.toString() + '\n(' + simWorkerMain.toString() + ')();';
+  simW = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+} catch (err) { ch.fatal('This chapter needs Web Workers to run its chemistry.', err); return; }
+simW.onerror = (e) => { e.preventDefault && e.preventDefault(); ch.fatal('The simulation worker stopped.', e.message || e); };
+
+const bufs = [new ArrayBuffer((P.N + 4096) * 16), new ArrayBuffer((P.N + 4096) * 16)];
+let inflight = 0, frameId = 0, simGen = 0;
+const simInfo = { N: 0, steps: 0, time: 0, ms: 0, stats: null, spDirty: false };
+let pendingKicks = [];
+
+function sendInit(warm) {
+  simGen++;
+  simW.postMessage({ type: 'init', cfg: { N: P.N, K: P.K, W: P.W, H: P.H, rMax: P.rMax, beta: P.beta, halfLife: P.halfLife, forceK: P.forceK, dt: P.dt, seed: P.seed, noise: P.noise }, A: Array.from(P.A.subarray(0, P.K * P.K)), K: P.K, warm: warm || 0 });
+  resetStatsHistory();
+}
+function sendMatrix() { simW.postMessage({ type: 'matrix', A: Array.from(P.A.subarray(0, P.K * P.K)), K: P.K }); }
+function sendParams() { simW.postMessage({ type: 'set', o: { rMax: P.rMax, halfLife: P.halfLife, forceK: P.forceK, dt: P.dt, noise: P.noise } }); }
+
+/* ------------------------------------------------------------ GL */
+const canvas = ch.canvas('ps-gl');
+const ov = ch.canvas('ps-ov');
+const octx = ov.getContext('2d');
+const gl = Cosmos.gl.context(canvas, { alpha: false });
+if (!gl) { ch.fatal('This chapter needs WebGL2, which this browser or device does not provide.'); return; }
+const RT = gl.ext.floatRT || gl.ext.halfFloatRT ? { internal: gl.RGBA16F, type: gl.HALF_FLOAT } : { internal: gl.RGBA8, type: gl.UNSIGNED_BYTE };
+const LOWP = RT.internal === gl.RGBA8; // 8-bit targets cannot fade smoothly, so trails are switched off
+const G = Cosmos.gl;
+
+const VS_PART = `#version 300 es
+layout(location=0) in vec4 aP;
+layout(location=1) in float aS;
+uniform vec2 uCenter, uWorld, uView;
+uniform float uPpu, uSize, uGain, uVref;
+uniform vec3 uPal[8];
+out vec3 vCol; out float vSize;
+void main(){
+  vec2 d = aP.xy - uCenter;
+  d -= uWorld * floor(d / uWorld + 0.5);
+  vec2 ndc = d * uPpu / (uView * 0.5);
+  gl_Position = vec4(ndc.x, -ndc.y, 0.0, 1.0);
+  float sp = length(aP.zw);
+  float hot = smoothstep(0.0, uVref, sp);
+  gl_PointSize = uSize * (1.0 + 0.25 * hot); vSize = gl_PointSize;
+  int s = int(aS + 0.5);
+  vCol = mix(uPal[s], vec3(1.0, 0.8, 0.55), 0.4 * hot * hot) * uGain * (0.85 + 0.9 * hot);
+}`;
+const FS_PART = `#version 300 es
+precision highp float;
+in vec3 vCol; in float vSize; out vec4 o;
+void main(){
+  vec2 p = gl_PointCoord * 2.0 - 1.0; float r2 = dot(p, p);
+  if (r2 > 1.0) discard;
+  float r = sqrt(r2), aa = clamp(2.2 / vSize, 0.04, 0.3);
+  float core = exp(-r2 * 16.0) * 0.5 + (1.0 - smoothstep(0.27 - aa, 0.27 + aa, r)) * 0.8, halo = exp(-r2 * 4.0) * 0.09;
+  o = vec4(vCol * (core + halo), 1.0);
+}`;
+// density of matter for the dark-field halo: wide soft sprites, colour-weighted, alpha = plain density
+const VS_DENS = `#version 300 es
+layout(location=0) in vec4 aP;
+layout(location=1) in float aS;
+uniform vec2 uCenter, uWorld, uView;
+uniform float uPpu, uSize;
+uniform vec3 uPal[8];
+out vec3 vCol;
+void main(){
+  vec2 d = aP.xy - uCenter;
+  d -= uWorld * floor(d / uWorld + 0.5);
+  vec2 ndc = d * uPpu / (uView * 0.5);
+  gl_Position = vec4(ndc.x, -ndc.y, 0.0, 1.0);
+  gl_PointSize = uSize;
+  vCol = uPal[int(aS + 0.5)];
+}`;
+const FS_DENS = `#version 300 es
+precision highp float;
+in vec3 vCol; out vec4 o;
+void main(){
+  vec2 p = gl_PointCoord * 2.0 - 1.0; float r2 = dot(p, p);
+  if (r2 > 1.0) discard;
+  float w = (exp(-r2 * 3.0) - 0.0498) * 1.0524;
+  o = vec4(vCol * w, w);
+}`;
+const FS_FADE = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+uniform sampler2D uPrev; uniform float uDecay; uniform vec2 uShift; uniform float uScale;
+void main(){
+  vec2 p = (vUv - 0.5) * uScale + 0.5 + uShift;
+  vec4 c = texture(uPrev, p);
+  float inside = step(0.0, p.x) * step(p.x, 1.0) * step(0.0, p.y) * step(p.y, 1.0);
+  o = c * uDecay * inside;
+}`;
+const FS_DOWN = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+uniform sampler2D uSrc; uniform vec2 uTexel;
+void main(){
+  vec2 h = uTexel;
+  vec4 s = texture(uSrc, vUv) * 4.0;
+  s += texture(uSrc, vUv - h) + texture(uSrc, vUv + h) + texture(uSrc, vUv + vec2(h.x, -h.y)) + texture(uSrc, vUv - vec2(h.x, -h.y));
+  o = s / 8.0;
+}`;
+const FS_UP = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+uniform sampler2D uSrc, uSkip; uniform vec2 uTexel; uniform float uSkipK;
+void main(){
+  vec2 h = uTexel;
+  vec4 s = texture(uSrc, vUv + vec2(-2.0 * h.x, 0.0)) + texture(uSrc, vUv + vec2(2.0 * h.x, 0.0)) + texture(uSrc, vUv + vec2(0.0, 2.0 * h.y)) + texture(uSrc, vUv + vec2(0.0, -2.0 * h.y));
+  s += (texture(uSrc, vUv + vec2(-h.x, h.y)) + texture(uSrc, vUv + vec2(h.x, h.y)) + texture(uSrc, vUv + vec2(h.x, -h.y)) + texture(uSrc, vUv + vec2(-h.x, -h.y))) * 2.0;
+  o = s / 12.0 + texture(uSkip, vUv) * uSkipK;
+}`;
+const FS_COMP = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+uniform sampler2D uScene, uBloom, uSoft, uDens;
+uniform vec2 uRes, uDensTexel; uniform float uT, uBloomK, uExp, uFocus, uHalo, uIso, uDensPx, uDensR;
+uniform vec3 uEra;
+float hash(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
+void main(){
+  vec2 uv = vUv; vec2 c = uv - 0.5; float asp = uRes.x / uRes.y; vec2 cc = c * vec2(asp, 1.0);
+  float rr = dot(cc, cc);
+  // focus shimmer: a slowly wandering field of slight defocus, like a thin depth of field
+  float n = noise(cc * 2.0 + vec2(uT * 0.045, -uT * 0.035)) * 0.65 + noise(cc * 5.0 - vec2(uT * 0.07, uT * 0.05)) * 0.35;
+  float defocus = uFocus * smoothstep(0.52, 0.85, n + 0.08 * sin(uT * 0.9));
+  vec2 ca = c * (0.0016 + 0.0045 * rr);
+  vec3 sc = vec3(texture(uScene, uv + ca).r, texture(uScene, uv).g, texture(uScene, uv - ca).b);
+  vec3 soft = texture(uSoft, uv).rgb;
+  sc = mix(sc, soft * 1.05, defocus);
+  vec3 col = sc + texture(uBloom, uv).rgb * uBloomK;
+  // dark-field halo: the boundary of every dense body scatters light, so it glows as a thin rim
+  if (uHalo > 0.0) {
+    vec4 D = texture(uDens, uv);
+    float d = D.a;
+    float gx = texture(uDens, uv + vec2(uDensTexel.x, 0.0)).a - texture(uDens, uv - vec2(uDensTexel.x, 0.0)).a;
+    float gy = texture(uDens, uv + vec2(0.0, uDensTexel.y)).a - texture(uDens, uv - vec2(0.0, uDensTexel.y)).a;
+    float grad = max(0.5 * length(vec2(gx, gy)), 1e-4);
+    float distPx = abs(d - uIso) / grad * uDensPx;            // screen pixels from the iso-density contour
+    vec3 hue = D.rgb / max(d, 1e-3);
+    vec3 rimCol = mix(hue, vec3(0.85, 0.95, 1.0), 0.45);
+    float rim = (1.0 - smoothstep(0.6, 1.9, distPx)) * 0.55 + exp(-distPx * 0.28) * 0.22;
+    rim *= smoothstep(0.25, 0.9, grad * uDensR);
+    float fill = smoothstep(uIso * 0.9, uIso * 3.5, d);
+    col += uHalo * (rimCol * rim * 0.28 + mix(hue, uEra, 0.5) * fill * 0.028);
+  }
+  // dark-field background: faint scattered light
+  float fog = noise(cc * 1.4 + uT * 0.008) * 0.6 + noise(cc * 3.7 - uT * 0.012) * 0.4;
+  col += uEra * 0.018 * fog * fog + vec3(0.003, 0.005, 0.010);
+  col *= uExp;
+  float L = max(max(col.r, col.g), col.b);
+  vec3 tm = col / (1.0 + L);
+  tm += vec3(1.0) * smoothstep(1.5, 8.0, L) * 0.18;
+  float vr = length(cc) / (0.5 * sqrt(asp * asp + 1.0));
+  float vig = 1.0 - smoothstep(0.55, 1.08, vr) * 0.82;
+  tm *= vig;
+  tm = pow(max(tm, 0.0), vec3(0.92));
+  uint hh = uint(gl_FragCoord.x) + 4099u * uint(gl_FragCoord.y) + uint(uT * 60.0) * 16777259u;
+  hh = hh * 747796405u + 2891336453u; hh = ((hh >> ((hh >> 28u) + 4u)) ^ hh) * 277803737u; hh = (hh >> 22u) ^ hh;
+  tm += (float(hh & 1023u) / 1023.0 - 0.5) / 160.0;
+  o = vec4(tm, 1.0);
+}`;
+const VS_BOKEH = `#version 300 es
+layout(location=0) in vec4 aB; // x, y (ndc), size px, colour index + alpha*10
+uniform vec3 uPal[8];
+out vec3 vCol; out float vA;
+void main(){ gl_Position = vec4(aB.xy, 0.0, 1.0); gl_PointSize = aB.z; int ci = int(floor(aB.w)); vCol = uPal[ci]; vA = fract(aB.w); }`;
+const FS_BOKEH = `#version 300 es
+precision highp float; in vec3 vCol; in float vA; out vec4 o;
+void main(){ vec2 p = gl_PointCoord * 2.0 - 1.0; float r = length(p); if (r > 1.0) discard;
+  float disc = smoothstep(1.0, 0.9, r) * (0.55 + 0.45 * smoothstep(0.55, 0.95, r));
+  o = vec4(vCol * disc * vA * 0.065, 1.0); }`;
+let progPart, progFade, progDown, progUp, progComp, progBokeh, progDens;
+try {
+  progPart = G.program(gl, VS_PART, FS_PART);
+  progFade = G.program(gl, G.FS_VERT, FS_FADE);
+  progDown = G.program(gl, G.FS_VERT, FS_DOWN);
+  progUp = G.program(gl, G.FS_VERT, FS_UP);
+  progComp = G.program(gl, G.FS_VERT, FS_COMP);
+  progBokeh = G.program(gl, VS_BOKEH, FS_BOKEH);
+  progDens = G.program(gl, VS_DENS, FS_DENS);
+} catch (err) { ch.fatal('A shader failed to compile on this GPU.', err); return; }
+const quad = G.quad(gl);
+
+const MAXN = 24000;
+const vao = gl.createVertexArray();
+const posBuf = gl.createBuffer(), spBuf = gl.createBuffer();
+gl.bindVertexArray(vao);
+gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+gl.bufferData(gl.ARRAY_BUFFER, MAXN * 16, gl.DYNAMIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 16, 0);
+gl.bindBuffer(gl.ARRAY_BUFFER, spBuf);
+gl.bufferData(gl.ARRAY_BUFFER, MAXN, gl.DYNAMIC_DRAW);
+gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 1, gl.UNSIGNED_BYTE, false, 1, 0);
+gl.bindVertexArray(null);
+let drawN = 0;
+const NB = small ? 22 : 46, bokeh = [], bokehData = new Float32Array(NB * 4);
+for (let i = 0; i < NB; i++) bokeh.push({ x: Math.random(), y: Math.random(), r: 0.35 + Math.random() * 0.65, c: Math.floor(Math.random() * 3), a: 0.25 + Math.random() * 0.7, ph: Math.random() * 6.283, d: 0.3 + Math.random() * 0.5 });
+const bokehVao = gl.createVertexArray(), bokehBuf = gl.createBuffer();
+gl.bindVertexArray(bokehVao); gl.bindBuffer(gl.ARRAY_BUFFER, bokehBuf); gl.bufferData(gl.ARRAY_BUFFER, bokehData.byteLength, gl.DYNAMIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 16, 0); gl.bindVertexArray(null);
+const POINT_MAX = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)[1] || 64;
+const palFlat = new Float32Array(24);
+function setPalette(map) { P.pal = map && map.length ? map.slice() : [0, 1, 2, 3, 4, 5, 6, 7]; for (let i = 0; i < 8; i++) { if (P.pal[i] == null) P.pal[i] = i; palFlat.set(PAL_F[P.pal[i]], i * 3); } }
+const COL = (i) => PALETTE[P.pal[i]];
+
+let T = null; // targets
+const MAX_DPR = small ? 2 : 1.5;
+function makeTargets() {
+  const w = canvas.width, h = canvas.height;
+  const mk = (ww, hh) => G.target(gl, { w: Math.max(1, ww), h: Math.max(1, hh), internal: RT.internal, type: RT.type, filter: 'linear', wrap: 'clamp' });
+  if (T) { [T.a, T.b, T.dens, ...T.down, ...T.up].forEach((t) => { gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fbo); }); }
+  T = { a: mk(w, h), b: mk(w, h), dens: mk(Math.ceil(w / 2), Math.ceil(h / 2)), down: [], up: [] };
+  let dw = w, dh = h;
+  for (let i = 0; i < 5; i++) { dw = Math.ceil(dw / 2); dh = Math.ceil(dh / 2); T.down.push(mk(dw, dh)); }
+  for (let i = 0; i < 4; i++) T.up.push(mk(T.down[i].w, T.down[i].h));
+  [T.a, T.b].forEach((t) => { t.bind(); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); });
+}
+function fitAll() {
+  const changed = G.fit(canvas, MAX_DPR);
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const ow = Math.round(ov.clientWidth * dpr), oh = Math.round(ov.clientHeight * dpr);
+  if (ov.width !== ow || ov.height !== oh) { ov.width = ow; ov.height = oh; }
+  if (changed || !T) makeTargets();
+}
+
+/* ------------------------------------------------------------ camera */
+const cam = { cx: P.W / 2, cy: P.H / 2, zoom: small ? 1.25 : 2.1, tz: small ? 1.25 : 2.1, follow: null, intro: small ? null : { t: 0, z0: 2.1, z1: 1.2, dur: 9 } };
+let prevCam = { cx: cam.cx, cy: cam.cy, ppu: 1 };
+function coverPpu() { return Math.max(innerWidth / P.W, innerHeight / P.H); } // CSS px per µm at zoom 1
+function ppuCss() { return coverPpu() * cam.zoom; }
+function wrapD(d, L) { return d - L * Math.floor(d / L + 0.5); }
+function screenToWorld(px, py) {
+  const k = ppuCss();
+  let x = cam.cx + (px - innerWidth / 2) / k, y = cam.cy + (py - innerHeight / 2) / k;
+  x = ((x % P.W) + P.W) % P.W; y = ((y % P.H) + P.H) % P.H;
+  return [x, y];
+}
+function worldToScreen(x, y) {
+  const k = ppuCss();
+  return [innerWidth / 2 + wrapD(x - cam.cx, P.W) * k, innerHeight / 2 + wrapD(y - cam.cy, P.H) * k];
+}
+
+/* ------------------------------------------------------------ pointer: stir, heat, zoom */
+const ptr = { down: false, id: -1, x: 0, y: 0, lx: 0, ly: 0, lt: 0, vx: 0, vy: 0, t0: 0, moved: 0, mode: null, heatT: 0, hoverX: -1, hoverY: -1 };
+const touches = new Map(); let pinch = null;
+canvas.addEventListener('pointerdown', (e) => {
+  touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (touches.size === 2) { // pinch-zoom
+    const [a, b] = [...touches.values()];
+    pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), z: cam.tz, mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2 };
+    ptr.down = false; ptr.mode = null; setMode(null); return;
+  }
+  if (e.button === 2) return;
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ }
+  Object.assign(ptr, { down: true, id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, lt: performance.now(), vx: 0, vy: 0, t0: performance.now(), moved: 0, mode: 'pending', heatT: 0 });
+});
+canvas.addEventListener('pointermove', (e) => {
+  ptr.hoverX = e.clientX; ptr.hoverY = e.clientY;
+  if (touches.has(e.pointerId)) touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pinch && touches.size === 2) {
+    const [a, b] = [...touches.values()];
+    const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    zoomAt(pinch.mx, pinch.my, U.clamp(pinch.z * d / pinch.d, 1, 6), true);
+    return;
+  }
+  if (!ptr.down || e.pointerId !== ptr.id) return;
+  const now = performance.now(), dtp = Math.max(1, now - ptr.lt) / 1000;
+  const dx = e.clientX - ptr.lx, dy = e.clientY - ptr.ly;
+  ptr.vx = U.lerp(ptr.vx, dx / dtp, 0.5); ptr.vy = U.lerp(ptr.vy, dy / dtp, 0.5);
+  ptr.moved += Math.hypot(dx, dy);
+  ptr.lx = e.clientX; ptr.ly = e.clientY; ptr.lt = now; ptr.x = e.clientX; ptr.y = e.clientY;
+  if (ptr.mode === 'pending' && ptr.moved > 6) { ptr.mode = 'stir'; setMode('stir'); }
+});
+const endPtr = (e) => {
+  touches.delete(e.pointerId);
+  if (touches.size < 2) pinch = null;
+  if (e.pointerId !== ptr.id) return;
+  ptr.down = false; ptr.mode = null; setMode(null);
+};
+canvas.addEventListener('pointerup', endPtr);
+canvas.addEventListener('pointercancel', endPtr);
+canvas.addEventListener('pointerleave', () => { ptr.hoverX = -1; });
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+canvas.addEventListener('wheel', (e) => { e.preventDefault(); zoomAt(e.clientX, e.clientY, U.clamp(cam.tz * Math.exp(-e.deltaY * 0.0015), 1, 6)); }, { passive: false });
+function zoomAt(px, py, z, immediate) {
+  cam.intro = null;
+  const before = screenToWorld(px, py);
+  cam.tz = z;
+  if (immediate) cam.zoom = z;
+  cam.anchor = { px, py, wx: before[0], wy: before[1] };
+}
+function setMode(m) {
+  document.body.classList.toggle('ps-heating', m === 'heat');
+  document.body.classList.toggle('ps-stirring', m === 'stir');
+}
+function queueHeat(px, py, amount, radiusR) {
+  const [x, y] = screenToWorld(px, py);
+  pendingKicks.push({ x, y, r: P.rMax * radiusR, vx: 0, vy: 0, heat: P.rMax * 30 * amount });
+  heatFx.push({ x, y, t: 0, r: radiusR, a: amount });
+}
+const heatFx = [];
+
+function pointerKicks(dt) {
+  if (!ptr.down) return;
+  const held = (performance.now() - ptr.t0) / 1000;
+  if (ptr.mode === 'pending' && held > 0.18) { ptr.mode = 'heat'; setMode('heat'); }
+  const k = ppuCss();
+  const [x, y] = screenToWorld(ptr.x, ptr.y);
+  if (ptr.mode === 'stir') {
+    const vx = U.clamp(ptr.vx / k, -P.rMax * 60, P.rMax * 60), vy = U.clamp(ptr.vy / k, -P.rMax * 60, P.rMax * 60);
+    pendingKicks.push({ x, y, r: P.rMax * 2.6, vx: vx * 0.22, vy: vy * 0.22, radial: P.rMax * 2.5 });
+    ptr.vx *= 0.85; ptr.vy *= 0.85;
+  } else if (ptr.mode === 'heat') {
+    ptr.heatT += dt;
+    const ramp = U.clamp(ptr.heatT / 1.5, 0.15, 1);
+    pendingKicks.push({ x, y, r: P.rMax * (2 + 2.5 * ramp), vx: 0, vy: 0, heat: P.rMax * 14 * ramp });
+  }
+}
+
+/* ------------------------------------------------------------ sim bookkeeping */
+let statsHist = [];
+let initTime = 0;
+function resetStatsHistory() {
+  initTime = 0; slowFor = 0; slowWarned = false; if (typeof cellDivisions !== 'undefined') cellDivisions = 0; statsHist = []; if (chart) chart.clear(); divisions = 0; if (typeof bodies !== 'undefined') { bodies.list = []; callout.b = null; cam.follow = null; } }
+let lastStats = null;
+simW.onmessage = (e) => {
+  const m = e.data;
+  if (m.type !== 'frame') return;
+  inflight--;
+  const f = new Float32Array(m.buf);
+  gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+  const n = Math.min(m.N, MAXN);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, f, 0, n * 4);
+  if (m.sp) { gl.bindBuffer(gl.ARRAY_BUFFER, spBuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, m.sp, 0, Math.min(m.sp.length, MAXN)); }
+  drawN = n;
+  simInfo.N = m.N; simInfo.steps = m.steps; simInfo.time = m.time; simInfo.ms = U.lerp(simInfo.ms || m.ms, m.ms, 0.1);
+  if (m.buf.byteLength >= (P.N + 16) * 16) bufs.push(m.buf); else bufs.push(new ArrayBuffer((MAXN + 64) * 16));
+  if (m.stats && m.g === simGen) onStats(m.stats);
+  // warn once per rule set if the chemistry has collapsed into very dense clumps that slow every step
+  if (simInfo.ms > 24 && simInfo.steps > 150) { slowFor += 1; if (slowFor > 120 && !slowWarned) { slowWarned = true; ch.toast(`Dense clumps make each step cost ${Math.round(simInfo.ms)} ms. Try Reseed, fewer particles or more Brownian motion.`, 5200); } }
+  else slowFor = Math.max(0, slowFor - 1);
+};
+let slowFor = 0, slowWarned = false;
+let stepAcc = 0;
+function requestStep(dt) {
+  if (ch.paused || document.hidden) { stepAcc = 0; return; }
+  stepAcc = Math.min(stepAcc + (dt || 0) * 60 * P.speed, 4 * P.speed); // 60 steps per second, whatever the display rate
+  if (inflight > 0 || !bufs.length || stepAcc < 1) return;
+  const n = Math.floor(stepAcc); stepAcc -= n;
+  const buf = bufs.pop();
+  const kicks = pendingKicks.length ? pendingKicks : null; pendingKicks = [];
+  simW.postMessage({ type: 'step', buf, n, kicks, id: ++frameId, g: simGen }, [buf]);
+  inflight++;
+}
+
+/* ------------------------------------------------------------ UI: HUD */
+const hud = {
+  clusters: ch.hud.add('Protocells', '—'),
+  speed: ch.hud.add('Mean speed', '—'),
+  temp: ch.hud.add('Temperature', '—'),
+  fps: ch.hud.add('Frame rate', '—'),
+};
+
+/* ------------------------------------------------------------ UI: deck */
+const gPre = ch.ui.group('Rule sets');
+const presetSel = gPre.select({ id: 'ps-preset', options: PRESETS.map((p) => ({ value: p.id, label: p.name })).concat([{ value: 'custom', label: 'Custom rules' }]), value: 'cells', onChange: (v) => { const p = PRESETS.find((x) => x.id === v); if (p) loadPreset(p); } });
+gPre.buttons([
+  { label: 'Reseed soup', onClick: () => reseed() },
+  { label: 'Random rules', onClick: () => randomRules() },
+]);
+const [morphBtn] = gPre.buttons([{ id: 'ps-morph', label: 'Morph into Rotors', title: 'Slide the matrix smoothly into the next rule set without resetting the dish (G)', onClick: () => morphNext() }]);
+
+/* ------------------------------------------------------------ Newton's third law: the reciprocity dial */
+const gLam = ch.ui.group('Newton’s third law');
+const sLam = gLam.slider({ id: 'ps-lam', label: 'Lopsidedness λ', min: 0, max: 2, step: 0.01, value: 1,
+  format: (v) => (v < 0.005 ? '0 · every pull returned' : v.toFixed(2) + (Math.abs(v - 1) < 0.005 ? ' · as written' : '')),
+  hint: 'Scales the antisymmetric part of the matrix. At 0 every pull is returned in kind, as Newton’s third law demands. At 1 the rules run as written.',
+  onInput: (v) => { lamAnim.on = false; setLam(v); } });
+const [symBtn, sweepBtn] = gLam.buttons([
+  { id: 'ps-sym', label: 'Symmetrise', title: 'Slide λ to 0: make every interaction reciprocal (S)', onClick: () => symToggle() },
+  { id: 'ps-sweep', label: 'Sweep λ 0 → 2', title: 'Run λ slowly from 0 to 2 and plot how the bodies respond', onClick: () => sweepToggle() },
+]);
+const lamPlot = gLam.canvas(128);
+const lamRo = gLam.readouts([{ id: 'eta', label: 'Non-reciprocity' }, { id: 'drift', label: 'Body drift' }, { id: 'spin', label: 'Body spin' }]);
+const lamAnim = { on: false, from: 1, to: 1, t: 0, dur: 2.5, sweep: false };
+const lamPts = []; // {l, drift, spin, t}
+let lamFrame = 0;
+function setLam(v) {
+  P.lam = v; applyLam();
+  if (lamFrame++ % 3 === 0 || !lamAnim.on) { drawMatrix(); drawGraph(); drawMap(); }
+  if (!matSendPending) { matSendPending = true; requestAnimationFrame(() => { matSendPending = false; sendMatrix(); }); }
+  syncLamBtns();
+}
+function animLam(to, dur, sweep) { lastLoad = performance.now(); lamAnim.on = true; lamAnim.from = P.lam; lamAnim.to = to; lamAnim.t = 0; lamAnim.dur = dur; lamAnim.sweep = !!sweep; morph.on = false; syncLamBtns(); }
+function symToggle() {
+  if (P.lam < 0.02 && !lamAnim.on) { animLam(1, 2.5); log('Restoring the lopsided rules: <b>λ → 1</b>'); }
+  else { animLam(0, 3); log('Symmetrising: <b>λ → 0</b>. Every pull will be returned in kind'); }
+}
+function sweepToggle() {
+  if (lamAnim.on && lamAnim.sweep) { lamAnim.on = false; syncLamBtns(); return; }
+  lamPts.length = 0; P.lam = 0; setLam(0); sLam.set(0);
+  animLam(2, 26, true);
+  log('Sweeping <b>λ from 0 to 2</b> over 26 s: watch the order parameters in the deck');
+  ch.openDeck(true);
+}
+function lamTick(dt) {
+  if (!lamAnim.on || ch.paused) return;
+  lamAnim.t += dt;
+  const u = Math.min(1, lamAnim.t / lamAnim.dur), e = lamAnim.sweep ? u : u * u * (3 - 2 * u);
+  const v = lamAnim.from + (lamAnim.to - lamAnim.from) * e;
+  sLam.set(v); setLam(v);
+  if (u >= 1) {
+    lamAnim.on = false; lastLoad = performance.now();
+    if (lamAnim.sweep) { log('Sweep done. Back to the rules <b>as written</b>'); animLam(1, 3); }
+    else if (v < 0.01) { const s = lastStats; log(`λ = 0: the rules are reciprocal${s ? `, bodies drift at ${s.coherent.toFixed(1)} µm/s` : ''}`); }
+    syncLamBtns();
+  }
+}
+function syncLamBtns() {
+  symBtn.setLabel(P.lam < 0.02 && !lamAnim.on ? 'Restore λ = 1' : 'Symmetrise');
+  const sw = lamAnim.on && lamAnim.sweep; sweepBtn.setLabel(sw ? 'Stop the sweep' : 'Sweep λ 0 → 2'); sweepBtn.setPressed(sw);
+}
+function drawLamPlot() {
+  const g = canvasCtx(lamPlot); if (!g) return;
+  const { x, w, h } = g, pl = 30, pr = 30, pt = 20, pb = 16;
+  x.clearRect(0, 0, w, h);
+  let dMax = 2, sMax = 0.5;
+  for (const p of lamPts) { dMax = Math.max(dMax, p.drift * 1.1); sMax = Math.max(sMax, p.spin * 1.1); }
+  const tx = (l) => pl + l / 2 * (w - pl - pr), tyD = (v) => h - pb - Math.min(1, v / dMax) * (h - pt - pb), tyS = (v) => h - pb - Math.min(1, v / sMax) * (h - pt - pb);
+  x.font = `500 9px ${FONT_MONO}`; x.textBaseline = 'middle';
+  x.strokeStyle = 'rgba(236,230,214,.08)'; x.lineWidth = 1;
+  [0, 0.5, 1].forEach((f) => { const y = h - pb - f * (h - pt - pb); x.beginPath(); x.moveTo(pl, y); x.lineTo(w - pr, y); x.stroke(); });
+  x.textAlign = 'right'; x.fillStyle = 'rgba(79,227,193,.75)'; x.fillText(dMax < 10 ? dMax.toFixed(1) : dMax.toFixed(0), pl - 4, pt); x.fillText('0', pl - 4, h - pb);
+  x.textAlign = 'left'; x.fillStyle = 'rgba(255,194,74,.8)'; x.fillText(sMax.toFixed(1), w - pr + 4, pt); x.fillText('0', w - pr + 4, h - pb);
+  x.textBaseline = 'alphabetic'; x.fillStyle = 'rgba(94,100,121,.95)'; x.textAlign = 'center';
+  [0, 0.5, 1, 1.5, 2].forEach((l) => x.fillText(l === 0 ? 'λ 0' : String(l), tx(l), h - 3));
+  // rules as written
+  x.strokeStyle = 'rgba(236,230,214,.18)'; x.setLineDash([2, 3]); x.beginPath(); x.moveTo(tx(1), pt); x.lineTo(tx(1), h - pb); x.stroke(); x.setLineDash([]);
+  const now = performance.now();
+  for (const p of lamPts) {
+    const a = 0.35 + 0.65 * Math.exp(-(now - p.t) / 20000);
+    x.fillStyle = `rgba(79,227,193,${a})`; x.beginPath(); x.arc(tx(p.l), tyD(p.drift), 1.7, 0, 7); x.fill();
+    x.fillStyle = `rgba(255,194,74,${a})`; x.beginPath(); x.arc(tx(p.l), tyS(p.spin), 1.7, 0, 7); x.fill();
+  }
+  // the present
+  x.strokeStyle = 'rgba(236,230,214,.7)'; x.beginPath(); x.moveTo(tx(P.lam), pt); x.lineTo(tx(P.lam), h - pb); x.stroke();
+  x.textAlign = 'left'; x.textBaseline = 'top'; x.font = `500 9px ${FONT_MONO}`;
+  x.fillStyle = 'rgba(79,227,193,.9)'; x.fillText('● body drift, µm/s', 4, 4);
+  x.fillStyle = 'rgba(255,194,74,.9)'; x.textAlign = 'right'; x.fillText('body spin, rad/s ●', w - 4, 4);
+  if (!lamPts.length) { x.textAlign = 'center'; x.fillStyle = 'rgba(94,100,121,.95)'; x.fillText('move λ or press Sweep to trace the curve', (pl + w - pr) / 2, h / 2 - 4); }
+}
+
+/* ------------------------------------------------------------ search for life (worker) */
+function searchWorkerMain() {
+  const PL = PLCore();
+  let running = false, cfg = null, trial = 0, gen = 0, best = [], rnd = PL.rng((Date.now() ^ 0x5eed) >>> 0), job = null, t0 = 0;
+  const gauss = () => { let u = 0; while (u === 0) u = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(6.283185307 * rnd()); };
+  const r2 = (v) => Math.round(v * 100) / 100;
+  function candidate() {
+    trial++;
+    let K, A, parent = null;
+    if (best.length >= 4 && rnd() < 0.6) {
+      // mutate one of the best (rank-weighted)
+      const p = best[Math.min(best.length - 1, Math.floor(Math.pow(rnd(), 1.8) * best.length))];
+      parent = p.id; K = p.K; A = p.A.slice();
+      const sigma = 0.12 + 0.18 * rnd();
+      for (let i = 0; i < K * K; i++) {
+        if (rnd() < 0.12) A[i] = r2(rnd() * 2 - 1);
+        else A[i] = r2(Math.max(-1, Math.min(1, A[i] + gauss() * sigma)));
+      }
+      gen = Math.max(gen, (p.gen || 0) + 1);
+      return { id: trial, K, A, seed: (rnd() * 1e9) | 0, parent, gen: (p.gen || 0) + 1 };
+    }
+    K = 3 + Math.floor(rnd() * 5);
+    A = []; for (let i = 0; i < K * K; i++) A.push(r2(rnd() * 2 - 1));
+    return { id: trial, K, A, seed: (rnd() * 1e9) | 0, parent, gen: 0 };
+  }
+  function startJob() {
+    const c = candidate();
+    const sim = PL.create();
+    const NS = cfg.N, area = NS / cfg.density * cfg.rRef * cfg.rRef, W = Math.sqrt(area * 2), H = W / 2;
+    sim.init({ N: NS, K: c.K, W, H, rMax: cfg.rMax, halfLife: cfg.halfLife, forceK: cfg.forceK, dt: cfg.dt, noise: cfg.noise || 0, seed: c.seed });
+    sim.setMatrix(c.A, c.K); sim.setSpecies(c.K);
+    c.phys = { rMax: cfg.rMax, halfLife: cfg.halfLife, forceK: cfg.forceK, dt: cfg.dt, noise: cfg.noise || 0 };
+    job = { c, sim, phase: 0, hist: [], W, H };
+    t0 = performance.now();
+  }
+  function snap(final) {
+    const a = job.sim.arrays(), N = job.sim.N;
+    const xy = new Float32Array(N * 2); for (let i = 0; i < N; i++) { xy[2 * i] = a.x[i] / job.W; xy[2 * i + 1] = a.y[i] / job.H; }
+    const sp = a.sp.slice(0, N);
+    return { xy, sp };
+  }
+  const WARM = 300, SAMPLES = 8, GAP = 20, TOTAL = WARM + SAMPLES * GAP;
+  let held = false, scheduled = false;
+  function schedule() { if (!scheduled) { scheduled = true; setTimeout(() => { scheduled = false; tick(); }, 0); } }
+  function tick() {
+    if (!running || held) return;
+    if (!job) startJob();
+    const s = job.sim;
+    const until = Math.min(TOTAL, s.steps + 30);
+    while (s.steps < until) {
+      s.step(1);
+      if (s.steps === WARM) s.stats();
+      else if (s.steps > WARM && (s.steps - WARM) % GAP === 0) job.hist.push(s.stats());
+    }
+    // early rejection: frozen gas or runaway collapse
+    const early = s.steps === 120 ? s.stats() : null;
+    if (early && (early.clusteredFrac < 0.08 || early.maxSize > s.N * 0.6)) { job.hist = [early]; job.rejected = true; }
+    const sn = snap();
+    postMessage({ type: 'live', id: job.c.id, gen: job.c.gen, K: job.c.K, progress: s.steps / TOTAL, xy: sn.xy, sp: sn.sp }, [sn.xy.buffer, sn.sp.buffer]);
+    if (s.steps >= TOTAL || job.rejected) {
+      const sc = job.rejected ? { score: 0 } : PL.score(job.hist, { rMax: cfg.rMax, N: s.N });
+      const c = job.c; c.score = sc.score; c.m = sc;
+      const fin = snap();
+      if (c.score > 0) {
+        best.push(c); best.sort((a, b) => b.score - a.score); if (best.length > 12) best.length = 12;
+      }
+      postMessage({ type: 'result', c, ms: performance.now() - t0, xy: fin.xy, sp: fin.sp, trial, gen }, [fin.xy.buffer, fin.sp.buffer]);
+      job = null;
+    }
+    schedule();
+  }
+  onmessage = function (e) {
+    const m = e.data;
+    if (m.type === 'start') { cfg = m.cfg; if (m.reset) { best = []; trial = 0; gen = 0; } if (m.seedBest) m.seedBest.forEach((b) => best.push(b)); if (!running) { running = true; job = null; schedule(); } }
+    else if (m.type === 'stop') { running = false; job = null; }
+    else if (m.type === 'hold') { held = !!m.on; if (!held && running) schedule(); }
+  };
+}
+let searchW = null;
+const search = { all: [], hist: [], running: false, trials: 0, gen: 0, best: [], live: null, t0: 0, rate: 0, shown: null, autoShow: true, lastAuto: 0, rejected: 0 };
+function ensureSearchWorker() {
+  if (searchW) return true;
+  try {
+    const src = PLCore.toString() + '\n(' + searchWorkerMain.toString() + ')();';
+    searchW = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+    searchW.onerror = (e) => { e.preventDefault && e.preventDefault(); search.running = false; syncSearchBtn(); ch.toast('The search stopped unexpectedly'); };
+    searchW.onmessage = onSearchMsg;
+    return true;
+  } catch (err) { ch.toast('Search needs Web Workers'); return false; }
+}
+function startSearch(auto) {
+  if (!ensureSearchWorker()) return;
+  search.userStarted = !auto;
+  search.running = true; search.t0 = performance.now(); search.trials0 = search.trials;
+  searchW.postMessage({ type: 'start', cfg: { N: small ? 900 : 1400, density: DEFAULTS.density, rRef: DEFAULTS.rMax, rMax: P.rMax, halfLife: P.halfLife, forceK: P.forceK, dt: P.dt, noise: anneal.on ? DEFAULTS.noise : P.noise } });
+  syncSearchBtn();
+  log(auto ? 'The lab starts <b>searching for life</b> on its own' : 'Search for life <b>started</b>: random rule sets, then mutants of the best');
+}
+function stopSearch() {
+  if (searchW) searchW.postMessage({ type: 'stop' });
+  search.running = false; search.live = null; syncSearchBtn(); drawPetri();
+}
+function onSearchMsg(e) {
+  const m = e.data;
+  if (m.type === 'live') { search.live = m; }
+  else if (m.type === 'result') {
+    search.trials = m.trial; search.gen = Math.max(search.gen, m.c.gen || 0);
+    const el = (performance.now() - search.t0) / 1000;
+    search.rate = el > 0 ? (m.trial - (search.trials0 || 0)) / el : 0;
+    if (m.c.score <= 0) search.rejected++;
+    const c = m.c; c.xy = m.xy; c.sp = m.sp;
+    search.all.push({ id: c.id, K: c.K, A: c.A, seed: c.seed, phys: c.phys, score: Math.max(0, c.score), m: c.m, gen: c.gen, parent: c.parent, eta: etaOf(c.A, c.K), self: selfOf(c.A, c.K) });
+    if (search.all.length > 600) search.all.shift();
+    search.hist.push({ i: c.id, s: Math.max(0, c.score), mut: !!c.parent }); if (search.hist.length > 400) search.hist.shift();
+    drawProgress(); drawMap();
+    if (c.score > 0.05) {
+      const prevTop = search.best[0] ? search.best[0].score : 0;
+      search.best.push(c); search.best.sort((a, b) => b.score - a.score); if (search.best.length > 8) search.best.length = 8;
+      if (c.score > prevTop) {
+        soundDiscovery();
+        log(`Experiment ${c.id}: new best · <b>${c.score.toFixed(2)}</b> · ${tagOf(c.m)}${c.parent ? ' · mutant of ' + c.parent : ''}`);
+        const now = performance.now(), quiet = now - lastInteract > (search.userStarted ? 2500 : 30000);
+        if (!search.userStarted && search.trials >= 6 && c.score > Math.max(0.6, liveScore + 0.05) && now - (search.lastToast || -1e9) > 45000) { search.lastToast = now; ch.toast(`Experiment ${c.id} looks lifelike (${c.score.toFixed(2)}). Click its dish in the deck to grow it.`); }
+        if (search.autoShow && search.userStarted && quiet && now - search.lastAuto > 8000 && c.score > Math.max(0.3, liveScore + 0.05)) { search.lastAuto = performance.now(); loadCandidate(c, true); }
+      }
+      drawThumbs();
+    }
+  }
+}
+function tagOf(m) { // a two-word field name for a dish, from its measurements
+  if (!m) return 'soup';
+  const adj = m.shell > 0.8 ? 'layered' : m.mix > 0.75 ? 'mixed' : m.elong > 2.2 ? 'long' : 'simple';
+  const noun = m.rot > 0.8 ? 'rotors' : m.coh > 0.45 ? 'swimmers' : m.elong > 2.2 ? 'filaments' : m.clusters > 30 ? 'protocells' : 'bodies';
+  return adj + ' ' + noun;
+}
+function loadCandidate(c, auto) {
+  lastLoad = performance.now(); morph.on = false;
+  P.preset = null; presetSel.set('custom');
+  setWorldN(N_DEFAULT);
+  P.K = c.K; P.A.fill(0); c.A.forEach((v, i) => (P.A[i] = v)); P.seed = c.seed; setPalette(null); rebase(); lamPts.length = 0; anneal.on = false;
+  const ph = c.phys || DEFAULTS;
+  P.rMax = ph.rMax; P.halfLife = ph.halfLife; P.forceK = ph.forceK; P.dt = ph.dt; P.noise = ph.noise != null ? ph.noise : DEFAULTS.noise;
+  sR.set(P.rMax); sF.set(P.halfLife); sG.set(P.forceK); sT.set(P.dt); sNoise.set(P.noise);
+  sK.set(P.K);
+  sendInit(0); drawMatrix(); drawGraph(); legend(); drawMap(); drawLamPlot();
+  search.shown = c.id; drawThumbs();
+  if (!auto) log(`Growing experiment ${c.id} at full size · ${tagOf(c.m)} · ${c.K} species`);
+  else ch.toast(`Experiment ${c.id}, ${tagOf(c.m)}: the most lifelike rule set so far`);
+}
+
+let lastInteract = -1e9, lastAny = -1e9, lastLoad = performance.now();
+['pointerdown', 'keydown', 'wheel', 'input'].forEach((ev) => window.addEventListener(ev, () => { lastAny = performance.now(); }, { passive: true, capture: true }));
+['pointerdown', 'wheel'].forEach((ev) => canvas.addEventListener(ev, () => { lastInteract = performance.now(); }, { passive: true }));
+window.addEventListener('keydown', () => { lastInteract = performance.now(); });
+const gSearch = ch.ui.group('Search for life');
+function searchButton() {
+  if (search.running && search.userStarted) { stopSearch(); return; }
+  if (search.running) { // the lab was already searching on its own: hand it to the visitor
+    search.userStarted = true; syncSearchBtn();
+    log('Search for life: now showing each new best here');
+    const b = search.best[0]; if (b && b.score > liveScore) loadCandidate(b, true);
+    return;
+  }
+  startSearch(false);
+}
+const [searchBtn] = gSearch.buttons([{ id: 'ps-search', label: 'Search for life', kind: 'primary', onClick: searchButton }]);
+function syncSearchBtn() { const mine = search.running && search.userStarted; searchBtn.setLabel(mine ? 'Stop the search' : (search.trials && !search.running ? 'Resume the search' : 'Search for life')); searchBtn.el.classList.toggle('primary', !mine); searchBtn.setPressed(mine); }
+const statusEl = gSearch.html(Cosmos.h('div', { class: 'ps-status', html: '<span>Idle</span><span></span>' }));
+const petri = gSearch.canvas(136); petri.classList.add('ps-petri');
+const thumbs = gSearch.canvas(118); thumbs.classList.add('ps-thumbs');
+const progC = gSearch.canvas(64);
+const mapC = gSearch.canvas(210); mapC.classList.add('ps-map');
+const tAuto = gSearch.toggle({ id: 'ps-auto', label: 'Show each new best', value: true, onChange: (v) => (search.autoShow = v) });
+gSearch.note('Each experiment grows a small dish for 9 simulated seconds and scores it for stable, moving, structured bodies. Click a dish, or a point on the map, to grow it here. The map places every rule table by how lopsided it is (η) and how much each species likes its own kind; diamonds are the named rule sets, the ring is the dish on stage.');
+
+function canvasCtx(c) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.round(c.clientWidth * dpr), H = Math.round(c.clientHeight * dpr);
+  if (!W || !H) return null;
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { x, w: c.clientWidth, h: c.clientHeight };
+}
+const FONT_MONO = getComputedStyle(document.documentElement).getPropertyValue('--f-mono') || 'monospace';
+const FONT_DISPLAY = getComputedStyle(document.documentElement).getPropertyValue('--f-display') || 'serif';
+const MONO = () => FONT_MONO;
+function dots(x, xy, sp, ox, oy, w, h, r) {
+  x.globalCompositeOperation = 'lighter';
+  for (let s = 0; s < 8; s++) {
+    x.fillStyle = PALETTE[s];
+    x.beginPath();
+    for (let i = 0; i < sp.length; i++) if (sp[i] === s) { const px = ox + xy[2 * i] * w, py = oy + xy[2 * i + 1] * h; x.moveTo(px + r, py); x.arc(px, py, r, 0, 6.283); }
+    x.globalAlpha = 0.9; x.fill();
+  }
+  x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
+}
+function drawPetri() {
+  const g = canvasCtx(petri); if (!g) return;
+  const { x, w, h } = g;
+  x.clearRect(0, 0, w, h);
+  x.fillStyle = '#04050a'; x.fillRect(0, 0, w, h);
+  const L = search.live;
+  if (L && search.running) {
+    const dw = Math.max(w, h * 2), dh = dw / 2, ox = (w - dw) / 2, oy = (h - dh) / 2;
+    dots(x, L.xy, L.sp, ox, oy, dw, dh, 0.85);
+    x.fillStyle = 'rgba(79,227,193,.9)'; x.fillRect(0, h - 2, w * L.progress, 2);
+    const band = x.createLinearGradient(0, 0, 0, 24); band.addColorStop(0, 'rgba(4,5,10,.9)'); band.addColorStop(1, 'rgba(4,5,10,0)');
+    x.fillStyle = band; x.fillRect(0, 0, w, 24);
+    x.font = `500 10px ${MONO()}`; x.fillStyle = 'rgba(236,230,214,.85)'; x.textAlign = 'left'; x.textBaseline = 'top';
+    x.fillText(`EXP ${L.id} · ${L.K} species${L.gen ? ' · gen ' + L.gen : ''}`, 7, 6);
+    x.textAlign = 'right'; x.fillStyle = 'rgba(151,157,178,.9)';
+    x.fillText(L.progress < 300 / 460 ? 'growing' : 'measuring', w - 7, 6);
+  } else {
+    x.font = `500 10.5px ${MONO()}`; x.fillStyle = 'rgba(94,100,121,.95)'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(search.running ? 'preparing the first dish' : search.trials ? 'search paused' : 'press Search for life', w / 2, h / 2 - 7);
+    x.fillStyle = 'rgba(94,100,121,.6)'; x.fillText(search.running ? 'random rules, ' + (small ? '900' : '1,400') + ' particles' : search.trials ? search.trials + ' experiments so far' : 'or wait: the lab starts on its own', w / 2, h / 2 + 9);
+  }
+  x.strokeStyle = 'rgba(236,230,214,.12)'; x.strokeRect(0.5, 0.5, w - 1, h - 1);
+  const st = statusEl.children;
+  st[0].innerHTML = search.running ? `Experiments <b>${F.num(search.trials)}</b>` : (search.trials ? `${F.num(search.trials)} experiments` : 'Idle');
+  st[1].textContent = search.running ? (search.rate ? search.rate.toFixed(1) + ' / s · gen ' + search.gen : 'starting…') : (search.best[0] ? 'best ' + search.best[0].score.toFixed(2) : '');
+}
+const thumbGeo = { cols: 4, rows: 2, hover: -1 };
+function drawThumbs() {
+  const g = canvasCtx(thumbs); if (!g) return;
+  const { x, w, h } = g, gap = 6, cols = thumbGeo.cols, rows = thumbGeo.rows;
+  const tw = (w - gap * (cols - 1)) / cols, th = (h - gap * (rows - 1)) / rows;
+  thumbGeo.tw = tw; thumbGeo.th = th; thumbGeo.gap = gap;
+  x.clearRect(0, 0, w, h);
+  for (let k = 0; k < cols * rows; k++) {
+    const ox = (k % cols) * (tw + gap), oy = Math.floor(k / cols) * (th + gap);
+    x.fillStyle = '#04050a'; x.fillRect(ox, oy, tw, th);
+    const c = search.best[k];
+    if (c) {
+      x.save(); x.beginPath(); x.rect(ox, oy, tw, th); x.clip();
+      const dw = Math.max(tw, th * 2), dh = dw / 2;
+      dots(x, c.xy, c.sp, ox + (tw - dw) / 2, oy + (th - dh) / 2, dw, dh, 0.6);
+      x.restore();
+      x.font = `600 9.5px ${MONO()}`; x.textAlign = 'left'; x.textBaseline = 'bottom';
+      x.fillStyle = 'rgba(4,5,10,.7)'; x.fillRect(ox, oy + th - 13, 30, 13);
+      x.fillStyle = k === 0 ? '#4fe3c1' : 'rgba(236,230,214,.85)'; x.fillText(c.score.toFixed(2), ox + 3, oy + th - 2);
+    }
+    const on = c && search.shown === c.id, hov = thumbGeo.hover === k && c;
+    x.strokeStyle = on ? '#4fe3c1' : hov ? 'rgba(236,230,214,.6)' : 'rgba(236,230,214,.12)';
+    x.lineWidth = on ? 1.5 : 1; x.strokeRect(ox + 0.5, oy + 0.5, tw - 1, th - 1);
+  }
+}
+function drawProgress() {
+  const g = canvasCtx(progC); if (!g) return;
+  const { x, w, h } = g, H = search.hist, pl = 26, pr = 6, pt = 6, pb = 14;
+  x.clearRect(0, 0, w, h);
+  x.font = `500 9px ${FONT_MONO}`; x.fillStyle = 'rgba(94,100,121,.95)'; x.textAlign = 'right'; x.textBaseline = 'middle';
+  const ty = (v) => h - pb - Math.min(1.1, v) / 1.1 * (h - pt - pb);
+  [0, 0.5, 1].forEach((v) => { x.strokeStyle = 'rgba(236,230,214,.08)'; x.beginPath(); x.moveTo(pl, ty(v)); x.lineTo(w - pr, ty(v)); x.stroke(); x.fillText(v.toFixed(1), pl - 4, ty(v)); });
+  x.textAlign = 'left'; x.textBaseline = 'alphabetic';
+  if (!H.length) { x.fillText('lifelikeness of each experiment', pl, h - 2); return; }
+  const i0 = H[0].i, i1 = Math.max(i0 + 20, H[H.length - 1].i), tx = (i) => pl + (i - i0) / (i1 - i0) * (w - pl - pr);
+  let best = 0; x.beginPath();
+  H.forEach((p, k) => { best = Math.max(best, p.s); const X = tx(p.i), Y = ty(best); k ? x.lineTo(X, Y) : x.moveTo(X, Y); });
+  x.strokeStyle = 'rgba(79,227,193,.9)'; x.lineWidth = 1.3; x.stroke();
+  H.forEach((p) => { x.fillStyle = p.mut ? 'rgba(79,227,193,.75)' : 'rgba(236,230,214,.45)'; x.beginPath(); x.arc(tx(p.i), ty(p.s), 1.6, 0, 7); x.fill(); });
+  x.fillStyle = 'rgba(94,100,121,.95)'; x.fillText('experiment →', pl, h - 2);
+  x.textAlign = 'right'; x.fillStyle = 'rgba(79,227,193,.8)'; x.fillText('mutants', w - pr - 58, h - 2); x.fillStyle = 'rgba(236,230,214,.5)'; x.fillText('random', w - pr, h - 2);
+}
+function thumbAt(e) {
+  const r = thumbs.getBoundingClientRect(), g = thumbGeo; if (!g.tw) return -1;
+  const px = e.clientX - r.left, py = e.clientY - r.top;
+  const col = Math.floor(px / (g.tw + g.gap)), row = Math.floor(py / (g.th + g.gap));
+  if (col < 0 || row < 0 || col >= g.cols || row >= g.rows) return -1;
+  return row * g.cols + col;
+}
+thumbs.addEventListener('pointermove', (e) => { const k = thumbAt(e); if (k !== thumbGeo.hover) { thumbGeo.hover = k; drawThumbs(); } const c = search.best[k]; if (c) { tip.innerHTML = `Experiment ${c.id} · ${tagOf(c.m)} · lifelikeness ${c.score.toFixed(2)}<br><span style="color:var(--faint)">${c.K} species · ${c.m.clusters.toFixed(0)} bodies · ${F.pct(c.m.persist, 0)} persist${c.gen ? ' · generation ' + c.gen : ''}</span>`; tip.style.left = Math.max(8, Math.min(innerWidth - 280, e.clientX - 140)) + 'px'; tip.style.top = (e.clientY - 52) + 'px'; tip.classList.add('on'); } else tip.classList.remove('on'); });
+thumbs.addEventListener('pointerleave', () => { thumbGeo.hover = -1; drawThumbs(); tip.classList.remove('on'); });
+thumbs.addEventListener('click', (e) => { const c = search.best[thumbAt(e)]; if (c) loadCandidate(c, false); });
+
+/* map of rule space: x = non-reciprocity η, y = mean self-interaction; colour = lifelikeness */
+const mapGeo = { hits: [], hover: null };
+const heatC = document.createElement('canvas'); heatC.width = 40; heatC.height = 24;
+function scoreRGB(v) {
+  v = U.clamp(v / 0.9, 0, 1);
+  const a = [70, 78, 98], b = [79, 227, 193], c = [255, 204, 110];
+  const m = v < 0.55 ? v / 0.55 : (v - 0.55) / 0.45, p = v < 0.55 ? a : b, q = v < 0.55 ? b : c;
+  return [p[0] + (q[0] - p[0]) * m, p[1] + (q[1] - p[1]) * m, p[2] + (q[2] - p[2]) * m].map(Math.round);
+}
+let mapPending = false;
+function drawMap() { if (mapPending) return; mapPending = true; requestAnimationFrame(() => { mapPending = false; drawMapNow(); }); }
+function drawMapNow() {
+  const g = canvasCtx(mapC); if (!g) return;
+  const { x, w, h } = g, pl = 10, pr = 10, pt = 18, pb = 18;
+  const YR = 0.8, tx = (e) => pl + U.clamp(e, 0, 1) * (w - pl - pr), ty = (v) => pt + (1 - (U.clamp(v, -YR, YR) + YR) / (2 * YR)) * (h - pt - pb);
+  x.clearRect(0, 0, w, h);
+  const all = search.all;
+  // smoothed lifelikeness field (kernel regression), once there is enough data
+  if (all.length >= 10) {
+    const hx = heatC.getContext('2d'), GW = heatC.width, GH = heatC.height, img = hx.createImageData(GW, GH);
+    for (let gy = 0; gy < GH; gy++) for (let gx = 0; gx < GW; gx++) {
+      const e = (gx + 0.5) / GW, sv = YR * (1 - (gy + 0.5) / GH * 2);
+      let sw = 0, ss = 0;
+      for (const p of all) { const dx = (p.eta - e) / 0.07, dy = (p.self - sv) / 0.16, wk = Math.exp(-0.5 * (dx * dx + dy * dy)); sw += wk; ss += wk * p.score; }
+      const val = ss / (sw + 0.8), conf = Math.min(1, sw / 2), [r, gg, b] = scoreRGB(val), o = (gy * GW + gx) * 4;
+      img.data[o] = r; img.data[o + 1] = gg; img.data[o + 2] = b; img.data[o + 3] = Math.round(255 * conf * (0.08 + 0.5 * Math.min(1, val / 0.7)));
+    }
+    hx.putImageData(img, 0, 0);
+    x.save(); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(heatC, pl, pt, w - pl - pr, h - pt - pb); x.restore();
+  }
+  // frame and axes
+  x.strokeStyle = 'rgba(236,230,214,.1)'; x.lineWidth = 1; x.strokeRect(pl + 0.5, pt + 0.5, w - pl - pr - 1, h - pt - pb - 1);
+  x.setLineDash([2, 3]); x.beginPath(); x.moveTo(pl, ty(0)); x.lineTo(w - pr, ty(0)); x.stroke(); x.setLineDash([]);
+  x.font = `500 9px ${FONT_MONO}`; x.fillStyle = 'rgba(94,100,121,.95)'; x.textBaseline = 'alphabetic';
+  x.textAlign = 'left'; x.fillText('species like their own kind', pl + 3, pt - 5); x.fillText('η 0 · reciprocal', pl, h - 5);
+  x.textAlign = 'right'; x.fillText('lopsided · 1', w - pr, h - 5);
+  x.textBaseline = 'top'; x.textAlign = 'left'; x.fillText('shun their own kind', pl + 3, h - pb - 12);
+  const hits = []; mapGeo.hits = hits;
+  // experiments
+  for (const p of all) {
+    const X = tx(p.eta), Y = ty(p.self), [r, gg, b] = scoreRGB(p.score);
+    x.fillStyle = `rgba(${r},${gg},${b},${0.45 + 0.55 * Math.min(1, p.score / 0.6)})`;
+    x.beginPath(); x.arc(X, Y, 1.2 + 2.2 * Math.min(1, p.score), 0, 7); x.fill();
+    hits.push({ X, Y, kind: 'exp', ref: p });
+  }
+  const top = search.best[0];
+  if (top) { const p = all.find((q) => q.id === top.id); if (p) { x.strokeStyle = 'rgba(255,204,110,.9)'; x.lineWidth = 1; x.beginPath(); x.arc(tx(p.eta), ty(p.self), 5.5, 0, 7); x.stroke(); } }
+  // named rule sets
+  const active = morph.on && morph.target ? morph.target.id : P.preset;
+  for (const p of PRESETS) {
+    const X = tx(etaOf(p.A, p.K)), Y = ty(selfOf(p.A, p.K)), on = p.id === active;
+    x.strokeStyle = on ? 'rgba(236,230,214,.95)' : 'rgba(236,230,214,.5)'; x.lineWidth = 1;
+    x.beginPath(); x.moveTo(X, Y - 4); x.lineTo(X + 4, Y); x.lineTo(X, Y + 4); x.lineTo(X - 4, Y); x.closePath(); x.stroke();
+    hits.push({ X, Y, kind: 'preset', ref: p });
+  }
+  // the dish on stage
+  const cx = tx(etaOf(P.A, P.K)), cy = ty(selfOf(P.A, P.K));
+  x.strokeStyle = 'rgba(79,227,193,.35)'; x.beginPath(); x.moveTo(cx, pt); x.lineTo(cx, h - pb); x.stroke();
+  x.strokeStyle = '#4fe3c1'; x.lineWidth = 1.5; x.shadowColor = '#4fe3c1'; x.shadowBlur = 8;
+  x.beginPath(); x.arc(cx, cy, 6.5, 0, 7); x.stroke(); x.shadowBlur = 0;
+  const lab = active ? (PRESETS.find((p) => p.id === active) || {}).name : (search.shown ? 'experiment ' + search.shown : 'custom rules');
+  if (lab) { x.font = `italic 500 12px ${FONT_DISPLAY}`; x.fillStyle = 'rgba(236,230,214,.92)'; x.textBaseline = 'middle'; const right = cx < w * 0.6; x.textAlign = right ? 'left' : 'right'; x.fillText(lab, cx + (right ? 11 : -11), cy); }
+  if (!all.length) { x.font = `500 9px ${FONT_MONO}`; x.fillStyle = 'rgba(94,100,121,.9)'; x.textAlign = 'right'; x.textBaseline = 'top'; x.fillText('experiments appear here', w - pr - 3, pt + 4); }
+}
+function mapAt(e) {
+  const r = mapC.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+  let best = null, bd = 81;
+  for (const hh of mapGeo.hits) { const d = (hh.X - px) * (hh.X - px) + (hh.Y - py) * (hh.Y - py); if (d < bd || (d <= bd + 4 && hh.kind === 'preset')) { bd = d; best = hh; } }
+  return best;
+}
+mapC.addEventListener('pointermove', (e) => {
+  const hh = mapAt(e); mapC.style.cursor = hh ? 'pointer' : 'default';
+  if (!hh) { tip.classList.remove('on'); return; }
+  if (hh.kind === 'preset') { const p = hh.ref; tip.innerHTML = `${p.name}<br><span style="color:var(--faint)">η ${etaOf(p.A, p.K).toFixed(2)} · self ${selfOf(p.A, p.K) >= 0 ? '+' : '−'}${Math.abs(selfOf(p.A, p.K)).toFixed(2)} · click to load</span>`; }
+  else { const p = hh.ref; tip.innerHTML = `Experiment ${p.id} · lifelikeness ${p.score.toFixed(2)}<br><span style="color:var(--faint)">${p.K} species · η ${p.eta.toFixed(2)} · ${p.score > 0 ? tagOf(p.m) : 'rejected early'} · click to grow</span>`; }
+  tip.style.left = Math.max(8, Math.min(innerWidth - 280, e.clientX - 140)) + 'px'; tip.style.top = (e.clientY - 52) + 'px'; tip.classList.add('on');
+});
+mapC.addEventListener('pointerleave', () => { tip.classList.remove('on'); });
+mapC.addEventListener('click', (e) => { const hh = mapAt(e); if (!hh) return; tip.classList.remove('on'); if (hh.kind === 'preset') loadPreset(hh.ref); else loadCandidate(hh.ref, false); });
+
+const gMat = ch.ui.group('Interaction matrix');
+const matCanvas = gMat.canvas(250); matCanvas.classList.add('ps-mat');
+gMat.note('Row <b>feels</b> column. Drag a cell up or down to set it; click to step +0.25; shift-click for zero.');
+gMat.buttons([
+  { label: 'Randomise', onClick: () => randomRules() },
+  { label: 'Symmetrise', title: 'Slide λ to 0, so every pull is returned in kind (S)', onClick: () => symToggle() },
+  { label: 'Invert', onClick: () => { for (let i = 0; i < P.K * P.K; i++) P.base[i] = -P.base[i]; applyLam(); matChanged('Every attraction is now a repulsion', true); } },
+]);
+const graphCanvas = gMat.canvas(150);
+const matRo = gMat.readouts([{ id: 'asym', label: 'Non-reciprocity' }, { id: 'chase', label: 'Chasing pairs' }]);
+
+const gPhys = ch.ui.group('Physics');
+const sK = gPhys.slider({ id: 'ps-k', label: 'Species', min: 3, max: 8, step: 1, value: P.K, format: (v) => v + ' kinds', onChange: (v) => setSpecies(v) });
+const sN = gPhys.slider({ id: 'ps-n', label: 'Particles', min: 1000, max: 20000, step: 100, value: P.N, format: (v) => F.num(v), hint: 'The dish stays the same size, so this sets the concentration.', onChange: (v) => { P.N = v; simW.postMessage({ type: 'count', N: v, seed: (Math.random() * 1e9) | 0 }); } });
+const sR = gPhys.slider({ id: 'ps-r', label: 'Interaction radius r<sub>max</sub>', min: 6, max: 24, step: 0.5, value: P.rMax, unit: 'µm', onInput: (v) => { P.rMax = v; sendParams(); } });
+const sF = gPhys.slider({ id: 'ps-fric', label: 'Friction (velocity half-life)', min: 0.01, max: 0.2, step: 0.005, value: P.halfLife, format: (v) => Math.round(v * 1000) + ' ms', onInput: (v) => { P.halfLife = v; sendParams(); } });
+const sG = gPhys.slider({ id: 'ps-force', label: 'Force strength k', min: 2, max: 30, step: 0.5, value: P.forceK, format: (v) => v.toFixed(1) + ' s⁻²', onInput: (v) => { P.forceK = v; sendParams(); } });
+const sT = gPhys.slider({ id: 'ps-dt', label: 'Time step Δt', min: 0.005, max: 0.04, step: 0.001, value: P.dt, format: (v) => Math.round(v * 1000) + ' ms', onInput: (v) => { P.dt = v; sendParams(); } });
+const sNoise = gPhys.slider({ id: 'ps-noise', label: 'Brownian motion', min: 0, max: 40, step: 0.5, value: P.noise, format: (v) => (v ? 'σ = ' + v.toFixed(1) + ' µm/s' : 'off'), hint: 'Random kicks from the surrounding water. Turn it up to melt the structures.', onInput: (v) => { anneal.on = false; P.noise = v; sendParams(); } });
+const sSpeed = gPhys.select({ id: 'ps-speed', label: 'Time-lapse', options: [{ value: '1', label: '60 steps per second' }, { value: '2', label: '120 steps per second' }, { value: '4', label: '240 steps per second' }], value: '1', onChange: (v) => { P.speed = +v; } });
+const tTrails = gPhys.toggle({ id: 'ps-trails', label: 'Luminous trails', value: !LOWP, onChange: (v) => { P.trails = v; } });
+if (LOWP) { P.trails = false; console.info('Primordial Soup: float render targets unavailable, trails disabled'); }
+const tHalos = gPhys.toggle({ id: 'ps-halos', label: 'Dark-field halos', value: !LOWP, hint: 'Light scattered at the edge of every dense body, as in a real dark-field microscope.', onChange: (v) => { P.halos = v; } });
+const tLabels = gPhys.toggle({ id: 'ps-labels', label: 'Annotate bodies', value: true, onChange: (v) => { showLabels = v; } });
+const tTour = gPhys.toggle({ id: 'ps-tour', label: 'Tour when idle', value: true, hint: 'After 40 s without a touch, the stage moves on to the next rule set.' });
+// label fix: slider labels are text; replace sub markup
+sR.el.querySelector('.cz-label span').innerHTML = 'Interaction radius r<sub>max</sub>';
+
+const gMeas = ch.ui.group('Measurements');
+const ro = gMeas.readouts([
+  { id: 'clusters', label: 'Protocells' }, { id: 'frac', label: 'In cells' },
+  { id: 'speed', label: 'Mean speed' }, { id: 'temp', label: 'Temperature' },
+  { id: 'persist', label: 'Persistence' }, { id: 'divs', label: 'Divisions' },
+  { id: 'life', label: 'Lifelikeness' }, { id: 'fps', label: 'Frame rate' },
+  { id: 'step', label: 'Step cost' },
+]);
+const chart = gMeas.chart({ height: 84, series: [{ label: 'protocells' }, { label: 'temperature', color: '#ff8a5c' }], yMin: 0, yMax: 1, yFormat: (v) => '' });
+
+/* ------------------------------------------------------------ matrix editor */
+const mat = { hover: -1, drag: null };
+const tip = Cosmos.h('div', { class: 'ps-tip' }); document.body.append(tip);
+function drawMatrix() {
+  const c = matCanvas, dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.round(c.clientWidth * dpr), H = Math.round(c.clientHeight * dpr);
+  if (!W || !H) return;
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  const x = c.getContext('2d');
+  x.clearRect(0, 0, W, H);
+  const K = P.K, pad = 22 * dpr, side = Math.min(W - pad - 6 * dpr, H - pad - 6 * dpr), cs = side / K;
+  const ox = pad + (W - pad - side) / 2 - 3 * dpr, oy = pad;
+  mat.geo = { ox: ox / dpr, oy: oy / dpr, cs: cs / dpr, K };
+  x.font = `500 ${10 * dpr}px ${FONT_MONO}`;
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  for (let i = 0; i < K; i++) {
+    const col = COL(i);
+    x.fillStyle = col; x.shadowColor = col; x.shadowBlur = 6 * dpr;
+    x.beginPath(); x.arc(ox + (i + 0.5) * cs - 5 * dpr, oy - 11 * dpr, 2.6 * dpr, 0, 7); x.fill();
+    x.beginPath(); x.arc(ox - 15 * dpr, oy + (i + 0.5) * cs - 6 * dpr, 2.6 * dpr, 0, 7); x.fill();
+    x.shadowBlur = 0;
+    x.fillText(GREEK[i], ox + (i + 0.5) * cs + 4 * dpr, oy - 11 * dpr);
+    x.fillText(GREEK[i], ox - 11 * dpr, oy + (i + 0.5) * cs + 5 * dpr);
+  }
+  for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) {
+    const v = P.A[i * K + j], a = Math.abs(v);
+    const px = ox + j * cs, py = oy + i * cs;
+    x.fillStyle = v >= 0 ? `rgba(79,227,193,${0.08 + 0.82 * a})` : `rgba(255,86,120,${0.08 + 0.82 * a})`;
+    x.fillRect(px + 1 * dpr, py + 1 * dpr, cs - 2 * dpr, cs - 2 * dpr);
+    if (mat.hover === i * K + j) { x.strokeStyle = '#ece6d6'; x.lineWidth = 1.2 * dpr; x.strokeRect(px + 1.5 * dpr, py + 1.5 * dpr, cs - 3 * dpr, cs - 3 * dpr); }
+    if (K <= 6) { x.fillStyle = a > 0.55 ? 'rgba(5,6,12,.85)' : 'rgba(236,230,214,.8)'; x.fillText((v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2).slice(1), px + cs / 2, py + cs / 2 + 0.5 * dpr); }
+  }
+}
+/* who-chases-whom graph: arrows point from a species to the one it is drawn to */
+function drawGraph() {
+  const g = canvasCtx(graphCanvas); if (!g) return;
+  const { x, w, h } = g, K = P.K, A = P.A;
+  x.clearRect(0, 0, w, h);
+  const cx = w / 2 + 28, cy = h / 2 + 4, R = Math.min(w, h) / 2 - 24;
+  const pos = Array.from({ length: K }, (_, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / K; return [cx + R * Math.cos(a), cy + R * Math.sin(a)]; });
+  let num = 0, den = 0, chase = 0;
+  for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) { const a = A[i * K + j], b = A[j * K + i]; num += (a - b) * (a - b); den += (a - b) * (a - b) + (a + b) * (a + b); }
+  // edges
+  for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) {
+    if (i === j) continue;
+    const a = A[i * K + j], back = A[j * K + i];
+    if (a < 0.25) continue;
+    const isChase = back < -0.15;
+    if (isChase) chase++;
+    const [x1, y1] = pos[i], [x2, y2] = pos[j];
+    const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+    const bend = 10, mx = (x1 + x2) / 2 + nx * bend, my = (y1 + y2) / 2 + ny * bend;
+    const sx = x1 + dx / L * 9 + nx * 2, sy = y1 + dy / L * 9 + ny * 2, ex = x2 - dx / L * 11 + nx * 2, ey = y2 - dy / L * 11 + ny * 2;
+    x.strokeStyle = isChase ? 'rgba(255,194,74,.95)' : `rgba(79,227,193,${0.25 + 0.6 * a})`;
+    x.lineWidth = 0.6 + 2.2 * a;
+    x.beginPath(); x.moveTo(sx, sy); x.quadraticCurveTo(mx, my, ex, ey); x.stroke();
+    const tx = ex - mx, ty = ey - my, tl = Math.hypot(tx, ty) || 1, ux = tx / tl, uy = ty / tl;
+    x.fillStyle = x.strokeStyle;
+    x.beginPath(); x.moveTo(ex + ux * 2, ey + uy * 2); x.lineTo(ex - ux * 6 - uy * 3.5, ey - uy * 6 + ux * 3.5); x.lineTo(ex - ux * 6 + uy * 3.5, ey - uy * 6 - ux * 3.5); x.closePath(); x.fill();
+  }
+  // nodes, with a ring for self-attraction (solid) or self-repulsion (dashed)
+  x.font = `600 11px ${FONT_MONO}`; x.textAlign = 'center'; x.textBaseline = 'middle';
+  for (let i = 0; i < K; i++) {
+    const [px, py] = pos[i], self = A[i * K + i];
+    if (Math.abs(self) > 0.15) {
+      x.setLineDash(self < 0 ? [2, 2] : []); x.strokeStyle = self < 0 ? 'rgba(255,86,120,.7)' : 'rgba(79,227,193,.7)'; x.lineWidth = 1;
+      x.beginPath(); x.arc(px, py, 10.5, 0, 7); x.stroke(); x.setLineDash([]);
+    }
+    x.fillStyle = '#05060c'; x.beginPath(); x.arc(px, py, 7.5, 0, 7); x.fill();
+    x.fillStyle = COL(i); x.shadowColor = COL(i); x.shadowBlur = 8;
+    x.beginPath(); x.arc(px, py, 4, 0, 7); x.fill(); x.shadowBlur = 0;
+    const lx = px + (px - cx) / R * 19, ly = py + (py - cy) / R * 19;
+    x.fillStyle = 'rgba(236,230,214,.85)'; x.fillText(GREEK[i], lx, ly);
+  }
+  x.font = `500 9.5px ${FONT_MONO}`; x.textAlign = 'left'; x.textBaseline = 'top';
+  x.fillStyle = 'rgba(79,227,193,.8)'; x.fillText('→ drawn to', 4, 4);
+  x.fillStyle = 'rgba(255,194,74,.95)'; x.fillText('→ chases (the target flees)', 4, 17);
+  const asym = den > 0 ? Math.sqrt(num / den) : 0;
+  matRo.asym.set(F.pct(asym, 0)); matRo.chase.set(String(chase));
+}
+function matCell(e) {
+  const r = matCanvas.getBoundingClientRect(), g = mat.geo; if (!g) return -1;
+  const j = Math.floor((e.clientX - r.left - g.ox) / g.cs), i = Math.floor((e.clientY - r.top - g.oy) / g.cs);
+  return i >= 0 && j >= 0 && i < g.K && j < g.K ? i * g.K + j : -1;
+}
+matCanvas.addEventListener('pointerdown', (e) => {
+  const c = matCell(e); if (c < 0) return;
+  try { matCanvas.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ }
+  mat.drag = { c, y0: e.clientY, v0: P.A[c], moved: false, shift: e.shiftKey };
+  e.preventDefault();
+});
+matCanvas.addEventListener('pointermove', (e) => {
+  const c = mat.drag ? mat.drag.c : matCell(e);
+  if (c !== mat.hover) { mat.hover = c; drawMatrix(); }
+  if (mat.drag) {
+    const dy = mat.drag.y0 - e.clientY;
+    if (Math.abs(dy) > 3) mat.drag.moved = true;
+    if (mat.drag.moved) { P.A[c] = U.clamp(Math.round((mat.drag.v0 + dy / 70) * 100) / 100, -1, 1); matChanged(); }
+  }
+  showTip(e, c);
+});
+matCanvas.addEventListener('pointerup', (e) => {
+  if (!mat.drag) return;
+  const d = mat.drag; mat.drag = null;
+  if (!d.moved) {
+    if (d.shift || e.shiftKey) P.A[d.c] = 0;
+    else { let v = Math.round((P.A[d.c] + 0.25) * 4) / 4; if (v > 1.001) v = -1; P.A[d.c] = v; }
+    matChanged();
+  }
+  showTip(e, d.c);
+});
+matCanvas.addEventListener('pointerleave', () => { if (!mat.drag) { mat.hover = -1; drawMatrix(); tip.classList.remove('on'); } });
+function showTip(e, c) {
+  if (c < 0) { tip.classList.remove('on'); return; }
+  const i = Math.floor(c / P.K), j = c % P.K, v = P.A[c];
+  tip.innerHTML = `${GREEK[i]} → ${GREEK[j]} &nbsp;${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(2)} &nbsp;<span style="color:var(--faint)">${v > 0.02 ? GREEK[i] + ' is drawn to ' + GREEK[j] : v < -0.02 ? GREEK[i] + ' shuns ' + GREEK[j] : 'indifferent'}</span>`;
+  tip.style.left = Math.max(8, Math.min(innerWidth - 260, e.clientX - 120)) + 'px';
+  tip.style.top = (e.clientY - 40) + 'px';
+  tip.classList.add('on');
+}
+let matSendPending = false;
+function matChanged(msg, keepBase) {
+  morph.on = false;
+  if (!keepBase) rebase();
+  lamPts.length = 0;
+  drawMatrix(); drawGraph(); legend(); drawMap(); drawLamPlot();
+  if (!matSendPending) { matSendPending = true; requestAnimationFrame(() => { matSendPending = false; sendMatrix(); }); }
+  presetSel.set('custom'); P.preset = null;
+  if (msg) ch.toast(msg);
+}
+
+/* ------------------------------------------------------------ actions */
+function setWorldN(n) {
+  n = Math.round(n / 100) * 100;
+  if (n === P.N) return false;
+  P.N = n; sizeWorld(); sN.set(n);
+  cam.cx = P.W / 2; cam.cy = P.H / 2; cam.follow = null; cam.anchor = null;
+  return true;
+}
+function loadPreset(p, boot) {
+  P.preset = p.id; lastLoad = performance.now(); if (typeof morph !== 'undefined') morph.on = false;
+  if (!boot) cam.intro = null;
+  setWorldN(p.N ? p.N * N_SCALE : N_DEFAULT);
+  if (!boot) { cam.tz = p.zoom ? p.zoom * (small ? 0.8 : 1) : Math.min(cam.tz, 1.25); cam.anchor = null; cam.follow = null; }
+  P.K = p.K; P.A.fill(0); p.A.forEach((v, i) => (P.A[i] = v)); rebase(); lamPts.length = 0;
+  if (!boot) anneal.on = false;
+  P.seed = p.seed; setPalette(p.pal);
+  P.rMax = p.rMax || DEFAULTS.rMax; P.halfLife = p.halfLife || DEFAULTS.halfLife; P.forceK = p.forceK || DEFAULTS.forceK; P.dt = p.dt || DEFAULTS.dt; P.noise = p.noise != null ? p.noise : DEFAULTS.noise;
+  sK.set(P.K); sR.set(P.rMax); sF.set(P.halfLife); sG.set(P.forceK); sT.set(P.dt); sNoise.set(P.noise);
+  presetSel.set(p.id);
+  sendInit(4);
+  drawMatrix(); drawGraph(); legend(); drawMap(); drawLamPlot();
+  log(`Rule set <b>${p.name}</b> · ${F.num(P.N)} particles · ${P.K} species · ${P.K * P.K} numbers`);
+  narr = { first: false };
+}
+function reseed() {
+  P.seed = (Math.random() * 1e9) | 0;
+  sendInit(0);
+  log(`Fresh soup · seed ${P.seed}`);
+}
+/* morph: slide the matrix into another rule set while the dish keeps running */
+const morph = { on: false, from: new Float32Array(64), to: new Float32Array(64), t: 0, dur: 6, target: null, frame: 0 };
+function canMorph(p) {
+  return p.K === P.K && (p.rMax || DEFAULTS.rMax) === P.rMax && (p.halfLife || DEFAULTS.halfLife) === P.halfLife && (p.forceK || DEFAULTS.forceK) === P.forceK && (p.N ? p.N * N_SCALE : N_DEFAULT) === P.N;
+}
+function nextInTour() {
+  const i = TOUR.indexOf(P.preset);
+  if (i < 0) return PRESETS.find((p) => p.K === P.K && canMorph(p)) || PRESETS[0];
+  return PRESETS.find((p) => p.id === TOUR[(i + 1) % TOUR.length]);
+}
+function morphTo(p) {
+  if (!canMorph(p)) { loadPreset(p); return false; }
+  rebase(); lamPts.length = 0;
+  morph.from.set(P.A); morph.to.fill(0); p.A.forEach((v, i) => (morph.to[i] = v));
+  morph.on = true; morph.t = 0; morph.target = p; lastLoad = performance.now();
+  setPalette(p.pal); presetSel.set(p.id);
+  log(`Morphing the rules into <b>${p.name}</b> over ${morph.dur} s, without resetting the dish`);
+  return true;
+}
+function morphNext() { const n = nextInTour(); if (n) morphTo(n); }
+function morphTick(dt) {
+  if (morph.on && !ch.paused) {
+    morph.t += dt;
+    const u = Math.min(1, morph.t / morph.dur), e = u * u * (3 - 2 * u);
+    for (let i = 0; i < P.K * P.K; i++) P.A[i] = morph.from[i] + (morph.to[i] - morph.from[i]) * e;
+    P.base.set(P.A);
+    sendMatrix();
+    if (++morph.frame % 4 === 0 || u >= 1) { drawMatrix(); drawGraph(); drawMap(); }
+    if (u >= 1) { morph.on = false; P.preset = morph.target.id; presetSel.set(P.preset); log(`Now running <b>${morph.target.name}</b>`); }
+  }
+  const n = nextInTour();
+  const label = morph.on ? 'Morphing into ' + morph.target.name + '…' : n ? (canMorph(n) ? 'Morph into ' + n.name : 'Next: ' + n.name) : 'Morph';
+  if (label !== morphBtn.el.textContent) morphBtn.setLabel(label);
+}
+function randomRules() {
+  const r = U.rng((Math.random() * 1e9) | 0);
+  for (let i = 0; i < P.K * P.K; i++) P.A[i] = Math.round((r() * 2 - 1) * 100) / 100;
+  matChanged();
+  log('Random rules drawn');
+}
+function setSpecies(K) {
+  if (K === P.K) return;
+  const old = P.A.slice(0, P.K * P.K), oK = P.K, r = U.rng((Math.random() * 1e9) | 0);
+  P.A.fill(0);
+  for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) P.A[i * K + j] = i < oK && j < oK ? old[i * oK + j] : Math.round((r() * 2 - 1) * 100) / 100;
+  P.K = K; matChanged(); legend();
+}
+
+/* ------------------------------------------------------------ lab log */
+let wallT = 0; // unpaused seconds since the page opened, for the lab log
+const logEl = Cosmos.h('div', { class: 'ps-log', 'aria-live': 'polite' });
+document.body.append(logEl);
+function placeLog() { const hb = ch.hud.el.getBoundingClientRect(); logEl.style.top = (hb.bottom + 10) + 'px'; }
+function log(html) {
+  const t = Math.floor(wallT), mm = String(Math.floor(t / 60)).padStart(2, '0'), ss = String(t % 60).padStart(2, '0');
+  const row = Cosmos.h('div', { html: `<em>${mm}:${ss}</em>${html}` });
+  logEl.prepend(row);
+  requestAnimationFrame(() => row.classList.add('on'));
+  [...logEl.children].forEach((c, i) => { c.classList.toggle('old', i > 0); if (i > 4) c.remove(); });
+}
+const legendRow = Cosmos.h('div', { class: 'cz-hud-row ps-hud-sp' }, Cosmos.h('span', { text: 'Species' }), Cosmos.h('span'));
+ch.hud.el.append(legendRow);
+let legendKey = '';
+function legend() {
+  const key = P.K + ':' + P.pal.join(',');
+  if (key === legendKey) return; legendKey = key;
+  legendRow.lastChild.innerHTML = Array.from({ length: P.K }, (_, i) => `<b style="color:${COL(i)}">●</b>${GREEK[i]}`).join(' ');
+}
+
+/* ------------------------------------------------------------ scale bar */
+const scaleEl = Cosmos.h('div', { class: 'ps-scale' }, Cosmos.h('i'), Cosmos.h('span', { text: '50 µm' }), Cosmos.h('small', { text: 'dark field' }));
+document.body.append(scaleEl);
+function updateScale() {
+  const k = ppuCss();
+  const opts = [5, 10, 20, 50, 100, 200];
+  let L = opts[0]; for (const o of opts) if (o * k <= (small ? 130 : 240)) L = o;
+  const w = Math.round(L * k) + 'px', a = L + ' µm', b = 'dark field · view ' + Math.round(innerWidth / k / 10) * 10 + ' µm wide';
+  if (w !== scaleCache.w) { scaleCache.w = w; scaleEl.firstChild.style.width = w; }
+  if (a !== scaleCache.a) { scaleCache.a = a; scaleEl.children[1].textContent = a; }
+  if (b !== scaleCache.b) { scaleCache.b = b; scaleEl.children[2].textContent = b; }
+}
+const scaleCache = {};
+
+/* ------------------------------------------------------------ stats */
+let divisions = 0, fpsS = 60, liveScore = 0, narr = { first: true };
+const PLM = PLCore();
+function onStats(s) {
+  lastStats = s;
+  if (!narr.first && s.time > 1 && s.clusters >= 10 && s.clusteredFrac > 0.35) { narr.first = true; log(`<b>${F.num(s.clusters)}</b> bodies have assembled, holding ${F.pct(s.clusteredFrac, 0)} of the particles`); }
+  const recent = statsHist.slice(-12);
+  if (recent.length >= 6) liveScore = PLM.score(recent, { rMax: P.rMax, N: s.N }).score;
+  statsHist.push(s); if (statsHist.length > 600) statsHist.shift();
+  onBodies(s);
+  hud.clusters.set(F.num(s.clusters));
+  hud.speed.set(s.meanSpeed.toFixed(1) + ' µm/s');
+  hud.temp.set(F.num(s.temperature, 0) + ' µm²/s²');
+  ro.clusters.set(F.num(s.clusters)); ro.frac.set(F.pct(s.clusteredFrac, 0));
+  ro.speed.set(s.meanSpeed.toFixed(1) + ' µm/s'); ro.temp.set(F.num(s.temperature, 0) + ' µm²/s²');
+  ro.persist.set(F.pct(s.persist, 0)); ro.divs.set(F.num(divisions));
+  ro.step.set(simInfo.ms.toFixed(1) + ' ms');
+  ro.life.set(statsHist.length >= 6 ? liveScore.toFixed(2) : '—');
+  if (s.time > 2.5 && !morph.on) { lamPts.push({ l: P.lam, drift: s.coherent, spin: s.rotation, t: performance.now() }); if (lamPts.length > 500) lamPts.shift(); }
+  lamRo.eta.set(F.pct(etaOf(P.A, P.K), 0)); lamRo.drift.set(s.coherent.toFixed(1) + ' µm/s'); lamRo.spin.set(s.rotation.toFixed(2) + ' rad/s');
+  drawLamPlot();
+  const cMax = Math.max(10, P.N / 40);
+  chart.push([U.clamp(s.clusters / cMax, 0, 1), U.clamp(Math.log10(1 + s.temperature) / 4, 0, 1)]);
+}
+
+/* ------------------------------------------------------------ bodies: tracking, callouts, divisions, follow */
+const bodies = { list: [], time: 0 };
+const divFx = []; let lastDivFx = 0, cellDivisions = 0;
+const callout = { b: null, t: 0, next: 4, alpha: 0 };
+function bodyPos(b) { // extrapolate a body's centre to the current sim time
+  const dt = U.clamp(simInfo.time - bodies.time, 0, 0.5);
+  return [b.x + b.vx * dt, b.y + b.vy * dt];
+}
+function matchBody(b) {
+  if (!b) return null;
+  const [px, py] = bodyPos(b);
+  let best = null, bd = P.rMax * 1.6;
+  for (const c of bodies.list) {
+    const d = Math.hypot(wrapD(c.x - px, P.W), wrapD(c.y - py, P.H));
+    if (d < bd && c.n > b.n * 0.45 && c.n < b.n * 2.2) { bd = d; best = c; }
+  }
+  return best;
+}
+function onBodies(s) {
+  const prevCall = callout.b, prevFollow = cam.follow;
+  // positions extrapolated with the old list before swapping in the new one
+  const pc = prevCall ? bodyPos(prevCall) : null, pf = prevFollow ? bodyPos(prevFollow) : null;
+  bodies.list = s.list || []; bodies.time = s.time;
+  if (prevCall) { const m = matchBody(Object.assign({}, prevCall, { x: pc[0], y: pc[1], vx: 0, vy: 0 })); callout.b = m; }
+  if (prevFollow) {
+    const m = matchBody(Object.assign({}, prevFollow, { x: pf[0], y: pf[1], vx: 0, vy: 0 }));
+    if (m) cam.follow = m; else { cam.follow = null; log('Lost track of the body: it dissolved or merged'); }
+  }
+  for (const e of s.events || []) {
+    if (!e.clean || s.time - initTime < 5 || s.temperature > P.rMax * P.rMax * 0.8) continue; // a boiling soup fragments at random // the first seconds of self-assembly are all fission and fusion
+    divisions++;
+    const now = performance.now();
+    if ((e.cell || e.n >= 30) && now - lastDivFx > (e.cell ? 500 : 900) && divFx.length < 3) { lastDivFx = now; divFx.push({ x: e.x, y: e.y, x2: e.x2, y2: e.y2, n1: e.n1, n2: e.n2, cell: !!e.cell, t: 0 }); soundDivision(e); }
+    if (e.cell) { cellDivisions++; if (cellDivisions === 1) log(`First <b>cell division</b>: a membrane-bound body of ${e.n} became two of ${e.n1} and ${e.n2}`); }
+    if (divisions === 1 || [10, 100, 1000, 10000, 100000].includes(divisions)) log(`Division ${F.num(divisions)}: a body of ${e.n} split into ${e.n1} + ${e.n2}`);
+  }
+}
+let freeR = null, freeT = 0;
+function freeRect() { // the part of the stage not covered by notes, deck or chrome (cached for half a second)
+  const now = performance.now();
+  if (freeR && now - freeT < 500) return freeR;
+  freeT = now; freeR = measureFree(); return freeR;
+}
+function measureFree() {
+  const vw = innerWidth, vh = innerHeight;
+  const lb = logEl.getBoundingClientRect();
+  let x0 = 24, x1 = vw - 24, y0 = small ? Math.max(120, lb.bottom + 20) : 110, y1 = vh - 110;
+  const n = document.querySelector('.cz-notes'), d = document.querySelector('.cz-deck');
+  if (n && !small) { const r = n.getBoundingClientRect(); if (r.width && r.right < vw * 0.5) x0 = Math.max(x0, r.right + 40); }
+  if (d && d.classList.contains('cz-open') && !small) { const r = d.getBoundingClientRect(); if (r.width) x1 = Math.min(x1, r.left - 30); }
+  if (small) { const r = n && n.getBoundingClientRect(); if (r && r.height) y1 = Math.min(y1, r.top - 20); if (d && d.classList.contains('cz-open')) { const rd = d.getBoundingClientRect(); y1 = Math.min(y1, rd.top - 20); } }
+  return { x0, x1, y0, y1 };
+}
+function pickCallout() {
+  const R = freeRect(), cands = [];
+  const k = ppuCss();
+  for (const b of bodies.list.slice(0, 24)) {
+    const [sx, sy] = worldToScreen(b.x, b.y), rr = Math.max(10, (b.rg * 1.35 + P.rMax * 0.25) * k);
+    if (sx > R.x0 + 30 && sx < R.x1 - (small ? 30 : 200) && sy - rr * 0.72 - 50 > R.y0 && sy + rr < R.y1) cands.push(b);
+  }
+  if (!cands.length) return null;
+  return cands[Math.floor(Math.random() * Math.min(cands.length, 6))];
+}
+function bodyLabel(b) {
+  const tot = b.sp.reduce((a, v) => a + v, 0) || 1;
+  const parts = b.sp.map((v, i) => [v / tot, i]).filter((x) => x[0] >= 0.08).sort((a, c) => c[0] - a[0]).slice(0, 4);
+  const comp = parts.map(([f, i]) => GREEK[i] + ' ' + Math.round(f * 100) + '%').join('  ');
+  const sp = Math.hypot(b.vx, b.vy);
+  const kind = Math.abs(b.omega) > 0.8 ? 'rotor' : sp > P.rMax * 1.0 ? 'swimmer' : b.elong > 2.2 ? 'filament' : b.shell > 0.7 ? 'protocell' : 'aggregate';
+  return { title: kind + ' · ' + b.n + ' particles', comp, sub: `Ø ${(b.rg * 2.83).toFixed(0)} µm · ${sp.toFixed(1)} µm/s${Math.abs(b.omega) > 0.25 ? ' · ω ' + b.omega.toFixed(1) + ' rad/s' : ''}`, kind };
+}
+function drawBodyLabel(b, alpha, pinned) {
+  const [bx, by] = bodyPos(b);
+  const [sx, sy] = worldToScreen(bx, by);
+  const k = ppuCss(), rr = Math.max(10, (b.rg * 1.35 + P.rMax * 0.25) * k);
+  const L = bodyLabel(b);
+  octx.save(); octx.globalAlpha = alpha;
+  octx.strokeStyle = 'rgba(236,230,214,.55)'; octx.lineWidth = 1;
+  if (pinned) { // reticle brackets
+    const r = rr + 6, c = 7;
+    [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([ix, iy]) => { octx.beginPath(); octx.moveTo(sx + ix * r, sy + iy * (r - c)); octx.lineTo(sx + ix * r, sy + iy * r); octx.lineTo(sx + ix * (r - c), sy + iy * r); octx.stroke(); });
+  } else { octx.setLineDash([2, 3]); octx.beginPath(); octx.arc(sx, sy, rr, 0, 7); octx.stroke(); octx.setLineDash([]); }
+  // put the label on the side with room; on a narrow screen slide it inward rather than off the edge
+  const flip = sx + rr + 190 > freeRect().x1 + 20 && (sx - rr - 190 >= 4 || sx > innerWidth / 2), dir = flip ? -1 : 1;
+  const ax = sx + dir * rr * 0.72, ay = sy - rr * 0.72, lx = ax + dir * 26, ly = ay - 26;
+  const tx = U.clamp(flip ? lx - 152 : lx + 2, 6, innerWidth - 158);
+  octx.beginPath(); octx.moveTo(ax, ay); octx.lineTo(lx, ly); octx.lineTo(flip ? Math.min(tx, lx) : Math.max(tx + 150, lx), ly); octx.stroke();
+  octx.font = `italic 500 14px ${FONT_DISPLAY}`;
+  octx.fillStyle = 'rgba(236,230,214,.95)'; octx.textAlign = 'left'; octx.textBaseline = 'alphabetic';
+  octx.shadowColor = 'rgba(0,0,0,.9)'; octx.shadowBlur = 6;
+  octx.fillText(L.title, tx, ly - 5);
+  octx.font = `500 10px ${MONO()}`; octx.fillStyle = 'rgba(151,157,178,.95)'; octx.textBaseline = 'top';
+  octx.fillText(L.comp, tx, ly + 5);
+  octx.fillText(L.sub, tx, ly + 19);
+  octx.restore();
+}
+function drawBodies(dt) {
+  const k = ppuCss();
+  // divisions
+  for (let i = divFx.length - 1; i >= 0; i--) {
+    const f = divFx[i]; f.t += dt; if (f.t > 1.8) { divFx.splice(i, 1); continue; }
+    const a = Math.sin(Math.min(1, f.t / 1.8) * Math.PI) * 0.8;
+    const [x1, y1] = worldToScreen(f.x, f.y), [x2, y2] = worldToScreen(f.x2, f.y2);
+    if (Math.hypot(x2 - x1, y2 - y1) > P.rMax * k * 6) continue; // across the wrap seam
+    { const R = freeRect(); if (x1 < R.x0 || x1 > R.x1 || y1 < R.y0 || y1 > R.y1) continue; } // never under the chrome
+    const r = P.rMax * k * (0.45 + 0.3 * f.t);
+    octx.strokeStyle = `rgba(79,227,193,${a})`; octx.lineWidth = 1;
+    octx.beginPath(); octx.arc(x1, y1, r, 0, 7); octx.stroke();
+    octx.beginPath(); octx.arc(x2, y2, r, 0, 7); octx.stroke();
+    octx.setLineDash([2, 3]); octx.beginPath(); octx.moveTo(x1, y1); octx.lineTo(x2, y2); octx.stroke(); octx.setLineDash([]);
+    if (f.t < 1.4) { octx.font = `500 9.5px ${MONO()}`; octx.fillStyle = `rgba(79,227,193,${a})`; octx.textAlign = 'center'; octx.fillText(f.cell ? 'CELL DIVISION' : 'DIVISION', (x1 + x2) / 2, Math.min(y1, y2) - r - 6); }
+  }
+  // hovering near a body names it
+  if (!cam.follow && showLabels && !ptr.down && ptr.hoverX >= 0 && !small) {
+    const [wx, wy] = screenToWorld(ptr.hoverX, ptr.hoverY);
+    let hb = null, hd = 1e9;
+    for (const b of bodies.list) { const [bx, by] = bodyPos(b); const d = Math.hypot(wrapD(bx - wx, P.W), wrapD(by - wy, P.H)); if (d < b.rg * 1.6 + P.rMax * 0.4 && d < hd) { hd = d; hb = b; } }
+    if (hb) { if (callout.b !== hb) { callout.b = hb; callout.alpha = Math.max(callout.alpha, 0.3); } callout.t = 0; callout.next = 3.5; }
+  }
+  // callout (ambient annotation of one body at a time)
+  if (!cam.follow && showLabels) {
+    callout.t += dt;
+    if (callout.t > callout.next || (!callout.b && callout.t > 1.5)) {
+      if (callout.alpha <= 0.01) { callout.b = pickCallout(); callout.t = 0; callout.next = 6 + Math.random() * 3; }
+    }
+    let fits = true;
+    if (callout.b) {
+      const R = freeRect(), [bx, by] = bodyPos(callout.b), [sx, sy] = worldToScreen(bx, by);
+      const rr = Math.max(10, (callout.b.rg * 1.35 + P.rMax * 0.25) * ppuCss());
+      fits = sx > R.x0 && sx < R.x1 && sy - rr * 0.72 - 50 > R.y0 - 20 && sy + rr < R.y1 + 20;
+      if (!fits && callout.t < callout.next - 0.8) callout.t = callout.next - 0.8; // bow out gracefully
+    }
+    const want = callout.b && fits && callout.t < callout.next - 0.8 ? 1 : 0;
+    callout.alpha += (want - callout.alpha) * Math.min(1, dt * 3);
+    if (callout.b && callout.alpha > 0.01) drawBodyLabel(callout.b, callout.alpha * 0.9, false);
+  }
+  if (cam.follow) drawBodyLabel(cam.follow, 1, true);
+}
+let showLabels = true;
+canvas.addEventListener('dblclick', (e) => {
+  const [wx, wy] = screenToWorld(e.clientX, e.clientY);
+  let best = null, bs = 0;
+  for (const b of bodies.list) {
+    const d = Math.hypot(wrapD(b.x - wx, P.W), wrapD(b.y - wy, P.H));
+    if (d > P.rMax * 3) continue;
+    const sc = Math.sqrt(b.n) / (1 + (d / P.rMax) * (d / P.rMax));
+    if (sc > bs) { bs = sc; best = b; }
+  }
+  if (best && best !== cam.follow) {
+    cam.follow = best; cam.intro = null; cam.tz = Math.max(cam.tz, 3); cam.anchor = null;
+    log('Following one body · double-click empty space to let go');
+  } else if (cam.follow) { cam.follow = null; cam.tz = Math.min(cam.tz, 1.6); log('Released'); }
+});
+
+/* ------------------------------------------------------------ sound: a simmering dish */
+const snd = { on: false, ctx: null, bus: null, droneF: null, droneG: null, oscs: [], nextBubble: 0 };
+const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
+function soundInit() {
+  const ctx = ch.sound.ensure(); if (!ctx || snd.ctx) return;
+  snd.ctx = ctx;
+  snd.bus = ctx.createGain(); snd.bus.gain.value = 0; snd.bus.connect(ch.sound.out);
+  // drone: two detuned triangles an octave and a fifth apart, through a lowpass that opens with temperature
+  snd.droneF = ctx.createBiquadFilter(); snd.droneF.type = 'lowpass'; snd.droneF.frequency.value = 300; snd.droneF.Q.value = 0.7;
+  snd.droneG = ctx.createGain(); snd.droneG.gain.value = 0.05;
+  snd.droneF.connect(snd.droneG).connect(snd.bus);
+  [[55, -4], [82.4, 3], [110, 6]].forEach(([f, det]) => { const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = f; o.detune.value = det; o.connect(snd.droneF); o.start(); snd.oscs.push(o); });
+  // a slow tremolo so the drone breathes
+  const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 0.11; lg.gain.value = 0.02; lfo.connect(lg).connect(snd.droneG.gain); lfo.start();
+}
+function bubble(pan, pitch, gain) {
+  const c = snd.ctx, t = c.currentTime;
+  const o = c.createOscillator(), g = c.createGain(), p = c.createStereoPanner ? c.createStereoPanner() : null;
+  o.type = 'sine'; o.frequency.setValueAtTime(pitch, t); o.frequency.exponentialRampToValueAtTime(pitch * 1.6, t + 0.05);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+  if (p) { p.pan.value = U.clamp(pan, -1, 1); o.connect(g).connect(p).connect(snd.bus); } else o.connect(g).connect(snd.bus);
+  o.start(t); o.stop(t + 0.1);
+}
+function pluck(pan, semis, gain) {
+  const c = snd.ctx, t = c.currentTime, f = 440 * Math.pow(2, (semis - 9) / 12);
+  [1, 2.01].forEach((m, i) => {
+    const o = c.createOscillator(), g = c.createGain(), p = c.createStereoPanner ? c.createStereoPanner() : null;
+    o.type = 'sine'; o.frequency.value = f * m;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain / (i + 1.5), t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6 / (i + 1));
+    if (p) { p.pan.value = U.clamp(pan, -1, 1); o.connect(g).connect(p).connect(snd.bus); } else o.connect(g).connect(snd.bus);
+    o.start(t); o.stop(t + 1.7);
+  });
+}
+ch.onSound((on) => {
+  snd.on = on;
+  if (on) soundInit();
+  if (snd.ctx) snd.bus.gain.setTargetAtTime(on ? 0.9 : 0, snd.ctx.currentTime, 0.4);
+});
+function soundTick(dt) {
+  if (!snd.on || !snd.ctx || ch.paused || !lastStats) return;
+  const s = lastStats, heat = ptr.down && ptr.mode === 'heat' ? U.clamp(ptr.heatT / 1.5, 0.15, 1) : 0;
+  const act = U.clamp(s.meanSpeed / (P.rMax * 2), 0, 1.5) + heat * 1.5;
+  snd.droneF.frequency.setTargetAtTime(160 + 900 * U.clamp(Math.sqrt(s.temperature) / (P.rMax * 3), 0, 1) + 500 * heat, snd.ctx.currentTime, 0.5);
+  snd.nextBubble -= dt;
+  if (snd.nextBubble <= 0) {
+    const rate = 1.5 + 14 * act; snd.nextBubble = -Math.log(1 - Math.random()) / rate;
+    const b = bodies.list[Math.floor(Math.random() * Math.min(12, bodies.list.length))];
+    const pan = b ? (worldToScreen(b.x, b.y)[0] / innerWidth) * 2 - 1 : Math.random() * 2 - 1;
+    bubble(pan, 500 + Math.random() * 900 + heat * 400, 0.018 + 0.02 * Math.min(1, act));
+  }
+}
+function soundDivision(e) {
+  if (!snd.on || !snd.ctx) return;
+  const [sx] = worldToScreen(e.x, e.y);
+  pluck((sx / innerWidth) * 2 - 1, 12 + PENTA[Math.floor(Math.random() * PENTA.length)], 0.05);
+}
+function soundDiscovery() {
+  if (!snd.on || !snd.ctx) return;
+  pluck(-0.3, 7, 0.06); setTimeout(() => snd.ctx && pluck(0.3, 14, 0.05), 140); setTimeout(() => snd.ctx && pluck(0, 19, 0.04), 300);
+}
+
+/* ------------------------------------------------------------ keys */
+// The shared help overlay flattens its key list one level too few and prints "[object HTMLElement]".
+// Until cosmos.js is fixed, rebuild the list locally whenever the overlay opens.
+const HELP_KEYS = [['Space', 'Pause / play'], ['H', 'Hide the interface'], ['N', 'Field notes'], ['C', 'Controls'], ['M', 'Sound'], ['F', 'Fullscreen'], ['[ ]', 'Previous / next chapter'], ['?', 'This help']];
+function helpKey(k, d) { HELP_KEYS.push([k, d]); }
+new MutationObserver((muts) => {
+  for (const m of muts) for (const n of m.addedNodes) {
+    if (!n.classList || !n.classList.contains('cz-help')) continue;
+    const dl = n.querySelector('dl'); if (!dl || !/\[object/.test(dl.textContent)) continue;
+    dl.textContent = '';
+    HELP_KEYS.forEach(([k, d]) => dl.append(Cosmos.h('dt', {}, Cosmos.h('kbd', { text: k })), Cosmos.h('dd', { style: { margin: 0 }, text: d })));
+  }
+}).observe(document.body, { childList: true });
+helpKey('Drag', 'Stir the dish'); helpKey('Hold', 'Heat a patch'); helpKey('Wheel', 'Zoom the objective'); helpKey('Double-click', 'Follow one body');
+ch.onKey('r', () => reseed(), 'Reseed the soup (same rules)');
+ch.onKey('x', () => randomRules(), 'Random rules');
+ch.onKey('l', () => searchButton(), 'Search for life: start / stop');
+ch.onKey('t', () => { tTrails.set(!tTrails.value, true); }, 'Trails on / off');
+ch.onKey('g', () => morphNext(), 'Morph into the next rule set');
+ch.onKey('s', () => symToggle(), 'Symmetrise (λ → 0) / restore');
+ch.onKey('z', () => { cam.intro = null; cam.follow = null; cam.anchor = null; cam.tz = 1; }, 'Zoom out to the whole dish');
+PRESETS.forEach((p, i) => ch.onKey(String(i + 1), () => loadPreset(p), i === 0 ? 'Rule sets 1–' + PRESETS.length : null));
+[['R', 'Reseed the soup (same rules)'], ['X', 'Random rules'], ['L', 'Search for life: start / stop'], ['G', 'Morph into the next rule set'], ['S', 'Symmetrise / restore the lopsided rules'], ['T', 'Trails on / off'], ['Z', 'Zoom out to the whole dish'], ['1–' + PRESETS.length, 'Load a rule set']].forEach(([k, d]) => helpKey(k, d));
+
+/* ------------------------------------------------------------ render */
+let simClock = 0, fpsAcc = 0, fpsN = 0, petriT = 0;
+const bokehCam = { cx: null, cy: null };
+const LOOK = { size: 0.3, gain: 0.55, bloom: 0.3, exp: 1.45, focus: 0.45, decay: 0.84, halo: 1, iso: 1.9, haloR: 0.42 };
+Cosmos.debug.look = LOOK;
+function render(dt, t) {
+  fitAll();
+  // camera easing (with a slow opening pull-back, like racking out an objective)
+  if (cam.intro) {
+    const I = cam.intro; I.t += dt;
+    cam.tz = U.lerp(I.z0, I.z1, U.smoothstep(0.8, I.dur, I.t));
+    if (I.t > I.dur) cam.intro = null;
+  }
+  cam.zoom += (cam.tz - cam.zoom) * Math.min(1, dt * 10);
+  if (cam.anchor && !cam.follow) {
+    const k = ppuCss();
+    cam.cx = cam.anchor.wx - (cam.anchor.px - innerWidth / 2) / k;
+    cam.cy = cam.anchor.wy - (cam.anchor.py - innerHeight / 2) / k;
+    if (Math.abs(cam.tz - cam.zoom) < 1e-4) cam.anchor = null;
+  }
+  if (cam.follow) {
+    const [fx, fy] = bodyPos(cam.follow), kf = Math.min(1, dt * 5);
+    cam.cx += cam.follow.vx * dt + wrapD(fx - cam.cx, P.W) * kf; cam.cy += cam.follow.vy * dt + wrapD(fy - cam.cy, P.H) * kf;
+  }
+  cam.cx = ((cam.cx % P.W) + P.W) % P.W; cam.cy = ((cam.cy % P.H) + P.H) % P.H;
+
+  const dpr = canvas.width / Math.max(1, canvas.clientWidth);
+  const ppuDev = ppuCss() * dpr;
+  const vw = canvas.width, vh = canvas.height;
+
+  // 1. fade previous frame (reprojected for camera motion)
+  // per-frame decay keeps a constant trail length in seconds; paused frames drop the trail so nothing piles up
+  const decay = P.trails && !ch.paused ? Math.pow(LOOK.decay, Math.max(dt, 1 / 240) * 60) : 0;
+  const scale = prevCam.ppu > 0 ? prevCam.ppu / ppuDev : 1;
+  const shx = wrapD(cam.cx - prevCam.cx, P.W) * prevCam.ppu / vw, shy = wrapD(cam.cy - prevCam.cy, P.H) * prevCam.ppu / vh;
+  T.b.bind();
+  gl.useProgram(progFade);
+  G.uniforms(gl, progFade, { uPrev: T.a.tex, uDecay: decay, uShift: [shx, -shy], uScale: scale });
+  quad();
+  prevCam = { cx: cam.cx, cy: cam.cy, ppu: ppuDev };
+
+  // 2. particles, additive
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  gl.useProgram(progPart);
+  const sizePx = U.clamp(P.rMax * LOOK.size * ppuDev, 3.5 * dpr, 40);
+  const gain = (1 - decay) * LOOK.gain * U.clamp(Math.pow(sizePx / (8 * dpr), -0.5), 0.3, 1.5);
+  G.uniforms(gl, progPart, { uCenter: [cam.cx, cam.cy], uWorld: [P.W, P.H], uView: [vw, vh], uPpu: ppuDev, uSize: sizePx, uGain: gain, uVref: P.rMax * 8 });
+  gl.uniform3fv(progPart.uniforms.uPal.loc, palFlat);
+  gl.bindVertexArray(vao);
+  if (drawN) gl.drawArrays(gl.POINTS, 0, drawN);
+  // 2b. matter density for the dark-field halos (fresh every frame, half resolution)
+  const halo = P.halos && !LOWP ? 1 : 0;
+  const densPpu = ppuDev * T.dens.w / vw, densR = Math.min(POINT_MAX * 0.5, LOOK.haloR * P.rMax * densPpu);
+  if (halo) {
+    T.dens.bind(); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(progDens);
+    G.uniforms(gl, progDens, { uCenter: [cam.cx, cam.cy], uWorld: [P.W, P.H], uView: [T.dens.w, T.dens.h], uPpu: densPpu, uSize: densR * 2 });
+    gl.uniform3fv(progDens.uniforms.uPal.loc, palFlat);
+    if (drawN) gl.drawArrays(gl.POINTS, 0, drawN);
+  }
+  gl.bindVertexArray(null);
+  gl.disable(gl.BLEND);
+  const tmp = T.a; T.a = T.b; T.b = tmp;
+
+  // 3. bloom chain
+  let src = T.a;
+  gl.useProgram(progDown);
+  for (let i = 0; i < T.down.length; i++) {
+    const d = T.down[i]; d.bind();
+    G.uniforms(gl, progDown, { uSrc: src.tex, uTexel: [1 / src.w, 1 / src.h] });
+    quad(); src = d;
+  }
+  gl.useProgram(progUp);
+  for (let i = T.down.length - 2; i >= 0; i--) {
+    const u = T.up[i]; u.bind();
+    G.uniforms(gl, progUp, { uSrc: src.tex, uSkip: T.down[i].tex, uTexel: [1 / src.w, 1 / src.h], uSkipK: 1 });
+    quad(); src = u;
+  }
+  // 4. composite
+  G.screen(gl);
+  gl.useProgram(progComp);
+  G.uniforms(gl, progComp, { uScene: T.a.tex, uBloom: src.tex, uSoft: T.down[0].tex, uRes: [vw, vh], uT: t, uBloomK: LOOK.bloom, uExp: LOOK.exp, uFocus: LOOK.focus, uEra: ERA,
+    uDens: T.dens.tex, uDensTexel: [1 / T.dens.w, 1 / T.dens.h], uHalo: halo * LOOK.halo, uIso: LOOK.iso, uDensPx: vw / T.dens.w / dpr, uDensR: densR });
+  quad();
+  // out-of-focus debris above and below the focal plane: parallax with the stage, never in focus
+  {
+    const ppc = ppuCss(), dcx = wrapD(cam.cx - (bokehCam.cx != null ? bokehCam.cx : cam.cx), P.W), dcy = wrapD(cam.cy - (bokehCam.cy != null ? bokehCam.cy : cam.cy), P.H);
+    bokehCam.cx = cam.cx; bokehCam.cy = cam.cy;
+    for (let i = 0; i < NB; i++) {
+      const b = bokeh[i];
+      b.x -= dcx * ppc * b.d / innerWidth; b.y -= dcy * ppc * b.d / innerHeight;
+      b.x += Math.sin(t * 0.05 + b.ph) * 0.00004; b.y += Math.cos(t * 0.04 + b.ph) * 0.00004;
+      b.x -= Math.floor(b.x); b.y -= Math.floor(b.y);
+      const size = Math.min(POINT_MAX, (30 + 110 * b.r) * dpr * (0.7 + 0.3 * cam.zoom)), tw = 0.75 + 0.25 * Math.sin(t * 0.3 + b.ph);
+      bokehData[i * 4] = b.x * 2.2 - 1.1; bokehData[i * 4 + 1] = b.y * 2.2 - 1.1; bokehData[i * 4 + 2] = size; bokehData[i * 4 + 3] = b.c + Math.min(0.99, b.a * tw);
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, bokehBuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, bokehData);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+    gl.useProgram(progBokeh); gl.uniform3fv(progBokeh.uniforms.uPal.loc, palFlat);
+    gl.bindVertexArray(bokehVao); gl.drawArrays(gl.POINTS, 0, NB); gl.bindVertexArray(null);
+    gl.disable(gl.BLEND);
+  }
+}
+
+/* ------------------------------------------------------------ overlay (2D) */
+function drawOverlay(dt) {
+  const dpr = ov.width / Math.max(1, ov.clientWidth);
+  octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  octx.clearRect(0, 0, ov.clientWidth, ov.clientHeight);
+  const k = ppuCss();
+  // heat puffs
+  for (let i = heatFx.length - 1; i >= 0; i--) {
+    const h = heatFx[i]; h.t += dt; if (h.t > 0.8) { heatFx.splice(i, 1); continue; }
+    const [sx, sy] = worldToScreen(h.x, h.y); const r = h.r * P.rMax * k * (0.4 + h.t);
+    octx.strokeStyle = `rgba(255,170,90,${0.5 * (1 - h.t / 0.8)})`; octx.lineWidth = 1;
+    octx.beginPath(); octx.arc(sx, sy, r, 0, 7); octx.stroke();
+  }
+  if (ptr.down && (ptr.mode === 'heat' || ptr.mode === 'stir')) {
+    const heat = ptr.mode === 'heat';
+    const ramp = heat ? U.clamp(ptr.heatT / 1.5, 0.15, 1) : 0;
+    const r = (heat ? (2 + 2.5 * ramp) : 2.6) * P.rMax * k;
+    const g = octx.createRadialGradient(ptr.x, ptr.y, 0, ptr.x, ptr.y, r);
+    if (heat) { g.addColorStop(0, `rgba(255,150,70,${0.16 * ramp + 0.05})`); g.addColorStop(1, 'rgba(255,120,60,0)'); }
+    else { g.addColorStop(0, 'rgba(79,227,193,0.07)'); g.addColorStop(1, 'rgba(79,227,193,0)'); }
+    octx.fillStyle = g; octx.beginPath(); octx.arc(ptr.x, ptr.y, r, 0, 7); octx.fill();
+    octx.setLineDash(heat ? [2, 4] : []); octx.lineDashOffset = -performance.now() / 60;
+    octx.strokeStyle = heat ? 'rgba(255,170,90,.7)' : 'rgba(79,227,193,.45)'; octx.lineWidth = 1;
+    octx.beginPath(); octx.arc(ptr.x, ptr.y, r, 0, 7); octx.stroke(); octx.setLineDash([]);
+    if (heat) {
+      octx.font = `500 10px ${FONT_MONO}`;
+      octx.fillStyle = 'rgba(255,190,130,.9)'; octx.textAlign = 'left';
+      octx.fillText('HEATING ' + Math.round(ramp * 100) + '%', ptr.x + r + 8, ptr.y + 3);
+    }
+  }
+}
+
+/* ------------------------------------------------------------ main loop */
+const TOUR = ['cells', 'rotors', 'worms', 'predator', 'mitosis', 'galaxies', 'tissue', 'labyrinth'];
+let tourSteps = 0;
+function autopilot(dt) {
+  const now = performance.now();
+  if (!tTour.value || ch.paused || document.hidden || ptr.down || cam.follow || (search.running && search.userStarted)) return;
+  const wait = tourSteps === 0 ? 22000 : 40000; // the first move comes sooner, so a visitor who just watches sees the rules change
+  if (now - lastAny < wait || now - lastLoad < wait) return;
+  if (morph.on || lamAnim.on) return;
+  tourSteps++;
+  const next = nextInTour();
+  if (next && !morphTo(next)) log(`Tour: moving the stage to <b>${next.name}</b>`);
+}
+let driftA = Math.random() * 6.283;
+function stageDrift(dt) { // a slow wander of the microscope stage, so even a still culture drifts past
+  if (cam.follow || ptr.down || cam.anchor || ch.paused) return;
+  driftA += (Math.random() - 0.5) * dt * 0.3;
+  const v = 1.6; // µm/s
+  cam.cx += Math.cos(driftA) * v * dt; cam.cy += Math.sin(driftA) * v * dt;
+}
+ch.loop((dt, t) => {
+  wallT = t;
+  pointerKicks(dt);
+  autopilot(dt);
+  annealTick(dt);
+  lamTick(dt);
+  morphTick(dt);
+  stageDrift(dt);
+  requestStep(dt);
+  render(dt, t);
+  drawOverlay(dt);
+  drawBodies(dt);
+  soundTick(dt);
+  updateScale();
+  if (search.running || search.dirty) { petriT += dt; if (petriT > 0.08) { petriT = 0; drawPetri(); } }
+  fpsAcc += dt; fpsN++;
+  if (fpsAcc > 0.5) {
+    fpsS = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0;
+    hud.fps.set(Math.round(fpsS) + ' fps'); ro.fps.set(Math.round(fpsS) + ' fps');
+  }
+}, { always: true });
+
+ch.onResize(() => { fitAll(); drawMatrix(); drawGraph(); placeLog(); drawPetri(); drawThumbs(); drawMap(); drawLamPlot(); freeR = null; });
+if (window.ResizeObserver) { const ro2 = new ResizeObserver(() => { drawMatrix(); drawGraph(); drawPetri(); drawThumbs(); drawProgress(); drawMap(); drawLamPlot(); }); [matCanvas, graphCanvas, petri, thumbs, progC, mapC, lamPlot].forEach((c) => ro2.observe(c)); }
+function holdSearch() { if (searchW) searchW.postMessage({ type: 'hold', on: ch.paused || document.hidden }); }
+ch.onPause(() => holdSearch());
+document.addEventListener('visibilitychange', holdSearch);
+
+// debug hook for QA
+Cosmos.debug.state = () => ({
+  N: simInfo.N, K: P.K, steps: simInfo.steps, simTime: +simInfo.time.toFixed(2), stepMs: +simInfo.ms.toFixed(2), fps: Math.round(fpsS),
+  preset: P.preset, seed: P.seed, world: [+P.W.toFixed(1), +P.H.toFixed(1)], zoom: +cam.zoom.toFixed(2),
+  clusters: lastStats ? lastStats.clusters : null, clusteredFrac: lastStats ? +lastStats.clusteredFrac.toFixed(3) : null,
+  meanSpeed: lastStats ? +lastStats.meanSpeed.toFixed(2) : null, temperature: lastStats ? +lastStats.temperature.toFixed(1) : null,
+  persist: lastStats ? +lastStats.persist.toFixed(3) : null, divisions, cellDivisions,
+  lam: +P.lam.toFixed(3), eta: +etaOf(P.A, P.K).toFixed(3), drift: lastStats ? +lastStats.coherent.toFixed(2) : null, spin: lastStats ? +lastStats.rotation.toFixed(3) : null,
+  noise: +P.noise.toFixed(2), experiments: search.all.length, halos: P.halos,
+});
+Cosmos.debug.loadPreset = (i) => loadPreset(PRESETS[i]);
+Cosmos.debug.loadRule = (r) => loadPreset(Object.assign({ id: 'custom', name: r.name || 'Test rule' }, r));
+Cosmos.debug.search = search;
+Cosmos.debug.setNoise = (v) => sNoise.set(v, true);
+
+/* ------------------------------------------------------------ boot */
+setPalette(null);
+fitAll();
+placeLog();
+drawMatrix();
+drawPetri(); drawThumbs(); drawProgress(); drawLamPlot();
+loadPreset(PRESETS[0], true);
+P.noise = anneal.from; sendParams(); sNoise.set(P.noise);
+if (!small) setTimeout(() => { if (!search.running && !search.trials && !document.hidden) startSearch(true); }, 9000);
+})();
+</script>
+</body>
+</html>

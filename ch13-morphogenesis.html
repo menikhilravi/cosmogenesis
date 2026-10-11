@@ -1,0 +1,2320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Morphogenesis · Cosmogenesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="cosmos.css">
+<style>
+  #mg-gl { cursor: crosshair; }
+  #mg-ui { pointer-events: none; }
+  .mg-grid.cz-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .mg-grid .cz-btn { padding: 7px 8px; font-size: 11.5px; }
+  .mg-mapcv { cursor: crosshair; touch-action: none; }
+  .mg-mapnote { display: flex; justify-content: space-between; gap: 8px; font: 500 10.5px/1.3 var(--f-mono); color: var(--faint); margin-top: -4px; }
+  .mg-mapnote b { color: var(--era); font-weight: 500; }
+  .mg-caption {
+    position: fixed; left: 50%; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 16px); z-index: 22;
+    transform: translate(-50%, 8px); pointer-events: none; text-align: center; max-width: min(620px, calc(100vw - 32px));
+    font: italic 500 clamp(21px, 2.2vw, 30px)/1.15 var(--f-display); color: var(--star);
+    padding: 12px 24px 14px; border-radius: 14px; border: 1px solid var(--line);
+    background: rgba(5, 6, 12, .58); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    text-shadow: 0 1px 12px rgba(0, 0, 0, .6); opacity: 0;
+    transition: opacity .9s var(--ease), transform .9s var(--ease);
+  }
+  .mg-caption small { display: block; margin-bottom: 8px; font: 600 10.5px/1.4 var(--f-mono); font-style: normal; letter-spacing: .2em; text-transform: uppercase; color: var(--era); }
+  .mg-caption.on { opacity: 1; transform: translate(-50%, 0); }
+  .mg-hint {
+    position: fixed; left: 50%; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 10px); transform: translateX(-50%); z-index: 21;
+    font: 500 11px/1 var(--f-mono); letter-spacing: .12em; color: var(--dust); text-transform: uppercase; pointer-events: none;
+    padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: rgba(5, 6, 12, .55);
+    transition: opacity 1.2s var(--ease); white-space: nowrap;
+  }
+  .mg-hint.off { opacity: 0; }
+  .mg-deck-sub { font: 500 10.5px/1.45 var(--f-mono); color: var(--dust); }
+  .mg-deck-sub b { color: var(--star); font-weight: 500; }
+  body.mg-mapmode .cz-hud { opacity: 0; }
+  body.mg-mapmode .cz-notes { opacity: 0; transform: translateX(-16px); pointer-events: none; }
+  @media (max-width: 760px) {
+    .mg-caption { top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 128px); font-size: 22px; }
+    .mg-hint { font-size: 10px; letter-spacing: .08em; top: auto; bottom: calc(var(--foot-h) + env(safe-area-inset-bottom, 0px) + 96px); }
+  }
+</style>
+</head>
+<body>
+<script src="cosmos.js"></script>
+<script>
+(function () {
+'use strict';
+
+/* =====================================================================
+   Chapter 13 · Morphogenesis
+   Turing patterns on the GPU: Gray–Scott (plus Gierer–Meinhardt and the
+   Brusselator) on float ping-pong textures, rendered as lit living tissue,
+   with a live (F, k) parameter atlas after Pearson (1993).
+   ===================================================================== */
+
+const NOTES = `
+<p>You are looking at two chemicals on a sheet of cells, and nothing else. One of them, <strong>v</strong>, makes more of itself when it meets the other. The other, <strong>u</strong>, is fed in everywhere and spreads twice as fast. No cell knows where it is, and no picture is stored anywhere. Spots, stripes and mazes appear anyway.</p>
+<p>In 1952 Alan Turing showed why. Diffusion normally smooths things out, but when a short-range activator is held in check by something that spreads further, a flat, even mixture becomes unstable. Tiny random ripples grow into a pattern with its own preferred spacing. He called it <em>morphogenesis</em>, the making of form.</p>
+<p>Seventy years on, the idea holds up in real animals. The stripes on zebrafish come from pigment cells that obey Turing's rules. Mouse fingers are spaced by a Turing wave that Hox genes tune. Hair follicles, palate ridges and the maze on a pufferfish all look like this sheet.</p>
+<p>The <strong>parameter map</strong> in the controls is the whole family at once: one simulation in which the feed rate F grows to the right and the kill rate k grows upward. Every pattern in this chapter lives somewhere on it. The leopard, the giraffe and the zebra differ only in where they sit on that map, how the skin is coloured, and which way the chemicals prefer to spread.</p>
+<h4>Try this</h4>
+<ul>
+<li>Press <kbd>A</kbd> or <strong>Map mode</strong>, then drag the crosshair across the map. The lens shows the tissue changing species as you go. Click the lens to dive back in, or press <kbd>W</kbd> and let F and k wander on their own.</li>
+<li>Choose <strong>Mitosis</strong> and watch one spot divide until it fills the screen.</li>
+<li>Press <strong>Animal coat</strong>. The same chemistry, started from noise, puts spots on the body and rings on the thin tail. The blue callipers show how many wavelengths fit across.</li>
+<li>Press <kbd>T</kbd> for a guided tour, or drag on the tissue to paint new activator. Right-drag, or switch on Erase, to wipe it.</li>
+</ul>`;
+
+const SCIENCE = `
+<h4>Turing's insight (1952)</h4>
+<p>Take two substances that react and diffuse. Without diffusion their mixture sits at a stable, uniform state. Turing showed that adding diffusion can destabilise it, provided the <strong>activator</strong> promotes itself locally and the <strong>inhibitor</strong> it triggers diffuses faster and further. Perturbations of one particular wavelength then grow exponentially while all others decay, and the uniform state breaks into a periodic pattern.</p>
+<h4>The Gray–Scott model</h4>
+<p>This sheet runs the Gray–Scott reaction U + 2V → 3V, V → P, with U fed in at rate F and V removed at rate F + k:</p>
+<span class="eq">∂u/∂t = D<sub>u</sub> ∇²u − u v² + F (1 − u)</span>
+<span class="eq">∂v/∂t = D<sub>v</sub> ∇²v + u v² − (F + k) v</span>
+<p>V is autocatalytic (the u v² term) and U is its fuel, so this is an <em>activator–substrate depletion</em> system: a patch of V eats the U around it, and because U diffuses twice as fast (D<sub>u</sub> = 2 D<sub>v</sub>) the depletion reaches further than the activation.</p>
+<p>Units are Pearson's: D<sub>u</sub> = 2 × 10⁻⁵ and D<sub>v</sub> = 10⁻⁵ on a 2.5 × 2.5 box of 256² cells, which is D<sub>u</sub> = 0.2097 and D<sub>v</sub> = 0.105 in cell² per step, with Δt = 1. The Laplacian is the isotropic 9-point stencil ∇²u ≈ [4 Σ(edges) + Σ(corners) − 20 u] / 6, integrated with forward Euler on 32-bit float textures, 1 to 40 steps per frame. The sheet has one cell per 1.3 to 3 screen pixels (up to about 1100 × 700 cells on a laptop) and no-flux boundaries.</p>
+<p><strong>Measurements.</strong> A 256² window of v (128² on phones) is read back twice a second. The wavelength is the peak of its radially averaged power spectrum (2D FFT with a Hann window). Shape comes from counting connected blobs and holes, with an elongation test for worms, and stripe order is the anisotropy of the spectral ring.</p>
+<h4>Linear stability</h4>
+<p>Linearise about a uniform state with Jacobian J = [[f<sub>a</sub>, f<sub>h</sub>], [g<sub>a</sub>, g<sub>h</sub>]] for activator a and inhibitor h. A perturbation e<sup>σt + iq·x</sup> grows at rate σ(q), an eigenvalue of J − q² diag(D<sub>a</sub>, D<sub>h</sub>). Turing instability needs the state to be stable at q = 0 and unstable at some q > 0:</p>
+<span class="eq">f<sub>a</sub> + g<sub>h</sub> &lt; 0,&nbsp;&nbsp; det J &gt; 0,&nbsp;&nbsp; D<sub>h</sub> f<sub>a</sub> + D<sub>a</sub> g<sub>h</sub> &gt; 2 √(D<sub>a</sub> D<sub>h</sub> det J)</span>
+<p>The third condition cannot hold with f<sub>a</sub> &gt; 0 &gt; g<sub>h</sub> unless D<sub>h</sub> &gt; D<sub>a</sub>. The fastest-growing mode sits near q<sub>c</sub>² = (D<sub>h</sub> f<sub>a</sub> + D<sub>a</sub> g<sub>h</sub>) / (2 D<sub>a</sub> D<sub>h</sub>), which sets the spacing λ = 2π/q<sub>c</sub>. The <strong>Analysis</strong> panel draws σ(q) live and overlays the measured power spectrum of the sheet.</p>
+<p>Gray–Scott has a twist. Its trivial state u = 1, v = 0 is always linearly stable, and a second uniform state (the blue state) exists only where F &gt; 4(F + k)², below the saddle-node curve k = √F / 2 − F on the map. Most of the famous patterns (mitosis, solitons, worms) live just above that curve, where only the trivial state exists. They are finite-amplitude, self-sustaining structures that need a disturbance to get started. They are relatives of Turing's mechanism, and they show that linear theory tells only part of the story. The Gierer–Meinhardt and Brusselator modes in the Reaction panel show the classic linear instability growing from pure noise.</p>
+<h4>Pearson's map</h4>
+<p>Pearson (1993) swept F and k and sorted the behaviours into twelve classes, α to μ; Munafo later extended the list (ν, ξ, π, ρ, σ) and gave a representative point for each, which is where the labels sit. The map recomputes that survey in one live simulation of 800 × 500 cells (480 × 300 on phones), with F rising from 0.008 to 0.095 along x and k from 0.045 to 0.07 along y. Because F and k change smoothly across it, neighbouring regimes meet at soft borders. Classes β (F 0.014, k 0.039) and ξ (F 0.010, k 0.041) lie below this window. Uniform areas are the red state (u = 1, v = 0, above the curve) or the blue state (below it). The dashed curve is the saddle-node line, the dotted curve is the Hopf line where the blue state starts to oscillate, and the thin shaded sliver is the only place where linear theory predicts a Turing instability at D<sub>u</sub>/D<sub>v</sub> = 2.</p>
+<h4>Second models</h4>
+<span class="eq">Gierer–Meinhardt: ∂a/∂t = D<sub>a</sub>∇²a + r [a² / (h(1 + κa²)) − a + σ],&nbsp; ∂h/∂t = D<sub>h</sub>∇²h + r ν (a² − h)</span>
+<span class="eq">Brusselator: ∂x/∂t = D<sub>x</sub>∇²x + r [A − (B + 1) x + x² y],&nbsp; ∂y/∂t = D<sub>y</sub>∇²y + r (B x − x² y)</span>
+<p>Here D<sub>h</sub> = D<sub>y</sub> = 0.3 cell²/step, σ = 0.01, and the rate r (0.0035 and 0.0037) is chosen so the Turing wavelength is 16 to 20 cells at the default settings. Saturation κ turns Gierer–Meinhardt peaks into stripes. The Brusselator becomes Turing-unstable when B &gt; (1 + A √(D<sub>x</sub>/D<sub>y</sub>))².</p>
+<h4>The evidence in living things</h4>
+<p><strong>Fish.</strong> Kondo and Asai (1995) watched the stripes of the angelfish <em>Pomacanthus</em> split and rearrange as the fish grew, exactly as a Turing pattern does on a growing domain. <strong>Growing angelfish</strong> reproduces this: the sheet is stretched by 2% per second along its length, and new stripes open between the old ones through Y-shaped forks while the spacing stays at one wavelength. In zebrafish, Nakamasu et al. (2009) found that black melanophores and yellow xanthophores eliminate each other at short range, while xanthophores help melanophores survive at a distance. That is short-range inhibition with long-range support: Turing's conditions, met by cells instead of molecules.</p>
+<p><strong>Fingers.</strong> Sheth et al. (2012) removed Hox genes in mice and got extra, thinner digits: the Hox dose sets the wavelength of a Turing-type system (Sox9, BMP, WNT) in the limb bud. <strong>Skin.</strong> WNT and its inhibitor DKK space mouse hair follicles like an activator and inhibitor (Sick et al. 2006), and FGF and SHH lay down the ridges of the palate (Economou et al. 2012).</p>
+<p><strong>Tails.</strong> Murray (1988) pointed out that a domain narrower than about one wavelength can hold only bands across it. A tapering tail therefore turns spots into rings near its tip. His prediction: a spotted animal may have a striped tail, but a striped animal cannot have a spotted tail. Cheetahs, jaguars and genets obey it. <strong>Animal coat</strong> tests this with the model closest to Murray's own analysis: a Brusselator just past its Turing threshold (A = 4.5, D<sub>y</sub>/D<sub>x</sub> = 8, B = 6.95 against an onset of 6.71), started from pure noise. On an open sheet it settles into hexagonal spots where the activator X is low, and those are drawn as pigment. On the silhouette the tail narrows from 1.4 wavelengths across to 0.36, and the blue callipers give its width in wavelengths. Once the tail is narrower than about half a wavelength, no mode across it can grow, only modes along it, so the spots become bands. Rings form where the tail gets thin; the body stays spotted. The <strong>tapered tail in 3D</strong> runs the same reaction on a closed tube: the sheet is an unrolled cone whose rows wrap around, with a circumference that grows from 0.6 wavelengths at the tip to 7 at the base. It neglects the small curvature terms of a slender cone's Laplacian.</p>
+<h4>Direction</h4>
+<p>Anisotropy makes one axis diffuse faster. Try it with <strong>Zebra</strong>. If only the inhibitor u spreads faster along x, stripes form across x; if only the activator v does, stripes run along x; if both do, it is just a stretched coordinate system and the labyrinth stays disordered. Shoji et al. (2002) studied this kind of directional bias as a way to orient fish stripes.</p>
+<h4>What is simplified</h4>
+<p>Lengths and times are in grid units, not microns and hours. Gray–Scott is a chemical toy, not a gene network. Real skin grows while it patterns and is curved, both of which change the result. Anisotropy multiplies diffusion along one direction for whichever chemical you choose. The lighting, fur, rosette gaps, chromatophores and iridescence are rendering choices laid over the computed v field. The giraffe net is drawn along the valleys of log v, the medial lines between neighbouring spots, so it is a way of looking at the same spot pattern. Real leopard rosettes may come from a pattern that changes during growth (Liu et al. 2006).</p>
+<span class="cite">Turing, A. M. (1952). The chemical basis of morphogenesis. Phil. Trans. R. Soc. Lond. B 237, 37–72.</span>
+<span class="cite">Gray, P. &amp; Scott, S. K. (1984). Autocatalytic reactions in the isothermal, continuous stirred tank reactor. Chem. Eng. Sci. 39, 1087–1097.</span>
+<span class="cite">Pearson, J. E. (1993). Complex patterns in a simple system. Science 261, 189–192.</span>
+<span class="cite">Murray, J. D. (1988). How the leopard gets its spots. Scientific American 258(3), 80–87.</span>
+<span class="cite">Kondo, S. &amp; Miura, T. (2010). Reaction-diffusion model as a framework for understanding biological pattern formation. Science 329, 1616–1620.</span>
+<span class="cite">Kondo, S. &amp; Asai, R. (1995). A reaction–diffusion wave on the skin of the marine angelfish Pomacanthus. Nature 376, 765–768.</span>
+<span class="cite">Nakamasu, A., Takahashi, G., Kanbe, A. &amp; Kondo, S. (2009). Interactions between zebrafish pigment cells responsible for the generation of Turing patterns. PNAS 106, 8429–8434.</span>
+<span class="cite">Sheth, R. et al. (2012). Hox genes regulate digit patterning by controlling the wavelength of a Turing-type mechanism. Science 338, 1476–1480.</span>
+<span class="cite">Sick, S., Reinker, S., Timmer, J. &amp; Schlake, T. (2006). WNT and DKK determine hair follicle spacing through a reaction-diffusion mechanism. Science 314, 1447–1450.</span>
+<span class="cite">Gierer, A. &amp; Meinhardt, H. (1972). A theory of biological pattern formation. Kybernetik 12, 30–39.</span>
+<span class="cite">Shoji, H., Iwasa, Y., Mochizuki, A. &amp; Kondo, S. (2002). Directionality of stripes formed by anisotropic reaction–diffusion models. J. Theor. Biol. 214, 549–561.</span>`;
+
+const ch = Cosmos.chapter({ id: 'morphogenesis', notes: NOTES, science: SCIENCE });
+const U = Cosmos.util;
+const small = window.matchMedia('(max-width: 760px)').matches;
+const ERA = U.rgbf(ch.meta.accent);
+
+/* ================================================================ GL setup */
+const canvas = ch.canvas('mg-gl');
+const ui = ch.canvas('mg-ui');
+const cx = ui.getContext('2d');
+const gl = Cosmos.gl.context(canvas, { alpha: false });
+if (!gl) { ch.fatal('This chapter needs WebGL2, which this browser or device does not provide.'); return; }
+if (!gl.ext.floatRT) { ch.fatal('The reaction runs on 32-bit floating-point textures (EXT_color_buffer_float), which this GPU does not expose. Half precision is too coarse: the feed term changes u by about one part in ten thousand per step.'); return; }
+
+const HEAD = '#version 300 es\nprecision highp float;\nprecision highp int;\nprecision highp sampler2D;\n';
+const VS = Cosmos.gl.FS_VERT;
+const drawTri = Cosmos.gl.quad(gl);
+
+function makeTex(w, h, internal, format, type, filter, data) {
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, format, type, data || null);
+  const f = filter === 'linear' ? gl.LINEAR : gl.NEAREST;
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, f); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, f);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+}
+function makeTarget(w, h, kind, filter) {
+  const fm = {
+    rg32: [gl.RG32F, gl.RG, gl.FLOAT],
+    rgba32: [gl.RGBA32F, gl.RGBA, gl.FLOAT],
+    rgba16: [gl.RGBA16F, gl.RGBA, gl.HALF_FLOAT],
+    rgba8: [gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE],
+  }[kind];
+  const tex = makeTex(w, h, fm[0], fm[1], fm[2], filter);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  const st = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  if (st !== gl.FRAMEBUFFER_COMPLETE) throw new Error('Framebuffer incomplete for ' + kind + ' (0x' + st.toString(16) + ')');
+  return { tex, fbo, w, h, dispose() { gl.deleteTexture(tex); gl.deleteFramebuffer(fbo); } };
+}
+
+/* ================================================================ shaders */
+const SIM_FS = HEAD + `
+uniform sampler2D uS; uniform sampler2D uMask; uniform int uUseMask;
+uniform ivec2 uSize; uniform int uModel;
+uniform vec2 uFK; uniform vec2 uD; uniform float uDt;
+uniform int uGrad; uniform vec4 uGR;
+uniform vec4 uAniso; uniform vec2 uAnisoW;
+uniform vec4 uBrush; uniform vec3 uBrushP;
+uniform vec4 uP; uniform vec2 uHi; uniform vec2 uBase; uniform vec2 uMax;
+uniform int uTopo; uniform vec4 uCone; uniform float uConeYc;
+out vec4 o;
+vec2 S(ivec2 p){ return texelFetch(uS, clamp(p, ivec2(0), uSize - 1), 0).xy; }
+float M(ivec2 p){ return texelFetch(uMask, clamp(p, ivec2(0), uSize - 1), 0).r; }
+// cone topology: column x is a ring of 2h cells (h from the taper); rows wrap around it, the two ends are no-flux
+int coneH(int x){ float t = clamp((float(x) - uCone.x) / (uCone.y - uCone.x), 0.0, 1.0); return int(max(2.0, floor(mix(uCone.z, uCone.w, pow(t, 1.8)) * 0.5))); }
+ivec2 coneWrap(ivec2 q){ int h = coneH(q.x), yc = int(uConeYc); if (q.y >= yc + h) q.y -= 2 * h; else if (q.y < yc - h) q.y += 2 * h; return q; }
+bool coneOut(ivec2 q){ return float(q.x) < uCone.x || float(q.x) > uCone.y; }
+vec2 N(ivec2 p, vec2 c){
+  if (uTopo == 1) return coneOut(p) ? c : S(coneWrap(p));
+  if (uUseMask == 1 && M(p) < 0.5) return c;
+  return S(p);
+}
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy);
+  vec2 c = S(p);
+  if (uTopo == 1) { int h = coneH(p.x), yc = int(uConeYc); if (coneOut(p) || p.y < yc - h || p.y >= yc + h) { o = vec4(uBase, 0.0, 1.0); return; } }
+  else if (uUseMask == 1 && M(p) < 0.5) { o = vec4(uBase, 0.0, 1.0); return; }
+  vec2 e = N(p + ivec2(1, 0), c), w = N(p - ivec2(1, 0), c), n = N(p + ivec2(0, 1), c), s = N(p - ivec2(0, 1), c);
+  vec2 ne = N(p + ivec2(1, 1), c), nw = N(p + ivec2(-1, 1), c), se = N(p + ivec2(1, -1), c), sw = N(p + ivec2(-1, -1), c);
+  vec2 lap = (4.0 * (e + w + n + s) + (ne + nw + se + sw) - 20.0 * c) / 6.0;
+  if (uAniso.x != 0.0) lap += uAnisoW * uAniso.x * (uAniso.y * ((e + w) - (n + s)) + uAniso.z * 0.5 * ((ne + sw) - (nw + se)));
+  float F = uFK.x, k = uFK.y;
+  vec2 q = (vec2(p) + 0.5) / vec2(uSize);
+  if (uGrad == 1) F = mix(uGR.x, uGR.y, q.x);
+  else if (uGrad == 2) k = mix(uGR.z, uGR.w, q.x);
+  else if (uGrad == 3) { F = mix(uGR.x, uGR.y, q.x); k = mix(uGR.z, uGR.w, q.y); }
+  vec2 r;
+  if (uModel == 0) {            // Gray-Scott: x = u (substrate), y = v (activator)
+    float u = c.x, v = c.y, uvv = u * v * v;
+    r = vec2(-uvv + F * (1.0 - u), uvv - (F + k) * v);
+  } else if (uModel == 1) {     // Gierer-Meinhardt: x = h (inhibitor), y = a (activator)
+    float h = max(c.x, 1e-3), a = c.y, a2 = a * a;
+    r = uP.w * vec2(uP.y * (a2 - h), a2 / (h * (1.0 + uP.x * a2)) - a + uP.z);
+  } else {                      // Brusselator: x = Y (inhibitor), y = X (activator)
+    float X = c.y, Y = c.x, x2y = X * X * Y;
+    r = uP.z * vec2(uP.y * X - x2y, uP.x - (uP.y + 1.0) * X + x2y);
+  }
+  vec2 nx = c + uDt * (uD * lap + r);
+  if (uBrushP.y != 0.0) {
+    vec2 pa = vec2(p) + 0.5 - uBrush.xy, ba = uBrush.zw - uBrush.xy;
+    float t = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0);
+    float d = length(pa - ba * t);
+    float m = 1.0 - smoothstep(uBrushP.x * 0.6, uBrushP.x, d);
+    if (uBrushP.y > 0.0) {   // paint a stipple of seed-sized drops: a solid disk starves itself of substrate and dies
+      vec2 cq = (vec2(p) + 0.5) / 7.0, ci = floor(cq);
+      vec2 jt = fract(sin(vec2(dot(ci, vec2(127.1, 311.7)), dot(ci, vec2(269.5, 183.3)))) * 43758.5453) - 0.5;
+      m *= 1.0 - smoothstep(2.0, 3.0, length((cq - ci - 0.5 - jt * 0.4) * 7.0));
+      nx = mix(nx, uHi, m);
+    } else nx = mix(nx, uBase, m);
+  }
+  nx = clamp(nx, vec2(1e-4, 0.0), uMax);
+  if (!(nx.x >= 0.0 && nx.y >= 0.0)) nx = uBase;   // NaN guard
+  o = vec4(nx, 0.0, 1.0);
+}`;
+
+const SEED_FS = HEAD + `
+uniform sampler2D uS; uniform int uAdd; uniform ivec2 uSize;
+uniform vec2 uBase, uHi, uNoise; uniform float uSeed;
+uniform vec4 uBlobs[64]; uniform int uN;
+out vec4 o;
+float hash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031 + uSeed * 0.013); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy);
+  vec2 c = vec2(p) + 0.5;
+  vec2 s = uAdd == 1 ? texelFetch(uS, p, 0).xy : uBase + (vec2(hash(c), hash(c + 17.31)) - 0.5) * 2.0 * uNoise;
+  for (int i = 0; i < 64; i++) {
+    if (i >= uN) break;
+    vec4 b = uBlobs[i];
+    vec2 d = abs(c - b.xy);
+    bool inside = b.w > 0.5 ? max(d.x, d.y) < b.z : length(c - b.xy) < b.z;
+    if (inside) s = uHi * (1.0 + (vec2(hash(c + 3.1), hash(c + 7.7)) - 0.5) * 0.1);
+  }
+  o = vec4(s, 0.0, 1.0);
+}`;
+
+const RESAMPLE_FS = HEAD + `
+uniform sampler2D uS; uniform ivec2 uSrc; uniform ivec2 uDst; uniform vec2 uGrow;
+out vec4 o;
+void main(){
+  vec2 cen = 0.5 * vec2(uSrc);
+  vec2 q = (gl_FragCoord.xy / vec2(uDst) * vec2(uSrc) - cen) / uGrow + cen - 0.5;   // uGrow > 1 stretches the sheet about its centre
+  ivec2 i = ivec2(floor(q)); vec2 f = fract(q);
+  ivec2 m = uSrc - 1;
+  vec2 a = texelFetch(uS, clamp(i, ivec2(0), m), 0).xy, b = texelFetch(uS, clamp(i + ivec2(1, 0), ivec2(0), m), 0).xy;
+  vec2 c = texelFetch(uS, clamp(i + ivec2(0, 1), ivec2(0), m), 0).xy, d = texelFetch(uS, clamp(i + ivec2(1, 1), ivec2(0), m), 0).xy;
+  o = vec4(mix(mix(a, b, f.x), mix(c, d, f.x), f.y), 0.0, 1.0);
+}`;
+
+const VIEW_FS = HEAD + `
+uniform sampler2D uS; uniform sampler2D uMask; uniform int uUseMask; uniform ivec2 uSize;
+uniform int uTopo; uniform vec4 uCone; uniform float uConeYc; uniform float uSign;
+out vec4 o;
+int coneH(int x){ float t = clamp((float(x) - uCone.x) / (uCone.y - uCone.x), 0.0, 1.0); return int(max(2.0, floor(mix(uCone.z, uCone.w, pow(t, 1.8)) * 0.5))); }
+ivec2 W(ivec2 q){
+  q = clamp(q, ivec2(0), uSize - 1);
+  if (uTopo == 1) {
+    q.x = int(clamp(float(q.x), uCone.x, uCone.y));
+    int h = coneH(q.x), yc = int(uConeYc);
+    if (q.y >= yc + h && q.y < yc + h + 6) q.y -= 2 * h; else if (q.y < yc - h && q.y >= yc - h - 6) q.y += 2 * h;
+  }
+  return q;
+}
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy);
+  vec2 c = texelFetch(uS, W(p), 0).xy;
+  float b = 0.0, ws = 0.0;
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+    float w = (i == 0 ? 2.0 : 1.0) * (j == 0 ? 2.0 : 1.0);
+    b += w * texelFetch(uS, W(p + ivec2(i, j)), 0).y; ws += w;
+  }
+  float m = uUseMask == 1 ? texelFetch(uMask, p, 0).r : 1.0;
+  o = vec4(uSign * b / ws, c.x, c.y, m);   // uSign = -1: pigment follows low activator
+}`;
+
+const SKIN_COMMON = `
+uniform sampler2D uV; uniform vec2 uVSize;
+uniform vec4 uMap; uniform vec4 uClip; uniform vec3 uCircle;
+uniform vec2 uRange;
+uniform vec3 uPalC[6]; uniform float uPalP[6];
+uniform vec4 uMat;    // bump, spec, shine, wrap
+uniform vec4 uMat2;   // sss, ambient, gloss, cavity
+uniform vec4 uFx;     // fur, iridescence, rosette, pores
+uniform vec3 uSSS; uniform vec3 uLightC; uniform vec3 uBg; uniform vec3 uL;
+uniform float uT; uniform vec2 uRes; uniform float uVig; uniform float uCellPx; uniform int uUseMask; uniform float uAlpha; uniform float uFade;
+uniform int uAtlas; uniform int uKind; uniform float uFurAng; uniform float uHud; uniform vec4 uHudRect;
+out vec4 o;
+
+vec4 cubicW(float v){ vec4 n = vec4(1.0, 2.0, 3.0, 4.0) - v; vec4 s = n * n * n; float x = s.x, y = s.y - 4.0 * s.x, z = s.z - 4.0 * s.y + 6.0 * s.x; return vec4(x, y, z, 6.0 - x - y - z) * (1.0 / 6.0); }
+vec4 bicubic(vec2 uv){
+  vec2 st = uv * uVSize - 0.5; vec2 f = fract(st); st -= f;
+  vec4 xc = cubicW(f.x), yc = cubicW(f.y);
+  vec4 c = st.xxyy + vec2(-0.5, 1.5).xyxy;
+  vec4 s = vec4(xc.xz + xc.yw, yc.xz + yc.yw);
+  vec4 off = (c + vec4(xc.yw, yc.yw) / s) / uVSize.xxyy;
+  vec4 s0 = texture(uV, off.xz), s1 = texture(uV, off.yz), s2 = texture(uV, off.xw), s3 = texture(uV, off.yw);
+  float sx = s.x / (s.x + s.y), sy = s.z / (s.z + s.w);
+  return mix(mix(s3, s2, sx), mix(s1, s0, sx), sy);
+}
+float h21(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h21(i), h21(i + vec2(1, 0)), u.x), mix(h21(i + vec2(0, 1)), h21(i + vec2(1, 1)), u.x), u.y); }
+float fbm(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += a * vnoise(p); p = p * 2.03 + 17.1; a *= 0.5; } return s; }
+vec3 pal(float x){
+  vec3 c = uPalC[0];
+  for (int i = 1; i < 6; i++) { float t = clamp((x - uPalP[i - 1]) / max(uPalP[i] - uPalP[i - 1], 1e-4), 0.0, 1.0); c = mix(c, uPalC[i], t * t * (3.0 - 2.0 * t)); }
+  return c;
+}
+vec3 aces(vec3 x){ return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
+float H(vec2 uv){ return clamp((bicubic(uv).r - uRange.x) / max(uRange.y - uRange.x, 1e-5), 0.0, 1.0); }
+float LV(vec2 uv){ return log(max(bicubic(uv).r, 2e-6)); }
+vec3 film(float d){ return 0.5 + 0.5 * cos(6.2831853 * d / vec3(650.0, 532.0, 450.0)); }
+
+// shared skin shading: uv in the sheet, Ng the surface normal, Tx/Ty the directions of increasing sheet x and y, V toward the eye
+vec3 skin(vec2 uv, vec3 Ng, vec3 Tx, vec3 Ty, vec3 V, out vec4 c0){
+  vec2 tx = 1.0 / uVSize;
+  c0 = bicubic(uv);
+  float inv = 1.0 / max(uRange.y - uRange.x, 1e-5);
+  float a = clamp((c0.r - uRange.x) * inv, 0.0, 1.0);
+  float hx0 = H(uv - vec2(tx.x, 0.0)), hx1 = H(uv + vec2(tx.x, 0.0));
+  float hy0 = H(uv - vec2(0.0, tx.y)), hy1 = H(uv + vec2(0.0, tx.y));
+  vec2 pc = uv * uVSize;                       // cell coordinates
+  vec2 px = pc * uCellPx;                      // device-pixel coordinates
+  float bump = uMat.x;
+  vec2 g = vec2(hx1 - hx0, hy1 - hy0) * 0.5;
+  float curv = hx0 + hx1 + hy0 + hy1 - 4.0 * a;
+
+  // ---- fur: strands along a slowly turning flow, and brushed pigment edges
+  float fur = uFx.x, hair = 0.5;
+  vec2 dir = vec2(1.0, 0.0), nrm = vec2(0.0, 1.0);
+  float aP = a;
+  if (fur > 0.0) {
+    float ang = uFurAng + 0.6 * (fbm(pc * 0.004 + 3.0) - 0.5);
+    dir = vec2(cos(ang), sin(ang)); nrm = vec2(-dir.y, dir.x);
+    vec2 q = vec2(dot(px, dir), dot(px, nrm));
+    float acr = q.y * 0.5, i1 = floor(acr), f1 = fract(acr);
+    float l1 = vnoise(vec2((q.x + h21(vec2(i1, 3.7)) * 60.0) * 0.075, i1 * 1.37));
+    float acr2 = q.y * 1.05 + 0.37, i2 = floor(acr2), f2 = fract(acr2);
+    float l2 = vnoise(vec2((q.x + h21(vec2(i2, 9.1)) * 40.0) * 0.12, i2 * 0.71));
+    float p1 = smoothstep(0.0, 0.5, f1) * smoothstep(1.0, 0.5, f1), p2 = smoothstep(0.0, 0.5, f2) * smoothstep(1.0, 0.5, f2);
+    float clump = vnoise(q * vec2(0.02, 0.1));
+    hair = clamp(0.2 + 0.5 * l1 * (0.5 + 0.5 * p1) + 0.3 * l2 * (0.45 + 0.55 * p2) + 0.08 * (clump - 0.5), 0.0, 1.0);
+    float disp = (vnoise(q * vec2(0.03, 0.2)) - 0.5) * 1.8 + (hair - 0.5) * 1.2;
+    aP = H(uv + dir * disp * tx);
+  }
+
+  // ---- pigment
+  vec3 pig = pal(aP);
+  if (uKind == 1) {          // leopard: coat tone drifts; rosette rims break into arcs
+    float big = fbm(pc * 0.009 + 5.0);
+    vec3 coat = mix(uPalC[1], uPalC[0], 0.25 + 0.5 * smoothstep(0.3, 0.75, big));
+    float ringIn = smoothstep(0.08, 0.17, aP), core = smoothstep(0.6, 0.76, aP);
+    float ring = ringIn * (1.0 - core);
+    float gapN = vnoise(pc * 0.15 + 11.3) * 0.7 + vnoise(pc * 0.45 + 2.0) * 0.3;
+    float gap = smoothstep(0.57, 0.62, gapN) * uFx.z;
+    vec3 inner = mix(uPalC[4], uPalC[5], smoothstep(0.75, 1.0, aP));
+    vec3 ringC = mix(uPalC[2], uPalC[3], smoothstep(0.17, 0.4, aP));
+    pig = mix(coat, ringC, ring * (1.0 - gap));
+    pig = mix(pig, inner, core);
+    pig = mix(pig, mix(coat, inner, 0.55), ring * gap);
+  } else if (uKind == 6) {   // cuttlefish: chromatophores expand in the dark pattern; "passing clouds" sweep across
+    float cloudPh = uT * 1.3 - dot(pc, vec2(0.045, 0.02)) + fbm(pc * 0.008) * 6.0;
+    float cloud = smoothstep(0.35, 1.0, sin(cloudPh)) * 0.8;
+    vec2 cp = pc * 0.42, ci = floor(cp), cf = fract(cp) - 0.5;
+    vec2 jit = vec2(h21(ci), h21(ci + 3.3)) - 0.5;
+    float d = length(cf - jit * 0.5);
+    float rad = 0.04 + 0.3 * smoothstep(0.15, 0.9, aP) + 0.2 * cloud;
+    float chrom = 1.0 - smoothstep(rad - 0.08, rad + 0.04, d);
+    float kind = h21(ci + 7.0);
+    vec3 chromC = kind < 0.25 ? vec3(0.42, 0.27, 0.07) : (kind < 0.6 ? vec3(0.2, 0.07, 0.035) : vec3(0.05, 0.028, 0.022));
+    pig = mix(pig, chromC, chrom * 0.7);
+    pig *= 1.0 - 0.28 * cloud * (1.0 - 0.5 * aP);
+    float mott = fbm(pc * 0.05 + 2.0);
+    pig *= 0.85 + 0.3 * mott;
+  }
+  if (uKind == 3) {          // giraffe: cream lines along the valleys of log v, i.e. the medial lines between spots
+    vec2 d = tx * 1.6; float e2 = 1.6 * 1.6;
+    float l0 = LV(uv + dir * tx * (hair - 0.5) * 1.4);
+    float lxp = LV(uv + vec2(d.x, 0.0)), lxm = LV(uv - vec2(d.x, 0.0)), lyp = LV(uv + vec2(0.0, d.y)), lym = LV(uv - vec2(0.0, d.y));
+    float lpp = LV(uv + d), lmm = LV(uv - d), lpm = LV(uv + vec2(d.x, -d.y)), lmp = LV(uv + vec2(-d.x, d.y));
+    float hxx = (lxp + lxm - 2.0 * l0) / e2, hyy = (lyp + lym - 2.0 * l0) / e2, hxy = (lpp + lmm - lpm - lmp) / (4.0 * e2);
+    vec2 gr = vec2(lxp - lxm, lyp - lym) / 3.2;
+    float df = sqrt(0.25 * (hxx - hyy) * (hxx - hyy) + hxy * hxy), lam = 0.5 * (hxx + hyy) + df;
+    vec2 ev = abs(hxy) > 1e-5 ? normalize(vec2(hxy, lam - hxx)) : (hxx > hyy ? vec2(1.0, 0.0) : vec2(0.0, 1.0));
+    float dist = abs(dot(gr, ev)) / max(lam, 1e-3);
+    float wob = 0.55 + 0.55 * vnoise(pc * 0.09) + 0.35 * vnoise(pc * 0.6);
+    float line = step(0.02, lam) * (1.0 - smoothstep(0.55 * wob, 1.05 * wob, dist)) * (1.0 - smoothstep(0.25, 0.5, aP));
+    vec3 patchC = mix(uPalC[3], uPalC[5], smoothstep(0.3, 1.0, aP));
+    patchC = mix(uPalC[2], patchC, smoothstep(0.0, 0.25, aP));
+    pig = mix(patchC, mix(uPalC[0], uPalC[1], vnoise(pc * 0.2)), line);
+  }
+  if (uFx.w > 0.0) {         // pores (coral) or spinules (pufferfish)
+    vec2 sp2 = pc * (uKind == 5 ? 0.3 : 0.42), cell = floor(sp2), fr = fract(sp2) - 0.5;
+    vec2 jit = vec2(h21(cell), h21(cell + 5.1)) - 0.5;
+    vec2 dd = fr - jit * 0.5;
+    float r = length(dd);
+    float on = uKind == 5 ? smoothstep(0.4, 0.8, a) : 1.0;
+    float pore = (1.0 - smoothstep(0.1, 0.24, r)) * on * step(0.35, h21(cell + 9.0));
+    if (uKind == 5) { pig *= 1.0 - 0.5 * pore * uFx.w; g += dd * pore * 0.6 * uFx.w; }
+    else { g -= dd * pore * 0.9 * uFx.w; pig *= 1.0 + 0.12 * pore * uFx.w; }
+  }
+  if (uKind == 9) {          // fish scales: overlapping arcs in offset rows
+    vec2 s9 = pc * vec2(0.16, 0.2); float row = floor(s9.y); s9.x += 0.5 * mod(row, 2.0);
+    vec2 f9 = fract(s9) - vec2(0.5, 0.0); float d9 = length(f9 * vec2(1.0, 1.1));
+    float body = 1.0 - smoothstep(0.52, 0.6, d9);                   // each scale overlaps the row below
+    float rim = smoothstep(0.4, 0.56, d9) * body;
+    pig *= 1.0 - 0.14 * rim + 0.06 * body * (1.0 - f9.y);
+  }
+  if (uKind == 5) {          // coral: granular calcite in the valleys
+    float gr = vnoise(pc * 1.3) * 0.6 + vnoise(pc * 2.9) * 0.4;
+    pig *= 1.0 - 0.25 * (1.0 - smoothstep(0.1, 0.5, a)) * gr;
+  }
+  if (uAtlas == 1) {         // atlas: uniform states recede, patterned regions glow
+    float m0 = 1e3, m1 = -1e3;
+    for (int i = 0; i < 8; i++) { float an = float(i) * 0.785398; float v = texture(uV, uv + vec2(cos(an), sin(an)) * tx * 6.0).r; m0 = min(m0, v); m1 = max(m1, v); }
+    m0 = min(m0, c0.r); m1 = max(m1, c0.r);
+    float pat = smoothstep(0.03, 0.14, m1 - m0);
+    pig = mix(pig * vec3(0.12, 0.09, 0.07) + vec3(0.003, 0.0025, 0.002), pig, pat);
+    bump *= 0.3 + 0.7 * pat;
+  }
+
+  // ---- normals and light
+  vec3 N = normalize(Ng - bump * (g.x * Tx + g.y * Ty));
+  if (fur > 0.0) N = normalize(N + (nrm.x * Tx + nrm.y * Ty) * (hair - 0.5) * 0.9 * fur);
+  if (fur > 0.0) pig *= mix(1.0, 0.76 + 0.4 * hair, fur);
+  vec3 L = normalize(uL), Hh = normalize(L + V);
+  float ndl = dot(N, L);
+  vec3 wv = uMat.w * vec3(1.0, 0.62, 0.48) * (1.0 + uMat2.x);
+  vec3 diff = clamp((ndl + wv) / (1.0 + wv), 0.0, 1.0);
+  float ndh = max(dot(N, Hh), 0.0);
+  float fres = 0.04 + 0.96 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
+  float spec = pow(ndh, uMat.z) * uMat.y * (0.6 + uMat2.z * fres * 6.0);
+  if (fur > 0.0) {           // Kajiya-Kay sheen along the strands
+    vec3 T = normalize(dir.x * Tx + dir.y * Ty + 0.25 * Ng);
+    float th = dot(T, Hh), sinTH = sqrt(max(0.0, 1.0 - th * th));
+    spec += pow(sinTH, 70.0) * 0.13 * fur * hair * (0.35 + 0.65 * dot(pig, vec3(0.5)));
+  }
+  float ao = clamp(1.0 - curv * uMat2.w * 2.2, 0.5, 1.2);
+  vec3 col = pig * (uMat2.y + diff * uLightC) * ao;
+  col += pig * uSSS * uMat2.x * (1.0 - a) * 0.3 * (0.6 + 0.4 * (1.0 - diff.g));
+  if (uFx.y > 0.0) {         // iridophores: thin-film sheen, strongest on pale skin and at grazing angles
+    float ct = max(dot(N, V), 0.0);
+    vec3 ir = film((300.0 + 240.0 * aP + 70.0 * sin(uT * 0.4 + pc.x * 0.013 - pc.y * 0.009)) * 2.0 * 1.33 * (0.6 + 0.4 * ct));
+    col += ir * ir * uFx.y * 0.16 * (1.0 - smoothstep(0.1, 0.6, aP)) * (0.5 + diff.g);
+  }
+  col += spec * uLightC;
+  if (uKind == 4) col += fres * vec3(0.12, 0.15, 0.18) * uMat2.z;   // wet skin reflects the room
+  return col;
+}
+`;
+
+const RENDER_FS = HEAD + SKIN_COMMON + `
+void main(){
+  vec2 fc = gl_FragCoord.xy;
+  float circA = 1.0;
+  if (uCircle.z > 0.0) { float d = length(fc - uCircle.xy); if (d > uCircle.z) discard; circA = smoothstep(uCircle.z, uCircle.z - 1.5, d); }
+  else if (fc.x < uClip.x || fc.y < uClip.y || fc.x > uClip.z || fc.y > uClip.w) discard;
+  vec2 uv = (fc - uMap.xy) * uMap.zw;
+  vec2 tx = 1.0 / uVSize;
+  vec4 c0;
+  vec3 col = skin(uv, vec3(0.0, 0.0, 1.0), vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0), c0);
+  vec3 L = normalize(uL);
+  if (uUseMask == 1) {
+    float m = smoothstep(0.35, 0.65, c0.a);
+    float sh = smoothstep(0.1, 0.9, bicubic(uv + L.xy * tx * 7.0).a);
+    vec3 bg = uBg * (1.0 - 0.6 * sh);
+    float rim = smoothstep(0.2, 0.5, c0.a) * (1.0 - smoothstep(0.5, 0.8, c0.a));
+    col = mix(bg, col, m) + rim * vec3(0.9, 0.7, 0.35) * 0.12;
+  }
+  vec2 sp = fc / uRes - 0.5; sp.x *= uRes.x / uRes.y;
+  col *= mix(1.0, smoothstep(1.3, 0.2, length(sp)), uVig);
+  if (uHud > 0.0) {          // quiet the corner under the live readouts and the top rail
+    vec2 hp = vec2(fc.x, uRes.y - fc.y);
+    vec2 hc = 0.5 * (uHudRect.xy + uHudRect.zw), hh = 0.5 * (uHudRect.zw - uHudRect.xy);
+    vec2 dq = max(abs(hp - hc) - hh, 0.0);
+    float feather = 0.16 * uRes.y;
+    float hd = length(dq) / feather;
+    col *= 1.0 - uHud * 0.8 * exp(-2.4 * hd * hd);
+    col *= 1.0 - uHud * 0.3 * smoothstep(0.1, 0.0, 1.0 - fc.y / uRes.y);
+  }
+  col = aces(col * 1.05);
+  col = pow(col, vec3(1.0 / 2.2)) * uFade;
+  col += (h21(fc + fract(uT) * 91.0) - 0.5) / 255.0;
+  o = vec4(col, uAlpha * circA);
+}`;
+
+const BG_FS = HEAD + `
+uniform vec2 uRes; uniform vec2 uC; uniform float uFade;
+out vec4 o;
+float h(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+void main(){
+  vec2 q = (gl_FragCoord.xy - uC) / uRes.y;
+  float r = length(q * vec2(0.8, 1.2));
+  vec3 col = mix(vec3(0.075, 0.068, 0.07), vec3(0.018, 0.02, 0.03), smoothstep(0.0, 0.85, r));
+  col = pow(col, vec3(1.0)) * uFade + (h(gl_FragCoord.xy) - 0.5) / 255.0;
+  o = vec4(col, 1.0);
+}`;
+// the tapered tail in 3D: the sheet is wrapped around a cone (Murray 1988)
+const TAIL_VS = `#version 300 es
+precision highp float; precision highp int;
+uniform mat4 uProj, uView; uniform vec4 uCone; uniform float uConeYc; uniform vec2 uSimSize; uniform float uLen; uniform ivec2 uGrid; uniform float uSpin; uniform vec3 uCurl; uniform vec3 uCenter;
+out vec2 vUv; out vec3 vN; out vec3 vT; out vec3 vB; out vec3 vP; out float vT01;
+void main(){
+  int q = gl_VertexID / 6, k = gl_VertexID - q * 6;
+  int i = q % uGrid.x, j = q / uGrid.x;
+  ivec2 o = k == 0 ? ivec2(0, 0) : k == 1 ? ivec2(1, 0) : k == 2 ? ivec2(0, 1) : k == 3 ? ivec2(0, 1) : k == 4 ? ivec2(1, 0) : ivec2(1, 1);
+  float a = float(i + o.x) / float(uGrid.x);            // around, 0..1
+  float t = float(j + o.y) / float(uGrid.y);            // along, tip (0) to base (1)
+  float xs = mix(uCone.x, uCone.y, t);
+  float h = max(2.0, floor(mix(uCone.z, uCone.w, pow(t, 1.8)) * 0.5));
+  float ys = uConeYc - h + a * 2.0 * h;
+  vUv = vec2(xs + 0.5, ys + 0.5) / uSimSize;
+  vT01 = t;
+  float sc = uLen / (uCone.y - uCone.x);                // world units per cell
+  float r = 2.0 * h / 6.2831853 * sc;
+  float drdx = (uCone.w - uCone.z) * 1.8 * pow(max(t, 1e-3), 0.8) / 6.2831853 * sc / uLen;
+  float ang = a * 6.2831853 + uSpin;
+  // the axis leaves the base and curls up toward the tip: heading th(s) = th0 + a1 s + a2 s², s = arc length from the base
+  float sb = (1.0 - t) * uLen, ds = sb / 40.0;
+  vec2 pos = vec2(0.0);
+  for (int n = 0; n < 40; n++) { float s = (float(n) + 0.5) * ds; float h2 = uCurl.x + uCurl.y * s + uCurl.z * s * s; pos += ds * vec2(cos(h2), sin(h2)); }
+  float th = uCurl.x + uCurl.y * sb + uCurl.z * sb * sb;
+  vec3 tipward = vec3(cos(th), sin(th), 0.0), nrm = vec3(-sin(th), cos(th), 0.0), bin = vec3(0.0, 0.0, 1.0);
+  vec3 radial = cos(ang) * nrm + sin(ang) * bin;
+  vec3 P = vec3(pos, 0.0) - uCenter + r * radial;
+  vN = normalize(radial + drdx * tipward);
+  vT = normalize(-sin(ang) * nrm + cos(ang) * bin);     // direction of increasing sheet y (around)
+  vB = -tipward;                                       // direction of increasing sheet x (along, toward the base)
+  vP = P;
+  gl_Position = uProj * uView * vec4(P, 1.0);
+}`;
+const TAIL_FS = HEAD + SKIN_COMMON + `
+in vec2 vUv; in vec3 vN; in vec3 vT; in vec3 vB; in vec3 vP; in float vT01;
+uniform vec3 uEye;
+void main(){
+  vec3 V = normalize(uEye - vP);
+  vec3 Ng = normalize(vN);
+  if (dot(Ng, V) < 0.0) Ng = -Ng;
+  vec4 c0;
+  vec3 col = skin(vUv, Ng, normalize(vB), normalize(vT), V, c0);
+  float rim = pow(1.0 - max(dot(Ng, V), 0.0), 3.0);
+  col += rim * vec3(1.0, 0.8, 0.55) * 0.18;
+  col = aces(col * 1.05);
+  col = pow(col, vec3(1.0 / 2.2)) * uFade;
+  col += (h21(gl_FragCoord.xy + fract(uT) * 91.0) - 0.5) / 255.0;
+  o = vec4(col, 1.0);
+}`;
+
+// deck thumbnail of the atlas: RGB = embossed colour, A = v (for the class lookup)
+const THUMB_FS = HEAD + `
+uniform sampler2D uS; uniform ivec2 uSize; uniform vec2 uOut; uniform vec3 uPalC[6]; uniform float uPalP[6];
+out vec4 o;
+vec3 pal(float x){ vec3 c = uPalC[0]; for (int i = 1; i < 6; i++) { float t = clamp((x - uPalP[i - 1]) / max(uPalP[i] - uPalP[i - 1], 1e-4), 0.0, 1.0); c = mix(c, uPalC[i], t * t * (3.0 - 2.0 * t)); } return c; }
+float V(vec2 q){ ivec2 i = clamp(ivec2(q), ivec2(0), uSize - 1); return texelFetch(uS, i, 0).y; }
+void main(){
+  vec2 q = vec2(gl_FragCoord.x, uOut.y - gl_FragCoord.y) / uOut * vec2(uSize);
+  vec2 st = vec2(uSize) / uOut * 0.5;
+  float v = 0.25 * (V(q + vec2(-st.x, -st.y) * 0.5) + V(q + vec2(st.x, -st.y) * 0.5) + V(q + vec2(-st.x, st.y) * 0.5) + V(q + vec2(st.x, st.y) * 0.5));
+  float gx = V(q + vec2(1.5, 0.0)) - V(q - vec2(1.5, 0.0)), gy = V(q + vec2(0.0, 1.5)) - V(q - vec2(0.0, 1.5));
+  float a = clamp(v / 0.38, 0.0, 1.0);
+  float m0 = v, m1 = v;
+  for (int i = 0; i < 8; i++) { float an = float(i) * 0.785398; float w = V(q + vec2(cos(an), sin(an)) * 6.0); m0 = min(m0, w); m1 = max(m1, w); }
+  float pat = smoothstep(0.03, 0.14, m1 - m0);
+  vec3 c = pal(a) * mix(vec3(0.3, 0.24, 0.2), vec3(1.0), pat) * (0.9 + 1.6 * pat * (-gx * 0.7 + gy * 0.7));
+  o = vec4(clamp(c, 0.0, 1.0), clamp(v * 2.5, 0.0, 1.0));
+}`;
+
+const PROBE_FS = HEAD + `
+uniform sampler2D uS; uniform sampler2D uMask; uniform int uUseMask; uniform ivec2 uSize; uniform ivec2 uOrigin; uniform int uP;
+out vec4 o;
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy);
+  ivec2 m = uSize - 1;
+  vec2 cr = texelFetch(uS, clamp(uOrigin + p, ivec2(0), m), 0).xy;
+  ivec2 sp = clamp(ivec2((vec2(p) + 0.5) / float(uP) * vec2(uSize)), ivec2(0), m);
+  vec2 st = texelFetch(uS, sp, 0).xy;
+  float mk = uUseMask == 1 ? texelFetch(uMask, sp, 0).r : 1.0;
+  float mc = uUseMask == 1 ? texelFetch(uMask, clamp(uOrigin + p, ivec2(0), m), 0).r : 1.0;
+  o = vec4(cr.y, st.y, mc, mk);
+}`;
+
+let P;
+try {
+  P = {
+    sim: Cosmos.gl.program(gl, VS, SIM_FS),
+    seed: Cosmos.gl.program(gl, VS, SEED_FS),
+    resample: Cosmos.gl.program(gl, VS, RESAMPLE_FS),
+    view: Cosmos.gl.program(gl, VS, VIEW_FS),
+    render: Cosmos.gl.program(gl, VS, RENDER_FS),
+    thumb: Cosmos.gl.program(gl, VS, THUMB_FS),
+    probe: Cosmos.gl.program(gl, VS, PROBE_FS),
+    tail: Cosmos.gl.program(gl, TAIL_VS, TAIL_FS),
+    bg: Cosmos.gl.program(gl, VS, BG_FS),
+  };
+} catch (e) { ch.fatal('A shader failed to compile on this GPU.', e); return; }
+const loc = (prog, name) => (prog.uniforms[name] ? prog.uniforms[name].loc : null);
+const L = {};
+for (const k in P) { L[k] = {}; for (const n in P[k].uniforms) L[k][n] = P[k].uniforms[n].loc; }
+
+const whiteTex = makeTex(1, 1, gl.R8, gl.RED, gl.UNSIGNED_BYTE, 'nearest', new Uint8Array([255]));
+
+/* ================================================================ models */
+const DU_GS = 0.2097;
+const MODELS = {
+  gs: { label: 'Gray–Scott', base: [1, 0], hi: [0.5, 0.25], max: [1, 1], range: [0.0, 0.34] },
+  gm: { label: 'Gierer–Meinhardt', range: [0.2, 3.0] },
+  br: { label: 'Brusselator', range: [2.0, 7.0] },
+};
+const S = {
+  model: 'gs',
+  F: 0.0367, k: 0.0649, ratio: 2,
+  kappa: 0.0, nu: 2.0, gmRatio: 30,
+  A: 4.5, B: 7.0, brRatio: 8,
+  speed: small ? 14 : 22,
+  grad: 'off', aniso: 0, anisoAngle: 90,
+  brush: small ? 7 : 9, erase: false,
+  palette: 'leopard', relief: 1, lightOrbit: true, scale: 'std', anisoSp: 'u', grow: 0, growLen: 1,
+};
+function gmSteady() {   // a = 1/(1+κa²) + σ, h = a²
+  const sig = 0.01; let lo = 0, hi = 20;
+  for (let i = 0; i < 60; i++) { const a = (lo + hi) / 2; if (a - 1 / (1 + S.kappa * a * a) - sig > 0) hi = a; else lo = a; }
+  const a = (lo + hi) / 2; return [a * a, a];
+}
+function modelSetup() {
+  const m = S.model;
+  if (m === 'gs') {
+    return { id: 0, D: [DU_GS, DU_GS / S.ratio], P: [0, 0, 0, 0], base: [1, 0], hi: [0.5, 0.25], max: [1, 1], noise: [0, 0], dt: 1 };
+  }
+  if (m === 'gm') {
+    const st = gmSteady();
+    return { id: 1, D: [0.3, 0.3 / S.gmRatio], P: [S.kappa, S.nu, 0.01, 0.0035], base: st, hi: [st[0], st[1] * 2.2], max: [400, 40], noise: [st[0] * 0.02, st[1] * 0.04], dt: 1 };
+  }
+  const st = [S.B / S.A, S.A];
+  return { id: 2, D: [0.3, 0.3 / S.brRatio], P: [S.A, S.B, 0.0037, 0], base: st, hi: [st[0] * 0.8, S.A * 1.6], max: [60, 60], noise: [st[0] * 0.02, S.A * 0.04], dt: 1 };
+}
+
+/* ================================================================ sims */
+const MAP_F = [0.008, 0.095], MAP_K = [0.045, 0.07];
+function makeSim(w, h) {
+  return { w, h, a: makeTarget(w, h, 'rg32'), b: makeTarget(w, h, 'rg32'), view: makeTarget(w, h, 'rgba16', 'linear'), steps: 0,
+    get read() { return this.a; }, swap() { const t = this.a; this.a = this.b; this.b = t; },
+    dispose() { this.a.dispose(); this.b.dispose(); this.view.dispose(); } };
+}
+const SCALES = { close: small ? 2.3 : 3.0, std: small ? 1.6 : 2.0, wide: small ? 1.15 : 1.3 };
+let cellPx = SCALES.std;               // CSS px per cell
+function simDims() {
+  const w = Math.max(64, canvas.clientWidth || innerWidth), h = Math.max(64, canvas.clientHeight || innerHeight);
+  return [Math.round(w / cellPx), Math.round(h / cellPx)];
+}
+let [SW, SH] = simDims();
+let sim = makeSim(SW, SH);
+const MAPW = small ? 480 : 800, MAPH = small ? 300 : 500;
+const map = makeSim(MAPW, MAPH);
+
+let maskTex = null, maskData = null, useMask = false;
+
+const blobBuf = new Float32Array(64 * 4);
+function seedPass(s, blobs, add, setup, seedNum) {
+  const Lp = L.seed;
+  gl.useProgram(P.seed);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, s.b.fbo); gl.viewport(0, 0, s.w, s.h);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, s.a.tex); gl.uniform1i(Lp.uS, 0);
+  gl.uniform1i(Lp.uAdd, add ? 1 : 0); gl.uniform2i(Lp.uSize, s.w, s.h);
+  gl.uniform2fv(Lp.uBase, setup.base); gl.uniform2fv(Lp.uHi, setup.hi); gl.uniform2fv(Lp.uNoise, setup.noise);
+  gl.uniform1f(Lp.uSeed, seedNum || Math.random() * 1000);
+  blobBuf.fill(0);
+  const n = Math.min(64, blobs.length);
+  for (let i = 0; i < n; i++) blobBuf.set(blobs[i], i * 4);
+  gl.uniform4fv(Lp.uBlobs, blobBuf); gl.uniform1i(Lp.uN, n);
+  drawTri(); s.swap();
+}
+function seed(s, blobs, add, setup) {
+  setup = setup || modelSetup();
+  if (!blobs.length) { seedPass(s, [], add, setup); return; }
+  for (let i = 0; i < blobs.length; i += 64) seedPass(s, blobs.slice(i, i + 64), add || i > 0, setup);
+}
+function randomBlobs(s, n, rMin, rMax, rng, inMask) {
+  const out = [];
+  let tries = 0;
+  while (out.length < n && tries++ < n * 40) {
+    const x = rng() * s.w, y = rng() * s.h;
+    if (inMask && !maskAt(x, y)) continue;
+    out.push([x, y, rMin + rng() * (rMax - rMin), rng() < 0.5 ? 1 : 0]);
+  }
+  return out;
+}
+function maskAt(x, y) {
+  if (!maskData) return true;
+  const ix = Math.floor(x), iy = Math.floor(y);
+  if (ix < 0 || iy < 0 || ix >= SW || iy >= SH) return false;
+  return maskData[((SH - 1 - iy) * SW + ix) * 4] > 127;
+}
+
+function resampleSim(oldS, w, h) {
+  const ns = makeSim(w, h);
+  gl.useProgram(P.resample);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, ns.a.fbo); gl.viewport(0, 0, w, h);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, oldS.a.tex);
+  gl.uniform1i(L.resample.uS, 0); gl.uniform2i(L.resample.uSrc, oldS.w, oldS.h); gl.uniform2i(L.resample.uDst, w, h); gl.uniform2f(L.resample.uGrow, 1, 1);
+  drawTri();
+  ns.steps = oldS.steps;
+  oldS.dispose();
+  return ns;
+}
+
+/* sim step */
+const ANISO_W = [1, 0];
+const CONE = new Float32Array([0, 1, 8, 100]); let CONE_YC = 0, tail3d = false;
+const INVALIDATE = [gl.COLOR_ATTACHMENT0];
+Cosmos.debug.anisoW = ANISO_W;
+const brush = { active: false, mode: 0, x0: 0, y0: 0, x1: 0, y1: 0 };
+function stepSim(s, n, o) {
+  if (n <= 0) return;
+  const Lp = L.sim;
+  gl.useProgram(P.sim);
+  gl.viewport(0, 0, s.w, s.h);
+  gl.uniform1i(Lp.uS, 0); gl.uniform1i(Lp.uMask, 1);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, o.mask ? maskTex : whiteTex);
+  gl.uniform1i(Lp.uUseMask, o.mask ? 1 : 0);
+  gl.uniform2i(Lp.uSize, s.w, s.h);
+  gl.uniform1i(Lp.uModel, o.setup.id);
+  gl.uniform2f(Lp.uFK, o.F, o.k);
+  gl.uniform2fv(Lp.uD, o.setup.D);
+  gl.uniform1f(Lp.uDt, o.setup.dt);
+  gl.uniform1i(Lp.uGrad, o.grad);
+  gl.uniform4fv(Lp.uGR, o.GR);
+  gl.uniform4fv(Lp.uAniso, o.aniso);
+  gl.uniform2fv(Lp.uAnisoW, o.anisoW || ANISO_W);
+  gl.uniform4fv(Lp.uP, o.setup.P);
+  gl.uniform2fv(Lp.uHi, o.setup.hi); gl.uniform2fv(Lp.uBase, o.setup.base); gl.uniform2fv(Lp.uMax, o.setup.max);
+  gl.uniform1i(Lp.uTopo, o.topo ? 1 : 0); gl.uniform4fv(Lp.uCone, CONE); gl.uniform1f(Lp.uConeYc, CONE_YC);
+  gl.activeTexture(gl.TEXTURE0);
+  for (let i = 0; i < n; i++) {
+    if (i === 0 && o.brush && o.brush.active) {
+      gl.uniform4f(Lp.uBrush, o.brush.x0, o.brush.y0, o.brush.x1, o.brush.y1);
+      gl.uniform3f(Lp.uBrushP, o.brushR, o.brush.mode, 0);
+    } else if (i <= 1) gl.uniform3f(Lp.uBrushP, 0, 0, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, s.b.fbo);
+    if (!(Cosmos.debug.prof || {}).noInv) gl.invalidateFramebuffer(gl.FRAMEBUFFER, INVALIDATE);
+    gl.bindTexture(gl.TEXTURE_2D, s.a.tex);
+    drawTri();
+    s.swap();
+  }
+  s.steps += n;
+}
+function growPass(s, gx, gy) {   // domain growth: stretch the pattern about the centre, as a growing fish does
+  gl.useProgram(P.resample);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, s.b.fbo); gl.viewport(0, 0, s.w, s.h);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, s.a.tex);
+  gl.uniform1i(L.resample.uS, 0); gl.uniform2i(L.resample.uSrc, s.w, s.h); gl.uniform2i(L.resample.uDst, s.w, s.h); gl.uniform2f(L.resample.uGrow, gx, gy);
+  drawTri(); s.swap();
+}
+function pigInv() { return coat && S.model === 'br'; }   // Brusselator coat: pigment where the activator X is low
+const PIG_R = [0, 1];
+function pigRange() {
+  if (!pigInv()) { PIG_R[0] = A.lo; PIG_R[1] = A.hi; return PIG_R; }
+  // near onset the Brusselator is almost sinusoidal: put the skin's pigment edge (26% of the range) where X crosses 45% of its span
+  const thr = A.lo + 0.45 * (A.hi - A.lo), hi2 = (thr - 0.26 * A.lo) / 0.74;
+  PIG_R[0] = -hi2; PIG_R[1] = -A.lo; return PIG_R;
+}
+function viewPass(s, mask) {
+  gl.useProgram(P.view);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, s.view.fbo); gl.viewport(0, 0, s.w, s.h);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, mask ? maskTex : whiteTex);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, s.a.tex);
+  gl.uniform1i(L.view.uS, 0); gl.uniform1i(L.view.uMask, 1); gl.uniform1i(L.view.uUseMask, mask ? 1 : 0);
+  gl.uniform2i(L.view.uSize, s.w, s.h);
+  gl.uniform1i(L.view.uTopo, s === sim && tail3d ? 1 : 0); gl.uniform1f(L.view.uSign, s === sim && pigInv() ? -1 : 1); gl.uniform4fv(L.view.uCone, CONE); gl.uniform1f(L.view.uConeYc, CONE_YC);
+  drawTri();
+}
+
+/* ================================================================ palettes */
+const PALETTES = {
+  leopard: { label: 'Leopard', kind: 1, furAng: 0.35, stops: [[0, '#e6bd6e'], [0.12, '#c4852f'], [0.26, '#26160b'], [0.5, '#170d06'], [0.74, '#7f4c24'], [1, '#6c4122']],
+    bump: 0.12, spec: 0.08, shine: 12, wrap: 0.55, sss: '#ff6a2a', sssAmt: 0.4, amb: 0.36, gloss: 0.1, cav: 0.2, fur: 0.9, irid: 0, rosette: 1, pores: 0 },
+  cheetah: { label: 'Cheetah', kind: 1, furAng: 0.3, stops: [[0, '#eac27a'], [0.12, '#cf953f'], [0.26, '#20140b'], [0.5, '#130b06'], [0.74, '#1a0f08'], [1, '#150c06']],
+    bump: 0.12, spec: 0.08, shine: 12, wrap: 0.55, sss: '#ff6a2a', sssAmt: 0.4, amb: 0.36, gloss: 0.1, cav: 0.2, fur: 0.9, irid: 0, rosette: 0, pores: 0 },
+  zebra: { label: 'Zebra', kind: 2, furAng: 1.45, stops: [[0, '#f1ece2'], [0.3, '#e4dccb'], [0.42, '#1f1b18'], [0.7, '#151210'], [0.9, '#100e0c'], [1, '#0c0b0a']],
+    bump: 0.12, spec: 0.08, shine: 12, wrap: 0.5, sss: '#c86a4a', sssAmt: 0.25, amb: 0.36, gloss: 0.1, cav: 0.2, fur: 0.9, irid: 0, rosette: 0, pores: 0 },
+  giraffe: { label: 'Giraffe', kind: 3, furAng: 0.9, stops: [[0, '#f2e3c3'], [0.035, '#e7d3a9'], [0.052, '#94501f'], [0.35, '#7f4018'], [0.8, '#6a3312'], [1, '#592a0e']],
+    bump: 0.15, spec: 0.08, shine: 12, wrap: 0.5, sss: '#ff7b3a', sssAmt: 0.3, amb: 0.36, gloss: 0.1, cav: 0.2, fur: 0.7, irid: 0, rosette: 0, pores: 0 },
+  puffer: { label: 'Pufferfish', kind: 4, stops: [[0, '#efe7c6'], [0.22, '#ddd29f'], [0.38, '#4b4524'], [0.6, '#2f2b14'], [0.85, '#24210e'], [1, '#1d1b0b']],
+    bump: 1.3, spec: 0.7, shine: 90, wrap: 0.35, sss: '#b8c070', sssAmt: 0.35, amb: 0.3, gloss: 0.7, cav: 0.6, fur: 0, irid: 0, rosette: 0, pores: 0.7 },
+  coral: { label: 'Coral', kind: 5, stops: [[0, '#16040d'], [0.18, '#6d1d3f'], [0.42, '#c9557a'], [0.7, '#f59bb0'], [0.88, '#ffc9d3'], [1, '#ffe6ea']],
+    bump: 4.2, spec: 0.3, shine: 28, wrap: 0.6, sss: '#ff2d5f', sssAmt: 0.9, amb: 0.26, gloss: 0.35, cav: 1.2, fur: 0, irid: 0, rosette: 0, pores: 0.8 },
+  angelfish: { label: 'Angelfish', kind: 9, stops: [[0, '#081533'], [0.3, '#0d2a5c'], [0.55, '#1f4f95'], [0.68, '#9fc2f5'], [0.82, '#e3eeff'], [1, '#f7fbff']],
+    bump: 0.9, spec: 0.6, shine: 70, wrap: 0.35, sss: '#4f8cff', sssAmt: 0.35, amb: 0.3, gloss: 0.6, cav: 0.5, fur: 0, irid: 0.1, rosette: 0, pores: 0 },
+  cuttle: { label: 'Cuttlefish', kind: 6, stops: [[0, '#e8d6b4'], [0.25, '#c8a77c'], [0.5, '#7b5337'], [0.75, '#3c2519'], [0.9, '#2b1a13'], [1, '#22140f']],
+    bump: 1.0, spec: 0.55, shine: 60, wrap: 0.45, sss: '#ff8a6a', sssAmt: 0.4, amb: 0.3, gloss: 0.6, cav: 0.5, fur: 0, irid: 1, rosette: 0, pores: 0 },
+  lab: { label: 'Lab (classic)', kind: 7, stops: [[0, '#06070b'], [0.15, '#0e1119'], [0.4, '#3a4252'], [0.65, '#aab4bf'], [0.85, '#eeebe2'], [1, '#fffaf0']],
+    bump: 2.4, spec: 0.45, shine: 40, wrap: 0.3, sss: '#6f8cff', sssAmt: 0.15, amb: 0.24, gloss: 0.4, cav: 0.8, fur: 0, irid: 0, rosette: 0, pores: 0 },
+  atlas: { label: 'Atlas', kind: 8, stops: [[0, '#06050a'], [0.14, '#140d07'], [0.38, '#6b4210'], [0.62, '#d9951f'], [0.84, '#f7c35a'], [1, '#fff1d2']],
+    bump: 2.2, spec: 0.35, shine: 30, wrap: 0.3, sss: '#ff9a2a', sssAmt: 0.2, amb: 0.26, gloss: 0.3, cav: 0.7, fur: 0, irid: 0, rosette: 0, pores: 0 },
+};
+const palCache = {};
+function palU(id) {
+  if (palCache[id]) return palCache[id];
+  const p = PALETTES[id];
+  const C = new Float32Array(18), Ps = new Float32Array(6);
+  const lin = (hex) => U.rgbf(hex).map((c) => Math.pow(c, 2.2));
+  p.stops.forEach(([pos, hex], i) => { C.set(lin(hex), i * 3); Ps[i] = pos; });
+  return (palCache[id] = { p, C, Ps, sss: lin(p.sss) });
+}
+
+/* ================================================================ render */
+const LIGHT = [0, 0, 1];
+const HUD_RECT = new Float32Array([0, 0, 0, 0]);
+function measureHud() {
+  const r = ch.hud.el.getBoundingClientRect(), d = canvas.width / Math.max(1, canvas.clientWidth);
+  HUD_RECT[0] = (r.left - 4) * d; HUD_RECT[1] = (r.top - 2) * d; HUD_RECT[2] = (r.left + Math.min(r.width, 330)) * d; HUD_RECT[3] = (r.bottom + 2) * d;
+}
+function renderPass(s, o) { setSkin(P.render, L.render, s, o); drawTri(); }
+function setSkin(prog, Lp, s, o) {
+  const pu = palU(o.pal), p = pu.p;
+  gl.useProgram(prog);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, s.view.tex);
+  gl.uniform1i(Lp.uV, 0);
+  gl.uniform2f(Lp.uVSize, s.w, s.h);
+  gl.uniform4fv(Lp.uMap, o.map);
+  gl.uniform4fv(Lp.uClip, o.clip || [0, 0, 1e5, 1e5]);
+  gl.uniform3fv(Lp.uCircle, o.circle || [0, 0, 0]);
+  gl.uniform2fv(Lp.uRange, o.range);
+  gl.uniform3fv(Lp.uPalC, pu.C); gl.uniform1fv(Lp.uPalP, pu.Ps);
+  const relief = o.relief != null ? o.relief : 1;
+  gl.uniform4f(Lp.uMat, p.bump * relief * 3.0, p.spec, p.shine, p.wrap);
+  gl.uniform4f(Lp.uMat2, p.sssAmt, p.amb, p.gloss, p.cav * Math.min(1.5, relief));
+  gl.uniform4f(Lp.uFx, o.texture === false ? 0 : p.fur, p.irid, p.rosette, o.texture === false ? 0 : p.pores);
+  gl.uniform3fv(Lp.uSSS, pu.sss);
+  gl.uniform3f(Lp.uLightC, 1.0, 0.95, 0.86);
+  gl.uniform3fv(Lp.uBg, o.bg || [0.018, 0.02, 0.03]);
+  gl.uniform3fv(Lp.uL, LIGHT);
+  gl.uniform1f(Lp.uT, o.t);
+  gl.uniform2f(Lp.uRes, canvas.width, canvas.height);
+  gl.uniform1f(Lp.uVig, o.vig != null ? o.vig : 0.55);
+  gl.uniform1f(Lp.uCellPx, o.cellPx);
+  gl.uniform1i(Lp.uUseMask, o.mask ? 1 : 0);
+  gl.uniform1f(Lp.uAlpha, o.alpha != null ? o.alpha : 1);
+  gl.uniform1f(Lp.uFade, o.fade != null ? o.fade : 1);
+  gl.uniform1i(Lp.uAtlas, o.atlas ? 1 : 0);
+  gl.uniform1i(Lp.uKind, p.kind || 0);
+  gl.uniform1f(Lp.uFurAng, p.furAng || 0);
+  gl.uniform1f(Lp.uHud, o.hud || 0);
+  gl.uniform4fv(Lp.uHudRect, HUD_RECT);
+}
+/* the 3D tail: the cone sheet drawn as a lit tube */
+const TAIL_GRID = [small ? 72 : 112, small ? 140 : 220];
+const tailVao = gl.createVertexArray();
+const tailCam = { yaw: -0.2, pitch: 0.2, dist: 3.9, spin: 0, vyaw: 0, vpitch: 0, dragging: false };
+let tailVP = null;
+function tailMatrices() {
+  const c = tailCam, tgt = [0, 0, 0], tall = canvas.width < canvas.height * 0.9, dist = c.dist * (tall ? 1.45 : 1);
+  const eye = [tgt[0] + dist * Math.cos(c.pitch) * Math.sin(c.yaw), tgt[1] + dist * Math.sin(c.pitch), tgt[2] + dist * Math.cos(c.pitch) * Math.cos(c.yaw)];
+  const portrait = canvas.width < canvas.height * 0.9;   // on a tall screen, roll the camera so the tail runs top to bottom
+  const view = Cosmos.mat4.lookAt(eye, tgt, portrait ? [1, 0, 0] : [0, 1, 0]), proj = Cosmos.mat4.perspective(portrait ? 0.95 : (small ? 1.05 : 0.72), canvas.width / canvas.height, 0.05, 50);
+  const deckW = (!small && document.querySelector('.cz-deck.cz-open')) ? 340 : 0;
+  proj[8] += deckW / Math.max(1, canvas.clientWidth);   // lens shift: centre the tail in the space left of the deck
+  if (tall) proj[9] -= 0.1;                              // and lift it clear of the folded notes on a phone
+  tailVP = Cosmos.mat4.multiply(proj, view);
+  return { eye, view, proj };
+}
+const TAIL_LEN = 3.2, TAIL_CURL = [Math.PI + 0.62, -0.22, -0.13];
+function tailAxis(t) {   // centre-line point and heading, same integration as the vertex shader
+  const sb = (1 - t) * TAIL_LEN, ds = sb / 40; let x = 0, y = 0;
+  for (let n = 0; n < 40; n++) { const s = (n + 0.5) * ds, h = TAIL_CURL[0] + TAIL_CURL[1] * s + TAIL_CURL[2] * s * s; x += ds * Math.cos(h); y += ds * Math.sin(h); }
+  return [x, y, TAIL_CURL[0] + TAIL_CURL[1] * sb + TAIL_CURL[2] * sb * sb];
+}
+const TAIL_CENTER = (() => { let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; for (let i = 0; i <= 40; i++) { const p = tailAxis(i / 40); x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); } return [(x0 + x1) / 2, (y0 + y1) / 2, 0]; })();
+function renderTail(o) {
+  const Lp = L.tail;
+  setSkin(P.tail, Lp, sim, o);
+  const m = tailMatrices();
+  gl.uniformMatrix4fv(Lp.uProj, false, m.proj); gl.uniformMatrix4fv(Lp.uView, false, m.view);
+  gl.uniform3fv(Lp.uEye, m.eye);
+  gl.uniform4fv(Lp.uCone, CONE); gl.uniform1f(Lp.uConeYc, CONE_YC);
+  gl.uniform2f(Lp.uSimSize, sim.w, sim.h);
+  gl.uniform1f(Lp.uLen, TAIL_LEN); gl.uniform3fv(Lp.uCurl, TAIL_CURL); gl.uniform3fv(Lp.uCenter, TAIL_CENTER); gl.uniform1f(Lp.uSpin, tailCam.spin);
+  gl.uniform2i(Lp.uGrid, TAIL_GRID[0], TAIL_GRID[1]);
+  gl.enable(gl.DEPTH_TEST); gl.clear(gl.DEPTH_BUFFER_BIT);
+  gl.bindVertexArray(tailVao);
+  gl.drawArrays(gl.TRIANGLES, 0, TAIL_GRID[0] * TAIL_GRID[1] * 6);
+  gl.bindVertexArray(null);
+  gl.disable(gl.DEPTH_TEST);
+}
+function tailPoint(t, a) {   // world position of the tube surface at (t along, a around), and its projection in CSS px
+  const q = tailAxis(t), th = q[2];
+  const h = Math.max(2, Math.floor(U.lerp(CONE[2], CONE[3], Math.pow(t, 1.8)) * 0.5)), r = 2 * h / (2 * Math.PI) * TAIL_LEN / (CONE[1] - CONE[0]);
+  const ax = [q[0] - TAIL_CENTER[0], q[1] - TAIL_CENTER[1], 0], nrm = [-Math.sin(th), Math.cos(th), 0];
+  const ang = a * 2 * Math.PI + tailCam.spin;
+  const P3 = [ax[0] + r * Math.cos(ang) * nrm[0], ax[1] + r * Math.cos(ang) * nrm[1], r * Math.sin(ang)];
+  if (!tailVP) return null;
+  const v = tailVP, x = v[0] * P3[0] + v[4] * P3[1] + v[8] * P3[2] + v[12], y = v[1] * P3[0] + v[5] * P3[1] + v[9] * P3[2] + v[13], w = v[3] * P3[0] + v[7] * P3[1] + v[11] * P3[2] + v[15];
+  return [(x / w * 0.5 + 0.5) * canvas.clientWidth, (1 - (y / w * 0.5 + 0.5)) * canvas.clientHeight];
+}
+
+/* ================================================================ readbacks */
+function makeReader(count, Type) {
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buf);
+  gl.bufferData(gl.PIXEL_PACK_BUFFER, count * Type.BYTES_PER_ELEMENT, gl.STREAM_READ);
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+  return { buf, fence: null, busy: false, data: new Type(count) };
+}
+function readStart(r, fbo, w, h, type) {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, r.buf);
+  gl.bufferData(gl.PIXEL_PACK_BUFFER, r.data.byteLength, gl.STREAM_READ);   // orphan: keeps Chrome's readback shadow copy valid
+  gl.readPixels(0, 0, w, h, gl.RGBA, type, 0);
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+  r.fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+  r.busy = true;
+}
+function readPoll(r) {
+  if (!r.busy) return false;
+  const st = gl.clientWaitSync(r.fence, 0, 0);
+  if (st === gl.TIMEOUT_EXPIRED) return false;
+  gl.deleteSync(r.fence); r.fence = null; r.busy = false;
+  if (st === gl.WAIT_FAILED) return false;
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, r.buf);
+  gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, r.data);
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+  return true;
+}
+
+/* probe: activator crop (for FFT and morphology) + strided whole-domain sample (for statistics) */
+let PN = 256;
+function probeSize() { return Math.min(SW, SH) >= 256 ? 256 : 128; }
+let probeT = null, probeR = null;
+function ensureProbe() {
+  const n = probeSize();
+  if (probeT && PN === n) return;
+  PN = n;
+  if (probeT) probeT.dispose();
+  probeT = makeTarget(PN, PN, 'rgba32');
+  probeR = makeReader(PN * PN * 4, Float32Array);
+  fft.init(PN);
+}
+function probeStart() {
+  ensureProbe();
+  if (probeR.busy) return;
+  gl.useProgram(P.probe);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, probeT.fbo); gl.viewport(0, 0, PN, PN);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, useMask ? maskTex : whiteTex);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, sim.a.tex);
+  gl.uniform1i(L.probe.uS, 0); gl.uniform1i(L.probe.uMask, 1); gl.uniform1i(L.probe.uUseMask, useMask ? 1 : 0);
+  gl.uniform2i(L.probe.uSize, SW, SH);
+  const ox = coat ? Math.round(coatShape.probe[0] * SW - PN / 2) : Math.round((SW - PN) / 2);
+  const oy = coat ? Math.round(coatShape.probe[1] * SH - PN / 2) : Math.round((SH - PN) / 2);
+  gl.uniform2i(L.probe.uOrigin, U.clamp(ox, 0, Math.max(0, SW - PN)), U.clamp(oy, 0, Math.max(0, SH - PN)));
+  gl.uniform1i(L.probe.uP, PN);
+  drawTri();
+  readStart(probeR, probeT.fbo, PN, PN, gl.FLOAT);
+}
+
+/* ------------------------------------------------ FFT (radix-2, in place) */
+const fft = {
+  n: 0, re: null, im: null, cos: null, sin: null, rev: null, rowR: null, rowI: null, radial: null, radialN: null, win: null,
+  init(n) {
+    if (this.n === n) return;
+    this.n = n; this.re = new Float32Array(n * n); this.im = new Float32Array(n * n);
+    this.cos = new Float32Array(n / 2); this.sin = new Float32Array(n / 2);
+    for (let i = 0; i < n / 2; i++) { this.cos[i] = Math.cos(-2 * Math.PI * i / n); this.sin[i] = Math.sin(-2 * Math.PI * i / n); }
+    this.rev = new Uint16Array(n); const bits = Math.log2(n);
+    for (let i = 0; i < n; i++) { let r = 0; for (let b = 0; b < bits; b++) r |= ((i >> b) & 1) << (bits - 1 - b); this.rev[i] = r; }
+    this.rowR = new Float32Array(n); this.rowI = new Float32Array(n);
+    this.radial = new Float64Array(n); this.radialN = new Float64Array(n);
+    this.win = new Float32Array(n); for (let i = 0; i < n; i++) this.win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * (i + 0.5) / n);
+  },
+  line(re, im) {
+    const n = this.n, rev = this.rev;
+    for (let i = 0; i < n; i++) { const j = rev[i]; if (j > i) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; } }
+    for (let size = 2; size <= n; size <<= 1) {
+      const half = size >> 1, step = n / size;
+      for (let i = 0; i < n; i += size) {
+        for (let j = 0, k = 0; j < half; j++, k += step) {
+          const a = i + j, b = a + half;
+          const tr = re[b] * this.cos[k] - im[b] * this.sin[k], ti = re[b] * this.sin[k] + im[b] * this.cos[k];
+          re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+        }
+      }
+    }
+  },
+  run() {
+    const n = this.n, re = this.re, im = this.im, rr = this.rowR, ri = this.rowI;
+    for (let y = 0; y < n; y++) { const o = y * n; for (let x = 0; x < n; x++) { rr[x] = re[o + x]; ri[x] = 0; } this.line(rr, ri); for (let x = 0; x < n; x++) { re[o + x] = rr[x]; im[o + x] = ri[x]; } }
+    for (let x = 0; x < n; x++) { for (let y = 0; y < n; y++) { rr[y] = re[y * n + x]; ri[y] = im[y * n + x]; } this.line(rr, ri); for (let y = 0; y < n; y++) { re[y * n + x] = rr[y]; im[y * n + x] = ri[y]; } }
+  },
+};
+
+/* ------------------------------------------------ analysis of a probe */
+const A = {
+  lo: MODELS.gs.range[0], hi: MODELS.gs.range[1], coverage: 0, lambda: 0, qPeak: 0, order: 0, comps: 0, holes: 0,
+  morph: '—', cls: '—', mean: 0, std: 0, spec: new Float32Array(129), specN: 0, nan: false, ready: false,
+};
+const hist = new Uint32Array(256);
+let labels = null, parent = null;
+function find(i) { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; }
+function countComponents(bin, n, fg, diag) {
+  const N2 = n * n;
+  if (!labels || labels.length !== N2) { labels = new Int32Array(N2); parent = new Int32Array(N2); }
+  let next = 0;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const i = y * n + x;
+    if (bin[i] !== fg) { labels[i] = -1; continue; }
+    let l = -1;
+    const cand = [];
+    if (x > 0 && labels[i - 1] >= 0) cand.push(labels[i - 1]);
+    if (y > 0 && labels[i - n] >= 0) cand.push(labels[i - n]);
+    if (diag && y > 0 && x > 0 && labels[i - n - 1] >= 0) cand.push(labels[i - n - 1]);
+    if (diag && y > 0 && x < n - 1 && labels[i - n + 1] >= 0) cand.push(labels[i - n + 1]);
+    if (!cand.length) { l = next++; parent[l] = l; }
+    else { l = find(cand[0]); for (let c = 1; c < cand.length; c++) { const r = find(cand[c]); if (r !== l) { parent[Math.max(r, l)] = Math.min(r, l); l = Math.min(r, l); } } }
+    labels[i] = l;
+  }
+  const seen = new Uint8Array(next); let count = 0;
+  for (let i = 0; i < next; i++) { const r = find(i); if (!seen[r]) { seen[r] = 1; count++; } }
+  return count;
+}
+let binBuf = null;
+function analyse(d) {
+  const n = PN, N2 = n * n;
+  // whole-domain statistics from the strided channel (masked)
+  let mn = Infinity, mx = -Infinity, sum = 0, sum2 = 0, cnt = 0, nan = false;
+  for (let i = 0; i < N2; i++) {
+    const v = d[i * 4 + 1], m = d[i * 4 + 3];
+    if (!(v === v) || !isFinite(v)) { nan = true; continue; }
+    if (m < 0.5) continue;
+    if (v < mn) mn = v; if (v > mx) mx = v; sum += v; sum2 += v * v; cnt++;
+  }
+  A.nan = nan;
+  if (!cnt) return;
+  const mean = sum / cnt, std = Math.sqrt(Math.max(0, sum2 / cnt - mean * mean));
+  A.mean = mean; A.std = std;
+  hist.fill(0);
+  const span = Math.max(mx - mn, 1e-9);
+  for (let i = 0; i < N2; i++) { if (d[i * 4 + 3] < 0.5) continue; const v = d[i * 4 + 1]; if (v === v) hist[Math.min(255, Math.max(0, Math.floor((v - mn) / span * 255)))]++; }
+  let acc = 0, p2 = mn, p98 = mx;
+  for (let b = 0; b < 256; b++) { acc += hist[b]; if (acc >= cnt * 0.01) { p2 = mn + span * b / 255; break; } }
+  acc = 0;
+  for (let b = 255; b >= 0; b--) { acc += hist[b]; if (acc >= cnt * 0.005) { p98 = mn + span * (b + 1) / 255; break; } }
+  const mr = MODELS[S.model].range;
+  let tlo = Math.min(p2, mr[0] + (mr[1] - mr[0]) * 0.3), thi = Math.max(p98, tlo + (mr[1] - mr[0]) * 0.35);
+  const first = !A.ready;
+  A.lo = first ? tlo : A.lo + (tlo - A.lo) * 0.35;
+  A.hi = first ? thi : A.hi + (thi - A.hi) * 0.35;
+  const contrast = std / Math.max(1e-6, (mr[1] - mr[0]));
+  const thr = (A.lo + A.hi) * 0.5;
+  let above = 0;
+  for (let i = 0; i < N2; i++) if (d[i * 4 + 3] >= 0.5 && d[i * 4 + 1] > thr) above++;
+  A.coverage = contrast < 0.02 ? (mean > thr ? 1 : 0) : above / cnt;
+
+  // spectrum of the crop
+  const re = fft.re, im = fft.im, w = fft.win;
+  let cm = 0, cc = 0;
+  for (let i = 0; i < N2; i++) if (d[i * 4 + 2] >= 0.5) { cm += d[i * 4]; cc++; }
+  cm = cc ? cm / cc : 0;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const i = y * n + x; const v = d[i * 4 + 2] >= 0.5 ? d[i * 4] - cm : 0; re[i] = (v === v ? v : 0) * w[x] * w[y]; im[i] = 0; }
+  fft.run();
+  const rad = fft.radial, radN = fft.radialN, half = n / 2;
+  rad.fill(0); radN.fill(0);
+  let mxx = 0, myy = 0, mxy = 0;
+  for (let y = 0; y < n; y++) {
+    const ky = y < half ? y : y - n;
+    for (let x = 0; x < n; x++) {
+      const kx = x < half ? x : x - n;
+      const r = Math.sqrt(kx * kx + ky * ky);
+      const b = Math.round(r);
+      if (b >= half) continue;
+      const i = y * n + x, pw = re[i] * re[i] + im[i] * im[i];
+      rad[b] += pw; radN[b]++;
+    }
+  }
+  let best = 0, bi = 0;
+  // total power in each annulus (mean × circumference): weights by q, so a sparse pattern reports its spacing, not its envelope
+  for (let b = 0; b < half; b++) { rad[b] = radN[b] ? rad[b] / radN[b] : 0; const tot = rad[b] * b; if (b >= 4 && tot > best) { best = tot; bi = b; } }
+  let rp = bi;
+  if (bi > 4 && bi < half - 1) { const l = Math.log(rad[bi - 1] * (bi - 1) + 1e-30), c = Math.log(rad[bi] * bi + 1e-30), r = Math.log(rad[bi + 1] * (bi + 1) + 1e-30); const den = l - 2 * c + r; if (den < 0) rp = bi + U.clamp(0.5 * (l - r) / den, -0.5, 0.5); }
+  // orientation order from the spectral annulus around the peak
+  for (let y = 0; y < n; y++) {
+    const ky = y < half ? y : y - n;
+    for (let x = 0; x < n; x++) {
+      const kx = x < half ? x : x - n;
+      const r = Math.sqrt(kx * kx + ky * ky);
+      if (Math.abs(r - rp) > Math.max(2, rp * 0.3) || r < 1) continue;
+      const i = y * n + x, pw = re[i] * re[i] + im[i] * im[i];
+      const cx2 = kx / r, cy2 = ky / r;
+      mxx += pw * cx2 * cx2; myy += pw * cy2 * cy2; mxy += pw * cx2 * cy2;
+    }
+  }
+  A.order = (mxx + myy) > 0 ? Math.sqrt((mxx - myy) * (mxx - myy) + 4 * mxy * mxy) / (mxx + myy) : 0;
+  const patterned = contrast > 0.04 && best > 0;
+  A.lambda = patterned && rp > 0 ? n / rp : 0;
+  A.qPeak = patterned && rp > 0 ? 2 * Math.PI * rp / n : 0;
+  let smax = 0;
+  for (let b = 0; b <= half && b < A.spec.length; b++) { A.spec[b] = rad[b] || 0; if (b >= 2 && A.spec[b] > smax) smax = A.spec[b]; }
+  A.specN = Math.min(half, A.spec.length - 1);
+  for (let b = 0; b <= A.specN; b++) A.spec[b] = smax > 0 ? A.spec[b] / smax : 0;
+  A.specOn = patterned;
+
+  // morphology: connected components of the thresholded crop
+  if (!binBuf || binBuf.length !== N2) binBuf = new Uint8Array(N2);
+  let fgN = 0, inN = 0;
+  for (let i = 0; i < N2; i++) { const inside = d[i * 4 + 2] >= 0.5; binBuf[i] = !inside ? 2 : (d[i * 4] > thr ? 1 : 0); if (inside) { inN++; if (binBuf[i] === 1) fgN++; } }
+  if (!patterned) { A.comps = 0; A.holes = 0; A.morph = contrast < 0.02 ? 'uniform' : 'faint'; }
+  else {
+    const fg = countComponents(binBuf, n, 1, false), bg = countComponents(binBuf, n, 0, true);
+    A.comps = fg; A.holes = bg;
+    const frac = inN ? fgN / inN : 0;
+    const area = inN / (A.lambda * A.lambda + 1);
+    const many = Math.max(4, area * 0.12);
+    let per = 0;   // boundary pixels of the foreground: thickness t = 2A/P, elongation = (A / blobs) / t²
+    for (let y = 1; y < n - 1; y++) for (let x = 1; x < n - 1; x++) { const i = y * n + x; if (binBuf[i] === 1 && (binBuf[i - 1] === 0 || binBuf[i + 1] === 0 || binBuf[i - n] === 0 || binBuf[i + n] === 0)) per++; }
+    const thick = per ? 2 * fgN / per : 1;
+    A.elong = fg ? (fgN / fg) / (thick * thick) : 0;
+    if (fg >= 4 && bg <= Math.max(3, fg * 0.15) && A.elong > 6) A.morph = 'worms';
+    else if (fg >= many && bg <= Math.max(3, fg * 0.15)) A.morph = frac < 0.5 ? 'spots' : 'packed spots';
+    else if (bg >= many && fg <= Math.max(3, bg * 0.15)) A.morph = 'holes';
+    else if (fg >= many && bg >= many) A.morph = 'spots + holes';
+    else A.morph = A.order > 0.55 ? 'aligned stripes' : 'stripes · labyrinth';
+  }
+  // stripes across the whole sheet: threshold crossings along the middle row of the strided sample
+  let cross = 0, above2 = false; const row = (n >> 1) * n;
+  for (let x = 0; x < n; x++) { const v = d[(row + x) * 4 + 1]; if (!above2 && v > thr + (A.hi - A.lo) * 0.08) { above2 = true; cross++; } else if (above2 && v < thr - (A.hi - A.lo) * 0.08) above2 = false; }
+  A.stripes = patterned ? cross : 0;
+  A.ready = true;
+}
+
+/* ================================================================ atlas classes */
+// Pearson (1993) classes, extended by Munafo; positions are approximate
+const CLASSES = [
+  { g: 'α', F: 0.010, k: 0.047, d: 'chaos of wavelets and young spirals' },
+  { g: 'γ', F: 0.022, k: 0.051, d: 'restless worms and branching stripes' },
+  { g: 'δ', F: 0.030, k: 0.055, d: 'hexagonal Turing arrays' },
+  { g: 'ε', F: 0.018, k: 0.055, d: 'chaotic spots, rings and mitosis' },
+  { g: 'ζ', F: 0.022, k: 0.061, d: 'steadier, symmetric spots' },
+  { g: 'η', F: 0.034, k: 0.063, d: 'spots and worms that settle' },
+  { g: 'θ', F: 0.030, k: 0.057, d: 'rings and parallel stripes' },
+  { g: 'ι', F: 0.046, k: 0.0594, d: 'negative spots (negatons)' },
+  { g: 'κ', F: 0.050, k: 0.063, d: 'widening stripes, coral mazes' },
+  { g: 'λ', F: 0.026, k: 0.061, d: 'solitons that divide, then pack' },
+  { g: 'μ', F: 0.046, k: 0.065, d: 'worms that grow from their ends' },
+  { g: 'ν', F: 0.046, k: 0.067, d: 'inert solitons that drift apart' },
+  { g: 'π', F: 0.062, k: 0.0609, d: 'U-skates, loops, stable structures' },
+  { g: 'ρ', F: 0.090, k: 0.059, d: 'negatons become soap bubbles' },
+  { g: 'σ', F: 0.090, k: 0.057, d: 'solitons become soap bubbles' },
+];
+const snK = (F) => Math.sqrt(F) / 2 - F;     // saddle-node line
+function classify(F, k) {   // the two nearest class points, in map-normalised distance
+  const r = CLASSES.map((c) => { const dx = (F - c.F) / (MAP_F[1] - MAP_F[0]), dy = (k - c.k) / (MAP_K[1] - MAP_K[0]); return { c, d: Math.hypot(dx, dy) }; }).sort((a, b) => a.d - b.d);
+  return { c: r[0].c, d: r[0].d, c2: r[1].c, near: r[0].d < 0.07 };
+}
+
+/* ================================================================ dispersion relation */
+function jacobian() {
+  // returns {J:[fa, fh, ga, gh], Da, Dh} for the relevant uniform state or null
+  if (S.model === 'gs') {
+    const F = S.F, k = S.k, disc = 1 - 4 * (F + k) * (F + k) / F;
+    if (disc < 0) return null;
+    const u = (1 - Math.sqrt(disc)) / 2, v = (F + k) / u;
+    // activator v, inhibitor (substrate) u
+    return { J: [F + k, v * v, -2 * (F + k), -v * v - F], Da: DU_GS / S.ratio, Dh: DU_GS, u, v };
+  }
+  if (S.model === 'gm') {
+    const [h, a] = gmSteady(), r = 0.0035, kap = S.kappa, s1 = 1 + kap * a * a;
+    return { J: [r * (2 * a / (h * s1 * s1) - 1), r * (-a * a / (h * h * s1)), r * S.nu * 2 * a, -r * S.nu], Da: 0.3 / S.gmRatio, Dh: 0.3 };
+  }
+  const r = 0.0037;
+  return { J: [r * (S.B - 1), r * S.A * S.A, -r * S.B, -r * S.A * S.A], Da: 0.3 / S.brRatio, Dh: 0.3 };
+}
+function sigma(j, q) {
+  const q2 = q * q, a = j.J[0] - j.Da * q2, b = j.J[1], c = j.J[2], d = j.J[3] - j.Dh * q2;
+  const T = a + d, D = a * d - b * c, disc = T * T / 4 - D;
+  return disc >= 0 ? T / 2 + Math.sqrt(disc) : T / 2;
+}
+const theory = { qmax: 0, smax: 0, unstable: false, has: false, osc: false };
+function updateTheory() {
+  const j = jacobian();
+  theory.has = !!j;
+  if (!j) { theory.unstable = false; theory.qmax = 0; return; }
+  let best = -Infinity, bq = 0;
+  for (let i = 1; i <= 400; i++) { const q = i * 0.004; const s = sigma(j, q); if (s > best) { best = s; bq = q; } }
+  const s0 = sigma(j, 0);
+  theory.smax = best; theory.qmax = bq;
+  theory.unstable = best > 0 && s0 < 0;
+  theory.osc = s0 > 0;
+  theory.j = j;
+}
+// linear-theory curves over the atlas (computed once): Hopf line and the Turing sliver of the blue state
+const curves = { hopf: [], turLo: [], turHi: [] };
+(function () {
+  const Da = DU_GS / 2, Dh = DU_GS, NF = 420, NK = 2400;
+  for (let i = 0; i <= NF; i++) {
+    const F = MAP_F[0] + (MAP_F[1] - MAP_F[0]) * i / NF, ksn = snK(F);
+    let hopf = null, lo = null, hi = null;
+    for (let j = 0; j <= NK; j++) {
+      const k = MAP_K[0] + (Math.min(ksn, MAP_K[1]) - MAP_K[0]) * j / NK;
+      const disc = 1 - 4 * (F + k) * (F + k) / F; if (disc < 0) break;
+      const u = (1 - Math.sqrt(disc)) / 2, v = (F + k) / u;
+      const fa = F + k, fh = v * v, ga = -2 * (F + k), gh = -v * v - F;   // activator v, inhibitor u
+      const T = fa + gh, det = fa * gh - fh * ga;
+      if (T >= 0 || det <= 0) { if (hopf === null && T >= 0) hopf = k; continue; }
+      const m = fa * Dh + gh * Da;
+      if (m > 0 && m * m > 4 * Da * Dh * det) { if (lo === null) lo = k; hi = k; }
+    }
+    if (hopf !== null && hopf < ksn - 1e-5) curves.hopf.push([F, hopf]);
+    if (lo !== null) { curves.turLo.push([F, lo]); curves.turHi.push([F, hi]); }
+  }
+})();
+
+/* ================================================================ UI */
+const hud = {
+  model: ch.hud.add('Model', 'Gray–Scott'),
+  F: ch.hud.add('Feed F', ''),
+  k: ch.hud.add('Kill k', ''),
+  cls: ch.hud.add('Pattern', '—'),
+  lam: ch.hud.add('Wavelength', '—'),
+  cov: ch.hud.add('Coverage', '—'),
+  steps: ch.hud.add('Steps', '0'),
+  grow: ch.hud.add('Growth', ''),
+};
+hud.grow.el.style.display = 'none';
+
+// presets
+const PRESETS = [
+  { id: 'leopard', label: 'Leopard spots', F: 0.0367, k: 0.0649, pal: 'leopard', seed: 'colonies', scale: 'close' },
+  { id: 'zebra', label: 'Zebra stripes', F: 0.037, k: 0.06, pal: 'zebra', seed: 'dense', aniso: 0.45, angle: 0, anisoSp: 'u', scale: 'close' },
+  { id: 'mitosis', label: 'Mitosis', F: 0.0367, k: 0.0649, pal: 'lab', seed: 'one' },
+  { id: 'coral', label: 'Coral growth', F: 0.0545, k: 0.062, pal: 'coral', seed: 'few' },
+  { id: 'worms', label: 'Worms', F: 0.058, k: 0.065, pal: 'cuttle', seed: 'dense' },
+  { id: 'uskate', label: 'U-Skate world', F: 0.062, k: 0.0609, pal: 'lab', seed: 'dense' },
+  { id: 'solitons', label: 'Solitons', F: 0.030, k: 0.062, pal: 'cuttle', seed: 'dense' },
+  { id: 'finger', label: 'Fingerprint', F: 0.037, k: 0.06, pal: 'puffer', seed: 'dense' },
+  { id: 'giraffe', label: 'Giraffe', F: 0.0367, k: 0.0649, pal: 'giraffe', seed: 'dense', scale: 'close' },
+  { id: 'gm', label: 'Turing from noise', model: 'gm', kappa: 0.0, pal: 'lab', seed: 'noise' },
+  { id: 'angelfish', label: 'Growing angelfish', F: 0.037, k: 0.06, pal: 'angelfish', seed: 'dense', aniso: 0.45, angle: 0, anisoSp: 'u', grow: 2, scale: 'close' },
+  { id: 'brusselator', label: 'Brusselator', model: 'br', B: 7.2, pal: 'cuttle', seed: 'noise' },
+];
+
+const gPat = ch.ui.group('Patterns');
+const presetBtns = gPat.buttons(PRESETS.map((p, i) => ({ label: p.label, id: 'mg-pre-' + p.id, title: i < 9 ? 'Key ' + (i + 1) : '', onClick: () => applyPreset(p.id) })));
+presetBtns[0].el.parentElement.classList.add('mg-grid');
+const demoBtns = gPat.buttons([
+  { label: 'Map mode', kind: 'primary', id: 'mg-mapbtn', title: 'Key A', onClick: () => { stopTour(); setMapMode(!mapMode); } },
+  { label: 'Animal coat', id: 'mg-coatbtn', title: 'Key L', onClick: () => (coat ? exitCoat() : enterCoat()) },
+  { label: 'Tour', id: 'mg-tourbtn', title: 'Key T', onClick: () => (tour ? stopTour() : startTour()) },
+]);
+const selCoat = gPat.select({ id: 'mg-coat', label: 'Animal coat shape', value: 'cat', options: [{ value: 'cat', label: 'Big cat, flat (spotted body, ringed tail)' }, { value: 'tail3d', label: 'Tapered tail in 3D (Murray 1988)' }, { value: 'cone', label: 'Unrolled cone (flat wedge)' }], onChange: (v) => enterCoat(v) });
+
+const gMap = ch.ui.group('Parameter map · Gray–Scott');
+const mapCv = gMap.canvas(small ? 150 : 170);
+mapCv.classList.add('mg-mapcv');
+const mapNote = gMap.html(Cosmos.h('div', { class: 'mg-mapnote' }, Cosmos.h('span', { text: 'F → 0.008 … 0.095' }), Cosmos.h('span', { html: 'k ↑ 0.045 … 0.07' })));
+const mapSub = gMap.note('Click or drag on the map to choose F and k. The crosshair is the tissue you are watching.');
+const tgWander = gMap.toggle({ id: 'mg-wander', label: 'Wander along the pattern band (W)', value: false, hint: 'F and k drift slowly along the edge of the saddle-node curve, where the patterns live. The same skin turns from spots to worms to mazes and back.', onChange: (v) => setWander(v, true) });
+let wanderT = 0, wanderClock = 0;
+function setWander(on, fromUi) {
+  if (!!S.wander === !!on) return;
+  S.wander = !!on; tgWander.set(S.wander);
+  if (on) {
+    stopTour(); if (coat) exitCoat(true);
+    if (S.model !== 'gs') { setModel('gs', false); paramsChanged(); reseed('dense'); }
+    S.aniso = 0; slAniso.set(0); S.grow = 0; slGrow.set(0); S.grad = 'off'; selGrad.set('off');
+    presetBtns.forEach((b) => b.setPressed(false));
+    // start the path at the current feed so the move is continuous
+    const f = U.clamp((S.F - 0.022) / 0.034, 0, 1); wanderT = Math.acos(U.clamp(1 - 2 * f, -1, 1)) / (2 * Math.PI) * 150;
+    ch.toast('Wandering: F and k drift along the band of patterns');
+  }
+}
+function wanderUpdate(dt) {
+  wanderT += dt; wanderClock += dt;
+  if (wanderClock < 0.1) return;
+  wanderClock = 0;
+  const F = 0.022 + 0.034 * (0.5 - 0.5 * Math.cos(2 * Math.PI * wanderT / 150));
+  const k = U.clamp(snK(F) + 0.0027 + 0.0014 * Math.sin(2 * Math.PI * wanderT / 47), MAP_K[0], MAP_K[1]);
+  S.F = F; S.k = k; slF.set(F); slK.set(k); paramsChanged();
+}
+
+const gR = ch.ui.group('Reaction');
+const selModel = gR.select({ id: 'mg-model', label: 'Model', value: 'gs', options: [{ value: 'gs', label: 'Gray–Scott (Pearson 1993)' }, { value: 'gm', label: 'Gierer–Meinhardt (1972)' }, { value: 'br', label: 'Brusselator (1968)' }], onChange: (v) => setModel(v, true) });
+const slF = gR.slider({ id: 'mg-F', label: 'Feed rate F', min: 0.005, max: 0.1, step: 0.0001, value: S.F, digits: 4, onInput: (v) => { S.F = v; stopTour(); setWander(false); paramsChanged(); } });
+const slK = gR.slider({ id: 'mg-k', label: 'Kill rate k', min: 0.035, max: 0.075, step: 0.0001, value: S.k, digits: 4, onInput: (v) => { S.k = v; stopTour(); setWander(false); paramsChanged(); } });
+const slRatio = gR.slider({ id: 'mg-ratio', label: 'Diffusion ratio Dᵤ ÷ Dᵥ', min: 1, max: 4, step: 0.05, value: 2, digits: 2, hint: 'Turing needs the inhibitor to spread faster. Try 1.', onInput: (v) => { S.ratio = v; paramsChanged(); } });
+const slKappa = gR.slider({ id: 'mg-kappa', label: 'Saturation κ', min: 0, max: 0.4, step: 0.005, value: 0, digits: 3, hint: 'Low κ gives peaks (spots); higher κ caps the activator and gives stripes.', onInput: (v) => { S.kappa = v; paramsChanged(); } });
+const slNu = gR.slider({ id: 'mg-nu', label: 'Inhibitor decay ratio ν', min: 1.1, max: 4, step: 0.05, value: 2, digits: 2, onInput: (v) => { S.nu = v; paramsChanged(); } });
+const slGMR = gR.slider({ id: 'mg-gmr', label: 'Diffusion ratio, inhibitor ÷ activator', min: 3, max: 60, step: 1, value: 30, digits: 0, onInput: (v) => { S.gmRatio = v; paramsChanged(); } });
+const slA = gR.slider({ id: 'mg-A', label: 'A', min: 2, max: 6, step: 0.05, value: 4.5, digits: 2, onInput: (v) => { S.A = v; paramsChanged(); } });
+const slB = gR.slider({ id: 'mg-B', label: 'B', min: 4, max: 11, step: 0.05, value: 7, digits: 2, hint: 'Turing onset at B = (1 + A√(Dx/Dy))², where x is the activator; oscillations start at B = 1 + A².', onInput: (v) => { S.B = v; paramsChanged(); } });
+const slBR = gR.slider({ id: 'mg-brr', label: 'Diffusion ratio, inhibitor ÷ activator', min: 2, max: 16, step: 0.5, value: 8, digits: 1, onInput: (v) => { S.brRatio = v; paramsChanged(); } });
+const slSpeed = gR.slider({ id: 'mg-speed', label: 'Speed', min: 1, max: 40, step: 1, value: S.speed, digits: 0, format: (v) => v + ' steps/frame', onInput: (v) => { S.speed = v; } });
+const selGrad = gR.select({ id: 'mg-grad', label: 'Spatial gradient', value: 'off', options: [{ value: 'off', label: 'Off: same F and k everywhere' }, { value: 'F', label: 'Feed F rises left → right' }, { value: 'k', label: 'Kill k rises left → right' }, { value: 'Fk', label: 'Local atlas: F across, k up' }], onChange: (v) => { S.grad = v; } });
+const slAniso = gR.slider({ id: 'mg-aniso', label: 'Anisotropy', min: 0, max: 0.6, step: 0.01, value: 0, digits: 2, hint: 'Diffusion faster along one direction orients stripes.', onInput: (v) => { S.aniso = v; } });
+const slGrow = gR.slider({ id: 'mg-grow', label: 'Domain growth', min: 0, max: 4, step: 0.1, value: 0, digits: 1, unit: '% per s', hint: 'Stretch the skin as an animal grows. New stripes appear between old ones (Kondo &amp; Asai 1995).', onInput: (v) => { S.grow = v; S.growLen = 1; } });
+const slAngle = gR.slider({ id: 'mg-angle', label: 'Fast direction', min: 0, max: 180, step: 1, value: 90, digits: 0, unit: '°', onInput: (v) => { S.anisoAngle = v; } });
+const selAnisoSp = gR.select({ id: 'mg-anisosp', label: 'Which chemical spreads unevenly', value: 'u', options: [{ value: 'u', label: 'Inhibitor u: stripes cross the fast axis' }, { value: 'v', label: 'Activator v: stripes follow the fast axis' }, { value: 'both', label: 'Both: a stretch, no preferred order' }], onChange: (v) => { S.anisoSp = v; } });
+
+const gB = ch.ui.group('Brush');
+const slBrush = gB.slider({ id: 'mg-brush', label: 'Brush radius', min: 2, max: 40, step: 1, value: S.brush, digits: 0, unit: 'cells', onInput: (v) => { S.brush = v; } });
+const tgErase = gB.toggle({ id: 'mg-erase', label: 'Erase (or right-drag)', value: false, onChange: (v) => { S.erase = v; } });
+gB.buttons([
+  { label: 'Clear', kind: 'danger', title: 'Key X', onClick: () => clearSim() },
+  { label: 'Reseed', title: 'Key R', onClick: () => reseed() },
+  { label: 'Random drops', title: 'Key D', onClick: () => drops() },
+]);
+
+const gLook = ch.ui.group('Look');
+const selPal = gLook.select({ id: 'mg-pal', label: 'Skin', value: S.palette, options: Object.keys(PALETTES).filter((k) => k !== 'atlas').map((k) => ({ value: k, label: PALETTES[k].label })), onChange: (v) => { S.palette = v; } });
+const selScale = gLook.select({ id: 'mg-scale', label: 'Magnification', value: 'std', options: [{ value: 'close', label: 'Close-up: about 3 px per cell' }, { value: 'std', label: 'Standard: 2 px per cell' }, { value: 'wide', label: 'Wide field: about 1.3 px per cell' }], onChange: (v) => setScale(v) });
+const slRelief = gLook.slider({ id: 'mg-relief', label: 'Relief', min: 0, max: 2.5, step: 0.05, value: 1, digits: 2, onInput: (v) => { S.relief = v; } });
+const tgLight = gLook.toggle({ id: 'mg-light', label: 'Orbiting light', value: true, onChange: (v) => { S.lightOrbit = v; } });
+const tgTex = gLook.toggle({ id: 'mg-tex', label: 'Fur and pores', value: true, onChange: () => {} });
+
+const gA = ch.ui.group('Analysis');
+const specCv = gA.canvas(small ? 110 : 120);
+const theoryNote = gA.note('');
+const ro = gA.readouts([
+  { id: 'lam', label: 'λ measured' }, { id: 'lamT', label: 'λ linear theory' },
+  { id: 'morph', label: 'Shape' }, { id: 'order', label: 'Stripe order' },
+  { id: 'comps', label: 'Blobs in window' }, { id: 'cov', label: 'Coverage' },
+]);
+const census = gA.chart({ height: 70, series: [{ label: 'blobs in the analysis window' }], yMin: 0, maxPoints: 180, yFormat: (v) => String(Math.round(v)) });
+
+function showModelSliders() {
+  const m = S.model;
+  const vis = (s, on) => { s.el.style.display = on ? '' : 'none'; };
+  vis(slF, m === 'gs'); vis(slK, m === 'gs'); vis(slRatio, m === 'gs'); vis(selGrad, m === 'gs');
+  vis(slKappa, m === 'gm'); vis(slNu, m === 'gm'); vis(slGMR, m === 'gm');
+  vis(slA, m === 'br'); vis(slB, m === 'br'); vis(slBR, m === 'br');
+}
+showModelSliders();
+
+/* ================================================================ state changes */
+let setup = modelSetup();
+function paramsChanged() { setup = modelSetup(); updateTheory(); mapDirty = true; }
+function setModel(m, reseedNow) {
+  if (S.model === m) return;
+  S.model = m; selModel.set(m);
+  showModelSliders();
+  A.ready = false; const r = MODELS[m].range; A.lo = r[0]; A.hi = r[1];
+  if (m !== 'gs' && S.grad !== 'off') { S.grad = 'off'; selGrad.set('off'); }
+  paramsChanged();
+  if (reseedNow) reseed();
+  hud.model.set(MODELS[m].label);
+}
+function setFK(F, k, fromMap) {
+  S.F = U.clamp(F, 0.005, 0.1); S.k = U.clamp(k, 0.035, 0.075);
+  slF.set(S.F); slK.set(S.k);
+  const switched = S.model !== 'gs';
+  if (switched) setModel('gs', false);
+  paramsChanged();
+  if (switched) reseed('dense');   // the other models' concentrations mean nothing to Gray–Scott
+}
+function setPalette(id) { S.palette = id; selPal.set(id); }
+function setScale(id) {
+  S.scale = id; selScale.set(id);
+  if (Math.abs(SCALES[id] - cellPx) < 1e-6) return;
+  cellPx = SCALES[id];
+  const [w, h] = simDims();
+  sim = resampleSim(sim, w, h); SW = w; SH = h;
+  if (coat) buildMask();
+  ensureProbe();
+  A.ready = false;
+}
+
+function clearSim() {
+  const st = modelSetup();
+  seed(sim, [], false, { base: st.base, hi: st.hi, noise: [0, 0] });
+  ch.toast('Cleared. Drag to paint activator.');
+}
+function reseed(kind) {
+  const st = modelSetup();
+  const rng = U.rng((Math.random() * 1e9) | 0);
+  kind = kind || (S.model === 'gs' ? 'dense' : 'noise');
+  if (S.model !== 'gs') { seed(sim, [], false, st); sim.steps = 0; return; }
+  const area = useMask && coatArea ? coatArea : SW * SH;
+  let blobs = [];
+  if (kind === 'dense') blobs = randomBlobs(sim, Math.round(area / 900), 2, 5, rng, useMask);
+  else if (kind === 'few') blobs = randomBlobs(sim, Math.max(4, Math.round(area / 30000)), 3, 6, rng, useMask);
+  else if (kind === 'colonies') blobs = randomBlobs(sim, Math.max(6, Math.round(area / 7000)), 3, 5, rng, useMask).map((b) => [b[0], b[1], b[2], 0]);
+  else if (kind === 'one') blobs = [[SW / 2, SH / 2, 5, 1]];
+  else if (kind === 'noise') blobs = randomBlobs(sim, Math.round(area / 300), 1.5, 3, rng, useMask);
+  seed(sim, [], false, { base: st.base, hi: st.hi, noise: [0, 0] });
+  seed(sim, blobs, true, st);
+  sim.steps = 0;
+}
+function drops() {
+  const st = modelSetup();
+  const rng = U.rng((Math.random() * 1e9) | 0);
+  seed(sim, randomBlobs(sim, Math.max(6, Math.round(SW * SH / 12000)), 3, 7, rng, useMask), true, { base: st.base, hi: st.hi, noise: [0, 0] });
+}
+function applyPreset(id, quiet, keepTour) {
+  const p = PRESETS.find((x) => x.id === id);
+  if (!p) return;
+  if (!keepTour) stopTour();
+  setWander(false);
+  if (coat) exitCoat(true);
+  setModel(p.model || 'gs', false);
+  if (!p.model || p.model === 'gs') { S.F = p.F; S.k = p.k; slF.set(S.F); slK.set(S.k); }
+  if (p.model === 'gm') { S.kappa = p.kappa; slKappa.set(p.kappa); }
+  if (p.model === 'br') { S.B = p.B; slB.set(p.B); }
+  S.grow = p.grow || 0; S.growLen = 1; slGrow.set(S.grow);
+  S.aniso = p.aniso || 0; slAniso.set(S.aniso);
+  if (p.angle != null) { S.anisoAngle = p.angle; slAngle.set(p.angle); }
+  if (p.anisoSp) { S.anisoSp = p.anisoSp; selAnisoSp.set(p.anisoSp); }
+  S.grad = 'off'; selGrad.set('off');
+  setPalette(p.pal);
+  setScale(p.scale || 'std');
+  paramsChanged();
+  reseed(p.seed);
+  presetBtns.forEach((b, i) => b.setPressed(PRESETS[i].id === id));
+  if (!quiet) ch.toast(p.label);
+}
+
+/* ================================================================ map mode */
+let mapMode = false, mapT = 0, mapDirty = true;
+function setMapMode(on, quiet) {
+  if (on === mapMode) return;
+  mapMode = on;
+  if (on && (coat || S.model !== 'gs')) {   // the atlas is Gray–Scott: bring the tissue back to it
+    if (coat) exitCoat(true);
+    if (S.model !== 'gs') setFK(S.F, S.k); else { paramsChanged(); reseed('dense'); }
+    presetBtns.forEach((b) => b.setPressed(false));
+  }
+  document.body.classList.toggle('mg-mapmode', on);
+  demoBtns[0].setPressed(on);
+  demoBtns[0].setLabel(on ? 'Back to the tissue' : 'Map mode');
+  if (on) { hintEl.classList.add('off'); if (small) ch.openDeck(false); ch.foldNotes(true); if (!quiet) { hideCaption(); if (!small) ch.toast('Every pattern at once: F grows to the right, k grows upward. Drag to explore.', 4200); } }
+}
+function mapRect() {       // CSS px
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  const deckW = (!small && document.querySelector('.cz-deck.cz-open')) ? 304 + 16 + 20 : 0;
+  const l = small ? 40 : 76, r = W - (small ? 14 : 28) - deckW, t = (small ? 62 : 74), b = H - (small ? 150 : 104);
+  let w = r - l, h = b - t;
+  const asp = MAPW / MAPH;
+  if (w / h > asp) w = h * asp; else h = w / asp;
+  const x = l + ((r - l) - w) / 2, y = small ? t + 70 : t + ((b - t) - h) / 2;
+  return { x, y, w, h };
+}
+
+/* ================================================================ animal coat (Murray 1988) */
+let coat = false, coatShape = null;
+function visibleCells() {
+  const Wc = canvas.clientWidth, Hc = canvas.clientHeight;
+  const deckOpen = !small && document.querySelector('.cz-deck.cz-open');
+  const x0 = small ? 10 : 28, x1 = Wc - (deckOpen ? 304 + 16 + 28 : 28);
+  const y0 = small ? 150 : 96, y1 = Hc - (small ? 120 : 84);
+  return { x0: x0 / cellPx, x1: x1 / cellPx, y0: y0 / cellPx, y1: y1 / cellPx };
+}
+const COAT_LAMBDA = 15.5;   // Turing wavelength (cells) of the coat Brusselator: 15.3 from linear theory, 15.5–16 measured
+const TAPER = [0.7, 0.18];  // tail radius at the root and the tip, in wavelengths: 1.4 λ across, narrowing to 0.36 λ
+function catmull(pts, n) {
+  const out = [];
+  for (let i = 0; i < pts.length - 1; i++) for (let j = 0; j < n; j++) {
+    const t = j / n, p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)], t2 = t * t, t3 = t2 * t;
+    out.push([0, 1].map((k) => 0.5 * (2 * p1[k] + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3)));
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+function catPath(c, W, H) {
+  // a walking leopard in profile, built from overlapping shapes; lengths in units of the body length L
+  const v = visibleCells();
+  const L = Math.min((v.x1 - v.x0) / 2.08, (v.y1 - v.y0) / 1.06);
+  const ox = v.x0 + ((v.x1 - v.x0) - 2.04 * L) / 2 + 0.68 * L, oy = v.y0 + ((v.y1 - v.y0) - 1.02 * L) / 2 + 0.38 * L;
+  const X = (x) => ox + x * L, Y = (y) => oy + y * L;
+  c.fillStyle = '#fff'; c.strokeStyle = '#fff'; c.lineCap = 'round'; c.lineJoin = 'round';
+  const ell = (x, y, rx, ry, rot) => { c.beginPath(); c.ellipse(X(x), Y(y), rx * L, ry * L, rot || 0, 0, Math.PI * 2); c.fill(); };
+  const tube = (pts, r0, r1, abs) => { const q = catmull(pts, 16); q.forEach((p, i) => { const t = i / (q.length - 1); const r = r0 + (r1 - r0) * t; c.beginPath(); c.arc(X(p[0]), Y(p[1]), abs ? r : r * L, 0, Math.PI * 2); c.fill(); }); return q; };
+  const tri = (a, b, d) => { c.beginPath(); c.moveTo(X(a[0]), Y(a[1])); c.lineTo(X(b[0]), Y(b[1])); c.lineTo(X(d[0]), Y(d[1])); c.closePath(); c.fill(); };
+  ell(0.5, 0.02, 0.46, 0.165, 0.03);            // torso
+  ell(0.84, 0.03, 0.19, 0.2, -0.12);            // chest
+  ell(0.13, 0.0, 0.2, 0.185, 0.12);             // rump
+  ell(0.5, 0.09, 0.3, 0.11);                    // belly
+  tube([[0.86, -0.04], [0.98, -0.12], [1.1, -0.2]], 0.11, 0.085);   // neck
+  ell(1.17, -0.23, 0.115, 0.095, 0.15);         // head
+  ell(1.27, -0.18, 0.075, 0.058, 0.35);         // muzzle
+  tri([1.09, -0.29], [1.11, -0.385], [1.17, -0.305]);   // ears
+  tri([1.15, -0.315], [1.2, -0.375], [1.23, -0.29]);
+  tube([[0.9, 0.08], [0.93, 0.3], [0.95, 0.46], [0.96, 0.6]], 0.075, 0.042); ell(0.99, 0.615, 0.06, 0.028);   // near fore leg
+  tube([[0.74, 0.1], [0.71, 0.3], [0.68, 0.46], [0.66, 0.6]], 0.066, 0.038); ell(0.69, 0.615, 0.055, 0.026);   // far fore leg
+  ell(0.17, 0.13, 0.15, 0.2, 0.35);                                                                          // thigh
+  tube([[0.19, 0.28], [0.12, 0.42], [0.1, 0.5], [0.13, 0.6]], 0.065, 0.04); ell(0.16, 0.615, 0.058, 0.026);   // near hind leg
+  tube([[0.31, 0.18], [0.33, 0.36], [0.35, 0.47], [0.36, 0.6]], 0.058, 0.038); ell(0.39, 0.615, 0.052, 0.025); // far hind leg
+  // tail: its width is set in wavelengths, tapering from about 2 λ to 0.55 λ across
+  const tail = tube([[0.0, -0.06], [-0.2, 0.02], [-0.38, 0.2], [-0.5, 0.42], [-0.6, 0.55], [-0.67, 0.47]], COAT_LAMBDA * TAPER[0], COAT_LAMBDA * TAPER[1], true);
+  const tp = tail[Math.floor(tail.length * 0.86)];
+  // width gauges across the tail, in cells (canvas y down): centre, unit normal, radius
+  const gauges = [0.1, 0.45, 0.8].map((f) => {
+    const i = Math.max(1, Math.min(tail.length - 2, Math.round(f * (tail.length - 1))));
+    const a = tail[i - 1], b = tail[i + 1], dx = X(b[0]) - X(a[0]), dy = Y(b[1]) - Y(a[1]), l = Math.hypot(dx, dy) || 1;
+    const r = COAT_LAMBDA * (TAPER[0] + (TAPER[1] - TAPER[0]) * i / (tail.length - 1));
+    return { x: X(tail[i][0]), y: Y(tail[i][1]), nx: -dy / l, ny: dx / l, r };
+  });
+  return { gauges, body: [X(0.5) / W, 1 - Y(0.0) / H], bodyTop: [X(0.55) / W, 1 - Y(-0.1) / H], tail: [X(tp[0]) / W, 1 - Y(tp[1]) / H], probe: [X(0.5) / W, 1 - Y(0.02) / H] };
+}
+function conePath(c, W, H) {
+  // Murray's tapering tail, unrolled: a wedge whose width grows as t^1.8, like the 3D cone, from 0.3 λ to 7 λ across
+  const v = visibleCells();
+  const x0 = v.x0 + 6, x1 = v.x1 - 6, yc = (v.y0 + v.y1) / 2, r0 = COAT_LAMBDA * 0.15, r1 = Math.min((v.y1 - v.y0) * 0.42, COAT_LAMBDA * 3.5);
+  const hw = (t) => r0 + (r1 - r0) * Math.pow(t, 1.8), N = 120;
+  c.fillStyle = '#fff'; c.beginPath();
+  for (let i = 0; i <= N; i++) { const t = i / N; c.lineTo(x0 + (x1 - x0) * t, yc - hw(t)); }
+  for (let i = N; i >= 0; i--) { const t = i / N; c.lineTo(x0 + (x1 - x0) * t, yc + hw(t)); }
+  c.closePath(); c.fill();
+  c.beginPath(); c.arc(x0, yc, r0, 0, Math.PI * 2); c.fill();
+  const gauges = [0.12, 0.3, 0.55].map((t) => ({ x: x0 + (x1 - x0) * t, y: yc, nx: 0, ny: -1, r: hw(t) }));
+  const tb = 0.16;
+  return { gauges, body: [(x0 + (x1 - x0) * 0.8) / W, 1 - (yc - hw(0.8) * 0.6) / H], bodyTop: [(x0 + (x1 - x0) * 0.8) / W, 1 - (yc - hw(0.8) * 0.6) / H], tail: [(x0 + (x1 - x0) * tb) / W, 1 - (yc + hw(tb) * 0.5) / H], probe: [(x0 + (x1 - x0) * 0.8) / W, 1 - yc / H] };
+}
+let coatKind = 'cat', coatArea = 0;
+function buildMask() {
+  const cv = document.createElement('canvas'); cv.width = SW; cv.height = SH;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#000'; c.fillRect(0, 0, SW, SH);
+  const raw = document.createElement('canvas'); raw.width = SW; raw.height = SH;
+  if (coatKind === 'tail3d') {   // the unrolled cone: column x is a ring of 2h cells, exactly as the shader wraps it
+    const len = Math.min(SW - 25, 330);
+    CONE[0] = Math.floor((SW - len) / 2); CONE[1] = CONE[0] + len; CONE[2] = COAT_LAMBDA * 0.6; CONE[3] = Math.min(SH - 14, COAT_LAMBDA * 7); CONE_YC = Math.floor(SH / 2);
+    c.fillStyle = '#fff';
+    for (let x = CONE[0]; x <= CONE[1]; x++) { const t = (x - CONE[0]) / (CONE[1] - CONE[0]), h = Math.max(2, Math.floor(U.lerp(CONE[2], CONE[3], Math.pow(t, 1.8)) * 0.5)); c.fillRect(x, SH - (CONE_YC + h), 1, 2 * h); }
+    coatShape = { body: [0.8, 0.5], tail: [0.15, 0.5], probe: [(CONE[0] + (CONE[1] - CONE[0]) * 0.82) / SW, 0.5] };
+  } else {
+    coatShape = coatKind === 'cat' ? catPath(raw.getContext('2d'), SW, SH) : conePath(raw.getContext('2d'), SW, SH);
+    c.filter = 'blur(2px)'; c.drawImage(raw, 0, 0); c.filter = 'none';   // blur, then threshold at 0.5: organic joins
+  }
+  const img = c.getImageData(0, 0, SW, SH);
+  coatArea = 0;
+  for (let i = 0; i < img.data.length; i += 4) { const on = img.data[i] > 127 ? 255 : 0; if (on) coatArea++; img.data[i] = img.data[i + 1] = img.data[i + 2] = on; img.data[i + 3] = 255; }
+  c.putImageData(img, 0, 0);
+  maskData = img.data;
+  if (maskTex) gl.deleteTexture(maskTex);
+  maskTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, maskTex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, gl.RED, gl.UNSIGNED_BYTE, cv);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+}
+// Murray's regime: a Turing system just past onset, where the linear modes of the domain decide the pattern.
+// Brusselator A = 4.5, Dy/Dx = 8: onset at B = (1 + A/√8)² = 6.71; at B = 6.95 the plane forms hexagonal spots of low X.
+const COAT = { A: 4.5, B: 6.95, ratio: 8 };
+function enterCoat(kind, keepTour) {
+  if (!keepTour) stopTour();
+  setWander(false);
+  if (mapMode) setMapMode(false);
+  coatKind = kind || coatKind;
+  coat = true; useMask = true; tail3d = coatKind === 'tail3d';
+  selCoat.set(coatKind);
+  ch.foldNotes(true);
+  setScale(tail3d ? (small ? 'std' : 'close') : 'std');
+  buildMask();
+  S.aniso = 0; slAniso.set(0); S.grad = 'off'; selGrad.set('off'); S.grow = 0; slGrow.set(0);
+  S.A = COAT.A; S.B = COAT.B; S.brRatio = COAT.ratio; slA.set(S.A); slB.set(S.B); slBR.set(S.brRatio);
+  setModel('br', false);
+  paramsChanged();
+  setPalette('cheetah');
+  seed(sim, [], false, modelSetup());       // pure noise: the pattern chooses itself
+  sim.steps = 0;
+  warm = Math.max(warm, small ? 2600 : 3600);
+  demoBtns[1].setPressed(true);
+  presetBtns.forEach((b) => b.setPressed(false));
+  if (!keepTour) ch.toast(tail3d ? 'Murray’s tapered tail: drag to turn it. Rings form where it is thin.' : 'Same chemistry everywhere. Only the width of the domain changes.');
+}
+function exitCoat(silent) {
+  coat = false; useMask = false; maskData = null; tail3d = false;
+  demoBtns[1].setPressed(false);
+  if (!silent) applyPreset('leopard', true);
+}
+
+/* ================================================================ tour */
+const TOUR = [
+  { preset: 'mitosis', t: 'Mitosis', s: 'One spot feeds, stretches and splits, again and again', dur: 13, warm: 300 },
+  { preset: 'coral', t: 'κ · Coral growth', s: 'Fronts advance and branch like a brain coral', dur: 12, warm: 600 },
+  { preset: 'zebra', t: 'Zebra', s: 'Inhibitor spreading faster sideways turns a maze into stripes', dur: 11, warm: 1500 },
+  { preset: 'angelfish', t: 'A growing angelfish', s: 'The skin stretches, the spacing does not: new stripes open between the old', dur: 14, warm: 1500 },
+  { preset: 'giraffe', t: 'Giraffe', s: 'The same spots, drawn by the valleys between them', dur: 10, warm: 2500 },
+  { map: true, t: 'Pearson’s map', s: 'Every pattern at once: feed rises to the right, kill rises upward', dur: 11 },
+  { preset: 'finger', t: 'Labyrinth', s: 'The maze on a pufferfish, and on your fingertip', dur: 10, warm: 1500 },
+  { preset: 'worms', t: 'μ · Worms', s: 'Segments lengthen from their ends and line up', dur: 11, warm: 800 },
+  { preset: 'gm', t: 'Turing from noise', s: 'Gierer–Meinhardt: pure noise, one wavelength wins', dur: 11, warm: 0 },
+  { coat: 'cat', t: 'Murray’s tail', s: 'Spots on the wide body, rings on the narrow tail', dur: 16, warm: 4200 },
+  { coat: 'tail3d', t: 'The tapered tail, in the round', s: 'The same reaction on a cone: spots near the base, rings toward the tip', dur: 15, warm: 4200 },
+  { preset: 'leopard', t: 'Morphogenesis', s: 'Two chemicals, one reacting and one spreading', dur: 12, warm: 400 },
+];
+let tour = null, sceneFade = 1;
+function startTour() {
+  setWander(false);
+  if (mapMode) setMapMode(false);
+  hintEl.classList.add('off');
+  tour = { i: -1, t: 0, phase: 'out' };
+  demoBtns[2].setPressed(true); demoBtns[2].setLabel('Stop tour');
+  ch.foldNotes(true);
+}
+function applyScene() {
+  const st = TOUR[tour.i];
+  if (st.map) { setMapMode(true, true); }
+  else {
+    if (mapMode) setMapMode(false, true);
+    if (st.coat) enterCoat(st.coat, true);
+    else applyPreset(st.preset, true, true);
+    warm = st.warm || 0;
+  }
+  if (st.map) { hideCaption(); ch.toast(st.s, 5000); } else caption(st.t, st.s, (st.dur - 1.2) * 1000);
+}
+function stopTour() {
+  if (!tour) return;
+  tour = null; sceneFade = 1; demoBtns[2].setPressed(false); demoBtns[2].setLabel('Tour'); hideCaption();
+}
+function tourUpdate(dt) {
+  if (!tour) return;
+  tour.t += dt;
+  if (tour.phase === 'out') {          // fade to black, then switch scene
+    sceneFade = Math.max(0, sceneFade - dt * 2.5);
+    if (sceneFade <= 0) { tour.i = (tour.i + 1) % TOUR.length; tour.t = 0; tour.phase = 'in'; applyScene(); }
+  } else {
+    sceneFade = Math.min(1, sceneFade + dt * 1.2);
+    if (tour.t > TOUR[tour.i].dur) tour.phase = 'out';
+  }
+}
+
+/* ------------------------------------------------ captions & hint */
+const capEl = Cosmos.h('div', { class: 'mg-caption' });
+const hintEl = Cosmos.h('div', { class: 'mg-hint', text: small ? 'Drag to paint · open controls for the map' : 'Drag to paint · A: map of every pattern · T: tour' });
+document.body.append(capEl, hintEl);
+setTimeout(() => hintEl.classList.add('off'), 7000);
+let capT = 0;
+function caption(title, sub, ms) {
+  capEl.innerHTML = ''; capEl.append(Cosmos.h('small', { text: sub ? title : '' }), Cosmos.h('span', { text: sub || title }));
+  capEl.classList.add('on'); clearTimeout(capT);
+  if (ms) capT = setTimeout(() => capEl.classList.remove('on'), ms);
+}
+function hideCaption() { capEl.classList.remove('on'); clearTimeout(capT); }
+
+/* ================================================================ pointer */
+const stage = ch.stage;
+stage.addEventListener('contextmenu', (e) => e.preventDefault());
+const ptr = { down: false, id: -1, x: 0, y: 0, lx: 0, ly: 0, erase: false, hover: false, hx: 0, hy: 0, mapDrag: false };
+function toCell(x, y) { return [x / canvas.clientWidth * SW, (1 - y / canvas.clientHeight) * SH]; }
+function mapPick(x, y) {
+  const r = mapRect();
+  const fx = U.clamp((x - r.x) / r.w, 0, 1), fy = U.clamp((y - r.y) / r.h, 0, 1);
+  if (coat) exitCoat(true);
+  setFK(MAP_F[0] + fx * (MAP_F[1] - MAP_F[0]), MAP_K[1] - fy * (MAP_K[1] - MAP_K[0]), true);
+  stopTour(); setWander(false);
+}
+stage.addEventListener('pointerdown', (e) => {
+  if (ptr.down) return;
+  const rect = stage.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  ptr.down = true; ptr.id = e.pointerId; ptr.x = ptr.lx = x; ptr.y = ptr.ly = y;
+  try { stage.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+  if (tail3d && !mapMode) { tailCam.dragging = true; hintEl.classList.add('off'); return; }
+  if (mapMode) {
+    const lp = loupePos(mapRect());
+    if (lp && mapT > 0.9 && Math.hypot(x - lp.x, y - lp.y) < lp.r) { ptr.down = false; setMapMode(false); return; }
+    const hit = mapClassAt(x, y);
+    if (hit) { setFK(hit.F, hit.k); stopTour(); ch.toast(hit.g + ' · ' + hit.d + ' · F ' + hit.F + ', k ' + hit.k, 3200); return; }
+    ptr.mapDrag = true; mapPick(x, y); return;
+  }
+  ptr.erase = e.button === 2 || S.erase;
+  hintEl.classList.add('off');
+});
+stage.addEventListener('pointermove', (e) => {
+  const rect = stage.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  ptr.hover = e.pointerType === 'mouse' && !tail3d; const dx = x - ptr.hx, dy = y - ptr.hy; ptr.hx = x; ptr.hy = y;
+  if (!ptr.down || e.pointerId !== ptr.id) return;
+  if (tailCam.dragging) { tailCam.vyaw = -dx * 0.006; tailCam.vpitch = dy * 0.004; tailCam.yaw += tailCam.vyaw; tailCam.pitch = U.clamp(tailCam.pitch + tailCam.vpitch, -0.25, 1.2); return; }
+  ptr.x = x; ptr.y = y;
+  if (ptr.mapDrag) mapPick(x, y);
+});
+const ptrUp = (e) => { if (e.pointerId !== ptr.id) return; ptr.down = false; ptr.mapDrag = false; ptr.id = -1; tailCam.dragging = false; };
+stage.addEventListener('wheel', (e) => { if (!tail3d || mapMode) return; e.preventDefault(); tailCam.dist = U.clamp(tailCam.dist * Math.exp(e.deltaY * 0.001), 1.4, 6); }, { passive: false });
+stage.addEventListener('pointerup', ptrUp); stage.addEventListener('pointercancel', ptrUp);
+stage.addEventListener('pointerleave', () => { ptr.hover = false; });
+
+// deck map canvas
+let mapCvDrag = false;
+const mapCvPick = (e) => { const r = mapCv.getBoundingClientRect(); const fx = U.clamp((e.clientX - r.left) / r.width, 0, 1), fy = U.clamp((e.clientY - r.top) / r.height, 0, 1); if (coat) exitCoat(true); setFK(MAP_F[0] + fx * (MAP_F[1] - MAP_F[0]), MAP_K[1] - fy * (MAP_K[1] - MAP_K[0]), true); stopTour(); setWander(false); };
+mapCv.addEventListener('pointerdown', (e) => { mapCvDrag = true; try { mapCv.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ } mapCvPick(e); });
+mapCv.addEventListener('pointermove', (e) => { if (mapCvDrag) mapCvPick(e); });
+mapCv.addEventListener('pointerup', () => { mapCvDrag = false; });
+mapCv.addEventListener('pointercancel', () => { mapCvDrag = false; });
+
+/* ================================================================ keys */
+ch.onKey('a', () => { stopTour(); setMapMode(!mapMode); }, 'Map mode: the whole (F, k) plane');
+ch.onKey('t', () => (tour ? stopTour() : startTour()), 'Tour of the pattern zoo');
+ch.onKey('l', () => (coat ? exitCoat() : enterCoat()), 'Animal coat (Murray’s tail)');
+ch.onKey('r', () => reseed(), 'Reseed');
+ch.onKey('x', () => clearSim(), 'Clear');
+ch.onKey('d', () => drops(), 'Random drops');
+ch.onKey('e', () => { S.erase = !S.erase; tgErase.set(S.erase); ch.toast(S.erase ? 'Brush erases' : 'Brush paints'); }, 'Toggle erase');
+ch.onKey('w', () => setWander(!S.wander), 'Wander along the pattern band');
+ch.onKey('p', () => { const ks = Object.keys(PALETTES).filter((k) => k !== 'atlas'); setPalette(ks[(ks.indexOf(S.palette) + 1) % ks.length]); ch.toast(PALETTES[S.palette].label); }, 'Next skin');
+PRESETS.slice(0, 9).forEach((p, i) => ch.onKey(String(i + 1), () => applyPreset(p.id), i === 0 ? 'Presets 1–9' : undefined));
+// Local repair of the shared help overlay: cosmos.js flattens its children one level only, so the [dt, dd] pairs
+// arrive as text ("[object HTMLElement]"). Rebuild the list when the overlay appears (reported as a shared request).
+const HELP_KEYS = [['Space', 'Pause / play'], ['H', 'Hide the interface'], ['N', 'Field notes'], ['C', 'Controls'], ['M', 'Sound'], ['F', 'Fullscreen'], ['[ ]', 'Previous / next chapter'], ['?', 'This help'],
+  ['A', 'Map mode: the whole (F, k) plane'], ['T', 'Tour of the pattern zoo'], ['L', 'Animal coat (Murray’s tail)'], ['R', 'Reseed'], ['X', 'Clear'], ['D', 'Random drops'], ['E', 'Toggle erase'], ['P', 'Next skin'], ['W', 'Wander along the pattern band'], ['1–9', 'Presets']];
+new MutationObserver(() => {
+  const dl = document.querySelector('.cz-help dl');
+  if (!dl || dl.dataset.mg || !/\[object/.test(dl.textContent)) return;
+  dl.dataset.mg = '1'; dl.textContent = '';
+  HELP_KEYS.forEach(([k, d]) => dl.append(Cosmos.h('dt', {}, Cosmos.h('kbd', { text: k })), Cosmos.h('dd', { style: { margin: 0 }, text: d })));
+}).observe(document.body, { childList: true });
+
+/* ================================================================ deck drawing */
+const thumbImg = document.createElement('canvas');
+let thumbT = null, thumbR = null, thumbW = 0, thumbH = 0, thumbReady = false, thumbData = null;
+function thumbStart() {
+  const w = Math.round(mapCv.clientWidth * Math.min(2, devicePixelRatio || 1)), h = Math.round(mapCv.clientHeight * Math.min(2, devicePixelRatio || 1));
+  if (!w || !h) return;
+  if (w !== thumbW || h !== thumbH || !thumbT) {
+    if (thumbT) thumbT.dispose();
+    thumbW = w; thumbH = h;
+    thumbT = makeTarget(w, h, 'rgba8');
+    thumbR = makeReader(w * h * 4, Uint8Array);
+    thumbImg.width = w; thumbImg.height = h;
+    thumbData = new ImageData(new Uint8ClampedArray(thumbR.data.buffer), w, h);
+  }
+  if (thumbR.busy) return;
+  const pu = palU('atlas');
+  gl.useProgram(P.thumb);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, thumbT.fbo); gl.viewport(0, 0, w, h);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, map.a.tex);
+  gl.uniform1i(L.thumb.uS, 0); gl.uniform2i(L.thumb.uSize, MAPW, MAPH); gl.uniform2f(L.thumb.uOut, w, h);
+  gl.uniform3fv(L.thumb.uPalC, pu.C); gl.uniform1fv(L.thumb.uPalP, pu.Ps);
+  drawTri();
+  readStart(thumbR, thumbT.fbo, w, h, gl.UNSIGNED_BYTE);
+}
+function localMapState(F, k) {
+  // read the atlas near (F, k): returns {mean, std} of v, or null
+  if (!thumbReady) return null;
+  const fx = (F - MAP_F[0]) / (MAP_F[1] - MAP_F[0]), fy = (MAP_K[1] - k) / (MAP_K[1] - MAP_K[0]);
+  if (fx < 0 || fx > 1 || fy < 0 || fy > 1) return null;
+  const cxp = Math.round(fx * (thumbW - 1)), cyp = Math.round(fy * (thumbH - 1)), R = Math.max(3, Math.round(thumbW * 0.012));
+  let s = 0, s2 = 0, n = 0;
+  const d = thumbR.data;
+  for (let y = cyp - R; y <= cyp + R; y++) for (let x = cxp - R; x <= cxp + R; x++) {
+    if (x < 0 || y < 0 || x >= thumbW || y >= thumbH) continue;
+    const v = d[(y * thumbW + x) * 4 + 3] / 255 / 2.5; s += v; s2 += v * v; n++;
+  }
+  if (!n) return null;
+  const m = s / n; return { mean: m, std: Math.sqrt(Math.max(0, s2 / n - m * m)) };
+}
+function drawDeckMap() {
+  const c = mapCv, g = c.getContext('2d');
+  const W = thumbW || Math.round(c.clientWidth * 2), H = thumbH || Math.round(c.clientHeight * 2);
+  if (!W || !H) return;
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  const dpr = W / Math.max(1, c.clientWidth);
+  g.clearRect(0, 0, W, H);
+  if (thumbReady) g.drawImage(thumbImg, 0, 0);
+  else { g.fillStyle = '#0a0907'; g.fillRect(0, 0, W, H); }
+  // saddle-node line
+  g.save();
+  g.strokeStyle = 'rgba(236,230,214,0.35)'; g.lineWidth = 1 * dpr; g.setLineDash([3 * dpr, 3 * dpr]);
+  g.beginPath(); let started = false;
+  for (let i = 0; i <= 100; i++) { const F = MAP_F[0] + (MAP_F[1] - MAP_F[0]) * i / 100, k = snK(F); const x = (F - MAP_F[0]) / (MAP_F[1] - MAP_F[0]) * W, y = (MAP_K[1] - k) / (MAP_K[1] - MAP_K[0]) * H; if (y > H) { started = false; continue; } if (!started) { g.moveTo(x, y); started = true; } else g.lineTo(x, y); }
+  g.stroke(); g.restore();
+  // class letters
+  g.font = `italic ${11 * dpr}px ${getComputedStyle(document.documentElement).getPropertyValue('--f-display')}`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (const cl of CLASSES) {
+    const x = (cl.F - MAP_F[0]) / (MAP_F[1] - MAP_F[0]) * W, y = (MAP_K[1] - cl.k) / (MAP_K[1] - MAP_K[0]) * H;
+    g.fillStyle = 'rgba(5,6,12,0.55)'; g.beginPath(); g.arc(x, y, 6.5 * dpr, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(255,241,210,0.92)'; g.fillText(cl.g, x, y + 0.5 * dpr);
+  }
+  // crosshair
+  if (S.model === 'gs') {
+    const x = (S.F - MAP_F[0]) / (MAP_F[1] - MAP_F[0]) * W, y = (MAP_K[1] - S.k) / (MAP_K[1] - MAP_K[0]) * H;
+    g.strokeStyle = 'rgba(245,184,61,0.9)'; g.lineWidth = 1 * dpr;
+    g.beginPath(); g.moveTo(x, 0); g.lineTo(x, y - 7 * dpr); g.moveTo(x, y + 7 * dpr); g.lineTo(x, H); g.moveTo(0, y); g.lineTo(x - 7 * dpr, y); g.moveTo(x + 7 * dpr, y); g.lineTo(W, y); g.stroke();
+    g.strokeStyle = '#f5b83d'; g.lineWidth = 1.6 * dpr; g.beginPath(); g.arc(x, y, 5 * dpr, 0, Math.PI * 2); g.stroke();
+    if (S.grad !== 'off') {
+      const R = gradRange();
+      const x0 = (R[0] - MAP_F[0]) / (MAP_F[1] - MAP_F[0]) * W, x1 = (R[1] - MAP_F[0]) / (MAP_F[1] - MAP_F[0]) * W;
+      const y0 = (MAP_K[1] - R[2]) / (MAP_K[1] - MAP_K[0]) * H, y1 = (MAP_K[1] - R[3]) / (MAP_K[1] - MAP_K[0]) * H;
+      g.strokeStyle = 'rgba(245,184,61,0.7)'; g.setLineDash([2 * dpr, 2 * dpr]); g.strokeRect(x0, y1, Math.max(1, x1 - x0), Math.max(1, y0 - y1)); g.setLineDash([]);
+    }
+  }
+}
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+const FONT_MONO = css('--f-mono') || 'monospace', FONT_DISP = css('--f-display') || 'serif';
+function drawSpectrum() {
+  const c = specCv, g = c.getContext('2d'), dpr = Math.min(2, devicePixelRatio || 1);
+  const W = Math.round(c.clientWidth * dpr), H = Math.round(c.clientHeight * dpr);
+  if (!W || !H) return;
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  g.clearRect(0, 0, W, H);
+  const pl = 8 * dpr, pr = 8 * dpr, pt = 16 * dpr, pb = 16 * dpr;
+  const QMAX = 1.3;
+  const X = (q) => pl + q / QMAX * (W - pl - pr);
+  const y0 = pt + (H - pt - pb) * 0.62;
+  // lambda ticks
+  g.font = `${9 * dpr}px ${FONT_MONO}`; g.fillStyle = 'rgba(151,157,178,0.8)'; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.strokeStyle = 'rgba(236,230,214,0.08)'; g.lineWidth = 1;
+  for (const lam of [64, 32, 16, 8, 5]) { const x = X(2 * Math.PI / lam); g.beginPath(); g.moveTo(x, pt); g.lineTo(x, H - pb); g.stroke(); g.fillText('λ' + lam, x, H - 4 * dpr); }
+  g.strokeStyle = 'rgba(236,230,214,0.22)'; g.beginPath(); g.moveTo(pl, y0); g.lineTo(W - pr, y0); g.stroke();
+  // measured spectrum (filled)
+  if (A.specOn && A.specN) {
+    g.beginPath(); g.moveTo(X(0), y0);
+    for (let b = 1; b <= A.specN; b++) { const q = 2 * Math.PI * b / PN; if (q > QMAX) break; g.lineTo(X(q), y0 - A.spec[b] * (y0 - pt)); }
+    g.lineTo(X(Math.min(QMAX, 2 * Math.PI * A.specN / PN)), y0); g.closePath();
+    g.fillStyle = 'rgba(245,184,61,0.22)'; g.fill();
+    g.strokeStyle = 'rgba(245,184,61,0.85)'; g.lineWidth = 1.3 * dpr; g.stroke();
+    if (A.qPeak) { const x = X(A.qPeak); g.strokeStyle = '#f5b83d'; g.setLineDash([]); g.beginPath(); g.moveTo(x, pt); g.lineTo(x, y0); g.stroke(); }
+  }
+  // dispersion relation
+  if (theory.has && theory.j) {
+    let smax = 0; const n = 160, pts = new Float32Array(n + 1);
+    for (let i = 0; i <= n; i++) { const s = sigma(theory.j, i / n * QMAX); pts[i] = s; smax = Math.max(smax, Math.abs(s)); }
+    const sc = (Math.min(y0 - pt, H - pb - y0) * 0.95) / (Math.max(Math.abs(theory.smax), smax * 0.25) || 1);
+    g.beginPath();
+    for (let i = 0; i <= n; i++) { const x = X(i / n * QMAX), y = U.clamp(y0 - pts[i] * sc, pt - 4 * dpr, H - pb + 2 * dpr); i ? g.lineTo(x, y) : g.moveTo(x, y); }
+    g.strokeStyle = 'rgba(236,230,214,0.9)'; g.lineWidth = 1.4 * dpr; g.setLineDash([]); g.stroke();
+    if (theory.unstable) { const x = X(theory.qmax); g.setLineDash([3 * dpr, 3 * dpr]); g.strokeStyle = 'rgba(236,230,214,0.6)'; g.beginPath(); g.moveTo(x, pt); g.lineTo(x, H - pb); g.stroke(); g.setLineDash([]); }
+  }
+  g.textAlign = 'left'; g.textBaseline = 'top'; g.font = `${9 * dpr}px ${FONT_MONO}`;
+  g.fillStyle = 'rgba(245,184,61,0.95)'; g.fillText('▬ |v̂(q)|² measured', pl, 3 * dpr);
+  g.fillStyle = 'rgba(236,230,214,0.85)'; g.textAlign = 'right'; g.fillText('σ(q) linear growth ▬', W - pr, 3 * dpr);
+}
+
+/* ================================================================ overlay (map axes, gradient scale, coat captions) */
+function gradRange() {
+  if (S.grad === 'F') return [S.F - 0.014, S.F + 0.014, S.k, S.k];
+  if (S.grad === 'k') return [S.F, S.F, S.k - 0.004, S.k + 0.004];
+  if (S.grad === 'Fk') return [S.F - 0.014, S.F + 0.014, S.k - 0.004, S.k + 0.004];
+  return [S.F, S.F, S.k, S.k];
+}
+function drawOverlay(t) {
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  const W = Math.round(ui.clientWidth * dpr), H = Math.round(ui.clientHeight * dpr);
+  if (ui.width !== W || ui.height !== H) { ui.width = W; ui.height = H; }
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+  cx.clearRect(0, 0, W, H);
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const cw = ui.clientWidth, chh = ui.clientHeight;
+  if (mapT > 0.02) drawMapOverlay(mapT, cw, chh);
+  if (mapT < 0.98) {
+    const a = 1 - mapT;
+    cx.globalAlpha = a;
+    if (S.grad !== 'off' && S.model === 'gs' && !coat) drawGradScale(cw, chh);
+    if (coat && coatShape) drawCoatLabels(cw, chh, t);
+    if (ptr.hover && !mapMode && !tail3d) {
+      const r = S.brush * cw / SW;
+      cx.strokeStyle = (ptr.down && ptr.erase) || S.erase ? 'rgba(255,107,122,0.7)' : 'rgba(245,184,61,0.6)';
+      cx.lineWidth = 1; cx.beginPath(); cx.arc(ptr.hx, ptr.hy, r, 0, Math.PI * 2); cx.stroke();
+    }
+    cx.globalAlpha = 1;
+  }
+}
+function tickText(x, y, s, align, color, halo) {
+  cx.textAlign = align || 'center';
+  if (halo) { cx.lineJoin = 'round'; cx.lineWidth = 3.5; cx.strokeStyle = 'rgba(5,6,12,0.85)'; cx.strokeText(s, x, y); }
+  cx.fillStyle = color || 'rgba(236,230,214,0.75)'; cx.fillText(s, x, y);
+}
+function drawGradScale(W, H) {
+  const R = gradRange();
+  cx.font = `500 10.5px ${FONT_MONO}`; cx.textBaseline = 'top';
+  const y = small ? 60 : 64;
+  cx.strokeStyle = 'rgba(245,184,61,0.5)'; cx.lineWidth = 1;
+  if (S.grad === 'F' || S.grad === 'Fk') {
+    const x0 = W * 0.28, x1 = W * 0.72;
+    cx.beginPath(); cx.moveTo(x0, y + 6); cx.lineTo(x1, y + 6); cx.stroke();
+    for (let i = 0; i <= 4; i++) { const x = U.lerp(x0, x1, i / 4); cx.beginPath(); cx.moveTo(x, y + 3); cx.lineTo(x, y + 9); cx.stroke(); }
+    tickText(x0, y + 13, 'F = ' + R[0].toFixed(4) + ' at left edge', 'center');
+    tickText(x1, y + 13, R[1].toFixed(4) + ' at right edge', 'center');
+    tickText((x0 + x1) / 2, y + 13, 'feed rises →', 'center', 'rgba(245,184,61,0.9)');
+  }
+  if (S.grad === 'k') {
+    const x0 = W * 0.28, x1 = W * 0.72;
+    cx.beginPath(); cx.moveTo(x0, y + 6); cx.lineTo(x1, y + 6); cx.stroke();
+    tickText(x0, y + 13, 'k = ' + R[2].toFixed(4) + ' at left edge', 'center');
+    tickText(x1, y + 13, R[3].toFixed(4) + ' at right edge', 'center');
+    tickText((x0 + x1) / 2, y + 13, 'kill rises →', 'center', 'rgba(245,184,61,0.9)');
+  }
+  if (S.grad === 'Fk') {
+    cx.save(); cx.translate(small ? 18 : 26, H * 0.5); cx.rotate(-Math.PI / 2);
+    tickText(0, 0, 'k ' + R[2].toFixed(4) + '  ·  kill rises ↑  ·  ' + R[3].toFixed(4), 'center', 'rgba(245,184,61,0.9)');
+    cx.restore();
+  }
+}
+function drawCoatLabels(W, H, t) {
+  const P = (q) => [q[0] * W, (1 - q[1]) * H];
+  const [bx, by] = P(coatShape.bodyTop || coatShape.body), [tx, ty] = P(coatShape.tail);
+  const disp = `italic 500 ${small ? 17 : 22}px ${FONT_DISP}`, mono = `500 10.5px ${FONT_MONO}`;
+  const right = W - 14 - (!small && document.querySelector('.cz-deck.cz-open') ? 340 : 0);
+  const lab = (x, y, lx, ly, t1, t2) => {
+    cx.font = disp; const w1 = cx.measureText(t1).width; cx.font = mono; const w = Math.max(w1, cx.measureText(t2).width);
+    const x0 = U.clamp(lx, 14, right - w);
+    const ax = U.clamp(x, x0, x0 + w), ay = ly < y ? ly + 18 : ly - 26;
+    cx.strokeStyle = 'rgba(245,184,61,0.6)'; cx.lineWidth = 1;
+    cx.beginPath(); cx.arc(x, y, 3, 0, Math.PI * 2); cx.stroke();
+    cx.beginPath(); cx.moveTo(x, y); cx.lineTo(ax, ay); cx.stroke();
+    cx.textAlign = 'left'; cx.textBaseline = 'alphabetic';
+    cx.font = disp; tickText(x0, ly - 6, t1, 'left', 'rgba(236,230,214,0.96)', true);
+    cx.font = mono; tickText(x0, ly + 12, t2, 'left', 'rgba(151,157,178,0.95)', true);
+  };
+  if (coatKind === 'tail3d') {
+    const tp = tailPoint(0.1, 0.25), bp = tailPoint(0.86, 0.25);
+    if (tp && bp) {
+      if (H > W) {
+        lab(bp[0], bp[1], 20, bp[1] + 70, 'Base: wide, so spots', 'about seven wavelengths around');
+        lab(tp[0], tp[1], 20, tp[1] - 50, 'Tip: narrow, so rings', 'less than one wavelength around');
+      } else {
+        lab(bp[0], bp[1], bp[0] - 60, bp[1] - (small ? 90 : 120), 'Base: wide, so spots', 'about seven wavelengths around');
+        lab(tp[0], tp[1], tp[0] + 60, tp[1] - (small ? 70 : 90), 'Tip: narrow, so rings', 'less than one wavelength around');
+      }
+    }
+  } else {
+    if (coatShape.gauges) {   // hairline callipers across the tail: its width in wavelengths
+      const k = W / SW;
+      cx.font = `500 10px ${FONT_MONO}`; cx.textBaseline = 'middle';
+      coatShape.gauges.forEach((gq) => {
+        let nx = gq.nx, ny = gq.ny; if (ny > 0) { nx = -nx; ny = -ny; }   // label on the upper side
+        const x = gq.x * k, y = gq.y * k, r = gq.r * k, e = r + 5, o = r + 12;
+        cx.strokeStyle = 'rgba(126,227,255,0.75)'; cx.lineWidth = 1;
+        cx.beginPath(); cx.moveTo(x - nx * e, y - ny * e); cx.lineTo(x + nx * e, y + ny * e);
+        const tx = -ny * 3, ty = nx * 3;
+        [-e, e].forEach((d) => { cx.moveTo(x + nx * d - tx, y + ny * d - ty); cx.lineTo(x + nx * d + tx, y + ny * d + ty); });
+        cx.stroke();
+        tickText(x + nx * o + (nx < 0 ? -2 : 2), y + ny * o, (2 * gq.r / COAT_LAMBDA).toFixed(1) + ' λ', nx < -0.3 ? 'right' : nx > 0.3 ? 'left' : 'center', 'rgba(126,227,255,0.95)', true);
+      });
+    }
+    if (coatKind === 'cone') {
+      lab(bx, by, bx - (small ? 120 : 160), by - H * 0.26, 'Wide end: spots', 'two-dimensional modes fit');
+      lab(tx, ty, tx + 10, ty + H * 0.2, 'Narrow end: bands', 'under half a wavelength, only modes along the axis');
+      return;
+    }
+    lab(bx, by, bx - (small ? 60 : 40), by - (small ? 56 : 86), 'Body: wide, so spots', 'many wavelengths fit across');
+    if (small) lab(tx, ty, W * 0.5 - 90, ty + 74, 'Tail: narrow, so rings', 'less than a wavelength across');
+    else lab(tx, ty, tx + W * 0.07, ty + 6, 'Tail: narrow, so rings', 'less than a wavelength across');
+  }
+}
+function drawMapOverlay(m, W, H) {
+  const r = mapTransform(m);
+  const e = U.smoothstep(0.55, 1, m);
+  cx.globalAlpha = e;
+  const X = (F) => r.x + (F - MAP_F[0]) / (MAP_F[1] - MAP_F[0]) * r.w, Y = (k) => r.y + (MAP_K[1] - k) / (MAP_K[1] - MAP_K[0]) * r.h;
+  // frame and ticks
+  cx.strokeStyle = 'rgba(236,230,214,0.28)'; cx.lineWidth = 1; cx.strokeRect(r.x - 0.5, r.y - 0.5, r.w + 1, r.h + 1);
+  cx.font = `500 10.5px ${FONT_MONO}`; cx.textBaseline = 'top';
+  for (let F = 0.01; F <= 0.0901; F += 0.01) { const x = X(F); cx.beginPath(); cx.moveTo(x, r.y + r.h); cx.lineTo(x, r.y + r.h + 5); cx.stroke(); if (!small || Math.round(F * 100) % 2 === 0) tickText(x, r.y + r.h + 8, F.toFixed(2)); }
+  cx.textBaseline = 'middle';
+  for (let k = 0.045; k <= 0.0701; k += 0.005) { const y = Y(k); cx.beginPath(); cx.moveTo(r.x - 5, y); cx.lineTo(r.x, y); cx.stroke(); tickText(r.x - 8, y, small ? k.toFixed(3).slice(1) : k.toFixed(3), 'right'); }
+  cx.font = `italic 500 ${small ? 14 : 16}px ${FONT_DISP}`;
+  tickText(r.x + r.w / 2, r.y + r.h + (small ? 26 : 28), 'feed rate F →', 'center', 'rgba(245,184,61,0.95)');
+  if (small) { cx.textBaseline = 'alphabetic'; tickText(r.x + r.w, r.y - 10, 'k ↑', 'right', 'rgba(245,184,61,0.95)'); }
+  else { cx.save(); cx.translate(r.x - 56, r.y + r.h / 2); cx.rotate(-Math.PI / 2); tickText(0, 0, 'kill rate k →', 'center', 'rgba(245,184,61,0.95)'); cx.restore(); }
+  // Turing sliver (linear theory) and Hopf line
+  if (curves.turLo.length > 2) {
+    cx.beginPath();
+    curves.turHi.forEach(([F, k], i) => (i ? cx.lineTo(X(F), Y(k)) : cx.moveTo(X(F), Y(k))));
+    for (let i = curves.turLo.length - 1; i >= 0; i--) { const [F, k] = curves.turLo[i]; cx.lineTo(X(F), Y(k) + 1.5); }
+    cx.closePath(); cx.fillStyle = 'rgba(126,227,255,0.55)'; cx.fill();
+    const mid = curves.turLo[Math.floor(curves.turLo.length * 0.62)];
+    cx.strokeStyle = 'rgba(126,227,255,0.6)'; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(X(mid[0]), Y(mid[1]) + 4); cx.lineTo(X(mid[0]), Y(mid[1]) + 44); cx.stroke();
+    cx.font = `500 10px ${FONT_MONO}`; cx.textBaseline = 'top'; tickText(X(mid[0]), Y(mid[1]) + 48, small ? 'Turing sliver' : 'Turing-unstable sliver (linear theory)', 'center', 'rgba(126,227,255,0.95)', true);
+  }
+  if (curves.hopf.length > 2) {
+    cx.setLineDash([1.5, 3]); cx.strokeStyle = 'rgba(236,230,214,0.6)'; cx.beginPath();
+    curves.hopf.forEach(([F, k], i) => (i ? cx.lineTo(X(F), Y(k)) : cx.moveTo(X(F), Y(k))));
+    cx.stroke(); cx.setLineDash([]);
+    const hm = curves.hopf[Math.floor(curves.hopf.length * 0.3)];
+    cx.font = `500 10px ${FONT_MONO}`; cx.textBaseline = 'top'; tickText(X(hm[0]) + 8, Y(hm[1]) + 4, 'Hopf line', 'left', 'rgba(236,230,214,0.8)', true);
+  }
+  // saddle-node line
+  cx.setLineDash([4, 4]); cx.strokeStyle = 'rgba(236,230,214,0.55)'; cx.beginPath();
+  let st = false, lx = 0, ly = 0;
+  for (let i = 0; i <= 200; i++) { const F = MAP_F[0] + (MAP_F[1] - MAP_F[0]) * i / 200, k = snK(F); if (k < MAP_K[0]) { st = false; continue; } const x = X(F), y = Y(k); if (!st) { cx.moveTo(x, y); st = true; } else cx.lineTo(x, y); lx = x; ly = y; }
+  cx.stroke(); cx.setLineDash([]);
+  cx.font = `500 10px ${FONT_MONO}`; cx.textBaseline = 'alphabetic'; tickText(X(0.093), Y(snK(0.093)) - (small ? 18 : 34), small ? 'saddle-node' : 'saddle-node  k = √F/2 − F', 'right', 'rgba(236,230,214,0.8)', true);
+  // classes
+  for (const cl of CLASSES) {
+    const x = X(cl.F), y = Y(cl.k);
+    cx.fillStyle = 'rgba(5,6,12,0.62)'; cx.beginPath(); cx.arc(x, y, small ? 8 : 10, 0, Math.PI * 2); cx.fill();
+    cx.strokeStyle = 'rgba(245,184,61,0.55)'; cx.stroke();
+    cx.font = `italic 600 ${small ? 12 : 15}px ${FONT_DISP}`; cx.textBaseline = 'middle';
+    tickText(x, y + 0.5, cl.g, 'center', '#fff1d2');
+  }
+  const hov = ptr.hover && !ptr.down ? mapClassAt(ptr.hx, ptr.hy) : null;
+  if (hov) {
+    const x = X(hov.F), y = Y(hov.k), t1 = hov.g + '  ' + hov.d, t2 = 'F ' + hov.F + '   k ' + hov.k + '   click to go there';
+    cx.strokeStyle = '#f5b83d'; cx.lineWidth = 1.5; cx.beginPath(); cx.arc(x, y, small ? 10 : 12.5, 0, Math.PI * 2); cx.stroke();
+    cx.font = `italic 500 15px ${FONT_DISP}`; const w1 = cx.measureText(t1).width; cx.font = `500 10px ${FONT_MONO}`; const w = Math.max(w1, cx.measureText(t2).width) + 20;
+    const bx = U.clamp(x - w / 2, 8, W - w - 8), by = y > r.y + 70 ? y - 62 : y + 18;
+    cx.fillStyle = 'rgba(5,6,12,0.82)'; cx.beginPath(); if (cx.roundRect) cx.roundRect(bx, by, w, 44, 8); else cx.rect(bx, by, w, 44); cx.fill();
+    cx.strokeStyle = 'rgba(245,184,61,0.45)'; cx.lineWidth = 1; cx.stroke();
+    cx.textBaseline = 'top'; cx.font = `italic 500 15px ${FONT_DISP}`; tickText(bx + 10, by + 6, t1, 'left', '#fff1d2');
+    cx.font = `500 10px ${FONT_MONO}`; tickText(bx + 10, by + 27, t2, 'left', 'rgba(151,157,178,0.95)');
+  }
+  // crosshair + loupe frame
+  if (S.model === 'gs') {
+    const x = X(S.F), y = Y(S.k);
+    cx.strokeStyle = 'rgba(245,184,61,0.75)'; cx.lineWidth = 1;
+    cx.beginPath(); cx.moveTo(x, r.y); cx.lineTo(x, y - 12); cx.moveTo(x, y + 12); cx.lineTo(x, r.y + r.h); cx.moveTo(r.x, y); cx.lineTo(x - 12, y); cx.moveTo(x + 12, y); cx.lineTo(r.x + r.w, y); cx.stroke();
+    cx.strokeStyle = '#f5b83d'; cx.lineWidth = 1.6; cx.beginPath(); cx.arc(x, y, 8, 0, Math.PI * 2); cx.stroke();
+    const lp = loupePos(r);
+    if (lp) {
+      cx.strokeStyle = 'rgba(245,184,61,0.9)'; cx.lineWidth = 1.2; cx.beginPath(); cx.arc(lp.x, lp.y, lp.r + 1, 0, Math.PI * 2); cx.stroke();
+      const ang = Math.atan2(y - lp.y, x - lp.x);
+      cx.beginPath(); cx.moveTo(lp.x + Math.cos(ang) * (lp.r + 1), lp.y + Math.sin(ang) * (lp.r + 1)); cx.lineTo(x - Math.cos(ang) * 8, y - Math.sin(ang) * 8); cx.stroke();
+      const cl = currentClassLabel();
+      cx.font = `500 10.5px ${FONT_MONO}`; cx.textBaseline = 'top';
+      const ty = lp.y + lp.r + 8;
+      cx.font = `italic 500 15px ${FONT_DISP}`; const cw2 = Math.max(170, cx.measureText(cl).width + 28);
+      cx.fillStyle = 'rgba(5,6,12,0.66)'; cx.beginPath();
+      if (cx.roundRect) cx.roundRect(lp.x - cw2 / 2, ty - 5, cw2, 56, 8); else cx.rect(lp.x - cw2 / 2, ty - 5, cw2, 56);
+      cx.fill();
+      cx.font = `500 10.5px ${FONT_MONO}`;
+      tickText(lp.x, ty, 'F ' + S.F.toFixed(4) + '  k ' + S.k.toFixed(4), 'center', 'rgba(236,230,214,0.9)');
+      cx.font = `italic 500 15px ${FONT_DISP}`;
+      tickText(lp.x, ty + 15, cl, 'center', '#f5b83d');
+      cx.font = `500 9.5px ${FONT_MONO}`; tickText(lp.x, ty + 38, small ? 'tap the lens to dive in' : 'click the lens to dive in', 'center', 'rgba(151,157,178,0.85)');
+    }
+  }
+  // title
+  cx.textBaseline = 'alphabetic';
+  cx.font = `italic 500 ${small ? 18 : 24}px ${FONT_DISP}`;
+  tickText(r.x, r.y - 12, 'The Gray–Scott atlas', 'left', 'rgba(236,230,214,0.95)');
+  if (!small) { cx.font = `500 10.5px ${FONT_MONO}`; tickText(r.x + r.w, r.y - 12, 'one live simulation · ' + MAPW + ' × ' + MAPH + ' cells · step ' + Cosmos.fmt.num(map.steps), 'right', 'rgba(151,157,178,0.9)'); }
+  cx.globalAlpha = 1;
+}
+function mapClassAt(x, y) {   // the Pearson class whose label is under (x, y) in CSS px, if any
+  if (mapT < 0.9) return null;
+  const r = mapTransform(mapT), rad = small ? 12 : 14;
+  let best = null, bd = rad;
+  for (const cl of CLASSES) {
+    const d = Math.hypot(x - (r.x + (cl.F - MAP_F[0]) / (MAP_F[1] - MAP_F[0]) * r.w), y - (r.y + (MAP_K[1] - cl.k) / (MAP_K[1] - MAP_K[0]) * r.h));
+    if (d < bd) { bd = d; best = cl; }
+  }
+  return best;
+}
+function loupePos(r) {
+  // the loupe sits in an empty uniform region of the atlas: the blue state (lower right) or the red state (upper left)
+  if (S.model !== 'gs') return null;
+  const x = r.x + (S.F - MAP_F[0]) / (MAP_F[1] - MAP_F[0]) * r.w, y = r.y + (MAP_K[1] - S.k) / (MAP_K[1] - MAP_K[0]) * r.h;
+  if (small) {   // phones: the atlas is short and wide, so the loupe sits in the free space beneath it
+    const R = Math.min(84, (canvas.clientHeight - (r.y + r.h) - 230) / 2);
+    if (R > 40) return { x: r.x + r.w / 2, y: r.y + r.h + 58 + R, r: R };
+  }
+  const R = Math.min(small ? 52 : 96, r.h * 0.2);
+  const A = { x: r.x + r.w * 0.7, y: r.y + r.h * 0.7 }, B = { x: r.x + r.w * 0.13 + R * 0.4, y: r.y + r.h * 0.17 + R * 0.3 };
+  const p = Math.hypot(x - A.x, y - A.y) > R * 1.9 ? A : B;   // the lower-right blue state is always empty; move only if the crosshair is under it
+  return { x: p.x, y: p.y, r: R };
+}
+function mapTransform(m) {
+  // map rect animates from a deep zoom around the crosshair (tissue scale) to the full atlas
+  const R = mapRect();
+  const mm = U.clamp(m, 0, 1), e = mm < 0.5 ? 4 * mm * mm * mm : 1 - Math.pow(-2 * mm + 2, 3) / 2;
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  const fx = (S.F - MAP_F[0]) / (MAP_F[1] - MAP_F[0]), fy = (MAP_K[1] - S.k) / (MAP_K[1] - MAP_K[0]);
+  const Z = Math.max(5, cellPx * MAPW / R.w * 1.6);
+  const s = Math.exp(Math.log(Math.max(1, Z)) * (1 - e));
+  const pcx = U.lerp(W / 2, R.x + fx * R.w, e), pcy = U.lerp(H / 2, R.y + fy * R.h, e);
+  return { x: pcx - fx * R.w * s, y: pcy - fy * R.h * s, w: R.w * s, h: R.h * s };
+}
+function currentClassLabel() {
+  if (S.model !== 'gs') return MODELS[S.model].label;
+  const loc = localMapState(S.F, S.k);
+  const k0 = snK(S.F);
+  if (loc && loc.std < 0.012) {
+    if (loc.mean < 0.02) return 'uniform · u = 1, v = 0';
+    return 'uniform · the blue state';
+  }
+  if (!loc && S.k > k0 + 0.012) return 'uniform · u = 1, v = 0';
+  const q = classify(S.F, S.k);
+  return q.near ? 'near ' + q.c.g + ' · ' + q.c.d : 'between ' + q.c.g + ' and ' + q.c2.g;
+}
+function classTag() {   // short form for the HUD: the Pearson class only when the point is close to one
+  if (S.model !== 'gs') return '';
+  const q = classify(S.F, S.k);
+  return q.near ? ' · ' + q.c.g + ' region' : ' · between ' + q.c.g + ' and ' + q.c2.g;
+}
+
+/* ================================================================ resize */
+ch.onResize(() => {
+  const [w, h] = simDims();
+  if (Math.abs(w - SW) < 2 && Math.abs(h - SH) < 2) return;
+  sim = resampleSim(sim, w, h); SW = w; SH = h;
+  if (coat) { buildMask(); }
+  ensureProbe();
+});
+
+/* ================================================================ sound: a quiet sonification */
+const snd = { on: false, osc: [], gain: null, filt: null, lastComps: 0 };
+function soundInit() {
+  const ac = ch.sound.ensure(); if (!ac || snd.gain) return;
+  snd.gain = ac.createGain(); snd.gain.gain.value = 0;
+  snd.filt = ac.createBiquadFilter(); snd.filt.type = 'lowpass'; snd.filt.frequency.value = 900; snd.filt.Q.value = 0.7;
+  snd.filt.connect(snd.gain).connect(ch.sound.out);
+  [1, 1.5, 2, 3].forEach((m, i) => { const o = ac.createOscillator(); o.type = i ? 'sine' : 'triangle'; o.frequency.value = 110 * m; const g = ac.createGain(); g.gain.value = [0.22, 0.12, 0.08, 0.04][i]; o.connect(g).connect(snd.filt); o.start(); snd.osc.push(o); });
+}
+ch.onSound((on) => { snd.on = on; if (on) soundInit(); if (snd.gain) snd.gain.gain.setTargetAtTime(on ? 0.16 : 0, ch.sound.ctx.currentTime, 0.4); });
+function pluck(freq, when) {
+  const ac = ch.sound.ctx; if (!ac || !snd.on) return;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'sine'; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(0.09, when + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, when + 1.4);
+  o.connect(g).connect(ch.sound.out); o.start(when); o.stop(when + 1.5);
+}
+const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
+function soundUpdate() {
+  if (!snd.on || !snd.gain) return;
+  const ac = ch.sound.ctx, now = ac.currentTime;
+  const base = A.lambda ? U.clamp(55 * 16 / A.lambda * 2, 55, 220) : 82.4;
+  snd.osc.forEach((o, i) => o.frequency.setTargetAtTime(base * [1, 1.5, 2, 3][i], now, 1.2));
+  snd.filt.frequency.setTargetAtTime(300 + 2200 * A.coverage, now, 0.8);
+  const born = A.comps - snd.lastComps;
+  if (A.morph.indexOf('spots') >= 0 && born > 0 && snd.lastComps > 0) {
+    for (let i = 0; i < Math.min(4, born); i++) pluck(base * 4 * Math.pow(2, PENTA[(Math.random() * PENTA.length) | 0] / 12), now + 0.05 + i * 0.13);
+  }
+  snd.lastComps = A.comps;
+}
+
+/* ================================================================ main loop */
+let warm = small ? 1000 : 1400;          // warm-up steps spread over the first frames
+let mapWarm = small ? 3000 : 6000;
+let probeClock = 0, thumbClock = 0, hudClock = 0, frameN = 0, fpsAcc = 0, fpsN = 0, fps = 60, lightAng = 2.2;
+let nanResets = 0, lastNow = 0, gov = 1;
+
+applyPreset('leopard', true);
+seed(map, [], false, { base: [1, 0], hi: [0.5, 0.25], noise: [0, 0] });
+seed(map, randomBlobs(map, Math.round(MAPW * MAPH / 1100), 2, 5, U.rng(1993), false), true, { base: [1, 0], hi: [0.5, 0.25], noise: [0, 0] });
+updateTheory();
+hud.model.set('Gray–Scott');
+
+const MAP_SETUP = { id: 0, D: [DU_GS, DU_GS / 2], P: [0, 0, 0, 0], base: [1, 0], hi: [0.5, 0.25], max: [1, 1], noise: [0, 0], dt: 1 };
+const MAP_OPTS = { setup: MAP_SETUP, F: 0, k: 0, grad: 3, GR: new Float32Array([MAP_F[0], MAP_F[1], MAP_K[0], MAP_K[1]]), aniso: new Float32Array(4), mask: false };
+const simOpts = { setup, F: 0, k: 0, grad: 0, GR: new Float32Array(4), aniso: new Float32Array(4), mask: false, brush, brushR: 8 };
+
+const tq = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+const gpuT = { q: null, ms: 0, acc: 0, n: 0 };
+ch.loop((dt, t) => {
+  frameN++;
+  if (tq && !gpuT.q) { gpuT.q = gl.createQuery(); gl.beginQuery(tq.TIME_ELAPSED_EXT, gpuT.q); gpuT.open = true; }
+  Cosmos.gl.fit(canvas, small ? 2 : 1.5);
+  const running = !ch.paused;
+  // pointer painting
+  if (ptr.down && !mapMode && !ptr.mapDrag && !tail3d) {
+    const [x0, y0] = toCell(ptr.lx, ptr.ly), [x1, y1] = toCell(ptr.x, ptr.y);
+    brush.active = true; brush.mode = ptr.erase ? -1 : 1; brush.x0 = x0; brush.y0 = y0; brush.x1 = x1; brush.y1 = y1;
+    brush.frames = (brush.frames || 0) + 1;
+    ptr.lx = ptr.x; ptr.ly = ptr.y;
+  } else brush.active = false;
+  if (running) tourUpdate(dt);
+  if (running && S.wander && S.model === 'gs' && !coat && !tour) wanderUpdate(dt);
+
+  // --- simulate
+  const aniso = simOpts.aniso;
+  const setupNow = setup;
+  const dMax = Math.max(setupNow.D[0], setupNow.D[1]);
+  const sMax = Math.max(0, Math.min(0.6, 1.9 / (4 * dMax) - 1));
+  const sEff = Math.min(S.aniso, sMax), th = S.anisoAngle * Math.PI / 180;
+  aniso[0] = sEff; aniso[1] = Math.cos(2 * th); aniso[2] = Math.sin(2 * th); aniso[3] = 0;
+  ANISO_W[0] = S.anisoSp === 'v' ? 0 : 1; ANISO_W[1] = S.anisoSp === 'u' ? 0 : 1;
+  simOpts.setup = setupNow; simOpts.F = S.F; simOpts.k = S.k; simOpts.mask = useMask; simOpts.brushR = S.brush; simOpts.topo = tail3d;
+  simOpts.grad = S.model === 'gs' ? { off: 0, F: 1, k: 2, Fk: 3 }[S.grad] : 0;
+  const GR = gradRange(); simOpts.GR[0] = GR[0]; simOpts.GR[1] = GR[1]; simOpts.GR[2] = GR[2]; simOpts.GR[3] = GR[3];
+  let n = running ? Math.max(1, Math.round(S.speed * gov)) : (brush.active ? 1 : 0);
+  if (running && warm > 0) { const w = Math.min(warm, frameN < 3 ? 60 : 160); n += w; warm -= w; }
+  if (tour && running) n = Math.max(n, 28);
+  const PR = Cosmos.debug.prof || {};
+  if (running && S.grow > 0 && !coat) { const gx = 1 + S.grow / 100 * dt; growPass(sim, gx, 1); S.growLen *= gx; }
+  if (!PR.noMain) stepSim(sim, n, simOpts);
+  let mn = 0;
+  if (running) {
+    const deckShown = !!document.querySelector('.cz-deck.cz-open'), mature = map.steps > 60000;
+    mn = Math.round((mapMode || tour ? 26 : deckShown ? (mature ? 5 : (small ? 6 : 10)) : (mature ? 0 : 6)) * gov);
+    if (mapWarm > 0) { const w = Math.min(mapWarm, small ? 40 : 90); mn += w; mapWarm -= w; }
+  }
+  if (!PR.noMap) stepSim(map, mn, MAP_OPTS);
+
+  // --- light
+  if (S.lightOrbit) lightAng += dt * 0.12;
+  LIGHT[0] = Math.cos(lightAng) * 0.78; LIGHT[1] = Math.sin(lightAng) * 0.78; LIGHT[2] = 0.62;   // constant 38° elevation
+
+  // --- targets for mapMode transition
+  const target = mapMode ? 1 : 0;
+  const now = performance.now(), rdt = Math.min(0.05, (now - (lastNow || now)) / 1000); lastNow = now;   // real time, also while paused
+  mapT = target > mapT ? Math.min(1, mapT + rdt / 1.5) : Math.max(0, mapT - rdt / 1.0);
+  if (Math.abs(target - mapT) < 0.002) mapT = target;
+
+  // --- render
+  const dprS = canvas.width / Math.max(1, canvas.clientWidth);
+  viewPass(sim, useMask);
+  if (mapT > 0.001) viewPass(map, false);
+  Cosmos.gl.screen(gl);
+  gl.clearColor(0.02, 0.022, 0.035, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  const pal = S.palette;
+  const tissue = { map: [0, 0, 1 / canvas.width, 1 / canvas.height], range: pigRange(), pal, t, cellPx: canvas.width / SW, mask: useMask, relief: S.relief, texture: tgTex.value, alpha: 1, vig: 0.6, hud: 1 };
+  tissue.fade = (1 - 0.84 * U.smoothstep(0, 0.6, mapT)) * sceneFade;
+  if (tail3d) {
+    if (!tailCam.dragging) { tailCam.spin += rdt * 0.22; tailCam.yaw += tailCam.vyaw; tailCam.pitch = U.clamp(tailCam.pitch + tailCam.vpitch, -0.25, 1.2); tailCam.vyaw *= 0.94; tailCam.vpitch *= 0.94; }
+    gl.useProgram(P.bg); const dW = (!small && document.querySelector('.cz-deck.cz-open')) ? 340 * dprS : 0;
+    gl.uniform2f(L.bg.uRes, canvas.width, canvas.height); gl.uniform2f(L.bg.uC, (canvas.width - dW) / 2, canvas.height * 0.5); gl.uniform1f(L.bg.uFade, tissue.fade); drawTri();
+    tissue.relief = Math.max(S.relief, 0.6);
+    if (!PR.noRender) renderTail(tissue);
+  } else if (!PR.noRender) renderPass(sim, tissue);
+  if (mapT > 0.001) {
+    const r = mapTransform(mapT);
+    const H = canvas.height;
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    const x0 = r.x * dprS, y0 = H - (r.y + r.h) * dprS, w = r.w * dprS, h = r.h * dprS;
+    renderPass(map, { map: [x0, y0, 1 / w, 1 / h], clip: [Math.max(0, x0), Math.max(0, y0), x0 + w, y0 + h], range: [0.0, 0.36], pal: 'atlas', t, cellPx: w / MAPW, relief: 1, alpha: U.smoothstep(0, 0.45, mapT), vig: 0.2, atlas: true });
+    if (mapT > 0.9) {
+      const lp = loupePos(mapRect());
+      if (lp) {
+        const R = lp.r * dprS, cxp = lp.x * dprS, cyp = H - lp.y * dprS;
+        const view = Math.min(SW, SH) * 0.45;                     // cells across the loupe
+        const sx = view / SW / (2 * R), sy = view / SH / (2 * R);
+        renderPass(sim, { map: [cxp - 0.5 / sx, cyp - 0.5 / sy, sx, sy], circle: [cxp, cyp, R], range: pigRange(), pal, t, cellPx: 2 * R / view, relief: S.relief, texture: tgTex.value, alpha: U.smoothstep(0.9, 1, mapT), vig: 0 });
+      }
+    }
+    gl.disable(gl.BLEND);
+  }
+
+  // --- readbacks & analysis
+  probeClock += dt; thumbClock += dt; hudClock += dt;
+  if (readPoll(probeR || { busy: false })) {
+    analyse(probeR.data);
+    if (A.nan) { nanResets++; ch.toast('The reaction blew up; reseeding.'); reseed(); }
+    onAnalysis();
+  }
+  if (probeClock > 0.45 || !A.ready) { probeClock = 0; probeStart(); }
+  if (thumbR && readPoll(thumbR)) {
+    thumbImg.getContext('2d').putImageData(thumbData, 0, 0);
+    thumbReady = true;
+  }
+  if (thumbClock > (mapMode || document.querySelector('.cz-deck.cz-open') ? 0.35 : 2) ) { thumbClock = 0; thumbStart(); }
+  if (gpuT.open) { gl.endQuery(tq.TIME_ELAPSED_EXT); gpuT.open = false; }
+  else if (gpuT.q && gl.getQueryParameter(gpuT.q, gl.QUERY_RESULT_AVAILABLE)) {
+    if (!gl.getParameter(tq.GPU_DISJOINT_EXT)) { gpuT.acc += gl.getQueryParameter(gpuT.q, gl.QUERY_RESULT) / 1e6; gpuT.n++; if (gpuT.n >= 10) { gpuT.ms = gpuT.acc / gpuT.n; gpuT.acc = 0; gpuT.n = 0; } }
+    gl.deleteQuery(gpuT.q); gpuT.q = null;
+  }
+  drawDeckMap();
+  drawOverlay(t);
+
+  fpsAcc += dt; fpsN++;
+  if (fpsAcc > 0.5) {
+    fps = Math.round(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0;
+    // governor: trim steps per frame when frames run long, recover when there is headroom
+    if (running && frameN > 120) { if (fps < 44) gov = Math.max(0.35, gov * 0.85); else if (fps > 56) gov = Math.min(1, gov * 1.06); }
+  }
+  if (hudClock > 0.2) {
+    hudClock = 0;
+    measureHud();
+    if (S.model === 'gs') { hud.F.set(S.grad === 'F' || S.grad === 'Fk' ? GR[0].toFixed(4) + ' → ' + GR[1].toFixed(4) : S.F.toFixed(4)); hud.k.set(S.grad === 'k' || S.grad === 'Fk' ? GR[2].toFixed(4) + ' → ' + GR[3].toFixed(4) : S.k.toFixed(4)); }
+    else if (S.model === 'gm') { hud.F.set(S.kappa.toFixed(3)); hud.k.set(S.nu.toFixed(2)); }
+    else { hud.F.set(S.A.toFixed(2)); hud.k.set(S.B.toFixed(2)); }
+    const lab = S.model === 'gs' ? ['Feed F', 'Kill k'] : S.model === 'gm' ? ['Saturation κ', 'Decay ν'] : ['Brusselator A', 'Brusselator B'];
+    if (hud.F.el.firstChild.textContent !== lab[0]) { hud.F.el.firstChild.textContent = lab[0]; hud.k.el.firstChild.textContent = lab[1]; }
+    hud.steps.set(Cosmos.fmt.num(sim.steps));
+    hud.grow.el.style.display = S.grow > 0 && !coat ? '' : 'none';
+    if (S.grow > 0) hud.grow.set('length ×' + S.growLen.toFixed(2) + (A.stripes ? ' · ≈' + Math.round(A.stripes * S.growLen) + ' stripes on the body' : ''));
+  }
+}, { always: true });
+
+const INV_MORPH = { holes: 'spots', spots: 'holes', 'packed spots': 'holes', 'spots + holes': 'spots + holes' };
+function onAnalysis() {
+  const inv = pigInv(), morph = inv ? (INV_MORPH[A.morph] || A.morph) : A.morph, cov = inv && A.lambda ? 1 - A.coverage : A.coverage;
+  const lam = A.lambda ? A.lambda.toFixed(1) + ' cells' : '—';
+  hud.lam.set(lam);
+  hud.cov.set(Cosmos.fmt.pct(cov, 1));
+  let cls;
+  const uni = S.model === 'gs' ? currentClassLabel() : '';
+  if (coat) cls = 'coat · ' + morph;
+  else if (S.model === 'gs' && (S.aniso > 0 || S.grow > 0)) cls = 'anisotropic · ' + morph;
+  else if (S.model === 'gs' && S.grad === 'off') cls = uni.indexOf('uniform') === 0 ? uni : morph + classTag();
+  else if (S.model === 'gs') cls = 'gradient · ' + morph;
+  else cls = morph;
+  hud.cls.set(cls);
+  ro.lam.set(lam);
+  ro.lamT.set(theory.unstable ? (2 * Math.PI / theory.qmax).toFixed(1) + ' cells' : '—');
+  ro.morph.set(morph);
+  ro.order.set(A.lambda ? A.order.toFixed(2) : '—');
+  ro.comps.set(A.lambda ? String(inv ? A.holes : A.comps) : '—');
+  ro.cov.set(Cosmos.fmt.pct(cov, 1));
+  census.push([A.lambda ? (inv ? A.holes : A.comps) : 0]);
+  let note;
+  if (S.model === 'gs') {
+    if (!theory.has) note = 'Here only the trivial state u = 1, v = 0 exists, and it is linearly stable (σ &lt; 0 for all q). Anything you see is a finite-amplitude structure that sustains itself.';
+    else if (theory.osc) note = 'The non-trivial uniform state oscillates (σ(0) &gt; 0): a Hopf regime of waves and chaos.';
+    else if (theory.unstable) note = 'Linear theory: the blue uniform state is Turing-unstable, fastest at λ = <b>' + (2 * Math.PI / theory.qmax).toFixed(1) + '</b> cells.';
+    else note = 'The blue uniform state exists and is linearly stable here; patterns need a large disturbance.';
+  } else {
+    note = theory.unstable ? 'Turing-unstable: the band where σ(q) &gt; 0 grows out of noise. Fastest mode λ = <b>' + (2 * Math.PI / theory.qmax).toFixed(1) + '</b> cells.' : (theory.osc ? 'Oscillatory (Hopf) instability at q = 0.' : 'Linearly stable: no band of σ(q) &gt; 0, so noise decays and the sheet stays uniform.');
+  }
+  theoryNote.innerHTML = '<span class="mg-deck-sub">' + note + '</span>';
+  drawSpectrum();
+  soundUpdate();
+}
+
+Cosmos.debug.state = () => ({
+  model: S.model, F: +S.F.toFixed(5), k: +S.k.toFixed(5), ratio: S.ratio, steps: sim.steps, mapSteps: map.steps,
+  sim: [SW, SH], map: [MAPW, MAPH], lambda: +A.lambda.toFixed(2), lambdaTheory: theory.unstable ? +(2 * Math.PI / theory.qmax).toFixed(2) : null,
+  coverage: +A.coverage.toFixed(3), morph: A.morph, comps: A.comps, order: +A.order.toFixed(2), cls: hud.cls.el.lastChild.textContent,
+  range: [+A.lo.toFixed(3), +A.hi.toFixed(3)], mapT: +mapT.toFixed(3), gov: +gov.toFixed(2), gpuMs: +gpuT.ms.toFixed(2), mean: +A.mean.toFixed(4), std: +A.std.toFixed(4), nanResets, fps, mapMode, coat, tour: tour ? tour.i : null, palette: S.palette,
+});
+Cosmos.debug.preset = (id) => applyPreset(id);
+Cosmos.debug.setFK = (F, k) => setFK(F, k);
+Cosmos.debug.map = (on) => setMapMode(on);
+Cosmos.debug.coat = (k) => enterCoat(k);
+Cosmos.debug.tour = (i) => { startTour(); if (i) tour.i = i - 1; };
+Cosmos.debug.reseed = (k) => reseed(k);
+Cosmos.debug.ptr = ptr; Cosmos.debug.brush = brush;
+Cosmos.debug.S = S;
+Cosmos.debug.setModel = (m) => { setModel(m, false); };
+Cosmos.debug.model = (m) => setModel(m, true);
+Cosmos.debug.params = () => paramsChanged();
+Cosmos.debug.wander = (on) => setWander(on);
+})();
+</script>
+</body>
+</html>

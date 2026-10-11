@@ -1,0 +1,2809 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>You Are Here · Cosmogenesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="cosmos.css">
+<style>
+  /* ---- chapter 22: You Are Here ---- */
+  :root {
+    --paper: #ede5d2; --paper-2: #e4dac4; --ink: #1c1a17; --ink-2: #544f47; --ink-3: #8a8375; --stamp: #b0392b;
+    --rc-w: 330px;
+  }
+
+  /* scene overlay: formation labels, galaxy marker, pick tooltip */
+  .yo-over { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .yo-flab {
+    position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); text-align: center; white-space: nowrap;
+    font: 600 9.5px/1.3 var(--f-mono); letter-spacing: .18em; text-transform: uppercase; color: var(--c, var(--star));
+    opacity: 0; transition: opacity .7s var(--ease); text-shadow: 0 1px 10px rgba(0,0,0,.95), 0 0 2px rgba(0,0,0,.9);
+  }
+  .yo-flab b { display: block; font: italic 500 18px/1.1 var(--f-display); letter-spacing: 0; text-transform: none; color: var(--star); margin: 3px 0 2px; }
+  .yo-flab small { display: block; color: var(--dust); letter-spacing: .06em; text-transform: none; font-weight: 500; font-size: 10.5px; }
+  .yo-flab.side { text-align: left; } .yo-flab.side.sl { text-align: right; }
+  .yo-flab.side::after, .yo-flab.below::after { display: none; }
+  .yo-flab.below::before { content: ""; display: block; width: 1px; height: 12px; margin: 0 auto 5px; background: linear-gradient(transparent, var(--c, var(--star))); opacity: .7; }
+  .yo-flab::after { content: ""; display: block; width: 1px; height: 14px; margin: 5px auto 0; background: linear-gradient(var(--c, var(--star)), transparent); opacity: .7; }
+  .yo-sun { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; opacity: 0; transition: opacity 1s var(--ease); }
+  .yo-sun i { position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--era); box-shadow: 0 0 10px var(--era-soft); }
+  .yo-sun i::after { content: ""; position: absolute; left: 3px; top: 3px; width: 2px; height: 2px; border-radius: 50%; background: var(--era); }
+  .yo-sun b { position: absolute; left: 0; top: 0; height: 1px; transform-origin: 0 50%; background: linear-gradient(90deg, rgba(255,233,199,.7), rgba(255,233,199,.25)); }
+  .yo-sun span {
+    position: absolute; left: 0; top: 0; white-space: nowrap; font: 600 9.5px/1.35 var(--f-mono); letter-spacing: .16em; text-transform: uppercase; color: var(--era);
+    text-shadow: 0 1px 8px rgba(0,0,0,.95); border-left: 1px solid rgba(255,233,199,.45); padding: 1px 0 2px 8px;
+  }
+  .yo-sun span small { display: block; color: var(--dust); letter-spacing: .06em; text-transform: none; font-weight: 500; font-size: 10px; }
+  .yo-tip {
+    position: absolute; left: 0; top: 0; pointer-events: none; opacity: 0; transition: opacity .15s;
+    padding: 7px 10px 8px; border-radius: 8px; background: rgba(8,10,19,.86); border: 1px solid var(--line-strong);
+    font: 500 11px/1.4 var(--f-mono); color: var(--dust); white-space: nowrap; transform: translateY(-50%);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  }
+  .yo-tip b { display: block; font: italic 500 16px/1.15 var(--f-display); color: var(--star); margin-bottom: 1px; }
+  .yo-tip i { font-style: normal; color: var(--c, var(--era)); }
+  .yo-cap {
+    position: fixed; z-index: 21; left: 0; top: 0; width: 220px; text-align: left; pointer-events: none; opacity: 0; transition: opacity .35s var(--ease);
+    text-shadow: 0 1px 14px rgba(0,0,0,.95), 0 0 2px rgba(0,0,0,.8); border-left: 1px solid var(--c, var(--era)); padding: 2px 0 4px 12px;
+  }
+  .yo-cap.on { opacity: 1; }
+  .yo-cap .k { font: 600 10px/1.3 var(--f-mono); letter-spacing: .2em; text-transform: uppercase; color: var(--c, var(--era)); }
+  .yo-cap .t { font: italic 500 22px/1.1 var(--f-display); color: var(--star); margin: 4px 0 6px; text-wrap: balance; }
+  .yo-cap .d { font: 500 10.5px/1.5 var(--f-mono); color: var(--dust); }
+
+  .yo-intro {
+    position: fixed; z-index: 21; left: 0; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 6px); transform: translateX(-50%);
+    width: min(470px, calc(100vw - 32px)); text-align: center; pointer-events: none; opacity: 0; transition: opacity .8s var(--ease);
+    text-shadow: 0 1px 14px rgba(0,0,0,.95), 0 0 2px rgba(0,0,0,.8);
+  }
+  .yo-intro .k { font: 600 10px/1.3 var(--f-mono); letter-spacing: .22em; text-transform: uppercase; color: var(--era); }
+  .yo-intro .t { font: italic 500 clamp(22px, 2.3vw, 30px)/1.1 var(--f-display); color: var(--star); margin: 5px 0 5px; text-wrap: balance; }
+  .yo-intro .d { font: 400 13px/1.5 var(--f-ui); color: #cfc9bb; text-wrap: balance; }
+  @media (max-width: 760px) { .yo-intro .d { display: none; } .yo-intro .t { font-size: 20px; } body.yo-echo .yo-intro .d { display: block; font-size: 11.5px; } }
+
+  /* light-echo labels */
+  .yo-elab {
+    position: absolute; left: 0; top: 0; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .5s var(--ease), color .6s;
+    font: 600 9px/1.25 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dust);
+    text-shadow: 0 1px 8px rgba(0,0,0,.95), 0 0 2px rgba(0,0,0,.9); padding-left: 7px; border-left: 1px solid rgba(255,255,255,.18);
+  }
+  .yo-elab small { display: block; font-weight: 500; letter-spacing: .04em; text-transform: none; font-size: 9.5px; color: var(--faint); }
+  .yo-elab.on { color: var(--era); border-left-color: var(--era); }
+  .yo-elab.on small { color: var(--dust); }
+  .yo-elab.ring { border-left: 0; padding: 0; color: rgba(255,233,199,.5); font-weight: 500; letter-spacing: .1em; }
+  @media (max-width: 760px) { .yo-elab small { display: none; } .yo-elab { font-size: 8.5px; } }
+
+  /* ---------------- the receipt ---------------- */
+  .yo-rc {
+    position: fixed; z-index: 22; width: calc(var(--rc-w) + 20px);
+    top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 2px);
+    bottom: calc(var(--foot-h) + env(safe-area-inset-bottom, 0px) + 4px);
+    right: calc(var(--gutter) + 304px + 14px);
+    display: flex; flex-direction: column; pointer-events: none;
+    transition: right .7s var(--ease), opacity .6s var(--ease), transform .7s var(--ease);
+  }
+  .yo-rc.deck-shut { right: var(--gutter); }
+  .yo-rc.gone { opacity: 0; transform: translateY(24px); }
+  .yo-rc.gone * { pointer-events: none !important; }
+  body.cz-cinema .yo-rc { opacity: 0; transform: translateY(24px); }
+  body.cz-cinema .yo-rc * { pointer-events: none !important; }
+  .yo-win { position: relative; flex: 1; min-height: 0; margin: 0 10px; overflow: hidden; pointer-events: auto; }
+  .yo-scroll {
+    position: absolute; inset: 0; overflow-x: hidden; overflow-y: hidden; scrollbar-width: none; overscroll-behavior: contain;
+    touch-action: pan-y; will-change: transform;
+  }
+  .yo-scroll.live { overflow-y: auto; }
+  .yo-scroll::-webkit-scrollbar { display: none; }
+  .yo-win::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 46px; pointer-events: none;
+    background: linear-gradient(to bottom, rgba(5,6,12,0), rgba(5,6,12,.55));
+  }
+  .yo-tear { height: 7px; background:
+      linear-gradient(-45deg, var(--paper) 5px, transparent 0) 0 0 / 10px 10px repeat-x,
+      linear-gradient(45deg, var(--paper) 5px, transparent 0) 0 0 / 10px 10px repeat-x; transform: scaleY(-1); }
+  .yo-tear.bot { transform: none; background:
+      linear-gradient(-45deg, var(--paper-2) 5px, transparent 0) 0 0 / 10px 10px repeat-x,
+      linear-gradient(45deg, var(--paper-2) 5px, transparent 0) 0 0 / 10px 10px repeat-x; margin-bottom: 30px; }
+  .yo-paper {
+    position: relative; padding: 16px 16px 34px; color: var(--ink);
+    background:
+      linear-gradient(90deg, rgba(60,45,20,.10), rgba(60,45,20,0) 7%, rgba(60,45,20,0) 93%, rgba(60,45,20,.10)),
+      linear-gradient(180deg, #f1eadb, var(--paper) 30%, var(--paper-2));
+    font: 400 10.8px/1.55 var(--f-mono); letter-spacing: .005em; font-variant-numeric: tabular-nums;
+    box-shadow: 0 30px 60px rgba(0,0,0,.45);
+  }
+  .yo-paper ::selection { background: var(--ink); color: var(--paper); }
+  .yo-c { text-align: center; }
+  .yo-b { font-weight: 600; }
+  .yo-dim { color: var(--ink-2); }
+  .yo-faint { color: var(--ink-3); }
+  .yo-logo { display: block; margin: 4px auto 8px; image-rendering: pixelated; width: 192px; height: 84px; }
+  .yo-brand { font: 600 15px/1.2 var(--f-mono); letter-spacing: .34em; text-align: center; margin-right: -.34em; }
+  .yo-sub { text-align: center; letter-spacing: .14em; font-size: 10px; margin-top: 2px; }
+  .yo-rule { border: 0; border-top: 1px dashed rgba(28,26,23,.55); margin: 11px 0; }
+  .yo-dbl { border: 0; border-top: 3px double rgba(28,26,23,.7); margin: 12px 0; }
+  .yo-h {
+    display: flex; align-items: center; gap: 8px; margin: 16px 0 8px; font: 600 10.5px/1.2 var(--f-mono); letter-spacing: .16em; text-transform: uppercase;
+  }
+  .yo-h::before, .yo-h::after { content: ""; flex: 1; border-top: 1px dashed rgba(28,26,23,.5); }
+  .yo-h span { padding: 1px 5px; background: var(--ink); color: var(--paper); letter-spacing: .06em; }
+  .yo-r { display: flex; align-items: baseline; }
+  .yo-r > span { white-space: nowrap; }
+  .yo-r > i { flex: 1; min-width: 6px; margin: 0 5px; border-bottom: 1px dotted rgba(28,26,23,.4); transform: translateY(-3px); }
+  .yo-r > b { font-weight: 600; white-space: nowrap; }
+  .yo-n { color: var(--ink-2); font-size: 9.8px; line-height: 1.45; margin: 0 0 6px; text-wrap: pretty; }
+  .yo-p { font-size: 10.4px; line-height: 1.55; margin: 6px 0; text-wrap: pretty; }
+  .yo-big {
+    display: block; text-align: center; font: 600 23px/1 var(--f-mono); letter-spacing: -.01em; margin: 8px 0 7px;
+    transform: scaleY(1.32); transform-origin: 50% 50%;
+  }
+  .yo-big small { font-size: 12px; font-weight: 500; letter-spacing: .04em; }
+  .yo-ch {
+    display: inline-block; margin-left: 5px; padding: 0 3px; border: 1px solid rgba(28,26,23,.75); border-radius: 2px;
+    font: 600 8.5px/1.35 var(--f-mono); color: var(--ink); text-decoration: none; letter-spacing: .04em; vertical-align: 1px; transform: translateY(-1px);
+  }
+  .yo-ch:hover, .yo-ch:focus-visible { background: var(--ink); color: var(--paper); outline: none; }
+  .yo-cust { position: relative; display: grid; gap: 6px; padding: 2px 0; }
+  .yo-cust label { display: flex; align-items: baseline; gap: 8px; }
+  .yo-cust label > span:first-child { width: 42px; flex: none; letter-spacing: .1em; }
+  .yo-in {
+    font: 600 11.5px/1.2 var(--f-mono); color: var(--ink); background: rgba(28,26,23,.04); border: 0; border-bottom: 1px solid var(--ink);
+    padding: 3px 4px; border-radius: 2px 2px 0 0; color-scheme: light; min-width: 0;
+  }
+  .yo-in:focus { outline: none; background: rgba(28,26,23,.09); }
+  .yo-in[type="number"] { width: 56px; }
+  .yo-in[type="time"] { width: 78px; }
+  .yo-stamp {
+    position: absolute; right: 0; top: 30px; transform: rotate(-9deg); pointer-events: none;
+    border: 2px solid var(--stamp); color: var(--stamp); border-radius: 4px; padding: 4px 7px 3px; text-align: center;
+    font: 700 11px/1.1 var(--f-mono); letter-spacing: .16em; opacity: .85; mix-blend-mode: multiply; transition: opacity .5s, transform .5s;
+  }
+  .yo-stamp small { display: block; font-size: 7.5px; letter-spacing: .12em; font-weight: 600; margin-top: 2px; }
+  .yo-stamp.off { opacity: 0; transform: rotate(-9deg) scale(1.3); }
+  .yo-tbl { width: 100%; border-collapse: collapse; font-size: 10px; margin: 4px 0 6px; }
+  .yo-tbl th { font-weight: 600; text-align: right; padding: 0 0 3px; border-bottom: 1px solid rgba(28,26,23,.6); letter-spacing: .06em; font-size: 8.8px; }
+  .yo-tbl th:first-child, .yo-tbl td:first-child { text-align: left; }
+  .yo-tbl td { text-align: right; padding: 1px 0; white-space: nowrap; }
+  .yo-tbl td.src { text-align: left; padding-left: 8px; }
+  .yo-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--ink); margin-right: 2px; vertical-align: 0; }
+  .yo-dot.f { background: var(--ink); }
+  .yo-dot.h { background: linear-gradient(90deg, var(--ink) 50%, transparent 50%); }
+  .yo-stars { width: 100%; border-collapse: collapse; font-size: 10px; margin: 6px 0; }
+  .yo-stars td { padding: 1px 0; white-space: nowrap; }
+  .yo-stars td:nth-child(3), .yo-stars td:nth-child(4) { text-align: right; }
+  .yo-stars tr.no { color: var(--ink-3); }
+  .yo-stars tr.nx td { font-weight: 600; }
+  .yo-cv { display: block; width: 100%; margin: 8px 0; }
+  .yo-fig { display: flex; gap: 12px; align-items: center; margin: 6px 0 4px; }
+  .yo-fig canvas { image-rendering: pixelated; width: 50px; height: 110px; flex: none; }
+  .yo-close { margin-top: 12px; font-size: 11px; line-height: 1.62; text-align: center; text-wrap: pretty; }
+  .yo-close em { font-style: normal; font-weight: 600; }
+  .yo-links { display: flex; gap: 8px; justify-content: center; margin: 14px 0 6px; }
+  .yo-links a {
+    font: 600 10px/1 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink); text-decoration: none;
+    border: 1px solid var(--ink); padding: 7px 10px; border-radius: 2px;
+  }
+  .yo-links a:hover, .yo-links a:focus-visible { background: var(--ink); color: var(--paper); outline: none; }
+  .yo-play {
+    all: unset; cursor: pointer; font: 600 10px/1 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--paper);
+    background: var(--ink); padding: 8px 12px 7px; border-radius: 2px;
+  }
+  .yo-play::before { content: ""; display: inline-block; width: 0; height: 0; border-left: 6px solid currentColor; border-top: 4px solid transparent; border-bottom: 4px solid transparent; margin-right: 7px; vertical-align: 0; }
+  .yo-play:hover, .yo-play:focus-visible { background: #3a352d; outline: none; }
+  .yo-barcode { display: block; margin: 12px auto 2px; width: 220px; height: 70px; image-rendering: pixelated; }
+  .yo-tearline { text-align: center; color: var(--ink-3); letter-spacing: .3em; font-size: 9px; margin-top: 16px; }
+  .yo-paper a.yo-inl { color: inherit; }
+  .yo-paper [data-hs], .yo-paper [data-hc] { cursor: pointer; border-radius: 2px; transition: background .2s; }
+  .yo-paper .hl { background: rgba(28,26,23,.085); box-shadow: 0 0 0 3px rgba(28,26,23,.085); }
+
+  /* printer mouth */
+  .yo-slot {
+    position: relative; flex: none; height: 26px; pointer-events: auto; border-radius: 8px 8px 10px 10px;
+    background: linear-gradient(#1b1f2d, #0a0c14 60%, #07080e); border: 1px solid var(--line-strong);
+    box-shadow: 0 -10px 22px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.07);
+    display: flex; align-items: flex-end; justify-content: space-between; padding: 0 12px 4px;
+    font: 600 8.5px/1 var(--f-mono); letter-spacing: .2em; color: var(--faint); text-transform: uppercase;
+  }
+  .yo-slot::before {
+    content: ""; position: absolute; left: 8px; right: 8px; top: 5px; height: 3px; border-radius: 2px; background: #000;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,1), 0 1px 0 rgba(255,255,255,.07);
+  }
+  .yo-led { width: 5px; height: 5px; border-radius: 50%; background: var(--era); box-shadow: 0 0 8px var(--era); opacity: .35; transition: opacity .2s; }
+  .yo-rc.printing .yo-led { animation: yo-blink .18s steps(2) infinite; opacity: 1; }
+  @keyframes yo-blink { 50% { opacity: .25; } }
+  .yo-slot button {
+    all: unset; cursor: pointer; font: inherit; letter-spacing: inherit; color: var(--dust); padding: 2px 0;
+  }
+  .yo-slot button:hover, .yo-slot button:focus-visible { color: var(--era); }
+
+  /* deck: birth + legend */
+  .yo-date-row { display: grid; grid-template-columns: 1fr 88px; gap: 6px; }
+  .cz-input.yo-date { color-scheme: dark; padding: 7px 8px; }
+  .yo-ex { display: inline-block; font: 600 9px/1 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--era-ink); background: var(--era); padding: 3px 5px 2px; border-radius: 3px; margin-left: 6px; vertical-align: 1px; }
+  .yo-ex.off { display: none; }
+  .yo-leg { display: grid; gap: 1px; }
+  .yo-lh, .yo-lr { display: grid; grid-template-columns: 12px minmax(0, 1fr) 56px 58px 26px; align-items: center; gap: 0 4px; }
+  .yo-lh { font: 600 9px/1.2 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); padding: 0 6px 4px; }
+  .yo-lh span { text-align: right; }
+  .yo-lr {
+    padding: 5px 6px; border-radius: 6px; cursor: pointer; font-size: 12.3px; color: #d6d0c2; transition: background .2s, color .2s;
+    border: 1px solid transparent; user-select: none; -webkit-user-select: none;
+  }
+  .yo-lr:hover, .yo-lr.on { background: rgba(255,255,255,.05); color: var(--star); }
+  .yo-lr.on { border-color: var(--line-strong); }
+  .yo-lr .sw { width: 9px; height: 9px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
+  .yo-lr .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .yo-lr .v { font: 500 10.5px/1 var(--f-mono); text-align: right; color: var(--star); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .yo-lr .v.m { color: var(--dust); }
+  .yo-lr a { font: 600 9.5px/1 var(--f-mono); color: var(--faint); text-decoration: none; text-align: right; padding: 3px 0; }
+  .yo-lr a:hover { color: var(--era); }
+  .yo-lcap { min-height: 64px; font-size: 12px; line-height: 1.5; color: var(--dust); padding: 2px 2px 0; }
+  .yo-lcap b { color: var(--star); font-weight: 600; }
+  .yo-lcap a { color: var(--era); text-decoration: none; white-space: nowrap; }
+  .yo-lcap a:hover { text-decoration: underline; }
+
+  /* science tab tables */
+  .yo-stw { overflow-x: auto; margin: .5em 0 1em; }
+  .yo-stw .yo-st { margin: 0; }
+  .yo-st { width: 100%; border-collapse: collapse; font: 400 11px/1.4 var(--f-mono); margin: .5em 0 1em; font-variant-numeric: tabular-nums; }
+  .yo-st th { font-weight: 600; color: var(--faint); text-align: right; padding: 3px 4px; border-bottom: 1px solid var(--line-strong); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; }
+  .yo-st td { text-align: right; padding: 2px 4px; border-bottom: 1px solid var(--line); color: #d8d2c4; white-space: nowrap; }
+  .yo-st th:first-child, .yo-st td:first-child { text-align: left; }
+  .yo-st td.l { text-align: left; white-space: normal; font-size: 10px; color: var(--dust); min-width: 96px; }
+  .yo-st td:first-child { white-space: normal; }
+
+  /* copy fallback */
+  .yo-copy { position: fixed; inset: 0; z-index: 46; display: grid; place-items: center; background: rgba(5,6,12,.7); padding: 20px; }
+  .yo-copy .cz-panel { width: min(460px, 100%); padding: 16px; display: grid; gap: 10px; }
+  .yo-copy textarea { width: 100%; height: 50vh; resize: none; background: var(--paper); color: var(--ink); border: 0; border-radius: 6px; padding: 12px; font: 400 11px/1.45 var(--f-mono); }
+
+  /* the paper tab that stands in for the receipt on phones */
+  .yo-tab {
+    position: fixed; z-index: 23; right: calc(var(--gutter) + 2px); top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 6px);
+    width: 134px; padding: 9px 8px 13px; border: 0; cursor: pointer; text-align: center; color: var(--ink);
+    background: linear-gradient(180deg, #f1eadb, var(--paper-2)); font: 600 9px/1.35 var(--f-mono); letter-spacing: .14em;
+    box-shadow: 0 14px 30px rgba(0,0,0,.5); transform: rotate(2.5deg); transform-origin: 50% 0; transition: opacity .5s var(--ease), transform .5s var(--ease);
+    -webkit-mask: linear-gradient(#000, #000) 0 0 / 100% calc(100% - 6px) no-repeat, conic-gradient(from 135deg at 50% 0, #000 90deg, #0000 0) 0 100% / 10px 6px repeat-x;
+            mask: linear-gradient(#000, #000) 0 0 / 100% calc(100% - 6px) no-repeat, conic-gradient(from 135deg at 50% 0, #000 90deg, #0000 0) 0 100% / 10px 6px repeat-x;
+  }
+  .yo-tab b { display: block; font: 600 13px/1.1 var(--f-mono); letter-spacing: -.01em; margin: 5px 0 4px; transform: scaleY(1.3); white-space: nowrap; }
+  .yo-tab small { display: block; color: var(--ink-2); letter-spacing: .1em; font-weight: 500; font-size: 8.5px; }
+  .yo-tab.off { opacity: 0; transform: rotate(2.5deg) translateY(-12px); pointer-events: none; }
+  @media (min-width: 761px) { .yo-tab { display: none; } }
+  body.yo-tall .yo-flab small, body.yo-tall .yo-flab .k { display: none; }
+  body.yo-tall .yo-flab b { font-size: 16px; }
+  @media (max-width: 760px) {
+    :root { --rc-w: calc(100vw - 2 * var(--gutter) - 20px); }
+    .yo-rc, .yo-rc.deck-shut { right: var(--gutter); left: auto; z-index: 29; }
+    body.yo-rc-open .cz-notes { display: none; }
+    .yo-flab .k { display: none; }
+    .yo-cap { left: 50% !important; transform: translateX(-50%); width: calc(100vw - 40px) !important; text-align: center; border-left: 0; padding: 6px 0; background: radial-gradient(closest-side, rgba(5,6,12,.7), rgba(5,6,12,0)); }
+    .yo-cap .t { font-size: 20px; }
+    .yo-flab b { font-size: 14px; }
+    .yo-flab small { display: none; }
+  }
+</style>
+</head>
+<body>
+<script src="cosmos.js"></script>
+<script>
+(function () {
+'use strict';
+
+/* =====================================================================
+   0. SHORTHANDS
+   ===================================================================== */
+const U = Cosmos.util, FMT = Cosmos.fmt, h = Cosmos.h;
+const SMALL = window.matchMedia('(max-width: 760px)').matches;
+const isSmall = () => window.matchMedia('(max-width: 760px)').matches;
+const CHF = (n) => Cosmos.CHAPTERS[n - 1].file;
+const CHT = (n) => Cosmos.CHAPTERS[n - 1].title;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const NF0 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+const NF1 = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const DTF = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const grp = (x) => NF0.format(Math.round(x));
+const sci = (x, d = 2) => FMT.sci(x, d);
+
+/* =====================================================================
+   1. PHYSICAL CONSTANTS AND DATA
+   ===================================================================== */
+const NA = 6.02214076e23;
+const JYEAR = 365.25 * 86400;            // Julian year in seconds (the light-year is defined with it)
+const MIN_PER_YEAR = 365.25 * 1440;
+const LY_KM = 9.4607304725808e12;
+const MOON_KM = 384400;
+const AGE_U = 13.8e9;                    // years (Planck 2018: 13.787 ± 0.020 Gyr)
+const GAL_YEAR = 230e6;                  // years for one lap of the Sun around the Milky Way
+const V_ORBIT = 29.78, V_GAL = 230, V_CMB = 369.82;   // km/s
+const CAL_YEAR_S = 365 * 86400;          // Sagan's calendar year
+const RBC_RATE70 = 2.5e13 / (120 * 86400);  // red cells made per second by a 70 kg adult (count / lifespan)
+const TURNOVER70 = 3.3e11 / 86400;         // cells replaced per second, 70 kg (Sender & Milo 2021)
+const WATER_ATOMS70 = 2.5e3 / 18.015 * 3 * NA / 86400; // atoms/s moved by ~2.5 L of water a day
+const K40_BQ70 = 4400;                     // whole-body 40K activity, 70 kg adult (ICRP/UNSCEAR typical)
+const C14_BQ_PER_G = 0.23;                 // modern carbon
+
+// Cosmic sources, colours shared with chapter 6's periodic table (after Johnson 2019)
+const SOURCES = [
+  { k: 'bb', name: 'Big Bang', short: 'Big Bang', kick: '13.8 billion years ago', long: 'Made in the Big Bang', when: '13.8 billion years ago', col: '#7fa8ff', ch: [2],
+    text: 'Every hydrogen atom in you, and a sliver of your lithium, was fused in the first twenty minutes of time. Stars only destroy hydrogen, so none of it is younger.' },
+  { k: 'lm', name: 'Dying low-mass stars', short: 'Low-mass stars', kick: 'red giants and planetary nebulae', long: 'Made in dying low-mass stars', when: 'before the Sun formed', col: '#ffc46b', ch: [6],
+    text: 'Stars up to about eight Suns swell into red giants and shed carbon- and nitrogen-rich envelopes. About half of your carbon came from them.' },
+  { k: 'ms', name: 'Exploding massive stars', short: 'Massive stars', kick: 'core-collapse supernovae', long: 'Made in exploding massive stars', when: 'before the Sun formed', col: '#ff7a5c', ch: [6, 7],
+    text: 'Stars heavier than about eight Suns forge oxygen, calcium and phosphorus, then blow them out as supernovae. Most of your mass is their ash.' },
+  { k: 'wd', name: 'Exploding white dwarfs', short: 'White dwarfs', kick: 'type Ia supernovae', long: 'Made in exploding white dwarfs', when: 'type Ia supernovae, before the Sun formed', col: '#b48cff', ch: [6],
+    text: 'A white dwarf pushed past its mass limit detonates as a type Ia supernova. About 60% of the iron in your blood came from them.' },
+  { k: 'ns', name: 'Merging neutron stars', short: 'Neutron stars', kick: 'kilonovae', long: 'Made when neutron stars collided', when: 'kilonovae, before the Sun formed', col: '#4fe3c1', ch: [6, 7],
+    text: 'Rapid neutron capture in neutron-star collisions made almost all of your iodine and gold. Most of your iodine sits in the thyroid, in your neck. Shown magnified several hundred times: at true scale it would be less than one point.' },
+  { k: 'cr', name: 'Cosmic-ray fission', short: 'Cosmic rays', kick: 'fission in interstellar space', long: 'Made by cosmic rays', when: 'in interstellar space', col: '#e8e2d0', ch: [6],
+    text: 'Fast protons shatter carbon, nitrogen and oxygen nuclei in space, leaving boron and beryllium. Your carbon-14 is also made by cosmic rays, high in our own air. Shown magnified a few thousand times.' },
+];
+const SI = { bb: 0, lm: 1, ms: 2, wd: 3, ns: 4, cr: 5 };
+
+// Major elements: textbook mass fractions (%, e.g. Chang, Chemistry); origin shares after Johnson (2019)
+const MAJORS = [
+  { s: 'O', n: 'Oxygen', A: 15.999, pct: 65.0, f: { ms: .95, lm: .05 } },
+  { s: 'C', n: 'Carbon', A: 12.011, pct: 18.5, f: { lm: .55, ms: .45 } },
+  { s: 'H', n: 'Hydrogen', A: 1.008, pct: 9.5, f: { bb: 1 } },
+  { s: 'N', n: 'Nitrogen', A: 14.007, pct: 3.2, f: { lm: .60, ms: .40 } },
+  { s: 'Ca', n: 'Calcium', A: 40.078, pct: 1.5, f: { ms: .70, wd: .30 } },
+  { s: 'P', n: 'Phosphorus', A: 30.974, pct: 1.0, f: { ms: .95, wd: .05 } },
+  { s: 'K', n: 'Potassium', A: 39.098, pct: 0.4, f: { ms: .80, wd: .20 } },
+  { s: 'S', n: 'Sulfur', A: 32.06, pct: 0.3, f: { ms: .70, wd: .30 } },
+  { s: 'Na', n: 'Sodium', A: 22.990, pct: 0.2, f: { ms: .80, lm: .20 } },
+  { s: 'Cl', n: 'Chlorine', A: 35.45, pct: 0.2, f: { ms: .80, wd: .20 } },
+  { s: 'Mg', n: 'Magnesium', A: 24.305, pct: 0.1, f: { ms: .95, wd: .05 } },
+];
+// Trace elements: grams in a 70 kg body (Emsley 1998, The Elements), scaled with body mass
+const TRACES = [
+  ['Fe', 'Iron', 55.845, 4.2, { ms: .40, wd: .60 }],
+  ['F', 'Fluorine', 18.998, 2.6, { lm: .55, ms: .45 }],
+  ['Zn', 'Zinc', 65.38, 2.3, { ms: .75, lm: .15, wd: .10 }],
+  ['Si', 'Silicon', 28.085, 1.0, { ms: .70, wd: .30 }],
+  ['Rb', 'Rubidium', 85.468, 0.68, { ms: .20, lm: .40, ns: .40 }],
+  ['Sr', 'Strontium', 87.62, 0.32, { ms: .10, lm: .70, ns: .20 }],
+  ['Br', 'Bromine', 79.904, 0.26, { ms: .35, lm: .25, ns: .40 }],
+  ['Pb', 'Lead', 207.2, 0.12, { lm: .80, ns: .20 }],
+  ['Cu', 'Copper', 63.546, 0.072, { ms: .75, lm: .15, wd: .10 }],
+  ['Al', 'Aluminium', 26.982, 0.060, { ms: .90, lm: .10 }],
+  ['Cd', 'Cadmium', 112.41, 0.050, { lm: .50, ns: .50 }],
+  ['Ce', 'Cerium', 140.12, 0.040, { lm: .80, ns: .20 }],
+  ['Ba', 'Barium', 137.33, 0.022, { lm: .85, ns: .15 }],
+  ['Sn', 'Tin', 118.71, 0.020, { ms: .05, lm: .55, ns: .40 }],
+  ['Ti', 'Titanium', 47.867, 0.020, { ms: .60, wd: .40 }],
+  ['B', 'Boron', 10.81, 0.018, { cr: 1 }],
+  ['I', 'Iodine', 126.90, 0.015, { lm: .05, ns: .95 }],
+  ['Ni', 'Nickel', 58.693, 0.015, { ms: .40, wd: .60 }],
+  ['Se', 'Selenium', 78.971, 0.015, { ms: .40, lm: .30, ns: .30 }],
+  ['Cr', 'Chromium', 51.996, 0.014, { ms: .35, wd: .65 }],
+  ['Mn', 'Manganese', 54.938, 0.012, { ms: .25, wd: .75 }],
+  ['As', 'Arsenic', 74.922, 0.007, { ms: .50, lm: .30, ns: .20 }],
+  ['Li', 'Lithium', 6.94, 0.007, { bb: .05, lm: .70, cr: .25 }],
+  ['Cs', 'Caesium', 132.91, 0.006, { lm: .15, ns: .85 }],
+  ['Hg', 'Mercury', 200.59, 0.006, { lm: .60, ns: .40 }],
+  ['Ge', 'Germanium', 72.63, 0.005, { ms: .50, lm: .50 }],
+  ['Mo', 'Molybdenum', 95.95, 0.005, { ms: .15, lm: .50, ns: .35 }],
+  ['Co', 'Cobalt', 58.933, 0.003, { ms: .55, wd: .45 }],
+  ['Sb', 'Antimony', 121.76, 0.002, { lm: .30, ns: .70 }],
+  ['Ag', 'Silver', 107.87, 0.002, { lm: .20, ns: .80 }],
+  ['Au', 'Gold', 196.97, 0.0002, { lm: .05, ns: .95 }],
+  ['U', 'Uranium', 238.03, 0.0001, { ns: 1 }],
+  ['Th', 'Thorium', 232.04, 0.0001, { ns: 1 }],
+  ['Be', 'Beryllium', 9.012, 0.000036, { cr: 1 }],
+].map(([s, n, A, g, f]) => ({ s, n, A, g70: g, f, trace: true }));
+
+// Particle categories (element mode). Colours follow the CPK / Jmol convention, lifted slightly for a dark sky.
+const CATS = [
+  { s: 'O', n: 'Oxygen', col: '#ff4b3e' },
+  { s: 'C', n: 'Carbon', col: '#bdb7ad' },
+  { s: 'H', n: 'Hydrogen', col: '#f2f5ff' },
+  { s: 'N', n: 'Nitrogen', col: '#5c7cff' },
+  { s: 'Ca', n: 'Calcium', col: '#5cf03e', bone: .99, where: '99% of it in your bones and teeth' },
+  { s: 'P', n: 'Phosphorus', col: '#ff9a2e', bone: .85, where: 'about 85% of it in bone mineral' },
+  { s: 'K', n: 'Potassium', col: '#a65cff', where: 'mostly inside your cells' },
+  { s: 'S', n: 'Sulfur', col: '#ffe14d', surf: .72, where: 'rich in hair, skin and nails' },
+  { s: 'Na', n: 'Sodium', col: '#c88dff', where: 'mostly in the fluid between cells' },
+  { s: 'Cl', n: 'Chlorine', col: '#3fe67b', where: 'mostly in the fluid between cells' },
+  { s: 'Mg', n: 'Magnesium', col: '#b8ff50', bone: .6, where: 'about 60% of it in bone' },
+  { s: 'Fe…', n: 'Iron and other traces', col: '#e0915e', bone: .3, where: 'iron mostly in your blood' },
+];
+
+/* ---------- composition ---------- */
+function composition(M) {
+  const sc = M / 70;
+  const rows = [];
+  let traceKg = 0;
+  TRACES.forEach((t) => { traceKg += t.g70 * sc / 1000; });
+  const majSum = MAJORS.reduce((s, e) => s + e.pct, 0);
+  MAJORS.forEach((e) => rows.push(Object.assign({}, e, { kg: e.pct / majSum * (M - traceKg) })));
+  TRACES.forEach((t) => rows.push(Object.assign({}, t, { kg: t.g70 * sc / 1000 })));
+  let atoms = 0;
+  rows.forEach((r) => { r.mol = r.kg * 1000 / r.A; r.atoms = r.mol * NA; atoms += r.atoms; });
+  const srcKg = new Float64Array(6), srcAtoms = new Float64Array(6);
+  rows.forEach((r) => { for (const k in r.f) { srcKg[SI[k]] += r.kg * r.f[k]; srcAtoms[SI[k]] += r.atoms * r.f[k]; } });
+  // categories for the particles: 11 majors + a lumped trace class (its ns/cr shares go to the magnified set)
+  const cats = CATS.map((c, i) => ({ kg: 0, atoms: 0, f: new Float64Array(6) }));
+  rows.forEach((r, i) => {
+    const ci = r.trace ? 11 : i;
+    const c = cats[ci]; c.kg += r.kg; c.atoms += r.atoms;
+    for (const k in r.f) c.f[SI[k]] += r.kg * r.f[k];
+  });
+  cats.forEach((c) => { let s = 0; for (let j = 0; j < 4; j++) s += c.f[j]; for (let j = 0; j < 6; j++) c.f[j] = j < 4 ? c.f[j] / s : 0; });
+  const by = (s) => rows.find((r) => r.s === s);
+  return { M, rows, atoms, srcKg, srcAtoms, cats, by, kgTot: rows.reduce((s, r) => s + r.kg, 0) };
+}
+const COMP70 = composition(70);
+
+/* ---------- age-dependent physiology (piecewise linear, integrated exactly) ---------- */
+function PWL(pts) {
+  const x = pts.map((p) => p[0]), y = pts.map((p) => p[1]), n = x.length, cum = new Float64Array(n);
+  for (let i = 1; i < n; i++) cum[i] = cum[i - 1] + (x[i] - x[i - 1]) * (y[i] + y[i - 1]) / 2;
+  const seg = (a) => { let i = 1; while (i < n - 1 && x[i] < a) i++; return i; };
+  const f = (a) => { if (a <= x[0]) return y[0]; if (a >= x[n - 1]) return y[n - 1]; const i = seg(a); return y[i - 1] + (a - x[i - 1]) / (x[i] - x[i - 1]) * (y[i] - y[i - 1]); };
+  const I = (a) => { if (a <= 0) return 0; if (a >= x[n - 1]) return cum[n - 1] + (a - x[n - 1]) * y[n - 1]; const i = seg(a); return cum[i - 1] + (a - x[i - 1]) * (y[i - 1] + f(a)) / 2; };
+  return { f, I };
+}
+// resting heart rate, bpm (children after Fleming et al. 2011; adults ~70)
+const HR = PWL([[0, 130], [1, 120], [2, 110], [4, 100], [6, 95], [8, 90], [10, 85], [12, 80], [15, 76], [18, 72], [25, 70], [130, 70]]);
+// breathing rate, per minute (Fleming et al. 2011; adults 12-20, here 15)
+const RR = PWL([[0, 44], [1, 35], [2, 30], [4, 25], [6, 23], [9, 21], [12, 19], [15, 17], [18, 15], [130, 15]]);
+// blinks per clock minute = blink rate while awake × fraction of the day awake
+const BLINK = PWL([[0, 3 * 0.35], [1, 5 * 0.5], [3, 7 * 0.55], [6, 10 * 0.58], [10, 12 * 0.6], [14, 15 * 0.63], [18, 15 * 0.67], [130, 15 * 0.67]]);
+// median body mass by age, kg (WHO/CDC growth charts, sexes averaged): scales cell production for children
+const GROW = PWL([[0, 3.4], [0.5, 7.6], [1, 9.8], [2, 12.3], [3, 14.3], [5, 18.4], [8, 25.6], [10, 32], [12, 40.5], [14, 50], [16, 58], [18, 63], [21, 67], [130, 67]]);
+
+/* ---------- the nearest stars and the bright ones ---------- */
+// [name, ly, objects] for every system within 13.1 ly (RECONS / Reylé et al. 2021); brown dwarfs counted
+const NEAR = [['Alpha Centauri', 4.25, 3], ['Barnard’s Star', 5.96, 1], ['Luhman 16', 6.5, 2], ['WISE 0855−0714', 7.4, 1], ['Wolf 359', 7.86, 1],
+  ['Lalande 21185', 8.31, 1], ['Sirius', 8.6, 2], ['Gliese 65', 8.72, 2], ['Ross 154', 9.69, 1], ['Ross 248', 10.3, 1], ['Epsilon Eridani', 10.5, 1],
+  ['Lacaille 9352', 10.7, 1], ['Ross 128', 11.0, 1], ['EZ Aquarii', 11.1, 3], ['61 Cygni', 11.4, 2], ['Procyon', 11.46, 2], ['Struve 2398', 11.5, 2],
+  ['Groombridge 34', 11.6, 2], ['DX Cancri', 11.7, 1], ['Epsilon Indi', 11.87, 3], ['Tau Ceti', 11.9, 1], ['GJ 1061', 12.0, 1], ['YZ Ceti', 12.1, 1],
+  ['Luyten’s Star', 12.35, 1], ['Teegarden’s Star', 12.5, 1], ['Kapteyn’s Star', 12.83, 1], ['Lacaille 8760', 12.95, 1], ['SCR 1845−6357', 13.05, 2], ['Kruger 60', 13.07, 2]];
+// approximate J2000 right ascension (h) and declination (deg) of each system, and a representative temperature (K) for its colour
+const NEAR_POS = { 'Alpha Centauri': [14.66, -60.83, 5790], 'Barnard’s Star': [17.96, 4.69, 3130], 'Luhman 16': [10.82, -53.32, 1300], 'WISE 0855−0714': [8.93, -7.24, 900],
+  'Wolf 359': [10.94, 7.01, 2800], 'Lalande 21185': [11.06, 35.97, 3550], 'Sirius': [6.75, -16.72, 9940], 'Gliese 65': [1.65, -17.95, 2700], 'Ross 154': [18.83, -23.84, 3250],
+  'Ross 248': [23.70, 44.17, 2800], 'Epsilon Eridani': [3.55, -9.46, 5080], 'Lacaille 9352': [23.10, -35.85, 3690], 'Ross 128': [11.79, 0.80, 3190], 'EZ Aquarii': [22.64, -15.30, 2900],
+  '61 Cygni': [21.12, 38.75, 4400], 'Procyon': [7.66, 5.22, 6530], 'Struve 2398': [18.71, 59.63, 3400], 'Groombridge 34': [0.30, 44.02, 3600], 'DX Cancri': [8.49, 26.78, 2800],
+  'Epsilon Indi': [22.05, -56.79, 4630], 'Tau Ceti': [1.73, -15.94, 5340], 'GJ 1061': [3.60, -44.51, 2950], 'YZ Ceti': [1.21, -16.99, 3100], 'Luyten’s Star': [7.46, 5.23, 3150],
+  'Teegarden’s Star': [2.89, 16.88, 2900], 'Kapteyn’s Star': [5.19, -45.02, 3570], 'Lacaille 8760': [21.29, -38.87, 3800], 'SCR 1845−6357': [18.76, -63.96, 2600], 'Kruger 60': [22.47, 57.70, 3200] };
+const NEAR_R = 13.1, NEAR_OBJ = NEAR.reduce((s, x) => s + x[2], 0), NEAR_SYS = NEAR.length;
+const DENS_OBJ = 0.0037, DENS_SYS = 0.00234;   // per cubic light-year, from 540 objects / 339 systems within 10 pc
+function lightCount(r) {
+  if (r <= NEAR_R) { let o = 0, s = 0; NEAR.forEach((x) => { if (x[1] <= r) { o += x[2]; s++; } }); return { obj: o, sys: s }; }
+  const v = 4 / 3 * Math.PI * (r * r * r - NEAR_R ** 3);
+  return { obj: NEAR_OBJ + DENS_OBJ * v, sys: NEAR_SYS + DENS_SYS * v };
+}
+// bright stars: [name, ly, RA hours, V mag]
+// bright stars: [name, ly, RA hours, V mag, Dec degrees, temperature K]
+const BRIGHT = [['Alpha Centauri', 4.37, 14.66, -0.27, -60.83, 5790], ['Sirius', 8.6, 6.75, -1.46, -16.72, 9940], ['Procyon', 11.5, 7.65, 0.34, 5.22, 6530], ['Altair', 16.7, 19.85, 0.77, 8.87, 7700],
+  ['Vega', 25, 18.62, 0.03, 38.78, 9600], ['Fomalhaut', 25, 22.96, 1.16, -29.62, 8590], ['Pollux', 34, 7.76, 1.14, 28.03, 4670], ['Arcturus', 36.7, 14.26, -0.05, 19.18, 4290], ['Capella', 42.9, 5.28, 0.08, 46.0, 4970],
+  ['Aldebaran', 65, 4.6, 0.86, 16.51, 3910], ['Regulus', 79, 10.14, 1.35, 11.97, 12460], ['Spica', 250, 13.42, 0.97, -11.16, 22400], ['Betelgeuse', 550, 5.92, 0.5, 7.41, 3600], ['Deneb', 2600, 20.69, 1.25, 45.28, 8500]];
+const radec = (raH, dec, d) => { const a = raH / 24 * 2 * Math.PI, b = dec * Math.PI / 180; return [d * Math.cos(b) * Math.cos(a), d * Math.sin(b), d * Math.cos(b) * Math.sin(a)]; };
+
+// light-travel milestones inside the Solar System (light time from Earth; Voyager 1 as of 2026)
+const LIGHT_MARKS = [[1.28, 'the Moon'], [499, 'the Sun'], [2600, 'Jupiter'], [15000, 'Neptune'], [85000, 'Voyager 1, the farthest thing people have made']];
+function lightDistText(ageYr) {
+  const s = ageYr * JYEAR;
+  if (ageYr >= 0.1) return [ageYr.toFixed(ageYr < 10 ? 2 : 1), 'light-years away'];
+  if (s >= 86400) return [(s / 86400).toFixed(1), 'light-days away'];
+  if (s >= 3600) return [(s / 3600).toFixed(1), 'light-hours away'];
+  return [(s / 60).toFixed(1), 'light-minutes away'];
+}
+function lightMarksPassed(ageYr) { const s = ageYr * JYEAR; return LIGHT_MARKS.filter((m) => m[0] <= s).map((m) => m[1]); }
+
+/* =====================================================================
+   2. LIFE ARITHMETIC
+   ===================================================================== */
+function lifeStats(birthMs, M, nowMs, comp) {
+  const tS = Math.max(0, (nowMs - birthMs) / 1000);
+  const A = tS / JYEAR;
+  const sc = M / GROW.f(A);                    // your size relative to the median at your age
+  const massYears = sc * GROW.I(A);            // kg·yr of body lived so far
+  const cKg = comp.by('C').kg;
+  const decayRate = K40_BQ70 * M / 70 + C14_BQ_PER_G * cKg * 1000;
+  const cmbKm = V_CMB * tS;
+  const light = lightCount(A);
+  return {
+    tS, A,
+    beats: HR.I(A) * MIN_PER_YEAR, hr: HR.f(A),
+    breaths: RR.I(A) * MIN_PER_YEAR, rr: RR.f(A),
+    blinks: BLINK.I(A) * MIN_PER_YEAR,
+    humanCells: 3.0e13 * M / 70, bacteria: 3.8e13 * M / 70,
+    rbc: RBC_RATE70 / 70 * massYears * JYEAR,
+    decayRate, decays: decayRate / M * massYears * JYEAR,
+    orbitKm: V_ORBIT * tS, galKm: V_GAL * tS, cmbKm,
+    moonTrips: cmbKm / MOON_KM, ly: cmbKm / LY_KM,
+    orbits: tS / (365.256363 * 86400), galFrac: A / GAL_YEAR,
+    calSec: A / AGE_U * CAL_YEAR_S,
+    lightLy: A, lightObj: light.obj, lightSys: light.sys,
+  };
+}
+function ageParts(birth, now) {
+  // calendar age: whole years and days since the last birthday
+  const b = new Date(birth), n = new Date(now);
+  let y = n.getFullYear() - b.getFullYear();
+  const bd = new Date(b); bd.setFullYear(b.getFullYear() + y);
+  if (bd > n) { y--; bd.setFullYear(b.getFullYear() + y); }
+  const d = Math.floor((n - bd) / 86400000);
+  return { y: Math.max(0, y), d: Math.max(0, d) };
+}
+
+/* =====================================================================
+   3. NOTES
+   ===================================================================== */
+const pctS = (x) => { const p = x * 100; if (p >= 10) return p.toFixed(1) + '%'; if (p >= 1) return p.toFixed(2) + '%'; if (p >= 0.01) return p.toFixed(2) + '%'; return FMT.sci(p, 2) + '%'; };
+const pctC = (x) => { const p = x * 100; if (p >= 0.01) return pctS(x); const e = Math.floor(Math.log10(p)); return Math.round(p / Math.pow(10, e)) + '×10' + FMT.sup(e) + '%'; };
+const srcCodes = (f) => Object.keys(f).sort((a, b) => f[b] - f[a]).map((k) => k.toUpperCase() + '\u00a0' + Math.round(f[k] * 100)).join(' · ');
+const srcShares = (f) => Object.keys(f).sort((a, b) => f[b] - f[a]).map((k) => Math.round(f[k] * 100) + '% ' + SOURCES[SI[k]].name.toLowerCase()).join(', ');
+
+const NOTES = `
+<p>This figure is you, drawn with ${SMALL ? '60,000' : '120,000'} points of light. Each point stands for an equal share of your mass, and its colour says where that matter was made. Coral points were forged in massive stars that exploded before the Sun existed. Amber ones came from dying stars like the Sun. Blue ones are hydrogen, made in the first twenty minutes of the universe.</p>
+<p>Switch to counting atoms instead of grams and the figure turns blue. Hydrogen is light, so it is under a tenth of your weight, yet it is six in every ten of your atoms. By mass you are mostly supernova. By count you are mostly Big Bang.</p>
+<p>The figure breathes at your breathing rate, and each heartbeat sends a pulse out from the chest at the speed of a real arterial pressure wave. Points drift off and new ones arrive, because you swap atoms with the world every second through water, food and air. Here that exchange runs about half a million times faster than life.</p>
+<p>The light that left Earth on your first day is still travelling. <strong>Follow my light</strong> shows how far it has got, among the real neighbouring stars, and which ones it has already reached.</p>
+<p>The receipt is yours. Give it your birth date and it itemises you: heartbeats, the kilometres you have ridden through space, the stars that made your atoms, and how far the light from your first day has travelled. Nothing you type leaves this page.</p>
+<h4>Try this</h4>
+<ul>
+<li>Hover the sources in the controls to light up only the atoms that one kind of star made. Try <strong>Neutron stars</strong> (merging neutron stars) and look at the neck.</li>
+<li>Switch <strong>Colour</strong> to <strong>Element</strong> and hover <strong>Calcium</strong>. Your skeleton appears.</li>
+<li>Press <strong>Return my atoms to the stars</strong> (<kbd>O</kbd>) and watch every point fly home.</li>
+<li>Press <strong>Follow my light</strong> (<kbd>L</kbd>). You shrink into the Sun, and the light of the day you were born sweeps out across the real stars around us.</li>
+<li>Scroll the receipt to the end. It finishes where the journey began.</li>
+</ul>`;
+
+function scienceHTML() {
+  const C = COMP70;
+  const majRows = C.rows.filter((r) => !r.trace).map((r) =>
+    `<tr><td>${r.s} · ${r.n}</td><td>${r.pct}%</td><td>${r.kg >= 1 ? r.kg.toFixed(2) + ' kg' : Math.round(r.kg * 1000) + ' g'}</td><td>${pctS(r.atoms / C.atoms)}</td><td class="l">${srcCodes(r.f)}</td></tr>`).join('');
+  const trRows = ['Fe', 'F', 'Zn', 'Si', 'Rb', 'Sr', 'Br', 'Cu', 'B', 'I', 'Au'].map((s) => { const r = C.by(s); const g = r.kg * 1000;
+    return `<tr><td>${r.s} · ${r.n}</td><td>${FMT.sci(r.kg / 70 * 100, 2)}%</td><td>${g >= 1 ? g.toFixed(1) + ' g' : g >= 0.01 ? Math.round(g * 1000) + ' mg' : (g * 1000).toFixed(1) + ' mg'}</td><td>${pctS(r.atoms / C.atoms)}</td><td class="l">${srcCodes(r.f)}</td></tr>`; }).join('');
+  const srcRows = SOURCES.map((s, i) => `<tr><td>${s.name}</td><td>${pctS(C.srcKg[i] / C.kgTot)}</td><td>${pctS(C.srcAtoms[i] / C.atoms)}</td></tr>`).join('');
+  return `
+<h4>What each point is</h4>
+<p>The figure is a procedural body: about ninety capsules and ellipsoids blended with a smooth minimum into one signed distance field, in a standing contrapposto pose with the head tipped up. Points are sampled uniformly on the skin (about 55%) and through the volume (45%). A separate skeleton, a thyroid gland and the heart position are built from the same joints.</p>
+<p>Each point first gets an element, drawn from your composition by mass (or, with <strong>By atoms</strong>, by number of atoms), then a birthplace, drawn from that element's origin shares. Calcium and phosphorus points sit in the skeleton, iodine in the thyroid; everything else is spread through soft tissue. With N points and body mass M, one point is M/N of you: 0.58 g for 70 kg and 120,000 points, or 5.4 × 10²² atoms.</p>
+<h4>Composition by mass and by number</h4>
+<p>The textbook table gives the major elements by mass. Traces come from Emsley's inventory of a 70 kg body and scale with your mass. The number of atoms of each element is</p>
+<span class="eq">N<sub>i</sub> = m<sub>i</sub> N<sub>A</sub> / A<sub>i</sub>, &nbsp; N<sub>A</sub> = 6.022 × 10²³ mol⁻¹</span>
+<p>For 70 kg this gives ${FMT.sci(C.atoms, 3)} atoms, of which ${pctS(C.by('H').atoms / C.atoms)} are hydrogen. The rounded table sums to 99.9%, so the majors are rescaled until they and the 12 g of traces add up to exactly your mass. Textbook tables list potassium as 0.4%, but whole-body counting of potassium-40 points to nearer 0.2% (about 140 g).</p>
+<div class="yo-stw"><table class="yo-st"><tr><th>Element</th><th>Mass</th><th>70 kg</th><th>Atoms</th><th>Made in, %</th></tr>${majRows}${trRows}</table></div>
+<p style="font:400 11px/1.5 var(--f-mono);color:var(--faint)">BB Big Bang · LM dying low-mass stars · MS exploding massive stars · WD exploding white dwarfs · NS merging neutron stars · CR cosmic-ray fission. Shares after Johnson (2019), rounded.</p>
+<h4>Where the elements were made</h4>
+<p>The origin shares follow Jennifer Johnson's 2019 periodic table of nucleosynthesis, the same one chapter 6 uses. They are coarse and rounded, and some are debated. The largest open question is the r-process: Johnson credits merging neutron stars, but rare kinds of exploding massive star (collapsars, magnetorotational supernovae) may make part of it. Deuterium is only destroyed in stars, so every deuteron in you (about 150 per million hydrogen atoms; ocean water has 156) dates from the first twenty minutes.</p>
+<div class="yo-stw"><table class="yo-st"><tr><th>Source</th><th>By mass</th><th>By atoms</th></tr>${srcRows}</table></div>
+<h4>Time and the body</h4>
+<p>Age is the time since your birth date (noon local time if you give no time). Beats, breaths and blinks integrate age-dependent resting rates, which are piecewise linear so the integral is exact:</p>
+<span class="eq">N<sub>beats</sub> = ∫<sub>0</sub><sup>A</sup> f<sub>HR</sub>(a) da</span>
+<p>Heart rate falls from about 130 bpm at birth to 80 in late childhood and 70 in adults; breathing from 44 to 15 a minute (Fleming et al. 2011). Blinks use about 15 a minute while awake for adults (newborns blink only a few times a minute) and the fraction of each day spent awake. Exercise raises these rates and sleep lowers them, so treat them as ±15% estimates. The figure breathes and beats at your current rates.</p>
+<p>Cell counts are for the 70 kg reference adult of Sender, Fuchs and Milo (2016), scaled by your mass: 3.0 × 10¹³ human cells, 84% of them red blood cells, and 3.8 × 10¹³ bacteria, mostly in the colon. Red cells are made at count ÷ lifespan = 2.5 × 10¹³ ÷ 120 days ≈ 2.4 million a second, scaled for children by the median body mass at each age. The body replaces about 3.3 × 10¹¹ cells a day, the great majority of them blood cells (Sender and Milo 2021). Most neurons in your neocortex are as old as you are (Bhardwaj et al. 2006).</p>
+<h4>Motion</h4>
+<span class="eq">d = v t</span>
+<p>Earth's mean orbital speed is 29.78 km/s. The Sun circles the Galaxy at about 230 km/s (estimates run 220–240). Relative to the cosmic microwave background, the Sun moves at 369.82 ± 0.11 km/s, measured from the dipole in the Planck maps. These three are measured against different things and point in different directions, so they are not added. The Moon is 384,400 km away on average; a light-year is 9.4607 × 10¹² km. A galactic year is 225–250 million years; this page uses 230. The Sun is about 26,700 light-years (8.18 kpc) from the galactic centre (GRAVITY Collaboration 2019).</p>
+<h4>Light echo</h4>
+<span class="eq">r = c t, &nbsp; N(r) ≈ n · (4/3)π r³</span>
+<p>Within 13 light-years the page counts real systems from the RECONS list (brown dwarfs included). Beyond that it uses the mean local density from the Gaia 10-parsec census: 540 stars and brown dwarfs in 339 systems within 32.6 light-years (Reylé et al. 2021), or n ≈ 0.0037 objects and 0.0023 systems per cubic light-year, so a 30 ly sphere holds about 430 stars and brown dwarfs. The often-quoted round figure of 0.004 per cubic light-year gives 450.</p>
+<p><strong>Follow my light</strong> draws the same numbers in three dimensions. Every system within 13 light-years is a real one, placed at its catalogued right ascension, declination and distance, and so are the named bright stars beyond. Everything else is a statistical fill at the Gaia density with a realistic mix of red, orange, yellow-white, white and brown dwarfs (thinned above ${SMALL ? '7,000' : '16,000'} points). The sphere is centred on the Sun; the Earth is only 8 light-minutes off-centre. The wavefront crosses your lifetime in 11 seconds, so it plays about ${FMT.sci(36.5 * JYEAR / 11, 1)} times faster than light for a 36-year-old.</p>
+<h4>Cosmic calendar and radioactivity</h4>
+<p>Carl Sagan's calendar maps 13.8 billion years onto one year, so one calendar second is about 437 years. Your body holds about 4,400 Bq of potassium-40, forged in supernovae before the Sun, and about 0.23 Bq of carbon-14 per gram of carbon, made by cosmic rays in the upper atmosphere. Together that is roughly 7,400 decays a second in a 70 kg adult, and the receipt scales it with your mass and carbon.</p>
+<h4>Atomic turnover</h4>
+<p>The old claim that 98% of your atoms are replaced every year comes from Paul Aebersold's 1953 radioisotope tracer work and is approximate. Body water turns over with a half-life of 7 to 10 days, and about 2.5 litres a day moves through you, roughly 3 × 10²¹ atoms a second. Some atoms stay for life, such as those in tooth enamel, the eye lens and the DNA of neurons.</p>
+<h4>Simplified for the screen</h4>
+<p>The body is a smooth idealisation, not an anatomical scan. Tissue placement is simplified. Neutron-star and cosmic-ray atoms are drawn several hundred (neutron stars) to a few thousand (cosmic rays) times more common than they are, because at true scale they would be less than one point. Turnover runs about 500,000 times faster than real life. The pulse wave crosses the body at 6 m/s (real arteries: 5–10 m/s). The galaxy behind you is a callback, not a view: nobody has seen the Milky Way from outside. The figure is lit from the galaxy's side and brightened at its silhouette, which is a rendering choice to show its shape.</p>
+<span class="cite">Johnson, J. A. (2019). Populating the periodic table: Nucleosynthesis of the elements. Science 363, 474–478.</span>
+<span class="cite">Sender, R., Fuchs, S. &amp; Milo, R. (2016). Revised estimates for the number of human and bacteria cells in the body. PLoS Biol 14, e1002533.</span>
+<span class="cite">Sender, R. &amp; Milo, R. (2021). The distribution of cellular turnover in the human body. Nat. Med. 27, 45–48.</span>
+<span class="cite">Planck Collaboration (2020). Planck 2018 results. I. Overview. A&amp;A 641, A1 (CMB dipole 369.82 ± 0.11 km/s).</span>
+<span class="cite">Reylé, C. et al. (2021). The 10 parsec sample in the Gaia era. A&amp;A 650, A201; RECONS, recons.org.</span>
+<span class="cite">GRAVITY Collaboration (2019). A geometric distance measurement to the Galactic Center black hole with 0.3% uncertainty. A&amp;A 625, L10.</span>
+<span class="cite">Fleming, S. et al. (2011). Normal ranges of heart rate and respiratory rate in children. Lancet 377, 1011–1018.</span>
+<span class="cite">Emsley, J. (1998). The Elements, 3rd ed. Oxford University Press.</span>
+<span class="cite">Sagan, C. (1977). The Dragons of Eden. Random House.</span>
+<span class="cite">Bhardwaj, R. D. et al. (2006). Neocortical neurogenesis in humans is restricted to development. PNAS 103, 12564.</span>`;
+}
+
+/* =====================================================================
+   4. CHAPTER CHROME
+   ===================================================================== */
+const ch = Cosmos.chapter({ id: 'you', notes: NOTES, science: scienceHTML(), notesFolded: true });
+const ERA = ch.meta.accent;
+
+/* =====================================================================
+   5. PROCEDURAL BODY (runs in a worker; also callable directly)
+   ===================================================================== */
+function buildGeometry(opt) {
+  var t0 = Date.now();
+  var seed = opt.seed >>> 0;
+  function rnd() { seed = (seed + 0x6d2b79f5) >>> 0; var t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
+  function gauss() { var u = 0; while (u === 0) u = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(6.283185307 * rnd()); }
+  function add(a, b) { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; }
+  function sub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+  function mul(a, k) { return [a[0] * k, a[1] * k, a[2] * k]; }
+  function dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+  function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+  function len(a) { return Math.sqrt(dot(a, a)); }
+  function norm(a) { var l = len(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; }
+  function lerp3(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
+  function sum() { var r = [0, 0, 0]; for (var i = 0; i < arguments.length; i++) { r[0] += arguments[i][0]; r[1] += arguments[i][1]; r[2] += arguments[i][2]; } return r; }
+  // 3x3 row-major
+  var I3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+  function mv(M, v) { return [M[0] * v[0] + M[1] * v[1] + M[2] * v[2], M[3] * v[0] + M[4] * v[1] + M[5] * v[2], M[6] * v[0] + M[7] * v[1] + M[8] * v[2]]; }
+  function mm(A, B) { var o = []; for (var r = 0; r < 3; r++) for (var c = 0; c < 3; c++) o.push(A[r * 3] * B[c] + A[r * 3 + 1] * B[3 + c] + A[r * 3 + 2] * B[6 + c]); return o; }
+  function tr(M) { return [M[0], M[3], M[6], M[1], M[4], M[7], M[2], M[5], M[8]]; }
+  function rotX(a) { var c = Math.cos(a), s = Math.sin(a); return [1, 0, 0, 0, c, -s, 0, s, c]; }
+  function rotY(a) { var c = Math.cos(a), s = Math.sin(a); return [c, 0, s, 0, 1, 0, -s, 0, c]; }
+  function rotZ(a) { var c = Math.cos(a), s = Math.sin(a); return [c, -s, 0, s, c, 0, 0, 0, 1]; }
+  function basis(ax, ay, az) { return [ax[0], ay[0], az[0], ax[1], ay[1], az[1], ax[2], ay[2], az[2]]; }
+  function frameAlong(dir) { var y = norm(dir); var x = cross(y, [0, 0, 1]); if (len(x) < 1e-3) x = [1, 0, 0]; x = norm(x); var z = cross(x, y); return basis(x, y, z); }
+
+  /* ---------- soft-tissue primitives ---------- */
+  var P = [];
+  function cap(a, b, ra, rb, k) { var ba = sub(b, a); P.push({ t: 0, a: a, b: b, ba: ba, bb2: Math.max(dot(ba, ba), 1e-9), ra: ra, rb: rb == null ? ra : rb, k: k == null ? 0.03 : k }); }
+  function ell(c, r, M, k) { P.push({ t: 1, c: c, r: r, Mi: tr(M || I3), k: k == null ? 0.03 : k }); }
+  function hole(c, r, k) { P.push({ t: 2, c: c, r: r, k: k }); }
+  function limbEll(a, b, t, rx, hl, rz, off, k) { var c = add(lerp3(a, b, t), off); ell(c, [rx, hl, rz], frameAlong(sub(b, a)), k); }
+
+  // head: tipped up and turned a little, as if looking at the sky
+  var HC = [-0.018, 1.636, 0.012];
+  var RH = mm(rotY(0.16), rotX(-0.17));
+  function hp(v) { return add(HC, mv(RH, v)); }
+  ell(hp([0, 0.012, -0.008]), [0.077, 0.098, 0.097], RH, 0.02);
+  ell(hp([0, 0.0, -0.045]), [0.07, 0.08, 0.065], RH, 0.03);
+  ell(hp([0, -0.05, 0.028]), [0.057, 0.06, 0.066], RH, 0.03);
+  ell(hp([0, -0.093, 0.056]), [0.027, 0.022, 0.024], RH, 0.025);
+  ell(hp([0, 0.03, 0.074]), [0.058, 0.017, 0.022], RH, 0.02);
+  ell(hp([0.042, -0.017, 0.058]), [0.022, 0.017, 0.02], RH, 0.02);
+  ell(hp([-0.042, -0.017, 0.058]), [0.022, 0.017, 0.02], RH, 0.02);
+  cap(hp([0, 0.004, 0.088]), hp([0, -0.035, 0.107]), 0.009, 0.014, 0.012);
+  ell(hp([0, -0.066, 0.082]), [0.022, 0.009, 0.011], RH, 0.012);
+  ell(hp([0.079, -0.012, -0.004]), [0.011, 0.03, 0.019], RH, 0.012);
+  ell(hp([-0.079, -0.012, -0.004]), [0.011, 0.03, 0.019], RH, 0.012);
+  hole(hp([0.032, 0.006, 0.094]), 0.017, 0.014);
+  hole(hp([-0.032, 0.006, 0.094]), 0.017, 0.014);
+  ell(hp([0.032, 0.004, 0.082]), [0.012, 0.011, 0.009], RH, 0.004);
+  ell(hp([-0.032, 0.004, 0.082]), [0.012, 0.011, 0.009], RH, 0.004);
+  // neck and torso
+  cap([-0.012, 1.425, -0.024], [-0.017, 1.575, -0.004], 0.053, 0.046, 0.04);
+  ell([-0.006, 1.272, -0.012], [0.16, 0.165, 0.104], rotZ(0.05), 0.05);
+  ell([-0.004, 1.372, -0.022], [0.182, 0.072, 0.088], rotZ(0.07), 0.05);
+  ell([0.062, 1.305, 0.058], [0.068, 0.048, 0.034], rotZ(0.1), 0.03);
+  ell([-0.074, 1.3, 0.058], [0.068, 0.048, 0.034], rotZ(-0.02), 0.03);
+  ell([0, 1.1, -0.006], [0.126, 0.12, 0.088], I3, 0.06);
+  ell([0, 1.035, 0.03], [0.1, 0.075, 0.062], I3, 0.05);
+  ell([0.002, 0.957, -0.01], [0.148, 0.105, 0.097], rotZ(-0.09), 0.05);
+  ell([-0.066, 0.915, -0.064], [0.075, 0.088, 0.064], rotZ(-0.1), 0.04);
+  ell([0.068, 0.895, -0.064], [0.075, 0.088, 0.064], rotZ(-0.1), 0.04);
+  ell([0, 1.235, -0.055], [0.155, 0.14, 0.06], rotZ(0.05), 0.05);
+  cap([-0.168, 1.402, -0.028], [0.17, 1.428, -0.028], 0.055, 0.055, 0.05);
+  cap([-0.014, 1.46, -0.036], [-0.15, 1.408, -0.03], 0.042, 0.035, 0.04);
+  cap([-0.014, 1.46, -0.036], [0.152, 1.432, -0.03], 0.042, 0.035, 0.04);
+
+  // joints (x = figure's left, y up, z forward)
+  var J = {
+    SR: [-0.198, 1.378, -0.012], ER: [-0.29, 1.1, -0.012], WR: [-0.352, 0.862, 0.045],
+    SL: [0.203, 1.402, -0.012], EL: [0.305, 1.127, 0.0], WL: [0.4, 0.895, 0.065],
+    HR: [-0.088, 0.925, -0.005], KR: [-0.085, 0.5, 0.012], AR: [-0.078, 0.085, -0.018],
+    HL: [0.088, 0.905, -0.005], KL: [0.122, 0.49, 0.068], AL: [0.168, 0.092, 0.005],
+  };
+  var HANDS = [], FEET = [];
+  function arm(S, E, W, side, open) {
+    ell(add(S, [side * 0.006, 0.004, 0]), [0.058, 0.08, 0.06], I3, 0.04);
+    cap(S, E, 0.047, 0.036, 0.03);
+    limbEll(S, E, 0.42, 0.036, 0.085, 0.038, [0, 0, 0.016], 0.03);
+    limbEll(S, E, 0.45, 0.037, 0.09, 0.034, [0, 0, -0.02], 0.03);
+    ell(E, [0.034, 0.034, 0.034], I3, 0.02);
+    cap(E, W, 0.04, 0.026, 0.025);
+    limbEll(E, W, 0.25, 0.043, 0.075, 0.038, [0, 0, 0.004], 0.03);
+    var d = norm(sub(W, E));
+    var nf = [side * open, 0, 1];
+    var n = norm(sub(nf, mul(d, dot(d, nf))));
+    var s = norm(cross(n, d)); if (s[0] * side < 0) s = mul(s, -1);
+    var B = basis(s, d, n);
+    ell(W, [0.027, 0.02, 0.018], B, 0.015);
+    ell(add(W, mul(d, 0.05)), [0.041, 0.05, 0.015], B, 0.015);
+    var kb = add(W, mul(d, 0.094));
+    var offs = [0.025, 0.0085, -0.008, -0.023], L = [0.071, 0.08, 0.075, 0.059], rr = [0.0092, 0.0095, 0.009, 0.008];
+    var fingers = [];
+    for (var j = 0; j < 4; j++) {
+      var k0 = sum(kb, mul(s, offs[j]), mul(d, -Math.abs(offs[j] - 0.004) * 0.25));
+      var m = sum(k0, mul(d, L[j] * 0.55), mul(s, offs[j] * 0.12), mul(n, 0.006));
+      var tp = sum(m, mul(d, L[j] * 0.45), mul(n, 0.02));
+      cap(k0, m, rr[j], rr[j] * 0.92, 0.006); cap(m, tp, rr[j] * 0.92, rr[j] * 0.78, 0.004);
+      fingers.push([k0, m, tp]);
+    }
+    var t0 = sum(W, mul(d, 0.03), mul(s, 0.026), mul(n, 0.01));
+    var t1 = sum(t0, mul(d, 0.032), mul(s, 0.02), mul(n, 0.02));
+    var t2 = sum(t1, mul(d, 0.026), mul(s, 0.005), mul(n, 0.02));
+    cap(t0, t1, 0.013, 0.011, 0.01); cap(t1, t2, 0.011, 0.0085, 0.006);
+    fingers.push([t0, t1, t2]);
+    HANDS.push({ W: W, E: E, d: d, n: n, s: s, fingers: fingers });
+  }
+  function leg(Hj, K, A, side, turn) {
+    cap(Hj, K, 0.08, 0.052, 0.045);
+    limbEll(Hj, K, 0.38, 0.064, 0.16, 0.058, [side * 0.012, 0, 0.024], 0.04);
+    limbEll(Hj, K, 0.42, 0.06, 0.15, 0.052, [0, 0, -0.026], 0.04);
+    limbEll(Hj, K, 0.24, 0.045, 0.1, 0.048, [-side * 0.026, 0, 0.0], 0.04);
+    ell(K, [0.049, 0.05, 0.049], I3, 0.03);
+    ell(add(K, [0, 0.005, 0.04]), [0.024, 0.026, 0.012], I3, 0.02);
+    cap(K, A, 0.05, 0.03, 0.03);
+    limbEll(K, A, 0.3, 0.05, 0.11, 0.046, [side * 0.004, 0, -0.03], 0.035);
+    limbEll(K, A, 0.34, 0.036, 0.1, 0.04, [-side * 0.012, 0, -0.022], 0.03);
+    ell(A, [0.032, 0.03, 0.034], I3, 0.02);
+    var f = norm([side * turn, 0, 1]);
+    var lat = norm(cross([0, 1, 0], f));
+    var heel = add(A, [0, -0.058, -0.03]);
+    var ball = add(add(A, mul(f, 0.13)), [0, -0.066, 0]);
+    var toe = add(add(A, mul(f, 0.19)), [0, -0.07, 0]);
+    var fy = norm(sub(ball, heel));
+    ell(lerp3(heel, ball, 0.5), [0.04, len(sub(ball, heel)) / 2 + 0.02, 0.028], basis(lat, fy, cross(lat, fy)), 0.02);
+    ell(heel, [0.03, 0.032, 0.034], I3, 0.02);
+    cap(ball, toe, 0.028, 0.02, 0.015);
+    FEET.push({ A: A, heel: heel, ball: ball, toe: toe, f: f, lat: lat, side: side });
+  }
+  arm(J.SR, J.ER, J.WR, -1, 0.35);
+  arm(J.SL, J.EL, J.WL, 1, 0.45);
+  leg(J.HR, J.KR, J.AR, -1, 0.15);
+  leg(J.HL, J.KL, J.AL, 1, 0.32);
+
+  /* ---------- distance evaluation with a coarse acceleration grid ---------- */
+  function dPrim(q, x, y, z) {
+    var px, py, pz;
+    if (q.t === 0) {
+      px = x - q.a[0]; py = y - q.a[1]; pz = z - q.a[2];
+      var hh = (px * q.ba[0] + py * q.ba[1] + pz * q.ba[2]) / q.bb2; hh = hh < 0 ? 0 : hh > 1 ? 1 : hh;
+      var dx = px - q.ba[0] * hh, dy = py - q.ba[1] * hh, dz = pz - q.ba[2] * hh;
+      return Math.sqrt(dx * dx + dy * dy + dz * dz) - (q.ra + (q.rb - q.ra) * hh);
+    }
+    px = x - q.c[0]; py = y - q.c[1]; pz = z - q.c[2];
+    if (q.t === 2) return Math.sqrt(px * px + py * py + pz * pz) - q.r;
+    var M = q.Mi;
+    var lx = (M[0] * px + M[1] * py + M[2] * pz) / q.r[0], ly = (M[3] * px + M[4] * py + M[5] * pz) / q.r[1], lz = (M[6] * px + M[7] * py + M[8] * pz) / q.r[2];
+    var k0 = Math.sqrt(lx * lx + ly * ly + lz * lz);
+    var k1 = Math.sqrt((lx / q.r[0]) * (lx / q.r[0]) + (ly / q.r[1]) * (ly / q.r[1]) + (lz / q.r[2]) * (lz / q.r[2]));
+    if (k1 < 1e-9) return -Math.min(q.r[0], q.r[1], q.r[2]);
+    return k0 * (k0 - 1) / k1;
+  }
+  function smin(a, b, k) { var hh = k - Math.abs(a - b); if (hh <= 0) return a < b ? a : b; hh /= k; return (a < b ? a : b) - hh * hh * k * 0.25; }
+  var G = 0.04, X0 = -0.64, Y0 = -0.07, Z0 = -0.3, NX = 32, NY = 48, NZ = 17;
+  var cells = new Array(NX * NY * NZ);
+  P.forEach(function (q, i) {
+    var pad = q.k + 0.014, lo, hi;
+    if (q.t === 0) { var r = Math.max(q.ra, q.rb) + pad; lo = [Math.min(q.a[0], q.b[0]) - r, Math.min(q.a[1], q.b[1]) - r, Math.min(q.a[2], q.b[2]) - r]; hi = [Math.max(q.a[0], q.b[0]) + r, Math.max(q.a[1], q.b[1]) + r, Math.max(q.a[2], q.b[2]) + r]; }
+    else { var rr2 = (q.t === 2 ? q.r : Math.max(q.r[0], q.r[1], q.r[2])) + pad; lo = sub(q.c, [rr2, rr2, rr2]); hi = add(q.c, [rr2, rr2, rr2]); }
+    var ix0 = Math.max(0, Math.floor((lo[0] - X0) / G)), ix1 = Math.min(NX - 1, Math.floor((hi[0] - X0) / G));
+    var iy0 = Math.max(0, Math.floor((lo[1] - Y0) / G)), iy1 = Math.min(NY - 1, Math.floor((hi[1] - Y0) / G));
+    var iz0 = Math.max(0, Math.floor((lo[2] - Z0) / G)), iz1 = Math.min(NZ - 1, Math.floor((hi[2] - Z0) / G));
+    for (var ix = ix0; ix <= ix1; ix++) for (var iy = iy0; iy <= iy1; iy++) for (var iz = iz0; iz <= iz1; iz++) {
+      var id = (iz * NY + iy) * NX + ix; (cells[id] || (cells[id] = [])).push(i);
+    }
+  });
+  function sdf(x, y, z) {
+    var ix = Math.floor((x - X0) / G), iy = Math.floor((y - Y0) / G), iz = Math.floor((z - Z0) / G);
+    if (ix < 0 || iy < 0 || iz < 0 || ix >= NX || iy >= NY || iz >= NZ) return 1;
+    var list = cells[(iz * NY + iy) * NX + ix];
+    if (!list) return 1;
+    var d = 1e9;
+    for (var i = 0; i < list.length; i++) {
+      var q = P[list[i]], di = dPrim(q, x, y, z);
+      if (q.t === 2) { if (d < 1e8) d = -smin(-d, di, q.k); }
+      else d = d > 1e8 ? di : smin(d, di, q.k);
+    }
+    return d > 1e8 ? 1 : d;
+  }
+  function grad(x, y, z) {
+    var e = 0.0012;
+    var a = sdf(x + e, y - e, z - e), b = sdf(x - e, y - e, z + e), c = sdf(x - e, y + e, z - e), d = sdf(x + e, y + e, z + e);
+    return norm([a - b - c + d, -a - b + c + d, -a + b - c + d]);
+  }
+  // classify the occupied cells once: cells that may hold interior points, and cells that straddle the skin
+  var volCells = [], surfCells = [], hc = G * 0.8661 * 1.3;
+  for (var id = 0; id < cells.length; id++) {
+    if (!cells[id]) continue;
+    var cx = id % NX, cy = ((id / NX) | 0) % NY, cz = (id / (NX * NY)) | 0;
+    var dc = sdf(X0 + (cx + 0.5) * G, Y0 + (cy + 0.5) * G, Z0 + (cz + 0.5) * G);
+    if (dc < hc) volCells.push(id);
+    if (Math.abs(dc) < hc + 0.014) surfCells.push(id);
+  }
+  function randIn(list) {
+    var id = list[(rnd() * list.length) | 0];
+    var ix = id % NX, iy = ((id / NX) | 0) % NY, iz = (id / (NX * NY)) | 0;
+    return [X0 + (ix + rnd()) * G, Y0 + (iy + rnd()) * G, Z0 + (iz + rnd()) * G];
+  }
+  // normals ride along: unit length on the skin, fading to zero with depth inside, so the shader can light the body
+  var surf = new Float32Array(opt.nSurf * 3), vol = new Float32Array(opt.nVol * 3), surfN = new Float32Array(opt.nSurf * 3), volN = new Float32Array(opt.nVol * 3);
+  var ns = 0, nv = 0, tries = 0, maxTries = opt.nVol * 40;
+  while (nv < opt.nVol && tries++ < maxTries) {
+    var p = randIn(volCells);
+    var dp = sdf(p[0], p[1], p[2]);
+    if (dp >= 0) continue;
+    var gv = grad(p[0], p[1], p[2]), wv = Math.max(0, Math.min(1, 1 + dp / 0.035));
+    vol[nv * 3] = p[0]; vol[nv * 3 + 1] = p[1]; vol[nv * 3 + 2] = p[2];
+    volN[nv * 3] = gv[0] * wv; volN[nv * 3 + 1] = gv[1] * wv; volN[nv * 3 + 2] = gv[2] * wv; nv++;
+  }
+  tries = 0; maxTries = opt.nSurf * 80;
+  while (ns < opt.nSurf && tries++ < maxTries) {
+    var q = randIn(surfCells), dq = sdf(q[0], q[1], q[2]);
+    if (dq >= 0 || dq < -0.012) continue;
+    // Newton steps onto the zero level set, then a hair inside it
+    var g;
+    for (var it = 0; it < 3; it++) { g = grad(q[0], q[1], q[2]); q = sub(q, mul(g, dq)); dq = sdf(q[0], q[1], q[2]); if (Math.abs(dq) < 0.0004) break; }
+    if (Math.abs(dq) > 0.0015) continue;
+    q = sub(q, mul(g, Math.abs(gauss()) * 0.0012));
+    surf[ns * 3] = q[0]; surf[ns * 3 + 1] = q[1]; surf[ns * 3 + 2] = q[2];
+    surfN[ns * 3] = g[0]; surfN[ns * 3 + 1] = g[1]; surfN[ns * 3 + 2] = g[2]; ns++;
+  }
+
+  /* ---------- skeleton (sampled directly, kept inside the body) ---------- */
+  var BONES = [];
+  function bCap(a, b, r, w) {
+    var ba = sub(b, a), L = len(ba), ax = norm(ba), x = norm(cross(ax, Math.abs(ax[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0])), y = cross(ax, x);
+    BONES.push({ w: (w || 1) * L * r * 6.283 + 1e-6, f: function () { var t = rnd(), an = rnd() * 6.2832, rr = r * (0.7 + 0.3 * Math.sqrt(rnd())); return sum(a, mul(ba, t), mul(x, Math.cos(an) * rr), mul(y, Math.sin(an) * rr)); } });
+  }
+  function bEll(c, r, M, w, shell) {
+    var ap = Math.pow((Math.pow(r[0] * r[1], 1.6) + Math.pow(r[0] * r[2], 1.6) + Math.pow(r[1] * r[2], 1.6)) / 3, 1 / 1.6) * 12.566;
+    BONES.push({ w: (w || 1) * ap, f: function () {
+      var z = 2 * rnd() - 1, ph = 6.2832 * rnd(), s = Math.sqrt(1 - z * z), dir = [s * Math.cos(ph), z, s * Math.sin(ph)];
+      var k = shell ? (shell + (1 - shell) * rnd()) : Math.cbrt(rnd()) * 0.5 + 0.5;
+      return add(c, mv(M || I3, [dir[0] * r[0] * k, dir[1] * r[1] * k, dir[2] * r[2] * k]));
+    } });
+  }
+  function bCurve(pts, r, w) { for (var i = 0; i < pts.length - 1; i++) bCap(pts[i], pts[i + 1], r, w); }
+  function bTri(a, b, c, th, w) {
+    var ar = len(cross(sub(b, a), sub(c, a))) * 0.5, nn = norm(cross(sub(b, a), sub(c, a)));
+    BONES.push({ w: (w || 1) * ar * 2, f: function () { var u = rnd(), v = rnd(); if (u + v > 1) { u = 1 - u; v = 1 - v; } return sum(a, mul(sub(b, a), u), mul(sub(c, a), v), mul(nn, (rnd() - 0.5) * th)); } });
+  }
+  // skull, face and jaw
+  bEll(hp([0, 0.014, -0.012]), [0.069, 0.088, 0.087], RH, 1, 0.9);
+  bEll(hp([0, -0.03, 0.05]), [0.045, 0.032, 0.022], RH, 0.8, 0.8);
+  bCurve([hp([0.052, -0.035, -0.012]), hp([0.048, -0.078, 0.02]), hp([0.02, -0.095, 0.052]), hp([-0.02, -0.095, 0.052]), hp([-0.048, -0.078, 0.02]), hp([-0.052, -0.035, -0.012])], 0.007, 1);
+  // spine
+  function spineZ(y) { if (y > 1.45) return -0.03 + (y - 1.45) * 0.1; if (y > 1.15) return -0.03 - Math.sin((1.45 - y) / 0.3 * Math.PI) * 0.042; return -0.03 - (y - 1.0) * 0.1; }
+  for (var v = 0; v < 24; v++) {
+    var yy = 1.56 - v * (0.56 / 23), rv = 0.012 + 0.011 * (v / 23);
+    var cc = [-0.01 + 0.006 * Math.sin((1.56 - yy) * 5), yy, spineZ(yy)];
+    bEll(cc, [rv * 1.25, rv * 0.62, rv], I3, 1, 0.6);
+    bCap(cc, add(cc, [0, -0.01, -0.028 - v * 0.0006]), 0.004, 1);
+    if (v > 0 && v < 20) bCap(add(cc, [-0.022, 0, -0.012]), add(cc, [0.022, 0, -0.012]), 0.004, 0.6);
+  }
+  bEll([0, 0.955, -0.075], [0.042, 0.055, 0.016], rotX(0.45), 1.2, 0.6);
+  // rib cage
+  for (var k = 0; k < 12; k++) {
+    var yb = 1.405 - k * 0.021, yf = yb - 0.07 - k * 0.004;
+    var ax2 = 0.06 + 0.078 * Math.sin(Math.min(1, (k + 1) / 7) * Math.PI / 2) - Math.max(0, k - 8) * 0.009;
+    var cz = 0.072 + 0.02 * Math.min(1, k / 6), z0 = -0.012;
+    var phiMax = k < 7 ? 2.62 : k < 10 ? 2.3 : 1.55;
+    for (var sd = -1; sd <= 1; sd += 2) {
+      var pts = [];
+      for (var q2 = 0; q2 <= 10; q2++) { var ph2 = 0.3 + (phiMax - 0.3) * q2 / 10; pts.push([-0.006 + sd * ax2 * Math.sin(ph2), yb + (yf - yb) * (ph2 / Math.PI), z0 - cz * Math.cos(ph2)]); }
+      bCurve(pts, 0.0055, 1);
+    }
+  }
+  bCap([-0.006, 1.378, 0.074], [-0.006, 1.2, 0.09], 0.011, 1.4);
+  // shoulder girdle
+  bCurve([[-0.022, 1.392, 0.062], [-0.09, 1.405, 0.052], [-0.165, 1.418, -0.004]], 0.007, 1);
+  bCurve([[0.012, 1.395, 0.062], [0.085, 1.418, 0.052], [0.165, 1.44, -0.004]], 0.007, 1);
+  bTri([-0.05, 1.37, -0.095], [-0.16, 1.39, -0.07], [-0.08, 1.24, -0.1], 0.004, 1);
+  bTri([0.05, 1.39, -0.095], [0.165, 1.415, -0.07], [0.09, 1.265, -0.1], 0.004, 1);
+  // pelvis
+  bEll([-0.098, 0.995, -0.025], [0.07, 0.06, 0.012], mm(rotZ(-0.09), rotY(-0.55)), 1, 0.5);
+  bEll([0.1, 0.978, -0.025], [0.07, 0.06, 0.012], mm(rotZ(-0.09), rotY(0.55)), 1, 0.5);
+  bCurve([[-0.085, 0.905, 0.025], [-0.035, 0.885, 0.052], [0.035, 0.878, 0.052], [0.085, 0.89, 0.025]], 0.009, 1);
+  bCap([-0.08, 0.91, 0.0], [-0.062, 0.86, -0.03], 0.011, 1);
+  bCap([0.08, 0.89, 0.0], [0.062, 0.84, -0.03], 0.011, 1);
+  // arms and hands
+  HANDS.forEach(function (H, i) {
+    var S = i === 0 ? J.SR : J.SL, side = i === 0 ? -1 : 1;
+    bEll(add(S, [side * -0.004, -0.004, 0]), [0.022, 0.022, 0.022], I3, 1, 0.7);
+    bCap(add(S, [0, -0.02, 0]), add(H.E, [0, 0.02, 0]), 0.0105, 1);
+    bEll(H.E, [0.024, 0.012, 0.014], I3, 1, 0.6);
+    bCap(add(H.E, mul(H.s, 0.011)), add(H.W, mul(H.s, 0.012)), 0.0065, 1);
+    bCap(add(H.E, mul(H.s, -0.011)), add(H.W, mul(H.s, -0.01)), 0.006, 1);
+    bEll(add(H.W, mul(H.d, 0.014)), [0.021, 0.014, 0.009], basis(H.s, H.d, H.n), 1, 0.5);
+    H.fingers.forEach(function (fg, j) {
+      if (j < 4) bCap(add(add(H.W, mul(H.d, 0.024)), mul(H.s, [0.013, 0.004, -0.004, -0.012][j])), fg[0], 0.0042, 1.4);
+      bCap(fg[0], fg[1], 0.0038, 1.6); bCap(fg[1], fg[2], 0.0033, 1.6);
+    });
+  });
+  // legs and feet
+  [[J.HR, J.KR, J.AR, -1], [J.HL, J.KL, J.AL, 1]].forEach(function (L2, i) {
+    var Hj = L2[0], K = L2[1], A = L2[2], side = L2[3], F = FEET[i];
+    var head = add(Hj, [-side * 0.005, 0.005, 0]), troch = add(Hj, [side * 0.045, -0.02, -0.005]);
+    bEll(head, [0.023, 0.023, 0.023], I3, 1, 0.6);
+    bCap(head, troch, 0.013, 1);
+    bCap(troch, add(K, [side * 0.004, 0.035, -0.004]), 0.0135, 1);
+    bEll(add(K, [0, 0.014, -0.006]), [0.04, 0.02, 0.026], I3, 1, 0.6);
+    bEll(add(K, [0, 0.01, 0.042]), [0.02, 0.022, 0.009], I3, 1, 0.6);
+    bEll(add(K, [0, -0.03, -0.004]), [0.035, 0.012, 0.026], I3, 1, 0.6);
+    bCap(add(K, [-side * 0.006, -0.03, 0.004]), add(A, [-side * 0.004, 0.014, 0.004]), 0.0135, 1);
+    bCap(add(K, [side * 0.028, -0.035, -0.012]), add(A, [side * 0.02, 0.004, -0.012]), 0.006, 1);
+    bEll(add(A, [0, -0.018, 0]), [0.02, 0.014, 0.024], I3, 1, 0.6);
+    bEll(add(F.heel, [0, 0.01, 0.012]), [0.018, 0.02, 0.032], I3, 1, 0.6);
+    for (var m2 = -2; m2 <= 2; m2++) {
+      var o = m2 * 0.011;
+      var b0 = sum(A, mul(F.f, 0.045), mul(F.lat, o * 0.8), [0, -0.042, 0]);
+      var b1 = sum(F.ball, mul(F.lat, o * 1.5), [0, 0.005, 0]);
+      var b2 = sum(F.toe, mul(F.lat, o * 1.7), [0, 0.006, 0]);
+      bCap(b0, b1, 0.0048, 1.2); bCap(b1, b2, 0.0036, 1.2);
+    }
+  });
+  var bw = 0; BONES.forEach(function (b) { bw += b.w; b.cw = bw; });
+  var bone = new Float32Array(opt.nBone * 3), nb = 0, bt = 0;
+  while (nb < opt.nBone && bt++ < opt.nBone * 30) {
+    var rr3 = rnd() * bw, lo = 0, hi = BONES.length - 1;
+    while (lo < hi) { var mid = (lo + hi) >> 1; if (BONES[mid].cw < rr3) lo = mid + 1; else hi = mid; }
+    var bp = BONES[lo].f();
+    if (sdf(bp[0], bp[1], bp[2]) > -0.0015) continue;
+    bone[nb * 3] = bp[0]; bone[nb * 3 + 1] = bp[1]; bone[nb * 3 + 2] = bp[2]; nb++;
+  }
+  /* ---------- thyroid (two lobes and an isthmus) ---------- */
+  var thy = new Float32Array(opt.nThy * 3), nt = 0, tt2 = 0;
+  var TL = [[[-0.031, 1.472, 0.016], [0.011, 0.022, 0.01]], [[0.007, 1.472, 0.016], [0.011, 0.022, 0.01]], [[-0.012, 1.46, 0.022], [0.013, 0.006, 0.006]]];
+  while (nt < opt.nThy && tt2++ < opt.nThy * 50) {
+    var lobe = TL[rnd() < 0.44 ? 0 : rnd() < 0.8 ? 1 : 2], c2 = lobe[0], r2 = lobe[1];
+    var pt = [c2[0] + (rnd() * 2 - 1) * r2[0], c2[1] + (rnd() * 2 - 1) * r2[1], c2[2] + (rnd() * 2 - 1) * r2[2]];
+    var e2 = ((pt[0] - c2[0]) / r2[0]) ** 2 + ((pt[1] - c2[1]) / r2[1]) ** 2 + ((pt[2] - c2[2]) / r2[2]) ** 2;
+    if (e2 > 1 || sdf(pt[0], pt[1], pt[2]) > -0.002) continue;
+    thy[nt * 3] = pt[0]; thy[nt * 3 + 1] = pt[1]; thy[nt * 3 + 2] = pt[2]; nt++;
+  }
+  return { surf: surf, vol: vol, surfN: surfN, volN: volN, bone: bone, thy: thy, ns: ns, nv: nv, nb: nb, nt: nt, prims: P.length, bones: BONES.length, ms: Date.now() - t0 };
+}
+
+// The body is sampled in parallel: K workers each take a share of every point budget with their own seed.
+function geometryAsync(opt) {
+  const K = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1));
+  const part = (k) => ({ seed: opt.seed + k * 7919, nSurf: Math.ceil(opt.nSurf / K), nVol: Math.ceil(opt.nVol / K), nBone: Math.ceil(opt.nBone / K), nThy: Math.ceil(opt.nThy / K) });
+  const merge = (list) => {
+    const out = { ns: 0, nv: 0, nb: 0, nt: 0, prims: list[0].prims, ms: 0, workers: list.length };
+    [['surf', 'ns'], ['vol', 'nv'], ['surfN', 'ns'], ['volN', 'nv'], ['bone', 'nb'], ['thy', 'nt']].forEach(([key, n]) => {
+      let tot = 0; list.forEach((r) => { tot += r[n]; });
+      const arr = new Float32Array(tot * 3); let o = 0;
+      list.forEach((r) => { arr.set(r[key].subarray(0, r[n] * 3), o); o += r[n] * 3; });
+      out[key] = arr; out[n] = tot;
+    });
+    list.forEach((r) => { out.ms = Math.max(out.ms, r.ms); });
+    return out;
+  };
+  const t0 = performance.now();
+  return new Promise(function (resolve) {
+    let settled = false;
+    const finish = (list) => { if (settled) return; settled = true; const g = merge(list); g.wall = Math.round(performance.now() - t0); resolve(g); };
+    const direct = () => { if (settled) return; const list = []; for (let k = 0; k < K; k++) list.push(buildGeometry(part(k))); finish(list); };
+    let url = null;
+    try {
+      const src = buildGeometry.toString() + '\nonmessage = function (e) { var r = buildGeometry(e.data); postMessage(r, [r.surf.buffer, r.vol.buffer, r.surfN.buffer, r.volN.buffer, r.bone.buffer, r.thy.buffer]); };';
+      url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+      const results = new Array(K); let got = 0; const ws = [];
+      for (let k = 0; k < K; k++) {
+        const w = new Worker(url); ws.push(w);
+        w.onmessage = (e) => { results[k] = e.data; w.terminate(); if (++got === K) { URL.revokeObjectURL(url); finish(results); } };
+        w.onerror = (e) => { if (e.preventDefault) e.preventDefault(); ws.forEach((x) => x.terminate()); direct(); };
+        w.postMessage(part(k));
+      }
+    } catch (err) { if (url) URL.revokeObjectURL(url); direct(); }
+  });
+}
+
+/* =====================================================================
+   6. WEBGL
+   ===================================================================== */
+const canvas = ch.canvas('yo-gl');
+const gl = Cosmos.gl.context(canvas, { antialias: false });
+if (!gl) { ch.fatal('This chapter draws you with WebGL2, which this browser or device does not provide.'); return; }
+const HDR = gl.ext.floatRT || gl.ext.halfFloatRT;
+const RT_FMT = HDR ? { internal: gl.RGBA16F, format: gl.RGBA, type: gl.HALF_FLOAT } : { internal: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE };
+const lin = (hex) => U.rgbf(hex).map((v) => Math.pow(v, 2.2));
+
+const NMAIN = SMALL ? 60000 : 120000;
+const NMAG = SMALL ? 260 : 420;
+const NTOT = NMAIN + NMAG;
+
+/* ---------- shaders ---------- */
+const FIG_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPosM;
+layout(location=1) in vec3 aPosN;
+layout(location=2) in vec4 aInfo;
+layout(location=3) in vec4 aRnd;
+layout(location=4) in vec4 aExt;
+layout(location=5) in vec3 aNrmM;
+layout(location=6) in vec3 aNrmN;
+uniform mat4 uView, uProj, uModel;
+uniform vec3 uKeyV, uKeyCol;
+uniform float uLight, uEcho;
+uniform float uHiBoost, uCenterD, uFlash;
+uniform float uTime, uMix, uColMode, uHi, uHiAmt, uHiEl, uAsm, uTurn, uSize, uGain, uBeatT, uBreath, uMag, uPick, uFocal, uMinPx;
+uniform vec3 uSrcCol[6];
+uniform vec3 uCatCol[12];
+uniform vec3 uCamR, uCamU, uCamF, uFigC;
+uniform vec4 uForm[6];
+out vec3 vCol;
+out float vA;
+const vec3 HEART = vec3(0.03, 1.255, 0.035);
+const float TAU = 6.2831853;
+float hash1(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
+vec3 sph(float a, float b) { float z = 2.0 * a - 1.0; float r = sqrt(max(0.0, 1.0 - z * z)); float p = TAU * b; return vec3(r * cos(p), z, r * sin(p)); }
+mat3 rY(float a) { float c = cos(a), s = sin(a); return mat3(c, 0.0, -s, 0.0, 1.0, 0.0, s, 0.0, c); }
+mat3 rX(float a) { float c = cos(a), s = sin(a); return mat3(1.0, 0.0, 0.0, 0.0, c, s, 0.0, -s, c); }
+mat3 rZ(float a) { float c = cos(a), s = sin(a); return mat3(c, s, 0.0, -s, c, 0.0, 0.0, 0.0, 1.0); }
+// sums of plane waves in odd directions: their zero sets are curved filaments, never straight seams
+float wav(vec3 d, float t) {
+  return (sin(dot(d, vec3(5.1, 2.3, -3.7)) + 1.7) + 0.8 * sin(dot(d, vec3(-2.9, 6.1, 1.3)) - 0.4)
+        + 0.7 * sin(dot(d, vec3(1.7, -3.3, 6.6)) + 2.2) + 0.45 * sin(dot(d, vec3(9.3, -6.1, 7.7)) + t * 0.15)
+        + 0.3 * sin(dot(d, vec3(-13.1, 9.7, 11.3)) - t * 0.1)) / 2.2;
+}
+vec4 formation(int s, float u1, float u2, float u3, float u4, float t) {
+  vec4 F = uForm[s]; float R = F.z; vec3 p; float br = 1.0;
+  if (s == 0) {                       // Big Bang: a hot, dense fireball whose skin is mottled like the first light
+    vec3 d = sph(u1, u2);
+    float shell = step(u4, 0.55);
+    float r = R * mix(pow(u3, 0.55), 0.96 + 0.04 * u3, shell);
+    float n = wav(d * 1.6, t);
+    p = rY(t * 0.12) * (d * r * (1.0 + 0.03 * sin(t * 0.9 + u4 * 6.0)));
+    br = mix(0.45 + 1.4 * exp(-3.0 * r / R), 0.65 + 0.95 * n, shell);
+  } else if (s == 1) {                // planetary nebula: ring, faint bipolar lobes, a white dwarf
+    if (u4 < 0.72) {
+      float th = TAU * u1 + t * 0.08, ph = TAU * u2, rt = R * 0.17 * sqrt(u3), rr = R * 0.8 + rt * cos(ph);
+      p = vec3(rr * cos(th), rt * sin(ph) * 0.9, rr * sin(th));
+      br = 0.8 + 0.5 * sin(th * 5.0 + ph);
+    } else if (u4 < 0.975) {
+      vec3 d = sph(u1, u2); p = d * R * 0.66 * pow(u3, 0.3); p.y *= 1.75; p.xz *= 0.6; br = 0.35;
+    } else { p = sph(u1, u2) * R * 0.03 * u3; br = 2.5; }
+    p = rZ(0.45) * rX(1.1) * p;
+  } else if (s == 2) {                // core-collapse remnant: knotted filaments on an expanding shell
+    vec3 d = sph(u1, u2);
+    float n = wav(d * 1.25, t) + 0.25 * wav(d.zxy * 3.1 + 1.3, -t);
+    float ridge = clamp(1.0 - abs(n) * 2.6, 0.0, 1.0); ridge = ridge * ridge * ridge;
+    if (u4 < 0.1) { p = d * R * 0.8 * pow(u3, 0.6); br = 0.28; }
+    else if (u4 > 0.9985) { p = d * R * 0.018 * u3; br = 5.0; }
+    else { p = d * R * (0.84 + 0.05 * u3 + 0.14 * n + 0.05 * ridge); br = 0.18 + 1.7 * ridge; }
+    p = rY(t * 0.05) * p;
+  } else if (s == 3) {                // type Ia remnant: a smooth, thin, limb-bright shell
+    vec3 d = sph(u1, u2); p = rY(-t * 0.09) * (d * R * (0.93 + 0.07 * u3)); br = 1.1;
+  } else if (s == 4) {                // kilonova: fast equatorial torus and polar outflows
+    if (u4 < 0.62) { float th = TAU * u1 + t * 0.5; float rr = R * (0.35 + 0.65 * sqrt(u3)); p = vec3(rr * cos(th), R * 0.09 * (u2 - 0.5), rr * sin(th)); }
+    else { vec3 d = sph(u1 * 0.25 + (u4 < 0.81 ? 0.0 : 0.75), u2); p = d * R * (0.4 + 0.9 * u3); }
+    p = rX(0.35) * p;
+  } else {                            // cosmic rays: straight, fast tracks
+    float lane = floor(u1 * 11.0);
+    vec3 dir = normalize(vec3(hash1(lane) * 2.0 - 1.0, hash1(lane + 3.1) * 1.4 - 0.7, hash1(lane + 7.7) * 0.8 - 0.4));
+    float sp = fract(u2 + t * (0.18 + 0.2 * hash1(lane + 1.3)));
+    vec3 side = normalize(cross(dir, vec3(0.0, 0.0, 1.0)));
+    p = dir * (sp * 2.0 - 1.0) * R * 1.3 + side * (u3 - 0.5) * R * 0.05;
+    br = 0.6 + 1.2 * sp;
+  }
+  return vec4(vec3(F.xy, 0.0) + p, max(br, 0.04));
+}
+void main() {
+  float mx = clamp(uMix * 1.6 - aRnd.x * 0.6, 0.0, 1.0); mx = mx * mx * (3.0 - 2.0 * mx);
+  bool useN = mx > 0.5;
+  float src = useN ? aInfo.y : aInfo.x;
+  float cat = useN ? aInfo.w : aInfo.z;
+  float kind = useN ? aExt.y : aExt.x;
+  vec3 bp = mix(aPosM, aPosN, mx);
+  // breathing: the rib cage and belly swell, shoulders lift a little
+  float torso = smoothstep(0.92, 1.06, bp.y) * (1.0 - smoothstep(1.36, 1.47, bp.y)) * (1.0 - smoothstep(0.16, 0.24, abs(bp.x)));
+  bp.xz += (bp.xz - vec2(0.0, -0.035)) * uBreath * 0.045 * torso;
+  bp.y += uBreath * 0.006 * smoothstep(1.25, 1.42, bp.y);
+  // heartbeat: a pressure pulse leaves the heart at ~6 m/s
+  float dH = length(bp - HEART);
+  float tt = uBeatT - dH / 6.0;
+  float wave = exp(-tt * tt * 300.0) * (0.3 + 0.7 * exp(-dH * 1.3));
+  float nearH = exp(-dH * dH * 220.0);
+  float core = nearH * (exp(-max(uBeatT, 0.0) * 7.0) + 0.55 * step(0.3, uBeatT) * exp(-max(uBeatT - 0.3, 0.0) * 9.0));
+  bp += (bp - HEART) / max(dH, 1e-3) * wave * 0.003;
+  vec3 body = (uModel * vec4(bp, 1.0)).xyz;
+  // atomic turnover: some atoms leave, new ones arrive
+  float alpha = 1.0;
+  float ph = fract(uTime / 70.0 + aRnd.y);
+  const float W = 0.045;
+  if (uTurn > 0.0 && ph < W) {
+    float s = ph / W; vec3 moved = body; float a2;
+    if (s < 0.5) { float k = s * 2.0; vec3 outD = normalize(vec3(sin(aRnd.y * 91.0), 0.3 + fract(aRnd.y * 37.0), cos(aRnd.y * 53.0))); moved += outD * k * k * 1.1 + vec3(0.0, k * 0.4, 0.0); a2 = 1.0 - k; }
+    else { float k = (s - 0.5) * 2.0; vec3 inD = sph(fract(aRnd.y * 13.1), fract(aRnd.y * 29.7)); moved += inD * (1.0 - k) * (1.0 - k) * 2.4; a2 = k; }
+    body = mix(body, moved, uTurn); alpha = mix(1.0, a2, uTurn);
+  }
+  // the cosmic tableau: each point waits at the place its atom was made
+  vec4 f4 = formation(int(src + 0.5), aRnd.z, aRnd.w, aExt.w, hash1(aRnd.x * 97.0 + aRnd.w * 13.0), uTime);
+  vec3 f = f4.xyz;
+  vec3 fw = uFigC + uCamR * f.x + uCamU * f.y + uCamF * f.z;
+  float a = clamp(uAsm * 1.55 - aRnd.x * 0.55, 0.0, 1.0);
+  float e = a * a * (3.0 - 2.0 * a);
+  vec3 ctrl = mix(fw, body, 0.5) + uCamU * 0.3 * (aRnd.w - 0.3) + uCamR * 0.45 * (aRnd.z - 0.5) + uCamF * 0.5 * (aExt.w - 0.5);
+  vec3 P = mix(mix(fw, ctrl, e), mix(ctrl, body, e), e);
+  float flight = sin(e * 3.14159);
+  if (aExt.z > 0.5) alpha *= max(uMag, 1.0 - e);
+  vec3 col = mix(uSrcCol[int(src + 0.5)], uCatCol[int(cat + 0.5)], uColMode);
+  float isHi = uHiEl > 0.5 ? step(abs(cat - uHi), 0.5) : step(abs(src - uHi), 0.5);
+  float hiF = mix(1.0, mix(0.065, 1.6 * uHiBoost, isHi), uHiAmt);
+  float b = uGain * (0.42 + 2.3 * pow(fract(aRnd.w * 7.31), 7.0));
+  b *= mix(f4.w * 0.62, 1.0, e);
+  if (kind > 1.5 && kind < 2.5) b *= 1.2;
+  if (aExt.z > 0.5) b *= 2.2;
+  b *= 1.0 + e * (2.2 * wave + 3.4 * core);
+  b *= 1.0 + uFlash * (1.2 + 1.5 * sin(3.14159 * clamp(uFlash * 1.3 - aRnd.x * 0.3, 0.0, 1.0)));
+  b *= 1.0 + 1.3 * flight;
+  b *= hiF * alpha;
+  // the light echo: you shrink into the Sun
+  float ec = uEcho * uEcho * (3.0 - 2.0 * uEcho);
+  P = mix(P, uFigC + (P - uFigC) * 0.03, ec);
+  b *= 1.0 - 0.985 * ec;
+  vec4 vp = uView * vec4(P, 1.0);
+  gl_Position = uProj * vp;
+  // sculptural light: the skin normal gives a rim at the silhouette, a soft key from the galaxy side,
+  // and dims the far side of the body so it reads as a solid form rather than a flat cloud
+  vec3 nrm = mix(aNrmM, aNrmN, mx);
+  float nw = length(nrm);
+  if (nw > 0.02) {
+    vec3 nV = mat3(uView) * (mat3(uModel) * (nrm / nw));
+    vec3 vdir = normalize(-vp.xyz);
+    float ndv = dot(nV, vdir);
+    float rim = pow(1.0 - abs(ndv), 2.6);
+    float key = max(dot(nV, uKeyV), 0.0);
+    float front = 0.42 + 0.58 * smoothstep(-0.35, 0.45, ndv);
+    float lit = front * (0.6 + 1.55 * rim) + 0.5 * key * key;
+    float k = nw * e * uLight;
+    b *= mix(1.0, lit, k);
+    col = mix(col, col * 0.55 + uKeyCol * 0.45, 0.35 * key * rim * k);
+  }
+  float depth = clamp((-vp.z - uCenterD) / 0.22, -1.0, 1.0);
+  b *= 1.0 - 0.38 * depth * e;
+  float px = uSize * (0.7 + 0.6 * fract(aRnd.z * 5.3)) * (aExt.z > 0.5 ? 1.8 : 1.0) * uFocal / max(-vp.z, 0.05);
+  if (px < uMinPx) { b *= (px * px) / (uMinPx * uMinPx); px = uMinPx; }
+  if (abs(float(gl_VertexID) - uPick) < 0.5) { px *= 3.5; b *= 5.0; }
+  gl_PointSize = px;
+  vCol = col; vA = b;
+  if (alpha <= 0.002) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+}`;
+const PT_FS = `#version 300 es
+precision mediump float;
+in vec3 vCol; in float vA; out vec4 o;
+void main() { vec2 q = gl_PointCoord * 2.0 - 1.0; float r2 = dot(q, q); if (r2 > 1.0) discard; float g = exp(-r2 * 3.4) - 0.033; o = vec4(vCol * vA * max(g, 0.0), 1.0); }`;
+const STAR_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aDir;
+layout(location=1) in vec4 aC;
+uniform mat4 uVR, uProj; uniform float uTime, uDpr, uGain;
+out vec3 vCol; out float vA;
+void main() {
+  gl_Position = uProj * uVR * vec4(aDir * 80.0, 1.0);
+  float tw = 0.78 + 0.22 * sin(uTime * (1.1 + fract(aC.w * 91.7) * 2.3) + aC.w * 40.0);
+  gl_PointSize = (1.0 + 2.3 * aC.w) * uDpr;
+  vCol = aC.rgb; vA = aC.w * tw * uGain;
+}`;
+const GAL_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aP;
+layout(location=1) in vec4 aC;
+uniform mat4 uVR, uProj, uGal; uniform float uAng, uDpr, uGain;
+out vec3 vCol; out float vA;
+void main() {
+  vec3 q = aP; float c = cos(uAng), s = sin(uAng); q.xz = vec2(c * q.x - s * q.z, s * q.x + c * q.z);
+  gl_Position = uProj * uVR * uGal * vec4(q, 1.0);
+  gl_PointSize = (1.3 + 1.6 * aC.w) * uDpr;
+  vCol = aC.rgb; vA = aC.w * uGain;
+}`;
+const LINE_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec4 aP;
+uniform mat4 uView, uProj, uModel; uniform float uA;
+out float vA;
+void main() { gl_Position = uProj * uView * uModel * vec4(aP.xyz, 1.0); vA = aP.w * uA; }`;
+const LINE_FS = `#version 300 es
+precision mediump float;
+in float vA; uniform vec3 uCol; out vec4 o;
+void main() { o = vec4(uCol * vA, 1.0); }`;
+const DOWN_FS = `#version 300 es
+precision highp float;
+in vec2 vUv; uniform sampler2D uTex; uniform vec2 uTexel; uniform float uThresh; uniform float uFirst; out vec4 o;
+void main() {
+  vec3 s = texture(uTex, vUv + uTexel * vec2(-1.0, -1.0)).rgb + texture(uTex, vUv + uTexel * vec2(1.0, -1.0)).rgb
+         + texture(uTex, vUv + uTexel * vec2(-1.0, 1.0)).rgb + texture(uTex, vUv + uTexel * vec2(1.0, 1.0)).rgb;
+  s *= 0.25;
+  if (uFirst > 0.5) { float br = max(s.r, max(s.g, s.b)); float k = max(br - uThresh, 0.0); k = k * k / (k + 0.5); s *= k / max(br, 1e-4); }
+  o = vec4(min(s, vec3(60.0)), 1.0);
+}`;
+const UP_FS = `#version 300 es
+precision highp float;
+in vec2 vUv; uniform sampler2D uTex; uniform vec2 uTexel; uniform float uK; out vec4 o;
+void main() {
+  vec2 t = uTexel;
+  vec3 s = texture(uTex, vUv + t * vec2(-1.0, -1.0)).rgb + 2.0 * texture(uTex, vUv + t * vec2(0.0, -1.0)).rgb + texture(uTex, vUv + t * vec2(1.0, -1.0)).rgb
+         + 2.0 * texture(uTex, vUv + t * vec2(-1.0, 0.0)).rgb + 4.0 * texture(uTex, vUv).rgb + 2.0 * texture(uTex, vUv + t * vec2(1.0, 0.0)).rgb
+         + texture(uTex, vUv + t * vec2(-1.0, 1.0)).rgb + 2.0 * texture(uTex, vUv + t * vec2(0.0, 1.0)).rgb + texture(uTex, vUv + t * vec2(1.0, 1.0)).rgb;
+  o = vec4(s / 16.0 * uK, 1.0);
+}`;
+const COMP_FS = `#version 300 es
+precision highp float;
+in vec2 vUv; uniform sampler2D uScene, uBloom; uniform float uBloomK, uExpo, uT, uAspect; uniform vec3 uVoid; out vec4 o;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+void main() {
+  vec3 c = texture(uScene, vUv).rgb + texture(uBloom, vUv).rgb * uBloomK;
+  c *= uExpo;
+  c = clamp((c * (2.51 * c + 0.03)) / (c * (2.43 * c + 0.59) + 0.14), 0.0, 1.0);
+  vec2 q = (vUv - 0.5) * vec2(uAspect, 1.0);
+  c *= mix(0.74, 1.0, smoothstep(1.05, 0.28, length(q)));
+  c += uVoid;
+  c = pow(c, vec3(1.0 / 2.2));
+  c += (hash(gl_FragCoord.xy + fract(uT) * 91.0) - 0.5) / 255.0;
+  o = vec4(c, 1.0);
+}`;
+
+let progFig, progStar, progGal, progLine, progDown, progUp, progComp;
+try {
+  progFig = Cosmos.gl.program(gl, FIG_VS, PT_FS);
+  progStar = Cosmos.gl.program(gl, STAR_VS, PT_FS);
+  progGal = Cosmos.gl.program(gl, GAL_VS, PT_FS);
+  progLine = Cosmos.gl.program(gl, LINE_VS, LINE_FS);
+  progDown = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, DOWN_FS);
+  progUp = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, UP_FS);
+  progComp = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, COMP_FS);
+} catch (err) { ch.fatal('A shader failed to compile on this device.', err); return; }
+const drawQuad = Cosmos.gl.quad(gl);
+
+/* ---------- render targets ---------- */
+let scene = null, bloom = [], rtW = 0, rtH = 0;
+function makeTargets() {
+  const W = canvas.width, H = canvas.height;
+  if (W === rtW && H === rtH && scene) return;
+  [scene].concat(bloom).forEach((t) => { if (t) { gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fbo); } });
+  rtW = W; rtH = H;
+  scene = Cosmos.gl.target(gl, Object.assign({ w: W, h: H, filter: 'linear' }, RT_FMT));
+  bloom = [];
+  let w = W, hh = H;
+  for (let i = 0; i < 6; i++) { w = Math.max(1, w >> 1); hh = Math.max(1, hh >> 1); bloom.push(Cosmos.gl.target(gl, Object.assign({ w, h: hh, filter: 'linear' }, RT_FMT))); if (w < 8 || hh < 8) break; }
+}
+
+/* ---------- sky: stars and the galaxy ---------- */
+const rngSky = U.rng(22022);
+function buildStars(n) {
+  const a = new Float32Array(n * 3), c = new Float32Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    const z = 2 * rngSky() - 1, ph = 6.2832 * rngSky(), s = Math.sqrt(1 - z * z);
+    a[i * 3] = s * Math.cos(ph); a[i * 3 + 1] = z; a[i * 3 + 2] = s * Math.sin(ph);
+    const T = 2800 + Math.pow(rngSky(), 2.2) * 14000;
+    const col = U.blackbody(T).map((v) => Math.pow(v, 2.2));
+    const m = Math.pow(rngSky(), 5.5);
+    c[i * 4] = col[0]; c[i * 4 + 1] = col[1]; c[i * 4 + 2] = col[2]; c[i * 4 + 3] = 0.08 + 0.92 * m;
+  }
+  return { a, c, n };
+}
+const SUN_GAL = { r: 0.55, ang: 2.35 };
+function buildGalaxy(n) {
+  // a barred grand-design spiral, like the Milky Way: two major arms from the bar ends, two weaker ones,
+  // young blue stars and pink H II knots along the arms, an old yellow bulge. Arms trail the rotation.
+  const a = new Float32Array(n * 3), c = new Float32Array(n * 4);
+  const pitch = 12.5 * Math.PI / 180, b = 1 / Math.tan(pitch), r0 = 0.17;
+  const young = lin('#9fbcff'), old = lin('#ffd49a'), hii = lin('#ff5c9a'), disc = lin('#d9d6ee'), dust = lin('#c9a98a');
+  for (let i = 0; i < n; i++) {
+    const u = rngSky(); let x, y, z, col, br;
+    if (u < 0.1) {                        // bulge
+      const r = Math.abs(U.gauss(rngSky)) * 0.075, th = rngSky() * 6.2832;
+      x = r * Math.cos(th); z = r * Math.sin(th); y = U.gauss(rngSky) * 0.045 * Math.exp(-r * 5); col = old; br = 0.28 + 0.3 * rngSky();
+    } else if (u < 0.2) {                 // bar
+      const t = U.gauss(rngSky) * 0.1, w = U.gauss(rngSky) * 0.026;
+      x = t; z = w; y = U.gauss(rngSky) * 0.012; col = old; br = 0.3 + 0.3 * rngSky();
+    } else if (u < 0.86) {                // arms
+      const arm = (rngSky() * 4) | 0, major = arm < 2;
+      if (!major && rngSky() < 0.35) { i--; continue; }
+      const r = r0 + Math.min(0.83, -Math.log(1 - rngSky() * 0.96) * 0.27);
+      const th0 = (arm % 2) * Math.PI + (major ? 0 : Math.PI / 2 + 0.25);
+      const th = th0 - Math.log(r / r0) * b + U.gauss(rngSky) * (major ? 0.075 : 0.12);
+      const sp = U.gauss(rngSky) * 0.012 * (1 + r * 1.5);
+      x = (r + sp) * Math.cos(th); z = (r + sp) * Math.sin(th); y = U.gauss(rngSky) * 0.008;
+      const k = rngSky();
+      col = k < 0.06 ? hii : k < 0.66 ? young : k < 0.8 ? dust : disc;
+      br = (major ? 0.62 : 0.4) * (0.35 + 0.65 * rngSky()) * (k < 0.06 ? 2.0 : 1) * (1.15 - r * 0.5);
+    } else {                              // smooth old disc
+      const r = -Math.log(1 - rngSky() * 0.97) * 0.26, th = rngSky() * 6.2832;
+      x = r * Math.cos(th); z = r * Math.sin(th); y = U.gauss(rngSky) * 0.012; col = disc; br = 0.1 + 0.16 * rngSky();
+    }
+    // the bar sits at 0.45 rad
+    const ca = Math.cos(0.45), sa = Math.sin(0.45); const xr = x * ca - z * sa, zr = x * sa + z * ca;
+    a[i * 3] = xr; a[i * 3 + 1] = y; a[i * 3 + 2] = zr;
+    c[i * 4] = col[0]; c[i * 4 + 1] = col[1]; c[i * 4 + 2] = col[2]; c[i * 4 + 3] = br;
+  }
+  return { a, c, n };
+}
+function vao(bufs) {
+  const v = gl.createVertexArray(); gl.bindVertexArray(v);
+  bufs.forEach(([loc, data, size]) => {
+    const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
+  });
+  gl.bindVertexArray(null); return v;
+}
+const STARS = buildStars(SMALL ? 1600 : 2600);
+const GAL = buildGalaxy(SMALL ? 26000 : 46000);
+const vaoStars = vao([[0, STARS.a, 3], [1, STARS.c, 4]]);
+const vaoGal = vao([[0, GAL.a, 3], [1, GAL.c, 4]]);
+// ground plate: a hairline ring with degree ticks
+const ringData = (() => {
+  const v = [];
+  const R = 0.46, N = 180;
+  for (let i = 0; i < N; i++) { const a0 = i / N * 6.2832, a1 = (i + 1) / N * 6.2832; v.push(R * Math.cos(a0), 0.0, R * Math.sin(a0), 1, R * Math.cos(a1), 0.0, R * Math.sin(a1), 1); }
+  for (let i = 0; i < 72; i++) { const a0 = i / 72 * 6.2832, L = i % 18 === 0 ? 0.07 : i % 6 === 0 ? 0.04 : 0.018; v.push(R * Math.cos(a0), 0, R * Math.sin(a0), 0.9, (R + L) * Math.cos(a0), 0, (R + L) * Math.sin(a0), 0.9); }
+  const R2 = 0.62; for (let i = 0; i < 120; i += 2) { const a0 = i / 120 * 6.2832, a1 = (i + 1) / 120 * 6.2832; v.push(R2 * Math.cos(a0), 0, R2 * Math.sin(a0), 0.45, R2 * Math.cos(a1), 0, R2 * Math.sin(a1), 0.45); }
+  return new Float32Array(v);
+})();
+const vaoRing = vao([[0, ringData, 4]]);
+
+/* ---------- the light echo: the solar neighbourhood, and the sphere of light that left on your first day ---------- */
+const ECHO_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aP;
+layout(location=1) in vec4 aC;
+uniform mat4 uView, uProj, uModel;
+uniform vec3 uEra;
+uniform float uK, uR, uD, uMode, uGain, uDpr, uT, uN, uFill0, uFillK;
+out vec3 vCol; out float vA;
+float hash1(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
+void main() {
+  vec3 q, col; float b, sz;
+  if (uMode < 0.5) {
+    float d = length(aP);
+    if (float(gl_VertexID) >= uN || d > uD * 1.04) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; vCol = vec3(0.0); vA = 0.0; return; }
+    q = aP * uK;
+    float reached = step(d, uR);
+    float since = max(uR - d, 0.0);
+    float flare = reached * exp(-since / max(0.7, uR * 0.045));
+    col = mix(aC.rgb * vec3(0.5, 0.56, 0.78), aC.rgb, reached) + uEra * flare * 1.6;
+    b = aC.w * (0.32 + 0.95 * reached) * (1.0 + 4.0 * flare);
+    b *= 1.0 - 0.55 * smoothstep(uR, uR * 1.25 + 1.5, d);
+    sz = (1.5 + 2.4 * min(aC.w, 1.6) + 5.0 * flare) * uDpr;
+    // a crowded neighbourhood (a long life) is drawn finer, so the sphere stays a field of stars and not a snowball
+    if (float(gl_VertexID) >= uFill0) { b *= uFillK; sz = mix(1.2 * uDpr, sz, uFillK); }
+  } else {
+    // the wavefront: points on a sphere, limb-bright because we see the shell edge-on at its rim
+    q = aP * uR * uK;
+    float tw = 0.6 + 0.4 * sin(uT * 1.3 + aC.w * 60.0);
+    col = uEra; b = (0.35 + 0.65 * aC.w) * tw; sz = (1.3 + 0.9 * hash1(aC.w * 91.0)) * uDpr;
+  }
+  vec4 vp = uView * (uModel * vec4(q, 1.0));
+  gl_Position = uProj * vp;
+  gl_PointSize = sz;
+  vCol = col; vA = b * uGain;
+}`;
+let progEcho = null;
+try { progEcho = Cosmos.gl.program(gl, ECHO_VS, PT_FS); } catch (err) { progEcho = null; }
+const ECHO_CAP = SMALL ? 7000 : 16000;
+const ECHO_REAL = [];   // [name, xyz (ly), T, weight]: the Sun, every system within 13 ly, then the bright stars beyond
+ECHO_REAL.push(['Sun', [0, 0, 0], 5772, 2.2]);
+NEAR.forEach(([n, d, objs]) => { const q = NEAR_POS[n]; if (!q) return; const T = q[2]; ECHO_REAL.push([n, radec(q[0], q[1], d), T, T > 9000 ? 1.5 : T > 6000 ? 1.1 : T > 5000 ? 0.85 : T > 4000 ? 0.6 : T > 2000 ? 0.34 : 0.16]); });
+BRIGHT.forEach(([n, d, ra, mag, dec, T]) => { if (d <= NEAR_R) return; ECHO_REAL.push([n, radec(ra, dec, d), T, U.clamp(1.9 - mag * 0.35, 1.1, 2.3)]); });
+const ECHO_FILL0 = ECHO_REAL.length;
+const echoP = new Float32Array((ECHO_FILL0 + ECHO_CAP) * 3), echoC = new Float32Array((ECHO_FILL0 + ECHO_CAP) * 4);
+const bbLin = (T) => U.blackbody(T).map((v) => Math.pow(v, 2.2));
+ECHO_REAL.forEach(([n, p, T, w], i) => { echoP.set(p, i * 3); const c = n === 'Sun' ? lin('#ffe9c7') : bbLin(T); echoC.set([c[0], c[1], c[2], w], i * 4); });
+let echoFillN = 0, echoFillD = -1;
+const vaoEchoStars = vao([[0, echoP, 3], [1, echoC, 4]]);
+gl.bindVertexArray(vaoEchoStars);
+const bufEchoP = gl.getVertexAttrib(0, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING), bufEchoC = gl.getVertexAttrib(1, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING);
+gl.bindVertexArray(null);
+// Beyond 13 ly the neighbourhood is a statistical fill at the Gaia 10 pc density, with a realistic mix of star types.
+function echoFill(D) {
+  const want = D > NEAR_R ? Math.round(DENS_OBJ * 4 / 3 * Math.PI * (D * D * D - NEAR_R ** 3)) : 0;
+  const n = Math.min(ECHO_CAP, want);
+  if (n === echoFillN && Math.abs(D - echoFillD) < 0.01) return;
+  const r = U.rng(314159);
+  const r0 = Math.pow(NEAR_R / Math.max(D, NEAR_R), 3);
+  for (let i = 0; i < n; i++) {
+    const o = ECHO_FILL0 + i;
+    const z = 2 * r() - 1, ph = 2 * Math.PI * r(), sn = Math.sqrt(1 - z * z), rad = D * Math.cbrt(r0 + (1 - r0) * r());
+    echoP[o * 3] = rad * sn * Math.cos(ph); echoP[o * 3 + 1] = rad * z; echoP[o * 3 + 2] = rad * sn * Math.sin(ph);
+    const k = r();   // roughly the local census: mostly red dwarfs, some white and brown dwarfs, few Sun-like stars
+    const [T, w] = k < 0.68 ? [3000 + 600 * r(), 0.2 + 0.15 * r()] : k < 0.78 ? [3900 + 1300 * r(), 0.45 + 0.2 * r()] : k < 0.83 ? [5300 + 700 * r(), 0.65]
+      : k < 0.86 ? [6200 + 1500 * r(), 0.8] : k < 0.87 ? [8000 + 3000 * r(), 1.0] : k < 0.94 ? [9000 + 8000 * r(), 0.13] : [1000 + 900 * r(), 0.1];
+    const c = bbLin(T); echoC[o * 4] = c[0]; echoC[o * 4 + 1] = c[1]; echoC[o * 4 + 2] = c[2]; echoC[o * 4 + 3] = w;
+  }
+  echoFillN = n; echoFillD = D;
+  gl.bindBuffer(gl.ARRAY_BUFFER, bufEchoP); gl.bufferSubData(gl.ARRAY_BUFFER, 0, echoP);
+  gl.bindBuffer(gl.ARRAY_BUFFER, bufEchoC); gl.bufferSubData(gl.ARRAY_BUFFER, 0, echoC);
+  gl.bindBuffer(gl.ARRAY_BUFFER, null);
+}
+// the wavefront: a Fibonacci sphere
+const SHELL_N = SMALL ? 4200 : 9000;
+const shellData = (() => {
+  const p = new Float32Array(SHELL_N * 3), c = new Float32Array(SHELL_N * 4), r = U.rng(99), ga = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < SHELL_N; i++) {
+    const y = 1 - 2 * (i + 0.5) / SHELL_N, rr = Math.sqrt(1 - y * y), th = ga * i;
+    p[i * 3] = rr * Math.cos(th); p[i * 3 + 1] = y; p[i * 3 + 2] = rr * Math.sin(th);
+    c[i * 4 + 3] = r();
+  }
+  return { p, c };
+})();
+const vaoShell = vao([[0, shellData.p, 3], [1, shellData.c, 4]]);
+// a unit circle for the reference rings in the plane of the celestial equator
+const circData = (() => { const v = [], N = 160; for (let i = 0; i < N; i++) { const a0 = i / N * 6.2832, a1 = (i + 1) / N * 6.2832; v.push(Math.cos(a0), 0, Math.sin(a0), 1, Math.cos(a1), 0, Math.sin(a1), 1); } return new Float32Array(v); })();
+const vaoCirc = vao([[0, circData, 4]]);
+
+/* ---------- figure buffers (filled when the body geometry arrives) ---------- */
+let vaoFig = null, figReady = false, GEO = null;
+let posM = null, posN = null, infoA = null;
+const CUR = { mix: 0, mixT: 0 };
+
+// Phase 1 (immediate): every point gets an element, a birthplace and a tissue. The cosmic tableau needs nothing else,
+// so it can be drawn before the body geometry exists. Phase 2 (when the worker finishes): positions inside the body.
+const REG = ['surf', 'vol', 'bone', 'thy'];
+let regM = null, regN = null, bufPosM = null, bufPosN = null, bufNrmM = null, bufNrmN = null, nrmM = null, nrmN = null, bodyReady = false;
+function assignParticles() {
+  const rng = U.rng(7070707);
+  const comp = COMP70;
+  const cdf = (arr) => { const out = new Float64Array(arr.length); let s = 0; arr.forEach((v, i) => { s += v; out[i] = s; }); for (let i = 0; i < out.length; i++) out[i] /= s; return out; };
+  const cdfM = cdf(comp.cats.map((c) => c.kg)), cdfN = cdf(comp.cats.map((c) => c.atoms));
+  const pick = (cd, u) => { let i = 0; while (i < cd.length - 1 && cd[i] < u) i++; return i; };
+  const pickSrc = (f, u) => { let s = 0; for (let j = 0; j < 6; j++) { s += f[j]; if (u < s) return j; } return 2; };
+  const region = (c, w) => {
+    const C = CATS[c]; const bone = C.bone || 0;
+    if (w < bone) return 2;
+    const ws = (w - bone) / Math.max(1e-6, 1 - bone);
+    return ws < (C.surf != null ? C.surf : 0.56) ? 0 : 1;
+  };
+  posM = new Float32Array(NTOT * 3); posN = new Float32Array(NTOT * 3); nrmM = new Float32Array(NTOT * 3); nrmN = new Float32Array(NTOT * 3);
+  infoA = new Float32Array(NTOT * 4);
+  regM = new Uint8Array(NTOT); regN = new Uint8Array(NTOT);
+  const rndA = new Float32Array(NTOT * 4), ext = new Float32Array(NTOT * 4);
+  for (let i = 0; i < NTOT; i++) {
+    const o4 = i * 4;
+    if (i < NMAIN) {
+      const u = rng(), v = rng(), w = rng();
+      const cM = pick(cdfM, u), cN = pick(cdfN, u);
+      const sM = pickSrc(comp.cats[cM].f, v), sN = pickSrc(comp.cats[cN].f, v);
+      regM[i] = region(cM, w); regN[i] = region(cN, w);
+      infoA[o4] = sM; infoA[o4 + 1] = sN; infoA[o4 + 2] = cM; infoA[o4 + 3] = cN;
+      ext[o4 + 2] = 0;
+    } else {
+      // magnified traces: r-process atoms (iodine mostly in the thyroid) and cosmic-ray boron
+      const k = i - NMAIN, isNS = k < NMAG * 0.72;
+      const w = rng();
+      regM[i] = regN[i] = isNS ? (w < 0.7 ? 3 : w < 0.85 ? 0 : 1) : (w < 0.4 ? 2 : w < 0.7 ? 0 : 1);
+      const s = isNS ? 4 : 5;
+      infoA[o4] = s; infoA[o4 + 1] = s; infoA[o4 + 2] = 11; infoA[o4 + 3] = 11;
+      ext[o4 + 2] = 1;
+    }
+    ext[o4] = regM[i]; ext[o4 + 1] = regN[i];
+    rndA[o4] = rng(); rndA[o4 + 1] = rng(); rndA[o4 + 2] = rng(); rndA[o4 + 3] = rng();
+    ext[o4 + 3] = rng();
+  }
+  vaoFig = vao([[0, posM, 3], [1, posN, 3], [2, infoA, 4], [3, rndA, 4], [4, ext, 4], [5, nrmM, 3], [6, nrmN, 3]]);
+  // keep the position and normal buffers for the second phase
+  gl.bindVertexArray(vaoFig);
+  bufPosM = gl.getVertexAttrib(0, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING);
+  bufPosN = gl.getVertexAttrib(1, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING);
+  bufNrmM = gl.getVertexAttrib(5, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING);
+  bufNrmN = gl.getVertexAttrib(6, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING);
+  gl.bindVertexArray(null);
+  figReady = true;
+}
+function placeParticles(geo) {
+  const rng = U.rng(4242);
+  const pools = [[geo.surf, geo.ns, 0, geo.surfN], [geo.vol, geo.nv, 0, geo.volN], [geo.bone, geo.nb, 0, null], [geo.thy, geo.nt, 0, null]];
+  const take = (r, out, nout, o) => {
+    const p = pools[r]; const n = Math.max(1, p[1]); const i = p[2] % n; const j = p[2] >= n ? 0.0025 : 0; p[2]++;
+    out[o] = p[0][i * 3] + (j ? (rng() - 0.5) * j : 0); out[o + 1] = p[0][i * 3 + 1] + (j ? (rng() - 0.5) * j : 0); out[o + 2] = p[0][i * 3 + 2] + (j ? (rng() - 0.5) * j : 0);
+    const nn = p[3];
+    if (nn && p[1] > 0) { nout[o] = nn[i * 3]; nout[o + 1] = nn[i * 3 + 1]; nout[o + 2] = nn[i * 3 + 2]; } else { nout[o] = 0; nout[o + 1] = 0; nout[o + 2] = 0; }
+  };
+  for (let i = 0; i < NTOT; i++) {
+    const o3 = i * 3;
+    take(regM[i], posM, nrmM, o3);
+    if (regN[i] === regM[i]) { for (let q = 0; q < 3; q++) { posN[o3 + q] = posM[o3 + q]; nrmN[o3 + q] = nrmM[o3 + q]; } } else take(regN[i], posN, nrmN, o3);
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, bufPosM); gl.bufferSubData(gl.ARRAY_BUFFER, 0, posM);
+  gl.bindBuffer(gl.ARRAY_BUFFER, bufPosN); gl.bufferSubData(gl.ARRAY_BUFFER, 0, posN);
+  gl.bindBuffer(gl.ARRAY_BUFFER, bufNrmM); gl.bufferSubData(gl.ARRAY_BUFFER, 0, nrmM);
+  gl.bindBuffer(gl.ARRAY_BUFFER, bufNrmN); gl.bufferSubData(gl.ARRAY_BUFFER, 0, nrmN);
+  gl.bindBuffer(gl.ARRAY_BUFFER, null);
+  bodyReady = true;
+}
+
+/* =====================================================================
+   7. STATE, CAMERA, LAYOUT
+   ===================================================================== */
+const S = {
+  colMode: 0, colT: 0,            // 0 origin, 1 element
+  weigh: 0, weighT: 0,            // 0 mass, 1 atoms
+  hi: -1, hiSticky: -1, hiT: 0, hiLast: 0, hiKind: 0, hiStickyKind: 0, hiLastKind: 0, flash: 0, gaze: 0,
+  asm: 0, asmTarget: 1, asmHold: 2.4, unmade: false, asmSpeed: 0.3,
+  turnover: true, turnT: 1,
+  spin: 0.1, yaw: 0.35, yawV: 0, pitch: 0.06, zoom: 1,
+  receipt: true, printed: false,
+  birth: null, birthTime: '', mass: 70, example: true,
+  pick: -1,
+  beatIdx: -1, beatT0: 0, beatT: 10,
+  t: 0, started: false,
+  echoOn: false, echo: 0, echoR: 0, echoStart: 0, pitchHome: 0.06,
+};
+const DEFAULT_BIRTH = '1990-03-14';
+const FOV = 0.52;
+const CAM = { cx: 0, cy: 0, px: 300, tcx: 0, tcy: 0, tpx: 300, init: false };
+let VIEW = null, PROJ = null, VP = null, MODEL = null, CAMV = { r: [1, 0, 0], u: [0, 1, 0], f: [0, 0, 1] };
+const FIG_C = [0, 0.88, 0];
+const FORM_DESK = [[-1.48, 0.62, 0.36], [1.45, 0.62, 0.3], [0, 0.12, 0.56], [1.38, -0.62, 0.17], [-1.38, -0.62, 0.15], [0, -1.02, 0.26]];
+const SIDE_TALL = [-1, 1, 0, 1, -1, 1];
+const FORM_MOB = [[-0.33, 1.12, 0.25], [0.35, 1.1, 0.21], [0, 0.12, 0.42], [0.36, -0.78, 0.13], [-0.36, -0.78, 0.12], [0, -1.28, 0.19]];
+let FORM = SMALL ? FORM_MOB : FORM_DESK;
+
+const deckEl = document.querySelector('.cz-deck'), notesEl = document.querySelector('.cz-notes'), barEl = document.querySelector('.cz-bar'), footEl = document.querySelector('.cz-foot');
+// layout is measured at the start of a frame (when it is clean) and cached, never read after DOM writes
+const LAY = { t: -1e9, bar: 54, foot: 842, notesOn: true, notesTop: 740, notesRight: 446, rcTop: 0, rcL: 0, rcR: 0, rcT: 0, rcB: 0 };
+function measure(force) {
+  const now = performance.now();
+  if (!force && now - LAY.t < 400) return;
+  LAY.t = now;
+  LAY.bar = barEl.getBoundingClientRect().bottom; LAY.foot = footEl.getBoundingClientRect().top;
+  LAY.notesOn = getComputedStyle(notesEl).display !== 'none';
+  if (LAY.notesOn) { const r = notesEl.getBoundingClientRect(); LAY.notesTop = r.top; LAY.notesRight = r.right; }
+  LAY.deckOpen = deckEl.classList.contains('cz-open'); LAY.deckTop = deckEl.getBoundingClientRect().top;
+  if (rcEl) { const r = rcWin.getBoundingClientRect(); LAY.rcL = r.left; LAY.rcR = r.right; LAY.rcT = r.top; LAY.rcB = r.bottom; LAY.rcTop = rcEl.getBoundingClientRect().top; }
+}
+function figureRect() {
+  const W = window.innerWidth, H = window.innerHeight;
+  const small = isSmall();
+  const top = LAY.bar + 4;
+  const bottom = LAY.foot - 4;
+  const cinema = document.body.classList.contains('cz-cinema');
+  let right = W;
+  const deckOpen = deckEl.classList.contains('cz-open');
+  if (!small && deckOpen && !cinema) right = W - 16 - 304 - 10;
+  const rcShown = S.receipt && !cinema && S.asmTarget > 0.5;
+  if (!small && rcShown) right = (deckOpen ? W - 16 - 304 - 14 : W - 16) - (RC_W + 20) - 8;
+  let nb = bottom, nr = 0;
+  if (!cinema && LAY.notesOn) { nb = LAY.notesTop - 6; nr = LAY.notesRight + 8; }
+  let bB = bottom;
+  if (small && LAY.deckOpen) { nb = Math.min(nb, LAY.deckTop - 6); bB = nb; }
+  // candidate A: full width above the notes; candidate B: beside the notes
+  const fit = (x0, x1, y0, y1) => ({ x0, x1, y0, y1, s: Math.min((y1 - y0) * 0.9 / 1.86, (x1 - x0) * 0.92 / 1.02) });
+  const A = fit(0, right, top, nb), B = fit(nr, right, top, bB);
+  const R = B.s > A.s * 1.12 ? B : A;
+  return { cx: (R.x0 + R.x1) / 2, cy: (R.y0 + R.y1) / 2, px: Math.max(40, R.s), w: R.x1 - R.x0, h: R.y1 - R.y0 };
+}
+function formationRect() {
+  const W = window.innerWidth;
+  const small = isSmall(), cinema = document.body.classList.contains('cz-cinema');
+  let top = LAY.bar + (small ? 118 : cinema ? 40 : 142), bottom = LAY.foot - 6;
+  let right = W;
+  if (!small && !cinema && deckEl.classList.contains('cz-open')) right = W - 16 - 304 - 10;
+  if (!cinema && LAY.notesOn) bottom = Math.min(bottom, LAY.notesTop - 4);
+  const tall = small || right < 900 || right / Math.max(1, bottom - top) < 1.45;
+  const px = tall ? Math.min((bottom - top) * 0.88 / 2.75, right * 0.92 / 1.4) : Math.min((bottom - top) * 0.92 / 2.25, right * 0.92 / 3.85);
+  return { cx: right / 2, cy: (top + bottom) / 2 + (tall ? 0 : 10), px, tall };
+}
+let formTall = SMALL;
+document.body.classList.toggle('yo-tall', SMALL);
+function updateCamera(dt) {
+  const f = figureRect(), g = formationRect();
+  if (g.tall !== formTall) { formTall = g.tall; FORM = formTall ? FORM_MOB : FORM_DESK; document.body.classList.toggle('yo-tall', formTall); fillFormationLabels(); }
+  const k = S.asm < 1 ? 1 - smooth01(S.asm) : 0;
+  const ef = smooth01(S.echo), epx = Math.max(40, Math.min(f.h * 0.86, f.w * (isSmall() ? 1.02 : 0.94)) / (2 * ECHO_RW * 1.12));
+  const tx = f.cx + (g.cx - f.cx) * k, ty = f.cy + (g.cy - f.cy) * k + ef * (isSmall() ? f.h * 0.05 : 0), tp = ((f.px + (g.px - f.px) * k) * (1 - ef) + epx * ef) * S.zoom;
+  if (!CAM.init) { CAM.cx = tx; CAM.cy = ty; CAM.px = tp; CAM.init = true; }
+  const a = 1 - Math.exp(-dt * 3.2);
+  CAM.cx += (tx - CAM.cx) * a; CAM.cy += (ty - CAM.cy) * a; CAM.px += (tp - CAM.px) * a;
+  const W = canvas.clientWidth || window.innerWidth, H = canvas.clientHeight || window.innerHeight;
+  const fcot = 1 / Math.tan(FOV / 2);
+  const dist = (H / 2) * fcot / CAM.px;
+  const eye = [FIG_C[0], FIG_C[1] + dist * Math.sin(S.pitch), FIG_C[2] + dist * Math.cos(S.pitch)];
+  VIEW = Cosmos.mat4.lookAt(eye, FIG_C);
+  PROJ = Cosmos.mat4.perspective(FOV, W / H, 0.05, 300);
+  PROJ[8] -= (CAM.cx - W / 2) / (W / 2);
+  PROJ[9] -= (H / 2 - CAM.cy) / (H / 2);
+  VP = Cosmos.mat4.multiply(PROJ, VIEW);
+  CAMV.r = [VIEW[0], VIEW[4], VIEW[8]]; CAMV.u = [VIEW[1], VIEW[5], VIEW[9]]; CAMV.f = [VIEW[2], VIEW[6], VIEW[10]];
+  const c = Math.cos(S.yaw), s = Math.sin(S.yaw);
+  MODEL = new Float32Array([c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1]);
+  return { W, H, dist, focal: (canvas.height / 2) * fcot };
+}
+function smooth01(x) { x = U.clamp(x, 0, 1); return x * x * (3 - 2 * x); }
+function project(p, out) {
+  const m = VP;
+  const x = m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12], y = m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13], w = m[3] * p[0] + m[7] * p[1] + m[11] * p[2] + m[15];
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  out[0] = (x / w * 0.5 + 0.5) * W; out[1] = (1 - (y / w * 0.5 + 0.5)) * H; out[2] = w;
+  return out;
+}
+function tableauPoint(x, y) { return [FIG_C[0] + CAMV.r[0] * x + CAMV.u[0] * y, FIG_C[1] + CAMV.r[1] * x + CAMV.u[1] * y, FIG_C[2] + CAMV.r[2] * x + CAMV.u[2] * y]; }
+
+/* =====================================================================
+   8. SCENE OVERLAY (labels, tooltip, caption)
+   ===================================================================== */
+const over = h('div', { class: 'yo-over' });
+ch.stage.append(over);
+const fLabels = SOURCES.map((s, i) => { const el = h('div', { class: 'yo-flab', style: '--c:' + s.col }); over.append(el); return el; });
+function fillFormationLabels() {
+  const C = COMP70;
+  SOURCES.forEach((s, i) => {
+    const mag = i >= 4 ? ' · magnified' : '';
+    fLabels[i].innerHTML = `<span class="k">${esc(s.kick)}</span><b>${esc(formTall ? s.short : s.name)}</b><small>${pctC(C.srcKg[i] / C.kgTot)} of your mass · ${pctC(C.srcAtoms[i] / C.atoms)} of your atoms${mag}</small>`;
+  });
+}
+fillFormationLabels();
+const sunEl = h('div', { class: 'yo-sun', html: '<b></b><i></i><span>You are here<small>the Sun · 26,700 ly<br>from the galactic centre</small></span>' });
+const sunMark = sunEl.querySelector('i'), sunLine = sunEl.querySelector('b'), sunLab = sunEl.querySelector('span');
+over.append(sunEl);
+const tipEl = h('div', { class: 'yo-tip' });
+over.append(tipEl);
+const capEl = h('div', { class: 'yo-cap', 'aria-live': 'polite' }, h('div', { class: 'k' }), h('div', { class: 't' }), h('div', { class: 'd' }));
+document.body.append(capEl);
+const introEl = h('div', { class: 'yo-intro', 'aria-live': 'polite' }, h('div', { class: 'k' }), h('div', { class: 't' }), h('div', { class: 'd' }));
+document.body.append(introEl);
+function setIntro(k, t, d) { introEl.querySelector('.k').textContent = k; introEl.querySelector('.t').textContent = t; introEl.querySelector('.d').textContent = d; }
+setIntro('Before you', 'Every atom in you was made somewhere else first', 'Each point is an equal share of your body, waiting where its atoms were forged. Watch them come together.');
+
+/* =====================================================================
+   9. THE RECEIPT
+   ===================================================================== */
+const RC_W = 330;
+const chip = (n, label) => `<a class="yo-ch" href="${CHF(n)}" title="Chapter ${n}: ${esc(CHT(n))}">${label || String(n).padStart(2, '0')}</a>`;
+const row = (label, key, extra = '', attr = '') => `<div class="yo-r"${attr}><span>${label}</span><i></i><b data-k="${key}">·</b>${extra}</div>`;
+const rcEl = h('div', { class: 'yo-rc gone', role: 'region', 'aria-label': 'Your cosmic receipt' });
+rcEl.innerHTML = `
+<div class="yo-win"><div class="yo-scroll"><div class="yo-tear"></div><div class="yo-paper">
+  <canvas class="yo-logo" width="96" height="42"></canvas>
+  <div class="yo-brand">COSMOGENESIS</div>
+  <div class="yo-sub">RECEIPT FOR ONE HUMAN BEING</div>
+  <div class="yo-c yo-dim" style="margin-top:6px">Earth · Sol III · Orion Arm · Milky Way</div>
+  <div class="yo-c" data-k="now">·</div>
+  <div class="yo-c yo-dim">t = 13.8 Gyr after the Big Bang</div>
+  <div class="yo-c yo-faint">receipt no. 4.35 × 10¹⁷ (seconds since it began)</div>
+  <hr class="yo-dbl">
+  <div class="yo-cust">
+    <label><span>BORN</span><input class="yo-in" type="date" data-in="date" min="1900-01-01" aria-label="Your birth date"><input class="yo-in" type="time" data-in="time" aria-label="Birth time (optional)"></label>
+    <label><span>MASS</span><input class="yo-in" type="number" data-in="mass" min="2" max="300" step="0.5" aria-label="Body mass in kilograms"><span>kg</span></label>
+    <div class="yo-stamp" data-k="stamp">EXAMPLE<small>enter yours</small></div>
+    <div class="yo-n" style="margin-top:4px">Time is optional (noon if blank). Nothing you enter is stored or sent anywhere. Every number here is computed on this page, in your browser.</div>
+  </div>
+
+  <div class="yo-h"><span>01</span>TIME</div>
+  <div class="yo-c yo-dim" style="font-size:9.5px;letter-spacing:.14em">YOU HAVE BEEN ALIVE FOR</div>
+  <span class="yo-big" data-k="age">·</span>
+  ${row('Days', 'days')}
+  ${row('Seconds', 'secs')}
+  ${row('Heartbeats*', 'beats', chip(16))}
+  <div class="yo-n" data-k="beatNote">·</div>
+  ${row('Breaths*', 'breaths')}
+  ${row('Blinks*', 'blinks', chip(17))}
+  <div class="yo-n">* Estimates that integrate typical resting rates for each age, from a newborn's 130 beats a minute to an adult's 70. Treat them as ±15%.</div>
+
+  <div class="yo-h"><span>02</span>CELLS</div>
+  ${row('Human cells, now', 'cells', chip(13))}
+  ${row('Bacteria, now', 'bact', chip(18))}
+  <div class="yo-n">Roughly 1.3 bacteria for every human cell. Old textbooks said ten to one (Sender, Fuchs &amp; Milo 2016).</div>
+  ${row('Red blood cells made', 'rbc')}
+  <div class="yo-n" data-k="rbcNote">·</div>
+  ${row('Replaced while you read', 'turn')}
+  <div class="yo-n">Cells your body has swapped for new ones since this receipt printed, at about 3.8 million a second (Sender &amp; Milo 2021).</div>
+  ${row('Neurons', 'neur', chip(17))}
+  <div class="yo-n">About 86 billion. Most of the ones in your neocortex are as old as you are.</div>
+
+  <div class="yo-h"><span>03</span>DISTANCE</div>
+  ${row('Around the Sun', 'dOrb', chip(9))}
+  <div class="yo-n">at 29.78 km/s, the Earth's orbital speed: about 940 million km a year</div>
+  ${row('Around the galaxy', 'dGal', chip(5))}
+  <div class="yo-n">with the Sun, at about 230 km/s</div>
+  ${row('Through the oldest light', 'dCmb', chip(3))}
+  <div class="yo-n">at 369.8 km/s relative to the cosmic microwave background</div>
+  <div class="yo-n" style="margin:4px 0 2px">That last distance is</div>
+  ${row('trips to the Moon', 'moon')}
+  ${row('or light-years', 'ly')}
+  <div class="yo-n">The three speeds are measured against different things and point in different directions, so they do not add up. You have never been still.</div>
+
+  <div class="yo-h"><span>04</span>LAPS</div>
+  ${row('Orbits of the Sun', 'orbits', chip(8))}
+  ${row('Of one galactic year', 'galfrac')}
+  <div class="yo-n">The Sun takes about 230 million years to circle the Milky Way. One lap ago, the first dinosaurs were appearing.</div>
+
+  <div class="yo-h"><span>05</span>BILL OF MATERIALS</div>
+  <div class="yo-fig"><canvas width="25" height="55" data-k="figcv"></canvas><div>
+    <div class="yo-b">1 × HUMAN BEING</div>
+    <div class="yo-dim" data-k="massLine">·</div>
+    <div class="yo-r" style="margin-top:4px"><span>Atoms</span><i></i><b data-k="atoms">·</b></div>
+  </div></div>
+  <table class="yo-tbl" data-k="tbl"></table>
+  <div class="yo-n"><span class="yo-dot f"></span> most · <span class="yo-dot h"></span> about half · <span class="yo-dot"></span> some. After Johnson (2019).</div>
+  <div class="yo-c yo-b" style="margin:10px 0 4px;letter-spacing:.12em;font-size:9.8px">MADE IN</div>
+  <div data-k="bySrc"></div>
+  <hr class="yo-rule">
+  <div data-hs="0">${row('Deuterium', 'deut', chip(2))}
+  <div class="yo-n" data-k="deutNote">·</div></div>
+  <div data-hs="4">${row('Gold', 'gold', chip(6))}
+  <div class="yo-n" data-k="goldNote">·</div></div>
+  <div data-hs="4">${row('Iodine', 'iod')}
+  <div class="yo-n">Mostly in your thyroid gland. About 95% of it was made when neutron stars collided.</div></div>
+  ${row('Radioactive decays / s', 'bq')}
+  ${row('Decays since birth', 'decays')}
+  <div class="yo-n">Potassium-40 forged in supernovae before the Sun existed, still decaying inside you, and carbon-14 made by cosmic rays in the air above you.</div>
+  ${row('Atoms swapped since printing', 'swap')}
+  <div class="yo-n">Water, food and air move about 3 × 10²¹ atoms through you every second. The old estimate is that about 98% of your atoms are replaced each year; some stay for life.</div>
+  <div class="yo-n"><b>Older than the Sun:</b> almost every atom in you heavier than hydrogen was made before the Sun formed 4.57 billion years ago. The exceptions are a few, like carbon-14 and the products of radioactive decay.</div>
+
+  <div class="yo-h"><span>06</span>COSMIC CALENDAR</div>
+  <div class="yo-p">Squeeze all 13.8 billion years into one calendar year. The Sun ignites on 1 September. The dinosaurs die on the morning of 30 December. Modern humans appear 11 minutes before midnight. Your whole life so far fits into the last</div>
+  <span class="yo-big" data-k="cal">·</span>
+  <div class="yo-c yo-dim">before midnight on 31 December</div>
+  <canvas class="yo-cv" data-k="calcv" height="74"></canvas>
+
+  <div class="yo-h"><span>07</span>LIGHT ECHO</div>
+  <div class="yo-p">The light that left Earth on the day you were born is now</div>
+  <span class="yo-big" data-k="echo">·</span>
+  <div class="yo-p" data-k="echoTxt">·</div>
+  <canvas class="yo-cv" data-k="mapcv" height="272"></canvas>
+  <table class="yo-stars" data-k="stars"></table>
+  <div class="yo-links" style="margin:8px 0 2px"><button type="button" class="yo-play" data-act="echo">Watch it travel</button></div>
+
+  <div class="yo-h"><span>08</span>THE ODDS</div>
+  <div class="yo-p">Nobody can honestly put one number on the odds of you, so here are the parts that can be counted. The sperm cell that carried half your genome was one of roughly a hundred million or more in a single ejaculate. Every egg and every sperm carries one of 2²³, about 8.4 million, possible sets of chromosomes before crossing-over shuffles them further, so one couple could have about 70 trillion chromosomally different children. The same lottery ran for each of your parents, and theirs, in an unbroken line of ancestors who all lived long enough to reproduce, back to the first cells about 3.8 billion years ago. About 117 billion people have ever been born (Population Reference Bureau). You are one of the roughly 7% alive right now, reading a receipt.</div>
+
+  <hr class="yo-dbl">
+  ${row('TIME TAKEN TO MAKE YOU', 'totT')}
+  ${row('YOUR TIME SO FAR', 'totY')}
+  ${row('SHARE OF COSMIC HISTORY', 'totP')}
+  <div class="yo-c yo-b" style="margin-top:10px;letter-spacing:.14em">ALL ATOMS ON LOAN</div>
+  <div class="yo-c yo-dim">No refunds. No exchanges. Returns daily.</div>
+  <canvas class="yo-barcode" width="113" height="36" data-k="bar"></canvas>
+  <div class="yo-c" style="letter-spacing:.3em" data-k="barTxt">·</div>
+  <div class="yo-close" data-k="close">·</div>
+  <div class="yo-links"><a href="${CHF(1)}">Begin again</a><a href="index.html">The timeline</a></div>
+  <div class="yo-tearline">- - - - - - TEAR HERE - - - - - -</div>
+</div><div class="yo-tear bot"></div></div></div>
+<div class="yo-slot"><span class="yo-led"></span><button type="button" data-act="toggle" title="Put the receipt away (R)">Close</button><button type="button" data-act="print">Print again</button></div>`;
+document.body.append(rcEl);
+const rcScroll = rcEl.querySelector('.yo-scroll'), rcWin = rcEl.querySelector('.yo-win'), rcPaper = rcEl.querySelector('.yo-paper');
+const RK = {};
+rcEl.querySelectorAll('[data-k]').forEach((el) => { RK[el.dataset.k] = el; });
+const setK = (k, v) => { const el = RK[k]; if (el && el.textContent !== v) el.textContent = v; };
+const rcIn = { date: rcEl.querySelector('[data-in=date]'), time: rcEl.querySelector('[data-in=time]'), mass: rcEl.querySelector('[data-in=mass]') };
+Object.values(rcIn).forEach((el) => el.addEventListener('keydown', (e) => e.stopPropagation()));
+
+rcPaper.addEventListener('pointerover', (e) => {
+  if (e.pointerType !== 'mouse') return;
+  const el = e.target.closest('[data-hs],[data-hc]');
+  if (!el) { if (S.hi >= 0) setHi(-1, false); return; }
+  const hs = el.getAttribute('data-hs'), hc = el.getAttribute('data-hc');
+  setHi(+(hs != null ? hs : hc), false, hs != null ? 0 : 1);
+});
+rcPaper.addEventListener('pointerleave', () => { if (S.hi >= 0) setHi(-1, false); });
+rcPaper.addEventListener('click', (e) => {
+  if (e.target.closest('a,input,button')) return;
+  const el = e.target.closest('[data-hs],[data-hc]'); if (!el) return;
+  const hs = el.getAttribute('data-hs'), hc = el.getAttribute('data-hc'), v = +(hs != null ? hs : hc), k = hs != null ? 0 : 1;
+  setHi(S.hiSticky === v && S.hiStickyKind === k ? -1 : v, true, k);
+});
+
+/* ---------- thermal-print graphics ---------- */
+const INK = [28, 26, 23];
+function inkBits(cv, gray, w, hh) {
+  // Floyd–Steinberg to 1 bit, as a thermal print head would
+  const g = Float32Array.from(gray);
+  const ctx = cv.getContext('2d'); const img = ctx.createImageData(w, hh);
+  for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, old = g[i], nw = old > 0.5 ? 1 : 0, err = old - nw;
+    if (x + 1 < w) g[i + 1] += err * 7 / 16;
+    if (y + 1 < hh) { if (x > 0) g[i + w - 1] += err * 3 / 16; g[i + w] += err * 5 / 16; if (x + 1 < w) g[i + w + 1] += err / 16; }
+    const o = i * 4; img.data[o] = INK[0]; img.data[o + 1] = INK[1]; img.data[o + 2] = INK[2]; img.data[o + 3] = nw ? 235 : 0;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+function drawLogo() {
+  const cv = RK.logo || rcEl.querySelector('.yo-logo'); const w = cv.width, hh = cv.height;
+  const g = new Float32Array(w * hh);
+  const r = U.rng(5);
+  const add = (x, y, v, rad) => { for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) { const X = Math.round(x + dx), Y = Math.round(y + dy); if (X < 0 || Y < 0 || X >= w || Y >= hh) continue; const f = Math.exp(-(dx * dx + dy * dy) / (rad * rad * 0.6 + 0.3)); g[Y * w + X] += v * f; } };
+  const cx = w / 2, cy = hh / 2;
+  for (let i = 0; i < 2600; i++) {
+    const arm = i % 2, t = r() * 3.4, th = arm * Math.PI + t * 1.35 + (r() - 0.5) * 0.4, rr = 3 + t * 12 + (r() - 0.5) * 3;
+    add(cx + rr * Math.cos(th), cy + rr * Math.sin(th) * 0.38, 0.05 + 0.06 * (1 - t / 3.4), 1);
+  }
+  add(cx, cy, 1.3, 5); add(cx, cy, 0.8, 3);
+  for (let i = 0; i < 40; i++) add(r() * w, r() * hh, 0.35 + r() * 0.5, 0);
+  inkBits(cv, g.map((v) => Math.min(1, v)), w, hh);
+}
+function drawFigureStamp() {
+  const cv = RK.figcv; if (!cv || !GEO) return;
+  const w = cv.width, hh = cv.height, g = new Float32Array(w * hh);
+  const put = (arr, n, v) => { for (let i = 0; i < n; i++) { const x = arr[i * 3], y = arr[i * 3 + 1]; const X = Math.floor((x + 0.5) / 1.0 * w), Y = Math.floor((1 - y / 1.8) * hh); if (X >= 0 && Y >= 0 && X < w && Y < hh) g[Y * w + X] += v; } };
+  put(GEO.vol, GEO.nv, 0.02);
+  put(GEO.surf, GEO.ns, 0.006);
+  inkBits(cv, g.map((v) => Math.min(1, v)), w, hh);
+}
+function drawBarcode(digits12) {
+  const L = ['0001101', '0011001', '0010011', '0111101', '0100011', '0110001', '0101111', '0111011', '0110111', '0001011'];
+  const Rc = L.map((s) => s.split('').map((c) => (c === '0' ? '1' : '0')).join(''));
+  const Gc = Rc.map((s) => s.split('').reverse().join(''));
+  const PAR = ['LLLLLL', 'LLGLGG', 'LLGGLG', 'LLGGGL', 'LGLLGG', 'LGGLLG', 'LGGGLL', 'LGLGLG', 'LGLGGL', 'LGGLGL'];
+  const d = digits12.split('').map(Number);
+  let s = 0; d.forEach((x, i) => { s += x * (i % 2 ? 3 : 1); });
+  d.push((10 - s % 10) % 10);
+  let bits = '101';
+  const par = PAR[d[0]];
+  for (let i = 1; i <= 6; i++) bits += par[i - 1] === 'L' ? L[d[i]] : Gc[d[i]];
+  bits += '01010';
+  for (let i = 7; i <= 12; i++) bits += Rc[d[i]];
+  bits += '101';
+  const cv = RK.bar, ctx = cv.getContext('2d'); ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = 'rgb(28,26,23)';
+  const x0 = Math.floor((cv.width - 95) / 2);
+  for (let i = 0; i < 95; i++) if (bits[i] === '1') { const guard = i < 3 || (i >= 45 && i < 50) || i >= 92; ctx.fillRect(x0 + i, 0, 1, guard ? cv.height : cv.height - 5); }
+  const txt = d.join('');
+  return txt[0] + ' ' + txt.slice(1, 7) + ' ' + txt.slice(7);
+}
+function paperCanvas(cv, cssH) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.max(1, Math.round(cv.clientWidth * dpr)), hh = Math.round(cssH * dpr);
+  if (cv.width !== w || cv.height !== hh) { cv.width = w; cv.height = hh; }
+  cv.style.height = cssH + 'px';
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, hh);
+  return { ctx, w: cv.clientWidth, h: cssH };
+}
+function drawCalendar(ageYr) {
+  const cv = RK.calcv; if (!cv.clientWidth) return;
+  const { ctx, w } = paperCanvas(cv, 74);
+  const ink = 'rgb(28,26,23)', ink2 = 'rgba(28,26,23,.55)';
+  ctx.font = '600 8.5px "JetBrains Mono", monospace'; ctx.textBaseline = 'alphabetic';
+  // log axis: seconds before midnight, 1 day → 0.01 s
+  const lo = Math.log10(86400), hi = Math.log10(0.005);
+  const X = (s) => 4 + (Math.log10(s) - lo) / (hi - lo) * (w - 8);
+  const y = 38;
+  ctx.strokeStyle = ink; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(4, y); ctx.lineTo(w - 4, y); ctx.stroke();
+  ctx.fillStyle = ink2; ctx.textAlign = 'center';
+  [[86400, '1 day'], [3600, '1 h'], [60, '1 min'], [1, '1 s'], [0.01, '0.01 s']].forEach(([s, l]) => { const x = X(s); ctx.fillRect(x - 0.5, y - 3, 1, 6); ctx.fillText(l, U.clamp(x, 16, w - 18), y + 14); });
+  const spy = CAL_YEAR_S / AGE_U;
+  const ev = [[66e6, 'dinosaurs end', -1], [300e3, 'Homo sapiens', 1], [12e3, 'farming', -1], [5.2e3, 'writing', 1], [339, 'Newton', -1], [57, 'Moon landing', 1]];
+  ctx.font = '500 8px "JetBrains Mono", monospace';
+  ev.forEach(([yr, l, side]) => { const s = yr * spy; const x = X(s); if (x < 4 || x > w - 4) return; ctx.fillStyle = ink2; ctx.fillRect(x - 0.5, side < 0 ? y - 9 : y, 1, 9); ctx.fillText(l, U.clamp(x, 26, w - 30), side < 0 ? y - 12 : y + 25); });
+  const sy = Math.max(ageYr, 0.001) * spy;
+  const xs = X(sy);
+  ctx.fillStyle = ink; ctx.fillRect(xs, y - 5, w - 4 - xs, 10);
+  ctx.font = '700 9px "JetBrains Mono", monospace'; ctx.textAlign = 'right';
+  ctx.fillText('YOU', w - 6, y - 9);
+}
+function drawStarMap(ageYr, rLight) {
+  const cv = RK.mapcv; if (!cv.clientWidth) return;
+  if (rLight == null) rLight = ageYr;
+  const { ctx, w, h: hh } = paperCanvas(cv, 272);
+  const cx = w / 2, cy = hh / 2 - 6, Rm = Math.min(w, hh) / 2 - 24;
+  const ink = 'rgb(28,26,23)', ink2 = 'rgba(28,26,23,.5)';
+  const Dmax = Math.max(90, Math.min(ageYr * 1.18, 2800));
+  const rOf = (ly) => Rm * Math.sqrt(Math.min(ly, Dmax) / Dmax);
+  // your light sphere, hatched
+  const rr = rOf(Math.max(rLight, 0));
+  ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 7); ctx.clip();
+  ctx.strokeStyle = 'rgba(28,26,23,.2)'; ctx.lineWidth = 1;
+  for (let x = -hh; x < w + hh; x += 4) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + hh, hh); ctx.stroke(); }
+  ctx.restore();
+  ctx.strokeStyle = ink; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 7); ctx.stroke();
+  ctx.strokeStyle = ink2; ctx.lineWidth = 0.8; ctx.setLineDash([2, 3]);
+  const rings = Dmax > 400 ? [100, 500, 1000, 2000].filter((x) => x < Dmax) : [10, 25, 50, 75].filter((x) => x < Dmax);
+  rings.forEach((ly) => { ctx.beginPath(); ctx.arc(cx, cy, rOf(ly), 0, 7); ctx.stroke(); });
+  ctx.setLineDash([]); ctx.beginPath(); ctx.arc(cx, cy, Rm, 0, 7); ctx.stroke();
+  ctx.font = '500 7.5px "JetBrains Mono", monospace'; ctx.fillStyle = ink2; ctx.textAlign = 'left';
+  rings.forEach((ly) => ctx.fillText(ly + ' ly', cx + rOf(ly) * 0.72 + 2, cy + rOf(ly) * 0.72 + 9));
+  for (let hr = 0; hr < 24; hr++) {
+    const a = -hr / 24 * 6.2832 - Math.PI / 2;
+    ctx.fillStyle = ink2; ctx.fillRect(cx + Math.cos(a) * (Rm + 4) - 0.5, cy + Math.sin(a) * (Rm + 4) - 0.5, 1.2, 1.2);
+    if (hr % 6 === 0) { ctx.textAlign = 'center'; ctx.fillText(hr + 'h', cx + Math.cos(a) * (Rm + 13), cy + Math.sin(a) * (Rm + 13) + 3); }
+  }
+  ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(cx, cy, 2.4, 0, 7); ctx.fill();
+  ctx.font = '600 7.5px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('SUN', cx, cy + 12);
+  const boxes = [[cx - 12, cy + 4, 24, 10]];
+  const hit = (b) => boxes.some((q) => b[0] < q[0] + q[2] && b[0] + b[2] > q[0] && b[1] < q[1] + q[3] && b[1] + b[3] > q[1]);
+  BRIGHT.filter((x) => x[1] <= Dmax).forEach(([n, d, ra, mag]) => {
+    const a = -ra / 24 * 6.2832 - Math.PI / 2, r0 = rOf(d); const x = cx + Math.cos(a) * r0, y = cy + Math.sin(a) * r0;
+    const reached = d <= rLight; const rad = Math.max(1.5, 3 - mag * 0.6);
+    ctx.beginPath(); ctx.arc(x, y, rad, 0, 7);
+    if (reached) { ctx.fillStyle = ink; ctx.fill(); } else { ctx.fillStyle = 'rgb(237,229,210)'; ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = 0.9; ctx.stroke(); }
+    ctx.font = (reached ? '600 ' : '500 ') + '7.5px "JetBrains Mono", monospace';
+    const tw = ctx.measureText(n).width + 2;
+    const right = Math.cos(a) >= -0.15;
+    let bx = right ? x + rad + 3 : x - rad - 3 - tw, by = y - 4;
+    for (const dy of [0, -8, 8, -15, 15]) { const b = [bx, y - 4 + dy, tw, 9]; if (!hit(b)) { by = y - 4 + dy; break; } }
+    boxes.push([bx, by, tw, 9]);
+    ctx.fillStyle = reached ? ink : ink2; ctx.textAlign = 'left'; ctx.fillText(n, bx + 1, by + 7);
+  });
+  ctx.font = '500 7.5px "JetBrains Mono", monospace'; ctx.fillStyle = ink2; ctx.textAlign = 'center';
+  ctx.fillText('bright stars by right ascension · hatched: reached by your light', cx, hh - 2);
+}
+
+/* ---------- receipt content ---------- */
+let COMP = composition(70);
+function birthMs() {
+  const v = S.birth || DEFAULT_BIRTH;
+  const [y, m, d] = v.split('-').map(Number);
+  let hh = 12, mm = 0;
+  if (S.birthTime) { const p = S.birthTime.split(':').map(Number); if (isFinite(p[0])) { hh = p[0]; mm = p[1] || 0; } }
+  return Math.min(Date.now() - 1000, new Date(y, m - 1, d, hh, mm, 0, 0).getTime());
+}
+const fmtKg = (kg) => kg >= 1 ? (kg >= 10 ? kg.toFixed(1) : kg.toFixed(2)) + ' kg' : kg >= 0.01 ? Math.round(kg * 1000) + ' g' : kg >= 1e-3 ? (kg * 1000).toFixed(1) + ' g' : kg >= 1e-5 ? Math.round(kg * 1e6) + ' mg' : kg >= 1e-7 ? (kg * 1e6).toFixed(1) + ' mg' : Math.round(kg * 1e9) + ' µg';
+const dotFor = (f) => { const ks = Object.keys(f).sort((a, b) => f[b] - f[a]); const k = ks[0]; const v = f[k]; return `<span class="yo-dot ${v > 0.65 ? 'f' : v >= 0.4 ? 'h' : ''}"></span>${k.toUpperCase()}${ks[1] && f[ks[1]] >= 0.3 ? '·' + ks[1].toUpperCase() : ''}`; };
+const fmtDate = (ms) => { const d = new Date(ms); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); };
+const monthYear = (ms) => { const d = new Date(ms); return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }); };
+let slow = null;
+function receiptSlow() {
+  const now = Date.now(), b = birthMs(), M = S.mass;
+  COMP = composition(M);
+  const st = lifeStats(b, M, now, COMP);
+  const C = COMP;
+  setK('massLine', `${M.toFixed(M % 1 ? 1 : 0)} kg, assembled ${fmtDate(b)}`);
+  setK('atoms', sci(C.atoms, 3));
+  const show = ['O', 'C', 'H', 'N', 'Ca', 'P', 'K', 'S', 'Na', 'Cl', 'Mg', 'Fe', 'Zn', 'Cu', 'I', 'Au'];
+  RK.tbl.innerHTML = '<tr><th>EL</th><th>MASS</th><th>ATOMS</th><th style="text-align:left;padding-left:8px">MADE IN</th></tr>' +
+    show.map((s) => { const r = C.by(s); const ci = CATS.findIndex((c) => c.s === s); const at = ci >= 0 ? ` data-hc="${ci}"` : (s === 'I' || s === 'Au') ? ' data-hs="4"' : ' data-hc="11"'; return `<tr${at}><td>${r.s}</td><td>${fmtKg(r.kg)}</td><td>${sci(r.atoms, 3)}</td><td class="src">${dotFor(r.f)}</td></tr>`; }).join('');
+  RK.bySrc.innerHTML = SOURCES.map((s, i) => `<div data-hs="${i}"><div class="yo-r"><span>${s.name}</span><i></i><b>${sci(C.srcAtoms[i], 3)}</b>${chip(s.ch[0])}</div><div class="yo-n" style="margin:0 0 3px">${pctS(C.srcAtoms[i] / C.atoms)} of your atoms · ${pctS(C.srcKg[i] / C.kgTot)} of your mass</div></div>`).join('') +
+    '<div class="yo-n">BB Big Bang · LM dying low-mass stars · MS exploding massive stars · WD exploding white dwarfs · NS merging neutron stars · CR cosmic-ray fission</div>';
+  const H = C.by('H'); const dAtoms = H.atoms * 1.5e-4; const dG = dAtoms / NA * 2.014;
+  setK('deut', `≈ ${dG.toFixed(1)} g`);
+  setK('deutNote', `${sci(dAtoms, 2)} heavy-hydrogen atoms, every one made in the first twenty minutes of time. Stars only destroy it.`);
+  const Au = C.by('Au'); setK('gold', `≈ ${(Au.kg * 1e6).toFixed(2)} mg`);
+  setK('goldNote', `${sci(Au.atoms, 2)} atoms of gold, about 95% of them from colliding neutron stars (0.2 mg in a 70 kg body, Emsley 1998).`);
+  const I = C.by('I'); setK('iod', `≈ ${Math.round(I.kg * 1e6)} mg`);
+  setK('bq', `≈ ${grp(Math.round(st.decayRate / 100) * 100)}`);
+  // time rows
+  setK('beatNote', `Your heart is now at about ${Math.round(st.hr)} beats a minute; the figure beats with it.`);
+  setK('rbcNote', `At about ${(RBC_RATE70 * M / 70 / 1e6).toFixed(1)} million a second in an adult of your mass. Each lives about 120 days.`);
+  setK('cells', sci(st.humanCells, 2)); setK('bact', sci(st.bacteria, 2)); setK('neur', '8.6 × 10¹⁰');
+  setK('galfrac', sci(st.galFrac, 3));
+  // calendar and light echo
+  const ly = st.lightLy;
+  const ld = lightDistText(ly);
+  RK.echo.innerHTML = `${ld[0]}<small> ${ld[1]}</small>`;
+  const reached = BRIGHT.filter((x) => x[1] <= ly);
+  const nxt = BRIGHT.find((x) => x[1] > ly);
+  const marks = lightMarksPassed(ly);
+  const cnt = st.lightObj < 1 ? (marks.length ? 'no other star yet, but it is past ' + (marks.length === 1 ? marks[0] : marks.slice(0, -1).join(', ') + ' and ' + marks[marks.length - 1]) : 'no other star yet') : `about ${grp(st.lightObj < 60 ? st.lightObj : Math.round(st.lightObj / 10) * 10)} stars and brown dwarfs in ${grp(st.lightSys < 60 ? st.lightSys : Math.round(st.lightSys / 10) * 10)} systems`;
+  let echoTxt = `It has swept past ${cnt}` + (reached.length ? `, including ${reached.length === 1 ? reached[0][0] : reached.slice(0, -1).map((x) => x[0]).join(', ') + ' and ' + reached[reached.length - 1][0]}.` : '.');
+  if (nxt) echoTxt += ` It reaches ${nxt[0]} in ${monthYear(b + nxt[1] * JYEAR * 1000)}` + (nxt[1] - ly < 1 ? ', in just a few months.' : '.');
+  RK.echoTxt.textContent = echoTxt;
+  RK.stars.innerHTML = BRIGHT.map(([n, d]) => { const arr = b + d * JYEAR * 1000; const ok = d <= ly; const isN = nxt && nxt[0] === n;
+    return `<tr class="${ok ? '' : 'no'}${isN ? ' nx' : ''}"><td>${ok ? '•' : isN ? '›' : '○'}</td><td>${n}</td><td>${d} ly</td><td>${ok ? 'reached ' + new Date(arr).getFullYear() : 'arrives ' + (isN ? monthYear(arr) : new Date(arr).getFullYear())}</td></tr>`; }).join('');
+  drawCalendar(st.A); drawStarMap(st.A);
+  // totals, barcode, closing
+  setK('totT', '13,800,000,000 yr');
+  setK('totP', (st.A / AGE_U * 100).toPrecision(2).replace(/e-(\d+)/, (m, e) => ' × 10⁻' + FMT.sup(e)) + ' %');
+  const bd = new Date(b);
+  const dig = '138' + String(bd.getFullYear()).padStart(4, '0') + String(bd.getMonth() + 1).padStart(2, '0') + String(bd.getDate()).padStart(2, '0') + String(Math.round(M) % 10);
+  setK('barTxt', drawBarcode(dig));
+  RK.stamp.classList.toggle('off', !S.example);
+  const passed = reached.length ? reached[reached.length - 1][0] : null;
+  RK.close.innerHTML = closingText(st, C, passed);
+  slow = { st, b, M };
+}
+function closingText(st, C, passed) {
+  const yrs = st.A;
+  const dd = Math.max(1, Math.floor(yrs * 365.25));
+  const age = yrs >= 2 ? `${Math.floor(yrs)} years` : yrs >= 1 ? 'a year' : dd === 1 ? 'a day' : `${dd} days`;
+  const beats = st.beats >= 1e9 ? (st.beats / 1e9).toFixed(1) + ' billion' : st.beats >= 1e6 ? Math.round(st.beats / 1e6) + ' million' : grp(Math.max(1, st.beats));
+  const km = st.cmbKm >= 1e12 ? (st.cmbKm / 1e12).toFixed(2) + ' trillion' : st.cmbKm >= 1e9 ? grp(st.cmbKm / 1e9) + ' billion' : st.cmbKm >= 1e6 ? grp(st.cmbKm / 1e6) + ' million' : grp(st.cmbKm);
+  const ld = lightDistText(st.lightLy), mk = lightMarksPassed(st.lightLy);
+  const light = passed ? `has passed ${passed} and is still going` : mk.length ? `has passed ${mk[mk.length - 1].split(',')[0]} and is still going` : `is ${ld[0]} ${ld[1].replace(' away', '')} out and still going`;
+  const gold = (C.by('Au').kg * 1e6).toFixed(2);
+  return `Almost nothing in you is new. The hydrogen in your cells is 13.8 billion years old. The oxygen in your next breath was made in a star that exploded before the Sun existed. The ${gold} mg of gold in you came from two dead stars colliding. For ${age} these borrowed atoms have held together as you. Your heart has beaten about ${beats} times, and you have ridden ${km} kilometres through the afterglow of the Big Bang. The light from your first day ${light}. <em>You are the universe, 13.8 billion years old, looking at itself.</em>`;
+}
+function receiptFast(now) {
+  if (!slow) return;
+  const b = slow.b, M = slow.M;
+  const st = lifeStats(b, M, now, COMP);
+  const ap = ageParts(b, now);
+  setK('now', DTF.format(now));
+  setK('age', `${ap.y} yr ${ap.d} d`);
+  setK('days', grp(Math.floor(st.tS / 86400)));
+  setK('secs', NF1.format(st.tS));
+  setK('beats', grp(Math.floor(st.beats)));
+  setK('breaths', grp(Math.floor(st.breaths)));
+  setK('blinks', grp(Math.floor(st.blinks)));
+  setK('rbc', grp(st.rbc));
+  const since = Math.max(0, (now - printedAt) / 1000);
+  setK('turn', grp(TURNOVER70 * M / 70 * since));
+  setK('dOrb', grp(st.orbitKm) + ' km'); setK('dGal', grp(st.galKm) + ' km'); setK('dCmb', grp(st.cmbKm) + ' km');
+  setK('moon', grp(st.moonTrips)); setK('ly', st.ly.toFixed(4));
+  setK('orbits', st.orbits.toFixed(6));
+  setK('decays', grp(st.decays));
+  setK('swap', sci(WATER_ATOMS70 * M / 70 * Math.max(since, 0.001), 4));
+  setK('cal', st.calSec >= 60 ? (st.calSec / 60).toFixed(2) + ' min' : st.calSec >= 1 ? st.calSec.toFixed(2) + ' s' : st.calSec >= 0.001 ? (st.calSec * 1000).toFixed(1) + ' ms' : (st.calSec * 1e6).toFixed(0) + ' µs');
+  setK('totY', `${ap.y} yr ${ap.d} d`);
+  setK('tabAge', `${ap.y} yr ${ap.d} d`);
+  return st;
+}
+let printedAt = Date.now();
+
+/* ---------- receipt as text ---------- */
+function receiptText() {
+  const now = Date.now(), b = birthMs(), M = S.mass, C = composition(M), st = lifeStats(b, M, now, C), ap = ageParts(b, now);
+  const Wd = 42, line = '-'.repeat(Wd), dbl = '='.repeat(Wd);
+  const c = (s) => { const p = Math.max(0, Math.floor((Wd - s.length) / 2)); return ' '.repeat(p) + s; };
+  const r = (l, v) => { const n = Math.max(1, Wd - l.length - v.length); return l + ' ' + '.'.repeat(Math.max(0, n - 2)) + ' ' + v; };
+  const plain = (s) => s.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&');
+  const wrap = (s) => { const out = []; let cur = ''; s.split(' ').forEach((wd) => { if ((cur + ' ' + wd).trim().length > Wd) { out.push(cur.trim()); cur = wd; } else cur += ' ' + wd; }); if (cur.trim()) out.push(cur.trim()); return out.join('\n'); };
+  const tx = (x) => x.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+/g, (m) => '^' + m.split('').map((ch2) => '⁰¹²³⁴⁵⁶⁷⁸⁹⁻'.indexOf(ch2) === 10 ? '-' : '⁰¹²³⁴⁵⁶⁷⁸⁹⁻'.indexOf(ch2)).join('')).replace(/ × /g, 'x');
+  const L = [];
+  L.push(c('COSMOGENESIS'), c('RECEIPT FOR ONE HUMAN BEING'), c('Earth · Sol III · Orion Arm · Milky Way'), c(new Date(now).toLocaleString('en-GB')), c('t = 13.8 Gyr after the Big Bang'), dbl);
+  L.push(r('BORN', fmtDate(b) + (S.example ? ' (example)' : '')), r('MASS', M + ' kg'), line);
+  L.push('01 TIME', r('Age', `${ap.y} yr ${ap.d} d`), r('Seconds', grp(st.tS)), r('Heartbeats*', grp(st.beats)), r('Breaths*', grp(st.breaths)), r('Blinks*', grp(st.blinks)), '* estimates, +/-15%', line);
+  L.push('02 CELLS', r('Human cells, now', tx(sci(st.humanCells, 2))), r('Bacteria, now', tx(sci(st.bacteria, 2))), r('Red blood cells made', tx(sci(st.rbc, 3))), line);
+  L.push('03 DISTANCE', r('Around the Sun', tx(sci(st.orbitKm, 3)) + ' km'), r('Around the galaxy', tx(sci(st.galKm, 3)) + ' km'), r('Through the CMB', tx(sci(st.cmbKm, 3)) + ' km'), r('= trips to the Moon', grp(st.moonTrips)), r('= light-years', st.ly.toFixed(4)), line);
+  L.push('04 LAPS', r('Orbits of the Sun', st.orbits.toFixed(3)), r('Of one galactic year', tx(sci(st.galFrac, 3))), line);
+  L.push('05 BILL OF MATERIALS', r('Atoms', tx(sci(C.atoms, 3))));
+  SOURCES.forEach((s, i) => L.push(r(s.short, tx(pctS(C.srcAtoms[i] / C.atoms)) + ' of atoms')));
+  L.push(r('Gold', (C.by('Au').kg * 1e6).toFixed(2) + ' mg'), line);
+  L.push('06 COSMIC CALENDAR', wrap(`Your life so far: the last ${st.calSec >= 1 ? st.calSec.toFixed(2) + ' s' : (st.calSec * 1000).toFixed(1) + ' ms'} before midnight on 31 December.`), line);
+  const nxt = BRIGHT.find((x) => x[1] > st.A);
+  L.push('07 LIGHT ECHO', wrap(`Light from your birth is ${st.A.toFixed(1)} light-years out, past about ${grp(st.lightObj)} stars and brown dwarfs.` + (nxt ? ` Next bright star: ${nxt[0]} (${nxt[1]} ly).` : '')), dbl);
+  const reachedT = BRIGHT.filter((x) => x[1] <= st.A);
+  L.push(r('TIME TAKEN TO MAKE YOU', '13.8 Gyr'), c('ALL ATOMS ON LOAN'), '', wrap(plain(closingText(st, C, reachedT.length ? reachedT[reachedT.length - 1][0] : null))), '', c('Nothing you entered was stored or sent.'), c('Begin again: ' + CHF(1)));
+  return L.join('\n');
+}
+function copyReceipt() {
+  const txt = receiptText();
+  const fallback = () => {
+    const ta = h('textarea', { readonly: true }); ta.value = txt;
+    const box = h('div', { class: 'yo-copy', onclick: (e) => { if (e.target === box) box.remove(); } },
+      h('div', { class: 'cz-panel' }, h('div', { style: { font: '500 13px/1.4 var(--f-ui)', color: 'var(--dust)' }, text: 'Your browser blocked the clipboard. The text is selected: press Ctrl+C or ⌘C to copy it.' }), ta,
+        h('div', { class: 'cz-btns' }, h('button', { class: 'cz-btn', type: 'button', text: 'Close', onclick: () => box.remove() }))));
+    document.body.append(box); ta.focus(); ta.select();
+    try { if (document.execCommand && document.execCommand('copy')) ch.toast('Receipt copied as text'); } catch (e) { /* the selection stays for manual copy */ }
+  };
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => ch.toast('Receipt copied as text'), fallback);
+    else fallback();
+  } catch (e) { fallback(); }
+}
+
+/* ---------- printing ---------- */
+const PR = { on: false, off: 0, t: 0, step: 0 };
+function printReceipt() {
+  if (!S.receipt) setReceipt(true);
+  rcScroll.scrollTop = 0;
+  rcScroll.classList.remove('live');
+  PR.on = true; PR.off = rcWin.clientHeight; PR.t = 0; PR.step = 0;
+  rcScroll.style.transform = `translateY(${PR.off}px)`;
+  rcEl.classList.add('printing');
+  printedAt = Date.now();
+}
+function tickPrint(dt) {
+  if (!PR.on) return;
+  PR.t += dt;
+  // a thermal head feeds in short line steps
+  const period = 0.042;
+  while (PR.t > period) {
+    PR.t -= period; PR.off -= 17; PR.step++;
+    if (ch.sound.enabled && PR.step % 1 === 0) soundTick();
+  }
+  if (PR.off <= 0) { PR.off = 0; PR.on = false; rcEl.classList.remove('printing'); rcScroll.classList.add('live'); S.printed = true; }
+  rcScroll.style.transform = PR.off ? `translateY(${PR.off}px)` : '';
+}
+// On narrow desktops the receipt and the control deck share the right edge: one gives way to the other.
+const narrowDesk = () => !isSmall() && window.innerWidth < 1200;
+function setReceipt(on) {
+  S.receipt = on;
+  if (on && narrowDesk() && deckEl.classList.contains('cz-open')) ch.openDeck(false);
+  rcEl.classList.toggle('gone', !on || S.asmTarget < 0.5);
+  if (tgReceipt) tgReceipt.set(on);
+  document.body.classList.toggle('yo-rc-open', on && isSmall());
+  syncTab();
+}
+const tabEl = h('button', { class: 'yo-tab off', type: 'button', 'aria-label': 'Open your cosmic receipt' });
+tabEl.innerHTML = 'RECEIPT<b data-k="tabAge">·</b><small>tap to print yours</small>';
+document.body.append(tabEl);
+RK.tabAge = tabEl.querySelector('b');
+tabEl.addEventListener('click', () => { setReceipt(true); printReceipt(); });
+function syncTab() { tabEl.classList.toggle('off', !isSmall() || S.receipt || S.asmTarget < 0.5 || !S.started || S.echoOn); }
+rcEl.querySelector('[data-act=print]').addEventListener('click', () => printReceipt());
+rcEl.querySelector('[data-act=toggle]').addEventListener('click', () => {
+  setReceipt(false);
+});
+
+/* =====================================================================
+   10. CONTROL DECK
+   ===================================================================== */
+const todayISO = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const gY = ch.ui.group('You');
+const dateField = h('div', { class: 'cz-field' });
+const dateLab = h('label', { class: 'cz-label', for: 'yo-born' }, h('span', { html: 'Born <span class="yo-ex">example · enter yours</span>' }));
+const dateIn = h('input', { class: 'cz-input yo-date', type: 'date', id: 'yo-born', min: '1900-01-01', 'aria-label': 'Birth date' });
+const timeIn = h('input', { class: 'cz-input yo-date', type: 'time', id: 'yo-born-t', 'aria-label': 'Birth time, optional' });
+dateField.append(dateLab, h('div', { class: 'yo-date-row' }, dateIn, timeIn), h('div', { class: 'cz-hint', text: 'Time is optional. Nothing you enter is stored or sent anywhere; it is all computed in this page.' }));
+gY.html(dateField);
+[dateIn, timeIn].forEach((el) => el.addEventListener('keydown', (e) => e.stopPropagation()));
+const massSl = gY.slider({ id: 'yo-mass', label: 'Body mass', min: 3, max: 200, step: 0.5, value: 70, unit: 'kg', digits: 1, hint: 'Default 70 kg, the reference adult.', onInput: (v) => setMass(v, 'slider') });
+
+const gM = ch.ui.group('Made of');
+const segCol = gM.buttons([{ label: 'Colour: origin', pressed: true, onClick: () => setColMode(0) }, { label: 'Element', pressed: false, onClick: () => setColMode(1) }]);
+const segW = gM.buttons([{ label: 'Weigh by mass', pressed: true, onClick: () => setWeigh(0) }, { label: 'By atoms', pressed: false, onClick: () => setWeigh(1) }]);
+const legEl = h('div', { class: 'yo-leg' });
+const legCap = h('div', { class: 'yo-lcap' });
+gM.html(legEl); gM.html(legCap);
+
+const gS = ch.ui.group('Show');
+const btnUnmake = gS.buttons([{ label: 'Return my atoms to the stars', kind: 'primary', id: 'yo-unmake', onClick: () => toggleUnmake() }])[0];
+const btnEcho = gS.buttons([{ label: 'Follow my light', id: 'yo-echo', title: 'Follow the light that left Earth on the day you were born (L)', onClick: () => toggleEcho() }])[0];
+let tgReceipt = null;
+tgReceipt = gS.toggle({ id: 'yo-rc-t', label: 'Show the receipt', value: true, onChange: (v) => { setReceipt(v); if (v && !S.printed) printReceipt(); } });
+gS.toggle({ id: 'yo-turn', label: 'Atomic turnover', value: true, hint: 'Points leave and arrive, about 500,000 times faster than in life.', onChange: (v) => { S.turnover = v; } });
+gS.slider({ id: 'yo-spin', label: 'Turn', min: 0, max: 0.5, step: 0.01, value: 0.1, format: (v) => (v === 0 ? 'still' : (v * 60 / 6.2832).toFixed(1) + ' rpm'), onInput: (v) => { S.spin = v; } });
+gS.buttons([{ label: 'Copy my receipt as text', id: 'yo-copy', onClick: () => copyReceipt() }, { label: 'Print again', onClick: () => printReceipt() }]);
+
+const gR = ch.ui.group('Right now');
+const ro = gR.readouts([{ id: 'hr', label: 'Heart rate' }, { id: 'beats', label: 'Heartbeats' }, { id: 'br', label: 'Breathing' }, { id: 'per', label: 'One point' }]);
+
+const hudAge = ch.hud.add('Age', '—');
+const hudHeart = ch.hud.add('Heart', '—');
+const hudPts = ch.hud.add('Figure', '—');
+
+function buildLegend() {
+  legEl.innerHTML = '';
+  const C = COMP70;
+  legEl.append(h('div', { class: 'yo-lh' }, h('i'), h('i', { text: S.colMode ? 'Element' : 'Made in' }), h('span', { text: 'Mass' }), h('span', { text: 'Atoms' }), h('i')));
+  const items = S.colMode ? CATS.map((c, i) => ({ i, name: c.n, short: i === 11 ? 'Fe and traces' : c.n, col: c.col, m: C.cats[i].kg / C.kgTot, a: C.cats[i].atoms / C.atoms, ch: null }))
+    : SOURCES.map((s, i) => ({ i, name: s.name, short: s.short, col: s.col, m: C.srcKg[i] / C.kgTot, a: C.srcAtoms[i] / C.atoms, ch: s.ch[0] }));
+  items.forEach((it) => {
+    const r = h('div', { class: 'yo-lr', style: '--c:' + it.col, tabindex: '0', role: 'button', 'data-i': it.i, 'aria-label': it.name, title: it.name },
+      h('span', { class: 'sw' }), h('span', { class: 'nm', text: it.short || it.name }), h('span', { class: 'v', text: pctC(it.m) }), h('span', { class: 'v m', text: pctC(it.a) }),
+      it.ch ? h('a', { href: CHF(it.ch), title: 'Chapter ' + it.ch + ': ' + CHT(it.ch), text: '→' + String(it.ch).padStart(2, '0'), onclick: (e) => e.stopPropagation() }) : h('i'));
+    r.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') setHi(it.i, false); });
+    r.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') setHi(-1, false); });
+    const same = () => S.hiSticky === it.i && S.hiStickyKind === S.colMode;
+    r.addEventListener('click', () => setHi(same() ? -1 : it.i, true));
+    r.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setHi(same() ? -1 : it.i, true); } });
+    legEl.append(r);
+  });
+  syncLegend();
+}
+function hiCurrent() { return S.hi >= 0 ? [S.hi, S.hiKind] : [S.hiSticky, S.hiStickyKind]; }
+function syncLegend() {
+  const [cur, kind] = hiCurrent();
+  legEl.querySelectorAll('.yo-lr').forEach((r) => r.classList.toggle('on', +r.dataset.i === cur && kind === S.colMode));
+  rcPaper.querySelectorAll('.hl').forEach((el) => el.classList.remove('hl'));
+  if (cur >= 0) rcPaper.querySelectorAll(kind ? `[data-hc="${cur}"]` : `[data-hs="${cur}"]`).forEach((el) => el.classList.add('hl'));
+  const C = COMP70;
+  let k = '', t = '', d = '', col = ERA, html = '';
+  if (cur >= 0 && !kind) {
+    const s = SOURCES[cur]; col = s.col;
+    k = s.kick; t = s.long; d = `${pctC(C.srcKg[cur] / C.kgTot)} of your mass · ${pctC(C.srcAtoms[cur] / C.atoms)} of your atoms` + (cur >= 4 ? ' · shown magnified' : '');
+    html = `<b>${esc(s.long)}, ${esc(s.when)}.</b> ${esc(s.text)} ` + s.ch.map((n) => `<a href="${CHF(n)}">See it: ${esc(CHT(n))} →</a>`).join(' ');
+  } else if (cur >= 0 && kind) {
+    const c = CATS[cur]; col = c.col;
+    const f = COMP70.cats[cur]; const r = cur < 11 ? C.rows[cur] : null;
+    k = c.s.replace('…', ''); t = c.n;
+    const long = (r ? `${pctS(f.kg / C.kgTot)} of your mass, ${pctS(f.atoms / C.atoms)} of your atoms. Made in: ${srcShares(r.f)}.` : 'Iron, fluorine, zinc, silicon and dozens more, together about 12 g in a 70 kg body.') + (c.where ? ' ' + c.where.charAt(0).toUpperCase() + c.where.slice(1) + '.' : '');
+    d = `${pctC(f.kg / C.kgTot)} of your mass · ${pctC(f.atoms / C.atoms)} of your atoms` + (c.where ? ' · ' + c.where : '');
+    html = `<b>${esc(c.n)}.</b> ${esc(long)}`;
+  } else {
+    html = S.colMode ? 'Hover an element to isolate it. Calcium draws your skeleton.' : 'Hover a source to light up only the atoms it made; click to keep it lit. The arrows open the chapter where it happens.';
+  }
+  legCap.innerHTML = html;
+  capEl.style.setProperty('--c', col);
+  capEl.querySelector('.k').textContent = k; capEl.querySelector('.t').textContent = t; capEl.querySelector('.d').textContent = d;
+  capEl.classList.toggle('on', cur >= 0 && S.asmTarget > 0.5 && !S.echoOn);
+}
+function setHi(i, sticky, kind) {
+  if (kind == null) kind = S.colMode;
+  if (sticky) { S.hiSticky = i; S.hiStickyKind = kind; }
+  S.hi = sticky ? -1 : i; if (!sticky) S.hiKind = kind;
+  const [cur, k] = hiCurrent();
+  if (cur >= 0) { S.hiLast = cur; S.hiLastKind = k; }
+  syncLegend();
+}
+function setColMode(m) {
+  S.colMode = m; S.hi = -1; S.hiSticky = -1;
+  segCol[0].setPressed(!m); segCol[1].setPressed(!!m);
+  buildLegend();
+}
+function setWeigh(m) {
+  S.weigh = m;
+  segW[0].setPressed(!m); segW[1].setPressed(!!m);
+  ch.toast(m ? 'Each point is now an equal share of your atoms: 61% of them are hydrogen from the Big Bang' : 'Each point is an equal share of your mass: three-quarters was made in exploding massive stars', 4200);
+}
+function setBirth(v, from) {
+  if (!v) return;
+  const d = new Date(v + 'T00:00:00');
+  const revert = () => { const cur = S.birth || DEFAULT_BIRTH; dateIn.value = cur; rcIn.date.value = cur; };
+  if (!isFinite(d.getTime()) || d.getFullYear() < 1900) { revert(); return; }
+  if (d.getTime() > Date.now()) { revert(); ch.toast('That date is in the future. Your receipt will be ready then.'); return; }
+  S.birth = v; S.example = false;
+  if (from !== 'deck') dateIn.value = v;
+  if (from !== 'rc') rcIn.date.value = v;
+  dateLab.querySelector('.yo-ex').classList.add('off');
+  receiptSlow();
+  if (S.echoOn) { S.echoStart = S.t + 0.6; ECHO_LBL.forEach((L) => { L.hit = false; }); fillEchoLabels(); echoFill(echoD(ageNow())); }
+  if (from !== 'debug') {
+    S.flash = 1;
+    if (S.receipt) printReceipt();
+    const ap = ageParts(birthMs(), Date.now());
+    ch.toast(`Welcome. ${ap.y} years, ${ap.d} days, and every atom accounted for. Press L to follow your light.`, 4200);
+  }
+}
+function setTime(v, from) {
+  S.birthTime = v || '';
+  if (from !== 'deck') timeIn.value = v; if (from !== 'rc') rcIn.time.value = v;
+  receiptSlow();
+}
+function setMass(v, from) {
+  v = U.clamp(+v || 70, 2, 300);
+  S.mass = v;
+  if (from !== 'slider') massSl.set(v);
+  if (from !== 'rc') rcIn.mass.value = String(v);
+  receiptSlow();
+}
+dateIn.value = DEFAULT_BIRTH; rcIn.date.value = DEFAULT_BIRTH; rcIn.mass.value = '70';
+dateIn.max = todayISO(); rcIn.date.max = todayISO();
+dateIn.addEventListener('change', () => setBirth(dateIn.value, 'deck'));
+timeIn.addEventListener('change', () => setTime(timeIn.value, 'deck'));
+rcIn.date.addEventListener('change', () => setBirth(rcIn.date.value, 'rc'));
+rcIn.time.addEventListener('change', () => setTime(rcIn.time.value, 'rc'));
+rcIn.mass.addEventListener('change', () => setMass(rcIn.mass.value, 'rc'));
+buildLegend();
+
+/* ---------- the unmaking ---------- */
+function toggleUnmake() {
+  if (!bodyReady) return;
+  if (S.echoOn) toggleEcho(false);
+  if (S.asmTarget > 0.5) {
+    S.asmTarget = 0; S.asmSpeed = 0.42; S.unmade = true; hideTip(); setHi(-1, true);
+    btnUnmake.setLabel('Bring them back');
+    rcEl.classList.add('gone'); syncTab();
+    setIntro('Returned', 'Your atoms, back where they were made', 'Nothing here is to scale in space, only in share: each cloud holds its true fraction of your mass. Press O to bring them back.');
+  } else {
+    S.asmTarget = 1; S.asmSpeed = 0.3;
+    btnUnmake.setLabel('Return my atoms to the stars');
+  }
+  syncLegend();
+}
+// The shared help overlay flattens its key list one level too shallow and prints "[object HTMLElement]".
+// Until cosmos.js is fixed, rebuild the list locally whenever the overlay opens.
+const HELP_KEYS = [['Space', 'Pause / play'], ['H', 'Hide the interface'], ['N', 'Field notes'], ['C', 'Controls'], ['M', 'Sound'], ['F', 'Fullscreen'], ['[ ]', 'Previous / next chapter'], ['?', 'This help']];
+new MutationObserver((muts) => {
+  muts.forEach((m) => m.addedNodes.forEach((n) => {
+    if (!n.classList || !n.classList.contains('cz-help')) return;
+    const dl = n.querySelector('dl'); if (!dl || dl.querySelector('dt')) return;
+    dl.textContent = '';
+    HELP_KEYS.forEach(([k, d]) => { dl.append(h('dt', {}, h('kbd', { text: k })), h('dd', { style: { margin: 0 }, text: d })); });
+  }));
+}).observe(document.body, { childList: true });
+const onKeyH = (k, fn, d) => { ch.onKey(k, fn, d); HELP_KEYS.push([k.toUpperCase(), d]); };
+onKeyH('o', () => toggleUnmake(), 'Return your atoms to the stars / bring them back');
+onKeyH('e', () => setColMode(S.colMode ? 0 : 1), 'Colour by origin or by element');
+onKeyH('a', () => setWeigh(S.weigh ? 0 : 1), 'Weigh points by mass or by atoms');
+onKeyH('r', () => { setReceipt(!S.receipt); if (S.receipt && !S.printed) printReceipt(); }, 'Show or hide the receipt');
+onKeyH('p', () => printReceipt(), 'Print the receipt again');
+onKeyH('l', () => toggleEcho(), 'Follow the light of your first day out to the stars');
+
+/* ---------- pointer: turn the figure, hover to read an atom ---------- */
+const stage = ch.stage;
+stage.classList.add('cz-grab');
+const ptr = { down: false, x: 0, y: 0, sx: 0, sy: 0, moved: 0, id: -1, lastPick: 0, hx: -1, hy: -1, pinch: 0, pts: new Map() };
+stage.addEventListener('pointerdown', (e) => {
+  ptr.pts.set(e.pointerId, [e.clientX, e.clientY]);
+  if (ptr.pts.size === 2) { const [a, b] = [...ptr.pts.values()]; ptr.pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); }
+  ptr.down = true; ptr.x = ptr.sx = e.clientX; ptr.y = ptr.sy = e.clientY; ptr.moved = 0;
+  try { stage.setPointerCapture(e.pointerId); } catch (err) { /* capture is optional */ }
+});
+stage.addEventListener('pointermove', (e) => {
+  if (ptr.pts.has(e.pointerId)) ptr.pts.set(e.pointerId, [e.clientX, e.clientY]);
+  if (ptr.pts.size === 2) {
+    const [a, b] = [...ptr.pts.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (ptr.pinch) S.zoom = U.clamp(S.zoom * d / ptr.pinch, 0.55, 2.4); ptr.pinch = d; return;
+  }
+  if (ptr.down) {
+    const dx = e.clientX - ptr.x, dy = e.clientY - ptr.y; ptr.x = e.clientX; ptr.y = e.clientY;
+    ptr.moved += Math.abs(dx) + Math.abs(dy);
+    S.yaw += dx * 0.008; S.yawV = dx * 0.008 * 60;
+    S.pitch = U.clamp(S.pitch + dy * 0.004, -0.35, 0.5);
+    hideTip();
+  } else { ptr.hx = e.clientX; ptr.hy = e.clientY; }
+});
+const endPtr = (e) => {
+  ptr.pts.delete(e.pointerId); if (ptr.pts.size < 2) ptr.pinch = 0;
+  if (!ptr.down) return; ptr.down = false;
+  if (ptr.moved < 6 && ptr.pts.size === 0) {
+    // a tap: light up the source (or element) of the point under the finger
+    const i = pickAt(e.clientX, e.clientY);
+    if (i >= 0) { const v = S.colMode ? catOf(i) : srcOf(i); setHi(S.hiSticky === v && S.hiStickyKind === S.colMode ? -1 : v, true); showTip(i, e.clientX, e.clientY); clearTimeout(tipTimer); tipTimer = setTimeout(hideTip, 3500); }
+    else if (S.hiSticky >= 0) setHi(-1, true);
+  }
+};
+stage.addEventListener('pointerup', endPtr); stage.addEventListener('pointercancel', endPtr);
+stage.addEventListener('pointerleave', (e) => { ptr.hx = -1; if (e.pointerType === 'mouse') hideTip(); });
+stage.addEventListener('wheel', (e) => { e.preventDefault(); S.zoom = U.clamp(S.zoom * Math.exp(-e.deltaY * 0.0011), 0.55, 2.4); }, { passive: false });
+const srcOf = (i) => infoA[i * 4 + (CUR.mix > 0.5 ? 1 : 0)];
+const catOf = (i) => infoA[i * 4 + (CUR.mix > 0.5 ? 3 : 2)];
+const tmpP = [0, 0, 0], tmpO = [0, 0, 0];
+function pickAt(x, y) {
+  if (!bodyReady || S.asm < 0.98 || !VP || S.echo > 0.05) return -1;
+  const arr = CUR.mix > 0.5 ? posN : posM;
+  const c = Math.cos(S.yaw), s = Math.sin(S.yaw);
+  const m = VP, W = canvas.clientWidth, H = canvas.clientHeight;
+  let best = -1, bestW = 1e9;
+  const R2 = (isSmall() ? 16 : 9) ** 2;
+  const [hc, hk] = hiCurrent();
+  const filt = hc >= 0 && S.hiT > 0.5, off = CUR.mix > 0.5 ? 1 : 0;
+  const end = filt && !hk && hc >= 4 ? NTOT : NMAIN;
+  for (let i = 0; i < end; i++) {
+    if (filt && infoA[i * 4 + (hk ? 2 : 0) + off] !== hc) continue;
+    const px = arr[i * 3], py = arr[i * 3 + 1], pz = arr[i * 3 + 2];
+    const wx = c * px + s * pz, wz = -s * px + c * pz;
+    const cw = m[3] * wx + m[7] * py + m[11] * wz + m[15];
+    const sx = ((m[0] * wx + m[4] * py + m[8] * wz + m[12]) / cw * 0.5 + 0.5) * W;
+    const sy = (0.5 - (m[1] * wx + m[5] * py + m[9] * wz + m[13]) / cw * 0.5) * H;
+    const d2 = (sx - x) ** 2 + (sy - y) ** 2;
+    if (d2 < R2 && cw < bestW) { bestW = cw; best = i; }
+  }
+  return best;
+}
+function showTip(i, x, y) {
+  const src = srcOf(i), cat = catOf(i), s = SOURCES[src], c = CATS[cat];
+  const per = S.weigh ? `${sci(COMP.atoms / NMAIN, 2)} atoms of you` : `${(S.mass / NMAIN * 1000).toFixed(2)} g of you`;
+  const reg = ['near the skin', 'deep tissue', 'bone', 'thyroid'][regN && CUR.mix > 0.5 ? regN[i] : regM ? regM[i] : 0];
+  const name = i >= NMAIN ? (src === 4 ? 'Iodine, gold and other r-process atoms' : 'Boron and other cosmic-ray atoms') : c.n;
+  tipEl.innerHTML = `<b>${esc(name)}</b><i style="--c:${s.col}">●</i> ${esc(s.long.replace('Made', 'made'))} · ${reg}<br>one of ${grp(NMAIN)} points · ${i >= NMAIN ? 'magnified' : per}`;
+  const W = window.innerWidth, tw = tipEl.offsetWidth || 240;
+  let tx = x + 14; if (tx + tw > W - 8) tx = x - 14 - tw; tx = U.clamp(tx, 8, Math.max(8, W - tw - 8));
+  tipEl.style.left = tx + 'px'; tipEl.style.top = (y - (isSmall() ? 70 : 0)) + 'px'; tipEl.style.transform = 'translateY(-50%)'; tipEl.style.opacity = 1;
+  S.pick = i;
+}
+function hideTip() { tipEl.style.opacity = 0; S.pick = -1; }
+let tipTimer = 0;
+function hoverPick(now) {
+  if (ptr.down || ptr.hx < 0 || isSmall()) return;
+  if (now - ptr.lastPick < 70) return; ptr.lastPick = now;
+  const i = pickAt(ptr.hx, ptr.hy);
+  if (i >= 0) showTip(i, ptr.hx, ptr.hy); else hideTip();
+}
+
+/* ---------- the light echo: follow the light of your first day out among the stars ---------- */
+const ECHO_DUR = 11;            // seconds for the wavefront to travel from your birth to today
+const ECHO_RW = 0.8;            // world radius of the neighbourhood on screen
+const ageNow = () => (slow ? Math.max(0, (Date.now() - slow.b) / 1000 / JYEAR) : 0);
+const echoD = (A) => Math.max(A * 1.28, 14);
+const ECHO_FAMOUS = ['Barnard’s Star', 'Wolf 359', 'Epsilon Eridani', 'Tau Ceti'];
+const ECHO_LBL = [{ n: 'Sun', d: 0, p: [0, 0, 0], sun: true }].concat(BRIGHT.slice().sort((a, b) => a[3] - b[3]).map(([n, d, ra, mag, dec]) => ({ n, d, p: radec(ra, dec, d) }))
+  .concat(ECHO_FAMOUS.map((n) => { const e = NEAR.find((x) => x[0] === n), q = NEAR_POS[n]; return { n, d: e[1], p: radec(q[0], q[1], e[1]) }; })));
+ECHO_LBL.forEach((L) => { L.el = h('div', { class: 'yo-elab' }); over.append(L.el); L.w = 0; L.hit = false; });
+const ECHO_RINGS = [2, 5, 10, 25, 50, 100, 250, 500, 1000, 2500].map((r) => ({ r, el: (() => { const el = h('div', { class: 'yo-elab ring', text: r + ' ly' }); over.append(el); return el; })() }));
+function fillEchoLabels() {
+  const b = slow ? slow.b : birthMs();
+  ECHO_LBL.forEach((L) => {
+    if (L.sun) { L.el.innerHTML = 'The Sun<small>and you, ' + esc(fmtDate(b)) + '</small>'; L.w = 0; return; }
+    const when = new Date(b + L.d * JYEAR * 1000);
+    const reached = L.d <= ageNow();
+    L.el.innerHTML = `${esc(L.n)}<small>${L.d} ly · ${reached ? 'reached ' + when.getFullYear() : 'arrives ' + (L.d - ageNow() < 3 ? monthYear(when.getTime()) : when.getFullYear())}</small>`;
+    L.w = 0;
+  });
+}
+function toggleEcho(on) {
+  if (on == null) on = !S.echoOn;
+  if (on && (!bodyReady || !progEcho)) return;
+  if (on && S.asmTarget < 0.5) toggleUnmake();
+  S.echoOn = on;
+  document.body.classList.toggle('yo-echo', on);
+  introEl.setAttribute('aria-live', on ? 'off' : 'polite');
+  syncTab();
+  if (on) {
+    S.echoStart = S.t + 1.3; S.echoR = 0;
+    ECHO_LBL.forEach((L) => { L.hit = false; });
+    hideTip(); setHi(-1, true);
+    echoFill(echoD(ageNow())); fillEchoLabels();
+    if (isSmall() && S.receipt) setReceipt(false);
+    // on a desktop, the receipt scrolls to its own light-echo section
+    if (!isSmall() && S.receipt && !PR.on) {
+      const y = RK.echo.getBoundingClientRect().top - rcScroll.getBoundingClientRect().top + rcScroll.scrollTop - 90;
+      try { rcScroll.scrollTo({ top: Math.max(0, y), behavior: 'smooth' }); } catch (err) { rcScroll.scrollTop = Math.max(0, y); }
+    }
+  }
+  btnEcho.setLabel(on ? 'Back to me' : 'Follow my light');
+  const rb = rcEl.querySelector('[data-act=echo]'); if (rb) rb.textContent = on ? 'Back to you' : 'Watch it travel';
+  syncLegend();
+}
+rcEl.querySelector('[data-act=echo]').addEventListener('click', () => toggleEcho());
+let echoTxtK = '';
+function echoText() {
+  const A = ageNow(), r = S.echoR, done = S.t > S.echoStart + ECHO_DUR;
+  const b = slow ? slow.b : birthMs();
+  const lc = lightCount(r), passed = ECHO_LBL.filter((L) => !L.sun && L.d <= r).sort((a, c) => c.d - a.d);
+  const nxt = ECHO_LBL.filter((L) => L.d > r).sort((a, c) => a.d - c.d)[0];
+  let k, t, d;
+  if (S.t < S.echoStart) { k = 'The light of your first day'; t = fmtDate(b); d = 'The moment you were born, light left Earth at 299,792 km a second. Watch where it has got to.'; }
+  else {
+    k = done ? 'Today, and still going' : 'The light of your first day';
+    t = done ? `${r >= 0.1 ? r.toFixed(r < 10 ? 2 : 1) : (r * 365.25).toFixed(0)} ${r >= 0.1 ? 'light-years' : 'light-days'} from home` : monthYear(b + r * JYEAR * 1000);
+    const cnt = lc.obj < 1 ? 'No other star reached yet' : `${grp(lc.obj < 60 ? lc.obj : Math.round(lc.obj / 10) * 10)} stars and brown dwarfs reached`;
+    d = cnt + (passed.length ? `, the latest ${passed[0].n}` : '') + '.' + (done && nxt ? ` Next: ${nxt.n}, in ${new Date(b + nxt.d * JYEAR * 1000).getFullYear()}.` : '');
+  }
+  const key = k + t + d;
+  if (key !== echoTxtK) { echoTxtK = key; setIntro(k, t, d); }
+}
+function soundBell(i) {
+  const ctx = ch.sound.ensure(); if (!ctx || !ch.sound.enabled) return;
+  const t = ctx.currentTime, f = [523.25, 587.33, 659.25, 783.99, 880, 1046.5][i % 6];
+  [[f, 0.05], [f * 2.01, 0.015]].forEach(([fr, a]) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = fr;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(a, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.2);
+    o.connect(g).connect(ch.sound.out); o.start(t); o.stop(t + 2.3);
+  });
+}
+const EM = new Float32Array(16), RM = new Float32Array(16);
+function echoModel(scale) {
+  for (let i = 0; i < 16; i++) EM[i] = MODEL[i];
+  EM[12] = FIG_C[0]; EM[13] = FIG_C[1]; EM[14] = FIG_C[2];
+  if (scale != null) { for (let i = 0; i < 16; i++) RM[i] = EM[i]; for (let i = 0; i < 11; i++) if (i % 4 !== 3) RM[i] *= scale; return RM; }
+  return EM;
+}
+function drawEcho(t, dprNow) {
+  const A = ageNow(), D = echoD(A), K = ECHO_RW / D;
+  if (Math.abs(D - echoFillD) > D * 0.02) echoFill(D);
+  const fade = smooth01(S.echo);
+  gl.useProgram(progEcho);
+  Cosmos.gl.uniforms(gl, progEcho, { uView: VIEW, uProj: PROJ, uModel: echoModel(), uEra: ERA_LIN, uK: K, uR: S.echoR, uD: D, uMode: 0, uGain: 0.5 * fade, uDpr: dprNow, uT: t, uN: ECHO_FILL0 + echoFillN,
+    uFill0: ECHO_FILL0, uFillK: U.clamp(Math.sqrt(1600 / Math.max(1, echoFillN)), 0.3, 1) });
+  gl.bindVertexArray(vaoEchoStars); gl.drawArrays(gl.POINTS, 0, ECHO_FILL0 + echoFillN);
+  const shellOn = smooth01(S.echoR / Math.max(0.3, D * 0.02)) * fade;
+  if (shellOn > 0.001) {
+    Cosmos.gl.uniforms(gl, progEcho, { uMode: 1, uGain: 0.11 * shellOn * (SMALL ? 1.5 : 1) });
+    gl.bindVertexArray(vaoShell); gl.drawArrays(gl.POINTS, 0, SHELL_N);
+  }
+  gl.useProgram(progLine);
+  ECHO_RINGS.forEach((R) => {
+    if (R.r > D * 0.97 || R.r < D * 0.16) return;
+    Cosmos.gl.uniforms(gl, progLine, { uView: VIEW, uProj: PROJ, uModel: echoModel(R.r * K), uA: 0.13 * fade, uCol: ERA_LIN });
+    gl.bindVertexArray(vaoCirc); gl.drawArrays(gl.LINES, 0, circData.length / 4);
+  });
+  if (S.echoR > 0.01) {
+    Cosmos.gl.uniforms(gl, progLine, { uView: VIEW, uProj: PROJ, uModel: echoModel(S.echoR * K), uA: 0.7 * shellOn, uCol: ERA_LIN });
+    gl.bindVertexArray(vaoCirc); gl.drawArrays(gl.LINES, 0, circData.length / 4);
+  }
+  gl.bindVertexArray(null);
+}
+const tmpE = [0, 0, 0], boxesE = [];
+function echoLabels() {
+  const vis = smooth01((S.echo - 0.5) / 0.5);
+  if (vis <= 0.001) { ECHO_LBL.forEach((L) => { if (L.shown) { L.el.style.opacity = 0; L.shown = false; } }); ECHO_RINGS.forEach((R) => { R.el.style.opacity = 0; }); return; }
+  const A = ageNow(), D = echoD(A), K = ECHO_RW / D, M = echoModel();
+  const W = window.innerWidth, H = window.innerHeight;
+  const x1 = S.receipt && !rcEl.classList.contains('gone') && !isSmall() ? LAY.rcL - 8 : deckEl.classList.contains('cz-open') && !isSmall() ? W - 330 : W - 8;
+  const y0 = LAY.bar + (isSmall() ? 96 : 118), y1 = (LAY.notesOn && !document.body.classList.contains('cz-cinema') ? Math.min(LAY.notesTop, LAY.foot) : LAY.foot) - 8;
+  const wpos = (p, k) => { const x = p[0] * k, y = p[1] * k, z = p[2] * k; tmpE[0] = M[0] * x + M[4] * y + M[8] * z + M[12]; tmpE[1] = M[1] * x + M[5] * y + M[9] * z + M[13]; tmpE[2] = M[2] * x + M[6] * y + M[10] * z + M[14]; return tmpE; };
+  boxesE.length = 0;
+  // the Sun itself is kept clear of labels
+  const sp = project(FIG_C, tmpO); boxesE.push([sp[0] - 8, sp[1] - 8, 16, 16]);
+  ECHO_LBL.forEach((L, i) => {
+    const reached = L.d <= S.echoR;
+    if (reached && !L.hit) { L.hit = true; if (S.echoOn && S.t > S.echoStart && !L.sun) soundBell(i); }
+    let show = L.d <= D * 1.02;
+    let x = 0, y = 0;
+    if (show) {
+      const q = project(wpos(L.p, K), tmpO); x = q[0]; y = q[1];
+      if (q[2] <= 0) show = false;
+      if (!L.w) L.w = L.el.offsetWidth || 90;
+      const bx = L.sun ? [x + 8, y + 6, L.w, isSmall() ? 12 : 24] : [x + 4, y - 9, L.w, isSmall() ? 12 : 24];
+      if (show && (bx[0] + bx[2] > x1 || bx[0] < 8 || bx[1] < y0 || bx[1] + bx[3] > y1)) show = false;
+      if (show && boxesE.some((q2) => bx[0] < q2[0] + q2[2] && bx[0] + bx[2] > q2[0] && bx[1] < q2[1] + q2[3] && bx[1] + bx[3] > q2[1])) show = false;
+      if (show) boxesE.push(bx);
+    }
+    const op = show ? vis * (reached ? 1 : 0.6) : 0;
+    L.el.style.opacity = op.toFixed(3); L.shown = op > 0;
+    if (show) { L.el.style.transform = L.sun ? `translate(${(x + 8).toFixed(1)}px, ${(y + 6).toFixed(1)}px)` : `translate(${(x + 4).toFixed(1)}px, ${(y - 9).toFixed(1)}px)`; L.el.classList.toggle('on', reached); }
+  });
+  // ring labels sit where each ring crosses the camera's right-hand side
+  const rx = CAMV.r[0], rz = CAMV.r[2], rl = Math.hypot(rx, rz) || 1;
+  ECHO_RINGS.forEach((R) => {
+    const on = R.r <= D * 0.97 && R.r >= D * 0.16;
+    if (!on) { R.el.style.opacity = 0; return; }
+    const rr = R.r * K, p = [FIG_C[0] + rx / rl * rr, FIG_C[1], FIG_C[2] + rz / rl * rr];
+    const q = project(p, tmpO);
+    const bx = [q[0] + 4, q[1] + 2, 44, 12];
+    const clash = bx[0] + bx[2] > x1 || bx[1] < y0 || bx[1] > y1 || boxesE.some((q2) => bx[0] < q2[0] + q2[2] && bx[0] + bx[2] > q2[0] && bx[1] < q2[1] + q2[3] && bx[1] + bx[3] > q2[1]);
+    if (!clash) boxesE.push(bx);
+    R.el.style.opacity = clash ? 0 : (0.8 * vis).toFixed(3);
+    R.el.style.transform = `translate(${(q[0] + 4).toFixed(1)}px, ${(q[1] + 2).toFixed(1)}px)`;
+  });
+}
+
+/* ---------- observers: re-layout when chrome changes ---------- */
+let deckWas = deckEl.classList.contains('cz-open');
+const mo = new MutationObserver(() => {
+  const open = deckEl.classList.contains('cz-open');
+  rcEl.classList.toggle('deck-shut', !open); LAY.t = -1e9;
+  if (open && !deckWas && narrowDesk() && S.receipt) setReceipt(false);
+  deckWas = open;
+});
+mo.observe(deckEl, { attributes: true, attributeFilter: ['class'] });
+const mo2 = new MutationObserver(() => { LAY.t = -1e9; });
+mo2.observe(notesEl, { attributes: true, attributeFilter: ['class'] });
+mo2.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+mo2.observe(rcEl, { attributes: true, attributeFilter: ['class'] });
+rcEl.classList.toggle('deck-shut', !deckEl.classList.contains('cz-open'));
+ch.onResize(() => { LAY.t = -1e9; fillFormationLabels(); syncTab(); receiptSlow(); });
+
+/* =====================================================================
+   11. SOUND: a soft heartbeat and the printer's chatter
+   ===================================================================== */
+function soundBeat() {
+  const ctx = ch.sound.ensure(); if (!ctx || !ch.sound.enabled) return;
+  const t = ctx.currentTime;
+  [[0, 58, 0.5], [0.24, 47, 0.32]].forEach(([dt, f, a]) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(f * 1.6, t + dt); o.frequency.exponentialRampToValueAtTime(f, t + dt + 0.06);
+    g.gain.setValueAtTime(0.0001, t + dt); g.gain.exponentialRampToValueAtTime(a * 0.35, t + dt + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dt + 0.22);
+    o.connect(g).connect(ch.sound.out); o.start(t + dt); o.stop(t + dt + 0.25);
+  });
+}
+let noiseBuf = null;
+function soundTick() {
+  const ctx = ch.sound.ensure(); if (!ctx || !ch.sound.enabled) return;
+  if (!noiseBuf) { noiseBuf = ctx.createBuffer(1, 2048, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / 300); }
+  const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  s.buffer = noiseBuf; f.type = 'bandpass'; f.frequency.value = 3200 + Math.random() * 800; f.Q.value = 2.5; g.gain.value = 0.05;
+  s.connect(f).connect(g).connect(ch.sound.out); s.start();
+}
+
+/* =====================================================================
+   12. THE LOOP
+   ===================================================================== */
+const SRC_COL = new Float32Array(18), CAT_COL = new Float32Array(36), FORM_U = new Float32Array(24);
+SOURCES.forEach((s, i) => SRC_COL.set(lin(s.col), i * 3));
+CATS.forEach((c, i) => CAT_COL.set(lin(c.col), i * 3));
+const VOID = lin('#05060c');
+const ERA_LIN = lin(ERA);
+const TUNE = { galDir: SMALL ? [-0.085, 0.035, -1] : [-0.125, 0.03, -1], galScale: SMALL ? 5.4 : 7.6, tilt: 0.6, roll: -0.5, galGain: 0.3, hideFig: false, light: 1, key: [-0.55, 0.4, -0.75] };
+function galMatrix() {
+  const d = TUNE.galDir, l = Math.hypot(d[0], d[1], d[2]); const c = [d[0] / l * 60, d[1] / l * 60, d[2] / l * 60];
+  const sc = TUNE.galScale;
+  // the disc plane: tilted from face-on, then rolled
+  const tilt = TUNE.tilt, roll = TUNE.roll;
+  const ct = Math.cos(tilt), st2 = Math.sin(tilt), cr = Math.cos(roll), sr = Math.sin(roll);
+  // start with disc in xz-plane, normal +y; tilt about x toward the camera, then roll about z
+  const ex = [cr, sr, 0], ey = [-sr * ct, cr * ct, st2], ez = [sr * st2, -cr * st2, ct];
+  return new Float32Array([ex[0] * sc, ex[1] * sc, ex[2] * sc, 0, ey[0] * sc, ey[1] * sc, ey[2] * sc, 0, ez[0] * sc, ez[1] * sc, ez[2] * sc, 0, c[0], c[1], c[2], 1]);
+}
+let GALM = galMatrix();
+// the key light comes from the galaxy's side of the sky, a little above: the body is lit by the Milky Way
+const KEY_COL = lin('#b9c6ff'), KEY_V = new Float32Array(3);
+function keyView() {
+  const L = TUNE.key, n = Math.hypot(L[0], L[1], L[2]) || 1, x = L[0] / n, y = L[1] / n, z = L[2] / n, V = VIEW;
+  KEY_V[0] = V[0] * x + V[4] * y + V[8] * z; KEY_V[1] = V[1] * x + V[5] * y + V[9] * z; KEY_V[2] = V[2] * x + V[6] * y + V[10] * z;
+  return KEY_V;
+}
+const t0 = performance.now();
+// the direction of the galaxy from the figure, less the head's own turn: the body yaw that puts it in the eyeline
+const GAZE_YAW = Math.atan2(TUNE.galDir[0], TUNE.galDir[2]) - 0.16;
+S.gazeOn = false;
+try {
+  const io = new IntersectionObserver((ents) => { ents.forEach((en) => { S.gazeOn = en.isIntersecting && en.intersectionRatio > 0.5; }); }, { root: rcScroll, threshold: [0, 0.5, 1] });
+  io.observe(RK.close);
+} catch (err) { /* older browsers: no finale turn */ }
+let mapLive = false, lastMap = 0;
+let cpuMs = 0, fpsAcc = 0, fpsN = 0, fps = 0, lastSlow = 0, lastHud = 0;
+
+function drawFrame(dt, t) {
+  const tf0 = performance.now();
+  measure(false);
+  const dpr = Math.min(isSmall() ? 2 : 1.75, window.devicePixelRatio || 1);
+  Cosmos.gl.fit(canvas, dpr);
+  makeTargets();
+  const now = Date.now();
+  // life-driven rhythms
+  const st = slow ? lifeStats(slow.b, slow.M, now, COMP) : null;
+  if (st) {
+    const bi = Math.floor(st.beats);
+    if (bi !== S.beatIdx) { if (S.beatIdx >= 0 && !ch.paused) { S.beatT = 0; soundBeat(); } S.beatIdx = bi; }
+  }
+  S.beatT += dt;
+  if (st && !ch.paused) S.breath = (() => { const ph = st.breaths % 1; return ph < 0.4 ? smooth01(ph / 0.4) : 1 - smooth01((ph - 0.4) / 0.6); })();
+  const breath = S.breath || 0;
+  // animation state
+  if (bodyReady) {
+    if (S.asmHold > 0) S.asmHold -= dt;
+    else { const dir = Math.sign(S.asmTarget - S.asm); S.asm = U.clamp(S.asm + dir * dt * S.asmSpeed, 0, 1); }
+  }
+  const ease = (cur, tgt, k) => cur + (tgt - cur) * (1 - Math.exp(-dt * k));
+  S.flash *= Math.exp(-dt * 1.6);
+  S.colT = ease(S.colT, S.colMode, 3); S.weighT = U.clamp(S.weighT + Math.sign(S.weigh - S.weighT) * dt * 0.45, 0, 1);
+  CUR.mix = S.weighT;
+  const hiCur = S.hi >= 0 ? S.hi : S.hiSticky;
+  S.hiT = ease(S.hiT, hiCur >= 0 && S.asm > 0.9 ? 1 : 0, 6);
+  S.turnT = ease(S.turnT, S.turnover && S.asm > 0.99 ? 1 : 0, 2);
+  S.gaze = ease(S.gaze, S.gazeOn && S.asm > 0.99 && !ptr.down && !S.echoOn ? 1 : 0, 1.2);
+  S.echo = U.clamp(S.echo + (S.echoOn ? 1 : -1) * dt * 0.6, 0, 1);
+  if (S.echoOn) { const u = U.clamp((S.t - S.echoStart) / ECHO_DUR, 0, 1); S.echoR = ageNow() * (0.5 - 0.5 * Math.cos(Math.PI * u)); }
+  else if (S.echo <= 0) S.echoR = 0;
+  if (!ptr.down) {
+    S.yaw += S.spin * dt * (1 - S.gaze) + S.yawV * dt; S.yawV *= Math.exp(-dt * 2.2);
+    if (S.gaze > 0.01) {
+      const tgt = GAZE_YAW + 2 * Math.PI * Math.round((S.yaw - GAZE_YAW) / (2 * Math.PI));
+      S.yaw += (tgt - S.yaw) * (1 - Math.exp(-dt * 0.9 * S.gaze));
+      S.pitch += (0.1 - S.pitch) * (1 - Math.exp(-dt * 0.8 * S.gaze));
+    }
+    if (S.echo > 0.001 && S.echo < 0.999) { const pt = S.echoOn ? 0.42 : S.pitchHome; S.pitch += (pt - S.pitch) * (1 - Math.exp(-dt * 1.4)); }
+  }
+  const cam = updateCamera(dt);
+  // receipt appears once you are assembled
+  if (!S.started && S.asm > 0.88) {
+    S.started = true;
+    if (!isSmall()) { setReceipt(true); printReceipt(); } else { S.receipt = false; if (tgReceipt) tgReceipt.set(false); syncTab(); }
+    setTimeout(() => ch.toast(isSmall() ? 'Drag to turn · tap a point to light up its source · tap the receipt tag to print yours' : 'Drag to turn yourself around · hover the sources in the controls · press L to follow the light of your first day', 5200), 2600);
+  }
+  if (S.asmTarget > 0.5 && S.asm > 0.85 && S.unmade) { S.unmade = false; if (S.receipt) rcEl.classList.remove('gone'); syncTab(); }
+  tickPrint(dt);
+
+  // ---- render to HDR scene ----
+  scene.bind();
+  gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  const VR = new Float32Array(VIEW); VR[12] = 0; VR[13] = 0; VR[14] = 0;
+  const dprNow = canvas.width / Math.max(1, canvas.clientWidth);
+  gl.useProgram(progStar);
+  Cosmos.gl.uniforms(gl, progStar, { uVR: VR, uProj: PROJ, uTime: t, uDpr: dprNow, uGain: 0.55 });
+  gl.bindVertexArray(vaoStars); gl.drawArrays(gl.POINTS, 0, STARS.n);
+  gl.useProgram(progGal);
+  const galAng = t * 0.045;
+  Cosmos.gl.uniforms(gl, progGal, { uVR: VR, uProj: PROJ, uGal: GALM, uAng: galAng, uDpr: dprNow, uGain: TUNE.galGain * (SMALL ? 1.4 : 1) * Math.pow(smooth01(S.asm), 2) * (1 - 0.6 * smooth01(S.echo)) });
+  gl.bindVertexArray(vaoGal); gl.drawArrays(gl.POINTS, 0, GAL.n);
+  // ground plate
+  gl.useProgram(progLine);
+  Cosmos.gl.uniforms(gl, progLine, { uView: VIEW, uProj: PROJ, uModel: MODEL, uA: 0.22 * Math.pow(smooth01(S.asm), 4) * (1 - S.echo), uCol: ERA_LIN });
+  gl.bindVertexArray(vaoRing); gl.drawArrays(gl.LINES, 0, ringData.length / 4);
+  // the figure
+  if (figReady && !TUNE.hideFig && S.echo < 0.999) {
+    for (let i = 0; i < 6; i++) { FORM_U[i * 4] = FORM[i][0]; FORM_U[i * 4 + 1] = FORM[i][1]; FORM_U[i * 4 + 2] = FORM[i][2]; FORM_U[i * 4 + 3] = 0; }
+    gl.useProgram(progFig);
+    const u = progFig.uniforms;
+    gl.uniform3fv(u.uSrcCol.loc, SRC_COL); gl.uniform3fv(u.uCatCol.loc, CAT_COL); gl.uniform4fv(u.uForm.loc, FORM_U);
+    const hiIdx = hiCur >= 0 ? hiCur : S.hiLast;
+    const hiKind = hiCur >= 0 ? hiCurrent()[1] : S.hiLastKind;
+    let hiFrac = 1;
+    if (hiKind) hiFrac = S.weigh ? COMP70.cats[hiIdx].atoms / COMP70.atoms : COMP70.cats[hiIdx].kg / COMP70.kgTot;
+    else hiFrac = hiIdx >= 4 ? 0.004 : S.weigh ? COMP70.srcAtoms[hiIdx] / COMP70.atoms : COMP70.srcKg[hiIdx] / COMP70.kgTot;
+    const hiBoost = U.clamp(Math.sqrt(0.35 / Math.max(hiFrac, 1e-6)), 1, 4.2);
+    const gain = 0.2 * (120000 / NMAIN) * (isSmall() ? 0.9 : 1);
+    Cosmos.gl.uniforms(gl, progFig, {
+      uView: VIEW, uProj: PROJ, uModel: MODEL, uTime: t, uMix: S.weighT, uColMode: S.colT,
+      uHi: hiIdx, uHiAmt: S.hiT, uHiBoost: hiBoost, uHiEl: hiKind, uAsm: S.asm, uTurn: S.turnT, uSize: 0.0068, uGain: gain,
+      uBeatT: S.beatT, uBreath: breath, uMag: (!hiKind && (hiIdx === 4 || hiIdx === 5)) ? S.hiT : 0, uPick: S.pick,
+      uCenterD: cam.dist, uFlash: S.flash, uFocal: cam.focal, uMinPx: 1.35 * dprNow, uCamR: CAMV.r, uCamU: CAMV.u, uCamF: CAMV.f, uFigC: FIG_C,
+      uKeyV: keyView(), uKeyCol: KEY_COL, uLight: TUNE.light, uEcho: S.echo,
+    });
+    gl.bindVertexArray(vaoFig); gl.drawArrays(gl.POINTS, 0, NTOT);
+  }
+  if (S.echo > 0.001 && progEcho) drawEcho(t, dprNow);
+  gl.bindVertexArray(null);
+
+  // ---- bloom ----
+  gl.disable(gl.BLEND);
+  gl.useProgram(progDown);
+  let src = scene;
+  bloom.forEach((b, i) => {
+    b.bind();
+    Cosmos.gl.uniforms(gl, progDown, { uTex: src.tex, uTexel: [0.5 / src.w, 0.5 / src.h], uThresh: 0.55, uFirst: i === 0 ? 1 : 0 });
+    drawQuad(); src = b;
+  });
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  gl.useProgram(progUp);
+  for (let i = bloom.length - 1; i > 0; i--) {
+    bloom[i - 1].bind();
+    Cosmos.gl.uniforms(gl, progUp, { uTex: bloom[i].tex, uTexel: [1 / bloom[i].w, 1 / bloom[i].h], uK: 0.9 });
+    drawQuad();
+  }
+  gl.disable(gl.BLEND);
+  Cosmos.gl.screen(gl);
+  gl.useProgram(progComp);
+  Cosmos.gl.uniforms(gl, progComp, { uScene: scene.tex, uBloom: bloom[0].tex, uBloomK: 0.55, uExpo: 1.25, uT: t, uAspect: canvas.width / canvas.height, uVoid: VOID });
+  drawQuad();
+
+  // ---- overlays ----
+  const fk = S.asmTarget < 0.5 ? 1 - smooth01(S.asm * 2.2) : 1 - smooth01(S.asm * 3.2);
+  // labels sit above each cloud; in the stacked layout on a desktop they move beside it, where there is room
+  const side = formTall && !isSmall();
+  FORM.forEach((f, i) => {
+    const el = fLabels[i];
+    const sd = side ? SIDE_TALL[i] : (formTall && i === 5 ? 1 : 0);
+    let p, tr;
+    if (sd === -1 || sd === 1) { p = project(tableauPoint(f[0] + sd * (f[2] + 0.06), f[1]), tmpO); tr = sd < 0 ? 'translate(-100%, -50%)' : 'translate(0, -50%)'; }
+    else if (sd === 2) { p = project(tableauPoint(f[0], f[1] - f[2] * 1.1 - 0.08), tmpO); tr = 'translate(-50%, 0)'; }
+    else { p = project(tableauPoint(f[0], f[1] + f[2] * (i === 1 ? 1.05 : 1.0) + 0.1), tmpO); tr = 'translate(-50%, -100%)'; }
+    el.classList.toggle('side', sd === -1 || sd === 1); el.classList.toggle('sl', sd === -1); el.classList.toggle('below', sd === 2);
+    el.style.transform = `translate(${p[0].toFixed(1)}px, ${p[1].toFixed(1)}px) ${tr}`;
+    el.style.opacity = figReady ? fk.toFixed(3) : 0;
+  });
+  // the Sun in the galaxy
+  const sa = SUN_GAL.ang + galAng, sp = [SUN_GAL.r * Math.cos(sa), 0, SUN_GAL.r * Math.sin(sa)];
+  const G = GALM; const gw = [G[0] * sp[0] + G[8] * sp[2] + G[12], G[1] * sp[0] + G[9] * sp[2] + G[13], G[2] * sp[0] + G[10] * sp[2] + G[14]];
+  // sky points use rotation-only view
+  const cx = VR[0] * gw[0] + VR[4] * gw[1] + VR[8] * gw[2], cy = VR[1] * gw[0] + VR[5] * gw[1] + VR[9] * gw[2], cz = VR[2] * gw[0] + VR[6] * gw[1] + VR[10] * gw[2];
+  const P = PROJ; const clx = P[0] * cx + P[8] * cz, cly = P[5] * cy + P[9] * cz, clw = -cz;
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  const sx = (clx / clw * 0.5 + 0.5) * W, sy = (0.5 - cly / clw * 0.5) * H;
+  // the label sits in clear sky below the galaxy, tied to the Sun by a hairline leader
+  let gxMin = 1e9, gxMax = -1e9, gyMax = -1e9;
+  for (let k = 0; k < 12; k++) {
+    const a = k / 12 * 6.2832, lp = [Math.cos(a), 0, Math.sin(a)];
+    const wx = G[0] * lp[0] + G[8] * lp[2] + G[12], wy = G[1] * lp[0] + G[9] * lp[2] + G[13], wz = G[2] * lp[0] + G[10] * lp[2] + G[14];
+    const qx = VR[0] * wx + VR[4] * wy + VR[8] * wz, qy = VR[1] * wx + VR[5] * wy + VR[9] * wz, qz = VR[2] * wx + VR[6] * wy + VR[10] * wz;
+    const X = ((P[0] * qx + P[8] * qz) / -qz * 0.5 + 0.5) * W, Y = (0.5 - (P[5] * qy + P[9] * qz) / -qz * 0.5) * H;
+    gxMin = Math.min(gxMin, X); gxMax = Math.max(gxMax, X); gyMax = Math.max(gyMax, Y);
+  }
+  if (!sunEl._w) sunEl._w = (sunLab.offsetWidth || 190) + 4;
+  const fx0 = CAM.cx - CAM.px * 0.5;
+  const lx = U.clamp(Math.min(gxMin + 10, fx0 - sunEl._w - 10), 16, W - sunEl._w - 16), ly = Math.max(gyMax + 12, sy + 40);
+  const dx = lx - sx, dy = ly - sy, dl = Math.hypot(dx, dy);
+  sunMark.style.transform = `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px)`;
+  sunLine.style.width = Math.max(0, dl - 6).toFixed(1) + 'px';
+  sunLine.style.transform = `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) rotate(${Math.atan2(dy, dx).toFixed(4)}rad) translateX(6px)`;
+  sunLab.style.transform = `translate(${lx.toFixed(1)}px, ${ly.toFixed(1)}px)`;
+  const notesBlock = LAY.notesOn && !document.body.classList.contains('cz-cinema') && lx < LAY.notesRight && ly + 40 > LAY.notesTop;
+  const fits = lx + sunEl._w < fx0 + 4 && ly + 40 < H - 70 && !notesBlock && sy > 70;
+  sunEl.style.opacity = (t > 6 && S.asm > 0.95 && S.hiT < 0.5 && fits && S.gaze < 0.5 && S.echo < 0.05) ? 0.92 : 0;
+  hoverPick(performance.now());
+  const fr = formationRect();
+  const eo = smooth01(S.echo);
+  introEl.style.left = (fr.cx + (CAM.cx - fr.cx) * eo).toFixed(0) + 'px';
+  if (S.echoOn) echoText();
+  // the receipt's flat star map follows the wavefront while it travels
+  if (slow && S.receipt && (S.echoOn || mapLive) && performance.now() - lastMap > 100) {
+    lastMap = performance.now();
+    const moving = S.echoOn && S.t < S.echoStart + ECHO_DUR + 0.3;
+    if (moving) { drawStarMap(slow.st.A, S.echoR); mapLive = true; } else if (mapLive) { drawStarMap(slow.st.A); mapLive = false; }
+  }
+  const introOn = (figReady && S.asm < 0.35 && !(S.asmTarget > 0.5 && S.asm > 0.12) && !S.echoOn) || (S.echoOn && S.echo > 0.4);
+  introEl.style.opacity = introOn ? 1 : 0;
+  echoLabels();
+  ch.hud.el.style.opacity = document.body.classList.contains('cz-cinema') ? '0' : (smooth01((S.asm - 0.6) / 0.4) * (1 - eo)).toFixed(3);
+  if (isSmall()) {
+    const bottomEdge = (LAY.notesOn ? LAY.notesTop : LAY.foot) - 10;
+    capEl.style.top = (bottomEdge - (capEl.offsetHeight || 70)).toFixed(0) + 'px';
+  } else {
+    const gapL = CAM.cx + CAM.px * 0.5 + 18, gapR = S.receipt && !rcEl.classList.contains('gone') ? LAY.rcL - 12 : (deckEl.classList.contains('cz-open') ? W - 336 : W - 16);
+    const fitsRight = gapR - gapL >= 190;
+    const cx0 = fitsRight ? gapL : Math.max(16, CAM.cx - CAM.px * 0.5 - 240);
+    capEl.style.left = cx0.toFixed(0) + 'px'; capEl.style.top = (CAM.cy - CAM.px * 0.62).toFixed(0) + 'px';
+    capEl.style.width = Math.min(250, Math.max(170, (fitsRight ? gapR - gapL : 230))).toFixed(0) + 'px';
+  }
+  // ---- receipt + HUD ----
+  if (st) {
+    receiptFast(now);
+    if (performance.now() - lastHud > 200) {
+      lastHud = performance.now();
+      const ap = ageParts(slow.b, now);
+      hudAge.set(`${ap.y} yr ${ap.d} d${S.example ? (isSmall() ? ' (ex.)' : ' (example)') : ''}`);
+      const sm = isSmall();
+      hudHeart.set(sm ? `${Math.round(st.hr)} bpm · ${sci(st.beats, 3)}` : `${Math.round(st.hr)} bpm · ${grp(Math.floor(st.beats))} beats`);
+      hudPts.set(sm ? `1 pt = ${S.weigh ? sci(COMP.atoms / NMAIN, 2) + ' at.' : (S.mass / NMAIN * 1000).toFixed(2) + ' g'}` : `${grp(NMAIN)} points · 1 = ${S.weigh ? sci(COMP.atoms / NMAIN, 2) + ' atoms' : (S.mass / NMAIN * 1000).toFixed(2) + ' g'}`);
+      ro.hr.set(Math.round(st.hr) + ' bpm'); ro.beats.set(sci(st.beats, 4)); ro.br.set(`${Math.round(st.rr)}/min · ${breath > 0.02 && (st.breaths % 1) < 0.4 ? 'in' : 'out'}`);
+      ro.per.set(S.weigh ? sci(COMP.atoms / NMAIN, 2) + ' at.' : (S.mass / NMAIN * 1000).toFixed(2) + ' g');
+    }
+  }
+  if (now - lastSlow > (slow && slow.st.A < 0.01 ? 2000 : 60000)) { lastSlow = now; receiptSlow(); }
+  cpuMs = cpuMs * 0.95 + (performance.now() - tf0) * 0.05;
+  fpsAcc += dt; fpsN++; if (fpsAcc > 1) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
+}
+
+/* ---------- boot ---------- */
+assignParticles();
+drawLogo();
+receiptSlow();
+lastSlow = Date.now();
+ch.loop((dt, t) => { S.t = t; drawFrame(dt, t); }, { always: true });
+geometryAsync({ seed: 20260929, nSurf: Math.round(NMAIN * 0.62), nVol: Math.round(NMAIN * 0.5), nBone: SMALL ? 5000 : 9000, nThy: 400 }).then((geo) => {
+  GEO = geo;
+  placeParticles(geo);
+  drawFigureStamp();
+  console.info(`[ch22] body: ${geo.ns} skin + ${geo.nv} volume + ${geo.nb} bone points from ${geo.prims} primitives, ${geo.workers} workers, ${geo.wall} ms`);
+});
+ch.onSound((on) => { if (on) ch.sound.ensure(); });
+
+Cosmos.debug.state = () => ({
+  ready: figReady, body: bodyReady, points: NMAIN, magnified: NMAG, asm: +S.asm.toFixed(3), colMode: S.colMode, weigh: S.weigh, hi: S.hi, hiSticky: S.hiSticky,
+  receipt: S.receipt, printed: S.printed, example: S.example, mass: S.mass,
+  age: slow ? +slow.st.A.toFixed(4) : null, beats: slow ? Math.floor(lifeStats(slow.b, slow.M, Date.now(), COMP).beats) : null,
+  atoms: +COMP.atoms.toPrecision(4), hFracAtoms: +(COMP.by('H').atoms / COMP.atoms).toFixed(4),
+  srcMass: Array.from(COMP.srcKg).map((v) => +(v / COMP.kgTot).toFixed(5)), srcAtoms: Array.from(COMP.srcAtoms).map((v) => +(v / COMP.atoms).toPrecision(3)),
+  echo: +S.echo.toFixed(3), echoR: +S.echoR.toFixed(3), echoStars: ECHO_FILL0 + echoFillN,
+  fps: +fps.toFixed(1), cpuMs: +cpuMs.toFixed(2), hdr: !!HDR, geoMs: GEO ? GEO.wall : null,
+});
+Cosmos.debug.receiptText = receiptText;
+Cosmos.debug.lay = () => ({ LAY, CAM: { cx: CAM.cx, cy: CAM.cy, px: CAM.px }, fig: figureRect() });
+Cosmos.debug.tune = (o) => { Object.assign(TUNE, o); GALM = galMatrix(); return TUNE; };
+Cosmos.debug.setBirth = (v) => setBirth(v, 'debug');
+})();
+</script>
+</body>
+</html>

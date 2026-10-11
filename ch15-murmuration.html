@@ -1,0 +1,2422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Murmuration · Cosmogenesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="cosmos.css">
+<style>
+  #mm-ann { pointer-events: none; }
+  .cz-stage { cursor: grab; }
+  .cz-stage:active { cursor: grabbing; }
+  body.mm-falcon .cz-stage { cursor: crosshair; }
+</style>
+</head>
+<body>
+<script src="cosmos.js"></script>
+<script>
+(function () {
+'use strict';
+
+/* =====================================================================
+   MURMURATION — GPU flocking of tens of thousands of starlings.
+   Simulation (all on the GPU, WebGL2 float textures):
+     1. key pass      : spatial-hash key per bird
+     2. bitonic sort  : sort (key, slot) pairs
+     3. reorder pass  : bird state copied into sorted order (MRT)
+     4. cell pass     : first index of each hash cell (point scatter)
+     5. update pass   : adaptive topological neighbourhood (≈k nearest),
+                        separation / alignment / cohesion, banking flight,
+                        roost attraction, predator, excitable escape waves
+   ===================================================================== */
+
+const NOTES = `
+<p>On winter evenings starlings gather above a reed bed before they roost. Tens of thousands fly as one: a dark cloud that swells, folds, thins to a ribbon and pours back into a ball. Nobody leads it. There is no plan.</p>
+<p>Each bird here follows three habits: keep a little space, match your neighbours' heading, and stay close. It watches only its six or seven nearest neighbours, however far away they are. Real starlings do the same, and it lets the flock stretch without tearing. Birds roll into their turns like real wings. A rolled bird shows you more wing, so turning parts of the flock look darker.</p>
+<p>Then a peregrine falcon dives. Birds next to it swerve. Their neighbours copy the swerve a fraction of a second later, and a dark band races outward through the flock, far faster than any bird moves inside it. The wave is a message passed from bird to bird.</p>
+<h4>Try this</h4>
+<ul>
+<li>Press <strong>Attack now</strong> (<kbd>A</kbd>). Time slows as the falcon strikes, and fine orange dots mark the birds that have just started to swerve: the front of the wave.</li>
+<li>Choose <strong>Chaos (k = 1)</strong>. With one neighbour each, the order melts into a swarm. Slide k back to 7 and it heals.</li>
+<li>Drag <strong>Time of dusk</strong> below −6.5°. The light fails and the flock funnels into the reeds.</li>
+<li>Pick <strong>Be the falcon</strong> and chase the flock, or <strong>Fly with the flock</strong> (<kbd>V</kbd>) and ride inside it.</li>
+</ul>`;
+
+const SCIENCE = `
+<h4>Three local rules</h4>
+<p>Reynolds (1987) showed that flocking needs no leader: separation, alignment and cohesion are enough. Each bird <i>i</i> here steers with an acceleration</p>
+<span class="eq">a<sub>i</sub> = 16 w<sub>s</sub> Σ<sub>j</sub> q<sub>ij</sub>(½ + q<sub>ij</sub>) x̂<sub>ji</sub> + 20 w<sub>a</sub> (⟨v̂⟩<sub>𝒩<sub>i</sub></sub> − v̂<sub>i</sub>) + w<sub>c</sub> (0.2 + 6 C<sub>i</sub>) x̂<sub>i→⟨x⟩</sub> + a<sub>far</sub> + a<sub>roost</sub> + a<sub>falcon</sub> + 7 η ξ<sub>i</sub>(t)</span>
+<p>in m/s², with q<sub>ij</sub> = 1 − r<sub>ij</sub>/r<sub>s</sub> for neighbours closer than r<sub>s</sub> = 1.15 m, ξ an Ornstein–Uhlenbeck noise with τ = 0.7 s, and C<sub>i</sub> = |⟨x⟩<sub>𝒩<sub>i</sub></sub> − x<sub>i</sub>| / r<sub>i</sub>. C<sub>i</sub> is near 0 deep inside the flock and near ½ on its border, so only border birds are pulled in hard. That gives the cloud its sharp edge (Hildenbrandt et al. 2010).</p>
+<h4>Topological neighbours</h4>
+<p>Ballerini et al. (2008) reconstructed flocks of up to a few thousand starlings over Rome in 3D and found that each bird interacts with a fixed number of neighbours, six to seven, not with everyone inside a fixed distance. A topological rule keeps the flock cohesive when its density changes. Here each bird carries its own radius r<sub>i</sub> and rescales it every step so that the ball holds k birds:</p>
+<span class="eq">r<sub>i</sub> ← r<sub>i</sub> · ((k + ½) / (n<sub>i</sub> + ½))<sup>1/3</sup></span>
+<p>n<sub>i</sub> counts neighbours inside r<sub>i</sub>, ignoring a blind cone behind the bird. Candidates come from a spatial hash grid rebuilt every frame on the GPU with a bitonic sort. In practice r<sub>i</sub> settles at the distance of the bird's k-th nearest neighbour, about 1.5 to 2 m here. <strong>Fly with the flock</strong> draws lines from one bird to the k birds it is watching. At k = 1, alignment passes only between pairs and the order parameter collapses.</p>
+<h4>Seeing the flock</h4>
+<p>Starlings can also see the dark mass of the flock beyond their neighbours. Pearce et al. (2014) showed that responding to this projected view explains why flocks sit near "marginal opacity": looking out from inside, the sky is patchy, neither blocked nor clear. The model adds a version of that cue. Every frame the flock is binned onto a coarse grid, and for each point of space the GPU adds up the directions to every occupied cell, each weighted by the solid angle it fills:</p>
+<span class="eq">a<sub>view</sub> = 5 w<sub>c</sub> · Σ<sub>c</sub> m<sub>c</sub> ê<sub>c</sub> / (d<sub>c</sub><sup>2</sup> + s<sup>2</sup>) ÷ Σ<sub>c</sub> m<sub>c</sub> / (d<sub>c</sub><sup>2</sup> + s<sup>2</sup>)</span>
+<p>Here m<sub>c</sub> is the number of birds in cell c, d<sub>c</sub> its distance, ê<sub>c</sub> the unit vector toward it and s, a few tens of metres, a softening length. Deep inside the flock the sky is dark all round and the sum cancels. At the edge, or from a stray group, it points toward where the flock looks biggest. It works like a surface tension: it keeps the edge sharp and calls splinter groups home without crushing the flock into a ball. Two weaker cues help: a step up the gradient of a blurred density map, a<sub>far</sub> ∝ ∇ρ/(ρ + ρ<sub>0</sub>), and a gentle pull toward the main mass. The <strong>Sky hidden</strong> readout measures this directly: it renders the flock onto a small cube map from inside a randomly chosen bird, three times a second, and averages the fraction of sky covered by birds.</p>
+<h4>Flight</h4>
+<p>Speed relaxes to the cruise speed v<sub>0</sub> (default 12 m/s). Birds turn by banking: the lift vector tilts by the roll angle φ and gives a sideways acceleration g tan φ, with |φ| ≤ 80° and a roll rate of at most 8 rad/s. So every turn starts with a visible roll. A horizontal pull toward the roost grows between 90 and 210 m from it, which keeps the flock sweeping back and forth over the reeds, and a slowly drifting altitude band makes it rise and fall.</p>
+<h4>Order and the Vicsek transition</h4>
+<span class="eq">Φ = | (1/N) Σ<sub>i</sub> v̂<sub>i</sub> |</span>
+<p>The polarisation Φ is about 1 when every bird flies the same way and about 0 when headings are random. Vicsek et al. (1995) showed that self-propelled particles that only align with their neighbours undergo a phase transition: below a critical noise the group orders spontaneously. <strong>Sweep noise</strong> ramps η from 0 to 3 and plots Φ(η). Real starling flocks are highly ordered, with Φ above 0.9.</p>
+<h4>Scale-free correlations</h4>
+<p>Cavagna et al. (2010) subtracted the flock's mean velocity from each bird and correlated the fluctuations u<sub>i</sub> = v<sub>i</sub> − ⟨v⟩:</p>
+<span class="eq">C(r) = Σ<sub>i≠j</sub> û<sub>i</sub>·û<sub>j</sub> δ(r − r<sub>ij</sub>) / Σ<sub>i≠j</sub> δ(r − r<sub>ij</sub>)</span>
+<p>The correlation length ξ is the first zero of C(r). In real flocks ξ grows in proportion to the flock size L, at about a third of it, whatever that size: the correlations are scale-free, so a change of heading anywhere can be felt everywhere. The deck computes C(r) every second from 1,024 birds.</p>
+<h4>Waves of escape</h4>
+<p>Procaccini et al. (2011) filmed peregrine attacks on starling flocks in Rome and described waves: dark bands that sweep across the flock, travelling away from the predator. Here each bird is an excitable unit. It fires when the falcon comes within 14 m, or when more than a tenth of its topological neighbours are firing (in practice, one close neighbour is enough). After a reaction delay of 0.02 to 0.04 s it rolls hard (to about 80°) away from the alarm for 1 s, then stays refractory for 4 s. Each relayed alarm is 1.5% weaker than the one that set it off, and birds ignore alarms below 30% strength, so a wave fades out after about a hundred metres. Without that fading, the flock turns into a self-sustaining excitable medium: waves re-enter parts that have recovered and circle forever, like spiral waves in heart muscle. After each strike the deck measures the wave: it back-dates every alarmed bird to the moment it fired, removes the flock's own drift, and fits distance from the first birds to fire against time. In the model the front moves at roughly 8 to 16 m/s through the flock, while neighbouring birds drift relative to each other at only a metre or two per second. Birds within 36 m of the falcon also flee directly, which opens a hole around it. Hemelrijk et al. (2015) showed in a similar model that the band looks dark because rolling birds turn more wing toward the observer. That is how it is drawn here: birds smaller than a pixel are rendered with their exact projected area at their current roll and flap angle.</p>
+<h4>Sky</h4>
+<p>The dusk sky is computed, not painted: single Rayleigh and Mie scattering in a spherical atmosphere (scale heights 8 km and 1.2 km), ozone absorption, a thin stratospheric aerosol layer near 20 km and a small multiple-scattering term. With the sun below the horizon, Earth's shadow falls into the air. That produces the gold-to-rose-to-violet gradient, the purple light of mid-twilight and the grey-blue band opposite the sunset. A thin cloud layer at 6 km is lit by the same calculation: the clouds stay pink after sunset because, seen from 6 km up, the sun stays above the horizon until it is about 2.5° below ours. Then Earth's shadow climbs past them and they turn grey.</p>
+<h4>Scaled for the screen</h4>
+<p>A starling's wingspan is about 0.4 m. The default flock of 40,000 is larger than the flocks Ballerini measured but smaller than the biggest winter roosts. Weights, the roost geometry, the long-range cue and the falcon's tactics are tuned by eye for realism, not fitted to data. Reaction times and wave speeds in the model are illustrative.</p>
+<span class="cite">Reynolds, C. W. (1987). Flocks, herds and schools: a distributed behavioral model. Computer Graphics 21(4), 25–34.</span>
+<span class="cite">Vicsek, T., Czirók, A., Ben-Jacob, E., Cohen, I. &amp; Shochet, O. (1995). Novel type of phase transition in a system of self-driven particles. Physical Review Letters 75, 1226.</span>
+<span class="cite">Ballerini, M. et al. (2008). Interaction ruling animal collective behavior depends on topological rather than metric distance. PNAS 105, 1232–1237.</span>
+<span class="cite">Hildenbrandt, H., Carere, C. &amp; Hemelrijk, C. K. (2010). Self-organized aerial displays of thousands of starlings: a model. Behavioral Ecology 21, 1349–1359.</span>
+<span class="cite">Cavagna, A. et al. (2010). Scale-free correlations in starling flocks. PNAS 107, 11865–11870.</span>
+<span class="cite">Procaccini, A. et al. (2011). Propagating waves in starling, Sturnus vulgaris, flocks under predation. Animal Behaviour 82, 759–765.</span>
+<span class="cite">Pearce, D. J. G., Miller, A. M., Rowlands, G. &amp; Turner, M. S. (2014). Role of projection in the control of bird flocks. PNAS 111, 10422–10426.</span>
+<span class="cite">Hemelrijk, C. K., van Zuidam, L. &amp; Hildenbrandt, H. (2015). What underlies waves of agitation in starling flocks. Behavioral Ecology and Sociobiology 69, 755–764.</span>`;
+
+const ch = Cosmos.chapter({ id: 'murmuration', notes: NOTES, science: SCIENCE });
+const U = Cosmos.util, FMT = Cosmos.fmt, M4 = Cosmos.mat4;
+const SMALL = window.matchMedia('(max-width: 760px)').matches;
+const ERA = U.rgbf(ch.meta.accent);
+
+const canvas = ch.canvas('mm-gl');
+const annCanvas = ch.canvas('mm-ann');
+const ann = annCanvas.getContext('2d');
+const gl = Cosmos.gl.context(canvas, { antialias: false, alpha: false, depth: false, stencil: false });
+if (!gl) { ch.fatal('This chapter needs WebGL2, which this browser or device does not provide.'); return; }
+if (!gl.ext.floatRT) { ch.fatal('This chapter simulates the flock in 32-bit float textures (EXT_color_buffer_float), which this GPU does not support.'); return; }
+canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); ch.fatal('The graphics context was lost. Reload the page to restart the flock.'); });
+
+/* ------------------------------------------------------------ world layout (metres) */
+const EYE0 = [0, 2.2, 0];                 // observer standing at the lagoon shore
+const ROOST = [10, 0, -255];              // reed-bed roost centre
+const ROOST_R = 150;                      // horizontal roost radius
+const ALT = [48, 135];                    // preferred altitude band
+const SUN_AZ = 22 * Math.PI / 180;        // sun azimuth (from −z toward +x)
+const RING_T = 1400, RING_H = 6500;       // tree line / hills radii
+const TOR_AZ = -31 * Math.PI / 180;
+
+/* ------------------------------------------------------------ shared JS noise (mirrors GLSL) */
+function pcg(v) { const s = (Math.imul(v >>> 0, 747796405) + 2891336453) >>> 0; const w = Math.imul(((s >>> ((s >>> 28) + 4)) ^ s) >>> 0, 277803737) >>> 0; return ((w >>> 22) ^ w) >>> 0; }
+function h2(x, y) { return pcg((Math.imul((x + 1000000) >>> 0, 1597334677) ^ pcg((y + 1000000) >>> 0)) >>> 0) / 4294967296; }
+function n2(x, y) { const ix = Math.floor(x), iy = Math.floor(y); let fx = x - ix, fy = y - iy; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+  const a = h2(ix, iy), b = h2(ix + 1, iy), c = h2(ix, iy + 1), d = h2(ix + 1, iy + 1); return (a + (b - a) * fx) + ((c + (d - c) * fx) - (a + (b - a) * fx)) * fy; }
+function fbm2(x, y) { let s = 0, a = 0.5; for (let i = 0; i < 4; i++) { s += a * n2(x, y); x = x * 2.03 + 17.1; y = y * 2.03 + 5.3; a *= 0.5; } return s; }
+function waterMask(x, z) { const cx = (x + 10) / 270, cz = (z + 125) / 112; return 1 - Math.hypot(cx, cz) - (fbm2(x * 0.011, z * 0.011) - 0.47) * 0.9 - (n2(x * 0.045, z * 0.045) - 0.5) * 0.12; }
+function reedMask(x, z) { const cx = (x - 10) / 330, cz = (z + 275) / 85; return 1 - Math.hypot(cx, cz) - (fbm2(x * 0.013 + 40, z * 0.013 + 40) - 0.47) * 0.9; }
+
+/* ===================================================================== GLSL */
+const HEAD = `#version 300 es
+precision highp float; precision highp int; precision highp sampler2D;
+`;
+const NOISE = `
+uint pcg(uint v){ uint s = v * 747796405u + 2891336453u; uint w = ((s >> ((s >> 28u) + 4u)) ^ s) * 277803737u; return (w >> 22u) ^ w; }
+float rnd(uint v){ return float(pcg(v)) * (1.0/4294967296.0); }
+float h1(float x){ return float(pcg(uint(int(x) + 1000000))) * (1.0/4294967296.0); }
+float h2(vec2 x){ uvec2 u = uvec2(ivec2(x) + 1000000); return float(pcg(u.x * 1597334677u ^ pcg(u.y))) * (1.0/4294967296.0); }
+float n1(float x){ float i = floor(x), f = x - i; f = f*f*(3.0-2.0*f); return mix(h1(i), h1(i+1.0), f); }
+float fbm1(float x){ float s = 0.0, a = 0.5; for (int i=0;i<5;i++){ s += a*n1(x); x = x*2.03 + 17.1; a *= 0.5; } return s; }
+float n2(vec2 x){ vec2 i = floor(x), f = x - i; f = f*f*(3.0-2.0*f); return mix(mix(h2(i), h2(i+vec2(1,0)), f.x), mix(h2(i+vec2(0,1)), h2(i+vec2(1,1)), f.x), f.y); }
+float fbm2(vec2 x){ float s = 0.0, a = 0.5; for (int i=0;i<4;i++){ s += a*n2(x); x = x*2.03 + vec2(17.1, 5.3); a *= 0.5; } return s; }
+float waterMask(vec2 q){ vec2 c = (q - vec2(-10.0, -125.0)) / vec2(270.0, 112.0); return 1.0 - length(c) - (fbm2(q*0.011) - 0.47)*0.9 - (n2(q*0.045) - 0.5)*0.12; }
+float reedMask(vec2 q){ vec2 c = (q - vec2(10.0, -275.0)) / vec2(330.0, 85.0); return 1.0 - length(c) - (fbm2(q*0.013 + 40.0) - 0.47)*0.9; }
+float channelMask(vec2 q){ float d = abs(fbm2(q * 0.0022 + 7.0) - 0.5); float w = 0.009 + 0.006 * n2(q * 0.01); return w - d; }
+bool isWater(vec2 q){ float r = reedMask(q); return (waterMask(q) > 0.0 && r < 0.0) || (channelMask(q) > 0.0 && r < 0.12 && length(q) > 45.0); }
+`;
+const SIMC = `
+uniform int uW; uniform int uLW; uniform int uN; uniform float uCellSize;
+ivec2 slotUV(int i){ return ivec2(i & (uW - 1), i >> uLW); }
+uint cellHash(ivec3 c){ uvec3 u = uvec3(c + 1048576); uint h = (u.x * 73856093u) ^ (u.y * 19349663u) ^ (u.z * 83492791u); h ^= h >> 16; h *= 0x7feb352du; h ^= h >> 15; return h & 262143u; }
+ivec3 cellOf(vec3 p){ return ivec3(floor(p / uCellSize)); }
+`;
+
+const FS_KEY = HEAD + SIMC + `
+uniform sampler2D uP; out vec4 o;
+void main(){ ivec2 ij = ivec2(gl_FragCoord.xy); int i = ij.y * uW + ij.x;
+  if (i >= uN) { o = vec4(1e7, float(i), 0.0, 0.0); return; }
+  vec3 p = texelFetch(uP, ij, 0).xyz;
+  o = vec4(float(cellHash(cellOf(p))), float(i), 0.0, 0.0); }`;
+
+/* bitonic sort, up to 3 merge stages fused per pass: each fragment loads its closed group of
+   2^S elements (indices differing only in the stage bits), runs the S compare-exchange stages
+   locally, and keeps its own slot. */
+const FS_SORT = HEAD + SIMC + `
+uniform sampler2D uK; uniform int uJ; uniform int uS; uniform int uKk; out vec4 o;
+bool lessK(vec2 a, vec2 b){ return a.x < b.x || (a.x == b.x && a.y < b.y); }
+void main(){ ivec2 ij = ivec2(gl_FragCoord.xy); int i = ij.y * uW + ij.x;
+  int G = 1 << uS;
+  int mask = 0; for (int b = 0; b < 3; b++) if (b < uS) mask |= (uJ >> b);
+  int base = i & ~mask;
+  vec2 v[8]; int me = 0;
+  for (int m = 0; m < 8; m++) {
+    if (m >= G) break;
+    int idx = base;
+    for (int b = 0; b < 3; b++) if (b < uS && ((m >> b) & 1) == 1) idx |= (uJ >> (uS - 1 - b));
+    if (idx == i) me = m;
+    v[m] = texelFetch(uK, slotUV(idx), 0).xy;
+  }
+  bool asc = (i & uKk) == 0;
+  for (int st = 2; st >= 0; st--) {
+    if (st >= uS) continue;
+    int lj = 1 << st;
+    for (int m = 0; m < 8; m++) {
+      if (m >= G) break;
+      if ((m & lj) != 0) continue;
+      int q = m | lj;
+      vec2 a = v[m], c = v[q];
+      if (lessK(c, a) == asc) { v[m] = c; v[q] = a; }
+    }
+  }
+  o = vec4(v[me], 0.0, 0.0); }`;
+
+const FS_REORDER = HEAD + SIMC + `
+uniform sampler2D uK, uP, uV, uX, uS;
+layout(location=0) out vec4 oP; layout(location=1) out vec4 oV; layout(location=2) out vec4 oX; layout(location=3) out vec4 oS;
+void main(){ ivec2 ij = ivec2(gl_FragCoord.xy); int s = int(texelFetch(uK, ij, 0).y + 0.5); ivec2 sj = slotUV(s);
+  oP = texelFetch(uP, sj, 0); oV = texelFetch(uV, sj, 0); oX = texelFetch(uX, sj, 0); oS = texelFetch(uS, sj, 0); }`;
+
+const VS_CELL = HEAD + SIMC + `
+uniform sampler2D uP; flat out float vI;
+void main(){ int i = gl_VertexID; gl_PointSize = 1.0; vI = float(i);
+  gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+  if (i >= uN) return;
+  uint h = cellHash(cellOf(texelFetch(uP, slotUV(i), 0).xyz));
+  if (i > 0) { uint h0 = cellHash(cellOf(texelFetch(uP, slotUV(i - 1), 0).xyz)); if (h0 == h) return; }
+  vec2 t = (vec2(float(h & 511u), float(h >> 9u)) + 0.5) / 512.0;
+  gl_Position = vec4(t * 2.0 - 1.0, 0.0, 1.0); }`;
+const FS_CELL = HEAD + `flat in float vI; out vec4 o; void main(){ o = vec4(vI, 0.0, 0.0, 0.0); }`;
+
+const FS_UPDATE = HEAD + NOISE + SIMC + `
+uniform sampler2D uP, uV, uX, uS, uCell;
+uniform float uDt, uK, uWs, uWa, uWc, uWr, uV0, uNoise, uRSep, uRoostR, uFleeR, uReact, uThresh, uSpont;
+uniform vec4 uGain; // separation, alignment, cohesion base, cohesion edge
+uniform float uNoiseK; uniform float uAlarmR; uniform float uActT; uniform float uRoosting;
+uniform sampler2D uDens; uniform vec3 uDO; uniform float uDC; uniform float uWv; uniform vec3 uMain; uniform float uWg; uniform float uTrapL;
+uniform sampler2D uView; uniform float uWp;
+vec4 viewAt(vec3 g){
+  // the projected-view field on a 16^3 atlas (64x64, 4x4 tiles of z); g in 32-grid units
+  g = clamp(g * 0.5, vec3(0.5), vec3(15.5));
+  float z = g.z - 0.5; float z0 = floor(z); float fz = z - z0; int zi0 = int(z0); int zi1 = min(zi0 + 1, 15);
+  vec2 t0 = (vec2(float((zi0 & 3) * 16), float((zi0 >> 2) * 16)) + g.xy) / 64.0;
+  vec2 t1 = (vec2(float((zi1 & 3) * 16), float((zi1 >> 2) * 16)) + g.xy) / 64.0;
+  return mix(texture(uView, t0), texture(uView, t1), fz); }
+float densAt(vec3 g){
+  g = clamp(g, vec3(0.5), vec3(31.5));
+  float z = g.z - 0.5; float z0 = floor(z); float fz = z - z0; int zi0 = int(z0); int zi1 = min(zi0 + 1, 31);
+  vec2 t0 = (vec2(float((zi0 & 7) * 32), float((zi0 >> 3) * 32)) + g.xy) / vec2(256.0, 128.0);
+  vec2 t1 = (vec2(float((zi1 & 7) * 32), float((zi1 >> 3) * 32)) + g.xy) / vec2(256.0, 128.0);
+  return mix(texture(uDens, t0).r, texture(uDens, t1).r, fz); }
+uniform int uFrame;
+uniform vec3 uRoost, uCentroid; uniform vec2 uAlt; uniform vec4 uFalcon;
+layout(location=0) out vec4 oP; layout(location=1) out vec4 oV; layout(location=2) out vec4 oX; layout(location=3) out vec4 oS;
+const float G = 9.81;
+void main(){
+  ivec2 ij = ivec2(gl_FragCoord.xy); int i = ij.y * uW + ij.x;
+  vec4 P = texelFetch(uP, ij, 0), V = texelFetch(uV, ij, 0), X = texelFetch(uX, ij, 0), S = texelFetch(uS, ij, 0);
+  if (i >= uN) { oP = P; oV = V; oX = X; oS = S; return; }
+  uint sd0 = uint(X.w) * 2654435761u + uint(uFrame) * 97u;
+  if (P.w < 0.0) {
+    // perched in the reeds (P.w < 0). Leave in staggered waves when roosting ends.
+    if (uRoosting < 0.3 && rnd(sd0 + 31u) < uDt * 0.9) {
+      vec3 d0 = normalize(V.xyz + vec3(1e-4, 0.0, 0.0)) * 0.001;
+      vec3 hdir = normalize(vec3(d0.x, 0.0, d0.z) + vec3(1e-4, 0.0, 0.0));
+      oP = vec4(P.x, 3.5, P.z, 1.5); oV = vec4(hdir * uV0 * 0.7 + vec3(0.0, 7.0, 0.0), 0.0); oX = vec4(0.0, -1.0, 7.0, X.w); oS = vec4(0.0, 0.0, 0.0, 9.0);
+    } else { oP = P; oV = V; oX = X; oS = S; }
+    return;
+  }
+  vec3 p = P.xyz, v = V.xyz; float R = P.w;
+  float spd = max(length(v), 0.1); vec3 fwd = v / spd;
+  vec3 rt = cross(fwd, vec3(0.0, 1.0, 0.0)); float rl = length(rt); rt = rl > 1e-3 ? rt / rl : vec3(1.0, 0.0, 0.0);
+  vec3 u0 = cross(rt, fwd);
+
+  /* ---- neighbour search: 2x2x2 block of hash cells around the bird ---- */
+  float cs = uCellSize;
+  vec3 cf = p / cs; ivec3 c0 = ivec3(floor(cf)); vec3 fr = cf - vec3(c0);
+  ivec3 off = ivec3(fr.x < 0.5 ? -1 : 0, fr.y < 0.5 ? -1 : 0, fr.z < 0.5 ? -1 : 0);
+  float rin = R * 0.8, rout = R * 1.2;
+  float srch = max(rout, uRSep); float srch2 = srch * srch;
+  float cnt = 0.0, al = 0.0, r1 = 99.0, smax = 0.0;
+  vec3 sep = vec3(0.0), ali = vec3(0.0), coh = vec3(0.0), alv = vec3(0.0), vsum = vec3(0.0);
+  for (int n = 0; n < 8; n++) {
+    ivec3 cc = c0 + off + ivec3(n & 1, (n >> 1) & 1, n >> 2);
+    uint h = cellHash(cc);
+    int s = int(texelFetch(uCell, ivec2(int(h & 511u), int(h >> 9u)), 0).r);
+    if (s < 0) continue;
+    for (int j = 0; j < CAP; j++) {
+      int idx = s + j; if (idx >= uN) break;
+      ivec2 qj = slotUV(idx);
+      vec4 Q = texelFetch(uP, qj, 0);
+      ivec3 qc = cellOf(Q.xyz);
+      if (cellHash(qc) != h) break;
+      if (idx == i || qc != cc || Q.w < 0.0) continue;
+      vec3 d = Q.xyz - p; float d2 = dot(d, d);
+      if (d2 > srch2 || d2 < 1e-6) continue;
+      float dist = sqrt(d2); vec3 dn = d / dist;
+      r1 = min(r1, dist);
+      if (dist < uRSep) { float q = 1.0 - dist / uRSep; sep -= dn * q * (0.5 + q); }
+      float w = 1.0 - smoothstep(rin, rout, dist);
+      w *= smoothstep(-0.92, -0.72, dot(dn, fwd));          // rear blind cone
+      if (w <= 0.001) continue;
+      vec4 Vj = texelFetch(uV, qj, 0);
+      float sj = length(Vj.xyz);
+      if (sj > 0.1) ali += w * Vj.xyz / sj;
+      cnt += w; coh += w * d; al += w * Vj.w; alv += w * Vj.w * d; vsum += w * Vj.xyz; smax = max(smax, Vj.w);
+    }
+  }
+
+  /* ---- adaptive topological radius: the ball holds ~k birds ---- */
+  float Rn = R * clamp(pow((uK + 0.5) / (cnt + 0.5), 0.33333), 0.9, 1.1);
+  Rn = clamp(Rn, 0.35, cs * 0.98);
+
+  /* ---- steering ---- */
+  vec3 F = uWs * sep * uGain.x;
+  float C = 0.0;
+  if (cnt > 0.2) {
+    float la = length(ali);
+    if (la > 1e-4) F += uWa * (ali / la - fwd) * uGain.y;
+    vec3 cm = coh / cnt; float lc = length(cm);
+    C = clamp(lc / max(R, 0.3), 0.0, 1.0);
+    if (lc > 1e-4) F += uWc * (uGain.z + uGain.w * C) * (cm / lc);
+  }
+  /* long-range cue: steer up the gradient of the coarse flock density (the dark mass a bird can see) */
+  vec3 gq = (p - uDO) / uDC;
+  float rho = densAt(gq);
+  vec3 grad = vec3(densAt(gq + vec3(0.7, 0.0, 0.0)) - densAt(gq - vec3(0.7, 0.0, 0.0)),
+                   densAt(gq + vec3(0.0, 0.7, 0.0)) - densAt(gq - vec3(0.0, 0.7, 0.0)),
+                   densAt(gq + vec3(0.0, 0.0, 0.7)) - densAt(gq - vec3(0.0, 0.0, 0.7))) / 1.4;
+  float gm = length(grad);
+  if (gm > 1e-4) F += uWv * uWc * (grad / gm) * min(1.0, gm / (rho + 1.5));
+  if (rho < 0.25 && cnt < 1.0) { vec3 dc = uCentroid - p; F += normalize(dc + vec3(0.0, 1e-3, 0.0)) * 4.0; }
+  { vec3 dm = uMain - p; float lm = length(dm); F += uWg * uWc * dm / max(lm, uTrapL); }
+  /* projected view (after Pearce et al. 2014): steer toward where the flock fills the sky. Each coarse
+     cell of the flock weighs by the solid angle it subtends; the normalised sum is ~0 deep inside the
+     flock and ~1 for birds outside it, so it acts as a surface tension that also calls splinters home. */
+  vec3 vw = viewAt(gq).xyz;
+  F += uWp * uWc * vw;
+  vec2 hd = uRoost.xz - p.xz; float dh = max(length(hd), 1.0);
+  float rR = mix(uRoostR, 55.0, uRoosting);
+  F.xz += max(uWr, uRoosting) * smoothstep(rR * 0.6, rR * 1.4, dh) * (hd / dh) * mix(6.0, 9.0, uRoosting);
+  float y = p.y;
+  vec2 alt = mix(uAlt, vec2(2.0, 14.0), uRoosting * smoothstep(rR * 1.6, rR * 0.5, dh));
+  F.y += clamp((alt.x - y) * 0.15, 0.0, 6.0) - clamp((y - alt.y) * mix(0.12, 0.3, uRoosting), 0.0, mix(6.0, 11.0, uRoosting));
+  float floorY = mix(12.0, 1.0, uRoosting * step(0.0, reedMask(p.xz)));
+  F.y += clamp((floorY - y) * 1.5, 0.0, 30.0);
+
+  uint sd = uint(X.w) * 2654435761u + uint(uFrame) * 97u;
+  vec3 gz = vec3(rnd(sd), rnd(sd + 1u), rnd(sd + 2u)) * 2.0 - 1.0;
+  vec3 nz = S.xyz - S.xyz * (uDt / 0.7) + gz * sqrt(uDt / 0.7) * 2.449;
+  F += uNoise * nz * uNoiseK;
+
+  /* ---- predator ---- */
+  vec3 fd = p - uFalcon.xyz; float fdist = length(fd); vec3 fdn = fd / max(fdist, 0.01);
+  float threat = uFalcon.w * (1.0 - smoothstep(uFleeR * 0.25, uFleeR, fdist));
+  F += fdn * threat * 26.0;
+
+  /* ---- excitable escape wave ---- */
+  // X.y packs the time since firing and the alarm intensity: X.y = esc + 10 q, q = round(99 I); X.y < 0 when idle.
+  // Neighbours see the signal act * I. A relayed alarm is 1.5% weaker than the strongest one that caused it,
+  // so waves fade after about a hundred metres and cannot re-enter parts of the flock that have recovered.
+  float q0 = X.y < 0.0 ? 0.0 : floor(X.y / 10.0);
+  float esc = X.y < 0.0 ? -1.0 : X.y - 10.0 * q0; float Ia = q0 / 99.0;
+  float dsg = X.z < 0.0 ? -1.0 : 1.0;
+  float frac = cnt > 0.2 ? al / (cnt * max(smax, 0.3)) : 0.0;   // fraction of neighbours firing, relative to the strongest signal
+  float jit = 0.6 + 0.8 * rnd(uint(X.w) * 747796405u + 11u);
+  float lat = uReact * jit;
+  if (esc < 0.0) {
+    bool byF = uFalcon.w > 0.5 && fdist < uAlarmR;
+    bool spont = rnd(sd + 9u) < uSpont * uDt;
+    float Irelay = smax * 0.985;
+    if (byF || (frac > uThresh && Irelay > 0.3) || spont) {
+      esc = 0.0; Ia = byF || spont ? 1.0 : Irelay;
+      vec3 away = byF ? fdn : (spont ? vec3(gz.x, 0.0, gz.z) : -alv);
+      dsg = dot(away, rt) >= 0.0 ? 1.0 : -1.0;
+    }
+  } else { esc += uDt; if (esc > lat + uActT + 4.0) { esc = -1.0; Ia = 0.0; } }
+  float act = esc >= 0.0 ? smoothstep(lat, lat + 0.03, esc) * (1.0 - smoothstep(lat + uActT - 0.2, lat + uActT, esc)) : 0.0;
+  float sig = act * Ia;
+
+  /* ---- flight: speed control, banking turns, pitch ---- */
+  float aF = dot(F, fwd) + (uV0 - spd) * 1.0 - G * fwd.y * 0.3;
+  aF = clamp(aF, -7.0, 5.0);
+  float aL = dot(F, rt);
+  float aU = clamp(dot(F, u0) - sig * 6.0, -10.0, 10.0);
+  float bank = X.x;
+  float bT = clamp(mix(atan(aL / G), dsg * 1.4, act * sqrt(Ia)), -1.4, 1.4);
+  float roll = 8.0 * uDt;
+  bank += clamp(bT - bank, -roll, roll);
+  vec3 acc = aF * fwd + G * tan(bank) * rt + aU * u0;
+  vec3 vn = v + acc * uDt;
+  float sn = length(vn);
+  vn *= clamp(sn, uV0 * 0.5, uV0 * 2.2) / max(sn, 1e-3);
+  float hz = length(vn.xz); float mv = length(vn);
+  if (abs(vn.y) > 0.7 * mv && hz > 1e-3) { float vy = sign(vn.y) * 0.7 * mv; vn.xz *= sqrt(max(mv * mv - vy * vy, 0.0)) / hz; vn.y = vy; }
+  vec3 pn = p + vn * uDt;
+
+  bool bad = !(abs(pn.x) < 1e5 && abs(pn.y) < 1e5 && abs(pn.z) < 1e5 && abs(vn.x) < 1e3 && abs(vn.y) < 1e3 && abs(vn.z) < 1e3 && abs(bank) < 3.0 && Rn > 0.0 && Rn < 1e3);
+  if (bad) { pn = uCentroid + (vec3(rnd(sd + 5u), rnd(sd + 6u), rnd(sd + 7u)) - 0.5) * 20.0; vn = vec3(uV0, 0.0, 0.0); bank = 0.0; esc = -1.0; Rn = 2.0; nz = vec3(0.0); cnt = 0.0; r1 = 99.0; act = 0.0; sig = 0.0; Ia = 0.0; }
+  if (uRoosting > 0.5 && pn.y < 3.2 && reedMask(pn.xz) > 0.02) {
+    // settle into the reeds: perched birds are flagged by a negative radius
+    oP = vec4(pn.x, 1.6 + 0.8 * rnd(sd + 41u), pn.z, -1.0); oV = vec4(normalize(vn) * 0.001, 0.0); oX = vec4(0.0, -1.0, 0.001, X.w); oS = vec4(0.0, 0.0, 0.0, 99.0);
+    return;
+  }
+  oP = vec4(pn, Rn);
+  oV = vec4(vn, sig);
+  oX = vec4(bank, esc < 0.0 ? -1.0 : esc + 10.0 * floor(Ia * 99.0 + 0.5), dsg * (cnt + 0.001), X.w);
+  // S.w packs the nearest-neighbour distance (metres, < 100) and the speed relative to the neighbours' mean velocity (0.1 m/s steps)
+  float rel = cnt > 0.2 ? length(v - vsum / cnt) : 0.0;
+  oS = vec4(nz, min(r1, 99.0) + 100.0 * floor(min(rel, 99.0) * 10.0 + 0.5));
+}`;
+
+/* coarse 32^3 density field around the flock (what a bird can see of the flock from afar) */
+const VS_SPLAT = HEAD + SIMC + `
+uniform sampler2D uP; uniform vec3 uDO; uniform float uDC;
+void main(){ int i = gl_VertexID; gl_PointSize = 1.0; gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+  if (i >= uN) return;
+  vec3 g = (texelFetch(uP, slotUV(i), 0).xyz - uDO) / uDC;
+  if (any(lessThan(g, vec3(0.0))) || any(greaterThanEqual(g, vec3(32.0)))) return;
+  ivec3 c = ivec3(g);
+  vec2 t = vec2(float((c.z & 7) * 32 + c.x) + 0.5, float((c.z >> 3) * 32 + c.y) + 0.5) / vec2(256.0, 128.0);
+  gl_Position = vec4(t * 2.0 - 1.0, 0.0, 1.0); }`;
+const FS_ONE = HEAD + `out vec4 o; void main(){ o = vec4(1.0, 0.0, 0.0, 0.0); }`;
+const FS_BLUR = HEAD + `
+uniform sampler2D uSrc; uniform ivec3 uAx; out vec4 o;
+float at(ivec3 c){ if (any(lessThan(c, ivec3(0))) || any(greaterThan(c, ivec3(31)))) return 0.0; return texelFetch(uSrc, ivec2((c.z & 7) * 32 + c.x, (c.z >> 3) * 32 + c.y), 0).r; }
+void main(){ ivec2 ij = ivec2(gl_FragCoord.xy); ivec3 c = ivec3(ij.x & 31, ij.y & 31, (ij.x >> 5) + (ij.y >> 5) * 8);
+  float s = at(c) * 6.0 + (at(c + uAx) + at(c - uAx)) * 4.0 + at(c + 2 * uAx) + at(c - 2 * uAx);
+  o = vec4(s / 16.0, 0.0, 0.0, 0.0); }`;
+
+/* coarse 8^3 mass grid (4x4x4 blocks of the blurred 32^3 field), then the projected-view vector field
+   on 16^3: for every cell, the solid-angle-weighted mean direction toward the rest of the flock. */
+const FS_COARSE = HEAD + `
+uniform sampler2D uSrc; out vec4 o;
+void main(){ ivec2 ij = ivec2(gl_FragCoord.xy); int cx = ij.x & 7, cz = ij.x >> 3, cy = ij.y;
+  float s = 0.0;
+  for (int c = 0; c < 4; c++) { int z = cz * 4 + c; ivec2 tb = ivec2((z & 7) * 32 + cx * 4, (z >> 3) * 32 + cy * 4);
+    for (int b = 0; b < 4; b++) for (int a = 0; a < 4; a++) s += texelFetch(uSrc, tb + ivec2(a, b), 0).r; }
+  o = vec4(s, 0.0, 0.0, 0.0); }`;
+const FS_VIEW = HEAD + `
+uniform sampler2D uC; uniform float uSoft; out vec4 o;
+void main(){ ivec2 ij = ivec2(gl_FragCoord.xy); ivec3 t = ivec3(ij.x & 15, ij.y & 15, (ij.x >> 4) + (ij.y >> 4) * 4);
+  vec3 xt = (vec3(t) + 0.5) * 2.0;
+  vec3 acc = vec3(0.0); float ws = 0.0;
+  for (int z = 0; z < 8; z++) for (int y = 0; y < 8; y++) for (int x = 0; x < 8; x++) {
+    float m = texelFetch(uC, ivec2(x + 8 * z, y), 0).r; if (m < 0.5) continue;
+    vec3 d = (vec3(float(x), float(y), float(z)) + 0.5) * 4.0 - xt; float r2 = dot(d, d) + uSoft;
+    float w = m / r2; acc += w * d * inversesqrt(r2); ws += w; }
+  o = vec4(acc / (ws + 1e-4), min(ws, 6e4)); }`;
+
+/* gather a strided subsample of birds for CPU-side statistics */
+const FS_GATHER = HEAD + SIMC + `
+uniform sampler2D uP, uV, uX, uS; uniform int uM; uniform int uOff; out vec4 o;
+void main(){ ivec2 ij = ivec2(gl_FragCoord.xy); int c = ij.x; int row = ij.y;
+  int slot = int(mod(float(c) * float(uN) / float(uM) + float(uOff), float(uN)));
+  ivec2 sj = slotUV(slot);
+  if (row == 0) o = texelFetch(uP, sj, 0); else if (row == 1) o = texelFetch(uV, sj, 0); else if (row == 2) o = texelFetch(uX, sj, 0); else o = texelFetch(uS, sj, 0); }`;
+
+/* find one bird by id (for "fly with the flock") */
+/* find one bird by id (for "fly with the flock") and its 9 nearest neighbours.
+   Drawn as N points x 12 instances; only the tracked bird's vertices survive. Texels: 0 P, 1 V, 2 X, 3..11 neighbours. */
+const VS_TRACK = HEAD + SIMC + `
+uniform sampler2D uP, uV, uX, uCell; uniform float uId; flat out vec4 vO;
+void main(){ int i = gl_VertexID; int c = gl_InstanceID; gl_PointSize = 1.0; gl_Position = vec4(2.0, 2.0, 2.0, 1.0); vO = vec4(0.0);
+  if (i >= uN) return;
+  ivec2 sj = slotUV(i); vec4 X = texelFetch(uX, sj, 0);
+  if (abs(X.w - uId) > 0.5) return;
+  vec4 P = texelFetch(uP, sj, 0);
+  if (c == 0) vO = P; else if (c == 1) vO = texelFetch(uV, sj, 0); else if (c == 2) vO = X;
+  else {
+    int m = c - 3;
+    float bd[9]; vec3 bp[9];
+    for (int q = 0; q < 9; q++) { bd[q] = 1e9; bp[q] = vec3(0.0); }
+    vec3 p = P.xyz; ivec3 c0 = cellOf(p);
+    for (int n = 0; n < 27; n++) {
+      ivec3 cc = c0 + ivec3(n % 3 - 1, (n / 3) % 3 - 1, n / 9 - 1);
+      uint h = cellHash(cc);
+      int s = int(texelFetch(uCell, ivec2(int(h & 511u), int(h >> 9u)), 0).r);
+      if (s < 0) continue;
+      for (int j = 0; j < CAP; j++) {
+        int idx = s + j; if (idx >= uN) break;
+        vec4 Q = texelFetch(uP, slotUV(idx), 0);
+        ivec3 qc = cellOf(Q.xyz);
+        if (cellHash(qc) != h) break;
+        if (idx == i || qc != cc || Q.w < 0.0) continue;
+        float d = length(Q.xyz - p);
+        if (d < bd[8]) { int k = 8; while (k > 0 && bd[k - 1] > d) { bd[k] = bd[k - 1]; bp[k] = bp[k - 1]; k--; } bd[k] = d; bp[k] = Q.xyz; }
+      }
+    }
+    vO = vec4(bp[m], bd[m] < 1e8 ? bd[m] : -1.0);
+  }
+  gl_Position = vec4((float(c) + 0.5) / 12.0 * 2.0 - 1.0, 0.0, 0.0, 1.0); }`;
+const FS_TRACK = HEAD + `flat in vec4 vO; out vec4 o; void main(){ o = vO; }`;
+
+/* opacity probe: birds seen from inside the flock, as coverage points on a 6-face cube atlas */
+const VS_OPAC = HEAD + SIMC + `
+uniform sampler2D uP; uniform vec3 uC; uniform mat3 uRot; uniform float uFace; uniform float uRes; out float vA;
+void main(){ int i = gl_InstanceID; gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 1.0; vA = 0.0;
+  if (i >= uN) return;
+  vec3 d = uRot * (texelFetch(uP, slotUV(i), 0).xyz - uC);
+  if (d.z > -0.05) return;
+  float z = -d.z; vec2 ndc = d.xy / z;
+  if (abs(ndc.x) > 1.0 || abs(ndc.y) > 1.0) return;
+  float pxR = 0.09 / z * uRes * 0.5;           // equivalent disc radius 9 cm, in texels
+  float sz = max(pxR * 2.0, 1.0);
+  vA = min(1.0, 3.14159 * pxR * pxR / (sz * sz));
+  gl_PointSize = min(sz, 64.0);
+  gl_Position = vec4((ndc.x * 0.5 + 0.5 + uFace) / 6.0 * 2.0 - 1.0, ndc.y, 0.0, 1.0); }`;
+const FS_COPY = HEAD + `uniform sampler2D uSrc; out vec4 o; void main(){ o = texelFetch(uSrc, ivec2(gl_FragCoord.xy), 0); }`;
+const FS_OPAC = HEAD + `in float vA; out vec4 o;
+void main(){ vec2 c = gl_PointCoord * 2.0 - 1.0; if (dot(c, c) > 1.0) discard; o = vec4(0.0, 0.0, 0.0, vA); }`;
+
+/* -------- sky: single scattering LUT (Rayleigh + Mie + ozone, spherical Earth) -------- */
+const ATMO = `
+const float PI = 3.14159265;
+const float RE = 6360e3, RA = 6460e3;
+const vec3 BR = vec3(5.802e-6, 13.558e-6, 33.1e-6);
+const float BMS = 7.0e-6, BME = 7.8e-6;
+const vec3 BO = vec3(0.650e-6, 1.881e-6, 0.085e-6);
+const float STRAT = 0.012;
+float mieD(float h){ float q = (h - 20000.0) / 4500.0; return exp(-h / 1200.0) + STRAT * exp(-q * q); }
+vec3 extAt(float h){ h = max(h, 0.0); return BR * exp(-h / 8000.0) + BME * mieD(h) + BO * max(0.0, 1.0 - abs(h - 25000.0) / 15000.0); }
+float raySphereFar(vec3 o, vec3 d, float R){ float b = dot(o, d); float c = dot(o, o) - R * R; float disc = b * b - c; if (disc < 0.0) return -1.0; return -b + sqrt(disc); }
+vec3 odSeg(vec3 x, vec3 d, float t0, float t1, bool clusterEnd){
+  vec3 od = vec3(0.0); float u0 = 0.0;
+  for (int i = 0; i < 8; i++) { float f = float(i + 1) / 8.0; float u1 = clusterEnd ? 1.0 - (1.0 - f) * (1.0 - f) : f * f;
+    vec3 y = x + d * (t0 + (t1 - t0) * 0.5 * (u0 + u1)); od += extAt(length(y) - RE) * (t1 - t0) * (u1 - u0); u0 = u1; }
+  return od; }
+vec3 sunTrans(vec3 x, vec3 s){
+  float tm = raySphereFar(x, s, RA); if (tm <= 0.0) return vec3(1.0);
+  float b = dot(x, s);
+  if (b < 0.0) {
+    float hmin = sqrt(max(dot(x, x) - b * b, 0.0)) - RE;
+    float sh = smoothstep(-2500.0, 2500.0, hmin);
+    if (sh <= 0.0) return vec3(0.0);
+    return exp(-(odSeg(x, s, 0.0, -b, true) + odSeg(x, s, -b, tm, false))) * sh;
+  }
+  return exp(-odSeg(x, s, 0.0, tm, false));
+}`;
+const FS_SKYLUT = HEAD + ATMO + `
+in vec2 vUv; layout(location=0) out vec4 o; layout(location=1) out vec4 oC; uniform vec3 uSun; uniform float uSunI; uniform float uMS;
+const float CLOUD_H = 6000.0;
+void main(){
+  float az = (vUv.x - 0.5) * 2.0 * PI; float el = vUv.y * vUv.y * PI * 0.5;
+  vec3 d = vec3(sin(az) * cos(el), sin(el), -cos(az) * cos(el));
+  vec3 org = vec3(0.0, RE + 5.0, 0.0);
+  float tm = raySphereFar(org, d, RA);
+  float mu = dot(d, uSun);
+  float pr = 3.0 / (16.0 * PI) * (1.0 + mu * mu);
+  float g = 0.76; float pm = 3.0 / (8.0 * PI) * ((1.0 - g * g) * (1.0 + mu * mu)) / ((2.0 + g * g) * pow(1.0 + g * g - 2.0 * g * mu, 1.5));
+  vec3 T = vec3(1.0), L = vec3(0.0); float tp = 0.0;
+  for (int i = 0; i < 36; i++) {
+    float f = float(i + 1) / 36.0; float t = tm * f * f; float dt = t - tp; vec3 x = org + d * (0.5 * (t + tp)); tp = t;
+    float h = max(length(x) - RE, 0.0);
+    float dr = exp(-h / 8000.0), dm = mieD(h);
+    vec3 ext = extAt(h);
+    vec3 st = sunTrans(x, uSun);
+    float muS = dot(normalize(x), uSun);
+    vec3 sc = BR * dr * pr + BMS * dm * pm;
+    vec3 ms = (BR * dr + BMS * dm) * uMS * smoothstep(-0.28, 0.25, muS) * (0.35 + 0.65 * smoothstep(-0.1, 0.3, muS));
+    vec3 Sv = (st * sc + ms) * uSunI;
+    vec3 Ts = exp(-ext * dt);
+    L += T * (Sv - Sv * Ts) / max(ext, vec3(1e-12));
+    T *= Ts;
+  }
+  o = vec4(L, 1.0);
+  // lighting of a thin cloud layer at 6 km seen in this direction: sunlight reaching the cloud
+  // (zero once Earth's shadow has climbed past it), a forward-scattering phase, sky fill light,
+  // attenuated by the air between the viewer and the cloud.
+  float tc = raySphereFar(org, d, RE + CLOUD_H);
+  vec3 xc = org + d * tc;
+  vec3 Tv = vec3(1.0); float tq = 0.0;
+  for (int i = 0; i < 12; i++) { float f = float(i + 1) / 12.0; float t = tc * f * f; vec3 xm = org + d * (0.5 * (t + tq)); Tv *= exp(-extAt(length(xm) - RE) * (t - tq)); tq = t; }
+  vec3 sc = sunTrans(xc, uSun);
+  float mu2 = dot(d, uSun);
+  float ph = 0.55 * (1.0 - 0.36) / pow(1.0 + 0.36 - 1.2 * mu2, 1.5) / (4.0 * PI) + 0.45 / (4.0 * PI);
+  // thin cloud (optical depth ~0.8): sunlight scattered with phase ph, plus skylight fill of about the local sky radiance
+  vec3 Lc = sc * ph * 0.55 * uSunI * 4.0 * PI * 0.25 + L * 0.75;
+  oC = vec4(Lc * Tv, dot(Tv, vec3(0.3333)));
+}`;
+
+/* -------- landscape & sky (full screen, HDR) -------- */
+const LAND = `
+uniform float uTorS;
+float ringT(vec3 e, vec3 d, float R){ vec2 o = e.xz, k = d.xz; float a = dot(k, k); float b = dot(o, k); float c = dot(o, o) - R * R; float disc = b * b - a * c; return (-b + sqrt(max(disc, 0.0))) / max(a, 1e-8); }
+float treeH(float s){
+  // woodland patches with a lumpy canopy of individual crowns; isolated field trees with trunks between them
+  float wood = smoothstep(0.40, 0.52, fbm1(s * 0.0014 + 3.1));
+  float canopy = 8.0 + 8.0 * fbm1(s * 0.018 + 1.7) + 3.0 * n1(s * 0.11) + 2.2 * abs(sin(s * 0.45 + 3.0 * n1(s * 0.07))) + 0.8 * n1(s * 1.3);
+  float h = wood * canopy;
+  float cell = floor(s / 60.0);
+  for (int k = -1; k <= 1; k++) {
+    float c = cell + float(k);
+    if (h1(c + 999.0) < 0.55) continue;
+    float cx = (c + 0.2 + 0.6 * h1(c)) * 60.0; float rad = 5.0 + 4.0 * h1(c + 7131.0); float top = 9.0 + 7.0 * h1(c + 1337.0);
+    float crownBase = top - rad * 1.3;
+    for (int j = 0; j < 3; j++) {
+      float ox = (h1(c * 3.0 + float(j) + 55.0) - 0.5) * rad * 1.1; float r2 = rad * (0.55 + 0.35 * h1(c * 7.0 + float(j)));
+      float dx = (s - cx - ox) / r2;
+      if (abs(dx) < 1.0) h = max(h, top - r2 * (0.3 + 0.4 * float(j == 1)) - r2 + r2 * sqrt(1.0 - dx * dx) + 0.6 * n1(s * 2.1));
+    }
+    if (abs(s - cx) < 0.5 + 0.35 * rad * 0.1) h = max(h, crownBase + 1.0);
+  }
+  float hedge = smoothstep(0.35, 0.45, fbm1(s * 0.004 + 9.0)) * (2.5 + 1.2 * n1(s * 0.09) + 0.6 * n1(s * 0.9));
+  return max(h, hedge);
+}
+float hillH(float s){
+  float hh = 14.0 + 70.0 * fbm1(s * 0.00032 + 11.0) + 12.0 * fbm1(s * 0.003);
+  float dt = (s - uTorS) / 380.0; hh += 88.0 * exp(-dt * dt);
+  float tx = abs(s - uTorS - 20.0);
+  if (tx < 5.5) hh = max(hh, 88.0 + 14.0 + 26.0 - (tx > 4.0 ? 3.0 : 0.0));
+  return hh;
+}
+// terrain silhouettes on two rings; returns distance or -1
+float terrain(vec3 e, vec3 d, out float layer){
+  layer = 0.0;
+  if (d.y > 0.04 && e.y >= 0.0) return -1.0;   // above every ridge and tree top
+  float t1 = ringT(e, d, ${RING_T.toFixed(1)}); vec3 p1 = e + d * t1;
+  if (p1.y < treeH(atan(p1.x, -p1.z) * ${RING_T.toFixed(1)})) { layer = 1.0; return t1; }
+  float t2 = ringT(e, d, ${RING_H.toFixed(1)}); vec3 p2 = e + d * t2;
+  if (p2.y < hillH(atan(p2.x, -p2.z) * ${RING_H.toFixed(1)})) { layer = 2.0; return t2; }
+  layer = 0.0; return -1.0;
+}`;
+
+const FS_SCENE = HEAD + NOISE + LAND + `
+in vec2 vUv; out vec4 o;
+uniform mat4 uInvVP; uniform vec3 uEye; uniform sampler2D uSky;
+uniform vec3 uSun, uSunDisk, uMoon, uMoonCol, uVenus, uVenusCol, uSil, uGround, uFogCol;
+uniform float uTime, uVis, uPixAng, uStars, uCloud;
+uniform sampler2D uCloudL;
+const float PI = 3.14159265;
+vec3 skyL(vec3 d){ float az = atan(d.x, -d.z); float el = asin(clamp(d.y, 0.0, 1.0)); return texture(uSky, vec2(az / (2.0 * PI) + 0.5, sqrt(el / (PI * 0.5)))).rgb; }
+vec3 horizonCol(vec3 d){ return skyL(normalize(vec3(d.x, 0.035, d.z))); }
+vec3 fogIt(vec3 c, float t, vec3 d){ float f = 1.0 - exp(-t / uVis); return mix(c, horizonCol(d), f); }
+float cloudDen(vec3 d){
+  if (uCloud <= 0.0 || d.y <= 0.004) return 0.0;
+  float t = 6000.0 / d.y;                       // flat-layer approximation for the texture coordinates
+  vec2 q = d.xz * min(t, 90000.0);
+  vec2 w = vec2(uTime * 3.0, uTime * 1.2);
+  vec2 qs = vec2(q.x * 0.8 + q.y * 0.6, -q.x * 0.6 + q.y * 0.8) * vec2(1.0, 2.2);
+  float n = fbm2(qs * 0.00011 + w * 0.0001) * 0.8 + 0.2 * fbm2(qs * 0.0007 + w * 0.0005);
+  float cov = mix(0.7, 0.38, uCloud);
+  float den = smoothstep(cov, cov + 0.22, n) * smoothstep(0.004, 0.05, d.y);
+  return den * smoothstep(90000.0, 30000.0, t) * 0.85;
+}
+vec3 cloudCol(vec3 d, vec3 sky){ float az = atan(d.x, -d.z); float el = asin(clamp(d.y, 0.0, 1.0)); vec4 c = texture(uCloudL, vec2(az / (2.0 * PI) + 0.5, sqrt(el / (PI * 0.5)))); return c.rgb + sky * (1.0 - c.a) * 0.85; }
+vec3 skyFull(vec3 d, bool bodies){
+  vec3 c = skyL(d);
+  if (!bodies) return c;
+  float sa = length(cross(d, uSun));
+  if (dot(d, uSun) > 0.0 && sa < 0.0065) { float x = sa / 0.00465; float mu = sqrt(max(0.0, 1.0 - x * x)); c += uSunDisk * smoothstep(1.04, 0.96, x) * (0.4 + 0.6 * mu); }
+  // moon (crescent lit by the real sun direction)
+  vec3 mz = uMoon; vec3 mx = normalize(cross(vec3(0.0, 1.0, 0.0), mz)); vec3 my = cross(mz, mx);
+  vec2 mp = vec2(dot(d, mx), dot(d, my)) / 0.0046;
+  float mr = dot(mp, mp);
+  if (dot(d, mz) > 0.0 && mr < 1.3) {
+    vec3 n = normalize(mp.x * mx + mp.y * my - sqrt(max(0.0, 1.0 - mr)) * mz);
+    float lit = smoothstep(-0.02, 0.06, dot(n, uSun));
+    float edge = smoothstep(1.04, 0.94, sqrt(mr));
+    float mare = 0.8 + 0.2 * n2(mp * 3.0 + 7.0);
+    c = mix(c, c * 0.35 + uMoonCol * (lit * mare + 0.012), edge);
+  }
+  // Venus
+  float va = length(cross(d, uVenus)) / uPixAng;
+  if (dot(d, uVenus) > 0.0) c += uVenusCol * exp(-va * va * 0.9);
+  // stars
+  if (uStars > 0.0 && d.y > 0.0) {
+    vec3 g = d * 220.0; vec3 ci = floor(g);
+    float r = h2(ci.xy + ci.z * 331.0);
+    if (r > 0.86) {
+      vec3 sp = normalize(ci + vec3(h2(ci.yz + 3.0), h2(ci.zx + 5.0), h2(ci.xy + 9.0)));
+      float a = length(cross(d, sp)) / uPixAng;
+      float mag = pow(h2(ci.xz + 17.0), 7.0);
+      vec3 tint = mix(vec3(1.0, 0.82, 0.62), vec3(0.75, 0.85, 1.0), h2(ci.yx + 1.0));
+      float tw = 0.85 + 0.15 * sin(uTime * (3.0 + 5.0 * r) + r * 90.0);
+      c += tint * uStars * mag * tw * exp(-a * a * 1.1) * smoothstep(0.0, 0.2, d.y);
+    }
+  }
+  float cd = cloudDen(d);
+  if (cd > 0.0) c = mix(c, cloudCol(d, skyL(d)), cd);
+  return c;
+}
+vec3 silhouette(float t, vec3 d, float layer){
+  vec3 base = uSil * (layer > 1.5 ? 1.25 : 1.0);
+  return fogIt(base, t * (layer > 1.5 ? 1.0 : 1.35), d);
+}
+void main(){
+  vec4 pw = uInvVP * vec4(vUv * 2.0 - 1.0, 1.0, 1.0);
+  vec3 d = normalize(pw.xyz / pw.w - uEye);
+  vec3 e = uEye;
+  float layer; float tt = terrain(e, d, layer);
+  float tg = d.y < -1e-5 ? e.y / -d.y : 1e9;
+  vec3 col;
+  if (tg < 1e8 && (tt < 0.0 || tg < tt)) {
+    vec3 q = e + d * tg; vec2 xz = q.xz;
+    float wm = waterMask(xz), rm = reedMask(xz);
+    float chm = length(xz) > 45.0 && rm < 0.12 ? channelMask(xz) : -1.0;
+    if ((wm > 0.0 && rm < 0.0) || chm > 0.0) {
+      wm = max(wm, chm * 8.0);
+      float fade = smoothstep(900.0, 60.0, tg);
+      vec2 w1 = xz * 0.35 + vec2(uTime * 0.25, uTime * 0.11);
+      vec2 w2 = xz * 1.3 - vec2(uTime * 0.4, -uTime * 0.23);
+      float e0 = 0.02;
+      float gx = (n2(w1 + vec2(e0, 0.0)) - n2(w1)) / e0 * 0.35 + (n2(w2 + vec2(e0, 0.0)) - n2(w2)) / e0 * 0.12;
+      float gz = (n2(w1 + vec2(0.0, e0)) - n2(w1)) / e0 * 0.35 + (n2(w2 + vec2(0.0, e0)) - n2(w2)) / e0 * 0.12;
+      vec3 n = normalize(vec3(-gx * 0.025 * fade, 1.0, -gz * 0.025 * fade));
+      vec3 rd = reflect(d, n); rd.y = max(rd.y, 0.002); rd = normalize(rd);
+      float rl; float rt = terrain(q, rd, rl);
+      vec3 refl = rt > 0.0 ? silhouette(rt, rd, rl) : skyFull(rd, true);
+      float cosi = max(dot(-d, n), 0.0);
+      float Fr = 0.02 + 0.98 * pow(1.0 - cosi, 5.0);
+      float edge = smoothstep(0.0, 0.05, wm);
+      col = mix(uGround * 0.4, refl, Fr * edge);
+      col += uSunDisk * 2e-5 * pow(max(dot(rd, uSun), 0.0), 3000.0) * edge;
+    } else {
+      float fade = smoothstep(1500.0, 150.0, tg);
+      float tex = mix(0.5, fbm2(xz * 0.05) * 0.7 + 0.3 * n2(xz * 0.6), fade);
+      float fields = step(0.5, fract(floor(xz.x / 90.0 + 0.5 * n2(xz * 0.004)) * 0.37 + floor(xz.y / 70.0) * 0.61));
+      vec3 g = uGround * mix(vec3(0.75, 0.82, 0.62), vec3(0.95, 0.9, 0.7), fields * 0.6) * (0.55 + 0.7 * tex);
+      if (rm > 0.0) {
+        float st = mix(0.5, fbm2(xz * 0.09 + 3.0) * 0.8 + 0.2 * n2(xz * 1.3), fade);
+        g = uGround * vec3(1.15, 0.98, 0.72) * (0.6 + 0.6 * st) * smoothstep(-0.02, 0.2, rm + 0.1);
+      }
+      g *= 1.0 - 0.5 * smoothstep(0.0, -0.05, wm) * smoothstep(-0.12, -0.05, wm);
+      col = g;
+    }
+    col = fogIt(col, tg, d);
+  } else if (tt > 0.0) {
+    col = silhouette(tt, d, layer);
+  } else {
+    col = skyFull(d, true);
+  }
+  o = vec4(col, 1.0);
+}`;
+
+/* -------- birds (instanced silhouettes, flapping, banking) -------- */
+const VS_BIRD = HEAD + SIMC + `
+layout(location=0) in vec4 aM;
+uniform sampler2D uP, uV, uX;
+uniform mat4 uVP; uniform vec3 uEye; uniform float uFocal, uTime, uMinPx, uMirror, uScale, uExpo, uSpan;
+uniform int uSingle; uniform vec3 uSP, uSV; uniform float uSBank, uSTuck;
+uniform int uQuad; uniform vec2 uRes;
+out float vA; out float vAct; out float vDist; out vec3 vW;
+void main(){
+  vec3 p, v; float bank, id, act;
+  if (uSingle == 1) { p = uSP; v = uSV; bank = uSBank; id = 7.0; act = 0.0; }
+  else {
+    ivec2 ij = slotUV(gl_InstanceID);
+    vec4 P = texelFetch(uP, ij, 0);
+    p = P.xyz;
+    // cheap early exits: perched birds, and birds this pass does not draw at their pixel size
+    float pxe = uSpan * uFocal / max(length(p - uEye), 0.05);
+    bool skip = P.w < 0.0 || (uQuad == 1 ? (pxe > 3.2 || gl_VertexID > 5) : pxe < 2.0);
+    if (skip) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); vA = 0.0; vW = p; vDist = 1.0; vAct = 0.0; return; }
+    vec4 V = texelFetch(uV, ij, 0); vec4 X = texelFetch(uX, ij, 0);
+    v = V.xyz; bank = X.x; id = X.w; act = V.w;
+  }
+  float spd = length(v); vec3 fwd = spd > 1e-3 ? v / spd : vec3(0.0, 0.0, -1.0);
+  vec3 rt = cross(fwd, vec3(0.0, 1.0, 0.0)); float rl = length(rt); rt = rl > 1e-3 ? rt / rl : vec3(1.0, 0.0, 0.0);
+  vec3 u0 = cross(rt, fwd);
+  float cb = cos(bank), sb = sin(bank);
+  vec3 Rv = rt * cb - u0 * sb; vec3 Uv = u0 * cb + rt * sb;
+  float h = fract(sin(id * 12.9898 + 1.7) * 43758.5453);
+  float theta;
+  if (uSingle == 1) {
+    theta = mix(0.1 + 0.55 * sin(uTime * 6.2831853 * 4.2), 0.02, uSTuck);
+  } else {
+    float bout = smoothstep(-0.3, 0.3, sin(uTime * (0.55 + 0.5 * h) + h * 50.0) + act * 2.0);
+    float ph = uTime * 6.2831853 * (11.0 + 3.0 * h) + h * 6.2831853;
+    theta = mix(0.1, 0.12 + 0.85 * sin(ph), bout);
+  }
+  vec3 m = aM.xyz * uScale;
+  if (uSingle == 1 && aM.w > 0.5) { m.x *= mix(1.0, 0.42, uSTuck); m.z -= abs(m.x) * 0.6 * uSTuck; }
+  if (aM.w > 0.5) { float s = sign(m.x); float r = abs(m.x); float th = theta * (aM.w > 1.5 ? 1.3 : 1.0); m.x = s * r * cos(th); m.y += r * sin(th); }
+  float dist = length(p - uEye);
+  float px = uSpan * uScale * uFocal / max(dist, 0.05);
+  vDist = dist; vAct = act;
+  if (uSingle == 0) {
+    // sub-pixel birds: exact projected area (wings at their roll and flap angle, flank, front) on a tiny quad;
+    // resolved birds: the true mesh. Cross-faded between 2 and 3.2 px of wingspan.
+    float wq = 1.0 - smoothstep(2.0, 3.2, px);
+    if (uQuad == 1) {
+      if (wq <= 0.0 || gl_VertexID > 5) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); vA = 0.0; vW = p; return; }
+      vec3 vv = (uEye - p) / max(dist, 1e-3);
+      vec3 nL = Uv * cos(theta) - Rv * sin(theta), nR = Uv * cos(theta) + Rv * sin(theta);
+      float Ap = 0.0175 * (abs(dot(nL, vv)) + abs(dot(nR, vv))) + 0.008 * abs(dot(Rv, vv)) + 0.003 * abs(dot(fwd, vv));
+      float ppm = uFocal / max(dist, 0.05);
+      float pa = Ap * ppm * ppm;
+      float sz = max(1.5, sqrt(pa));
+      vA = wq * min(1.0, pa / (sz * sz));
+      vec3 wp = p; if (uMirror > 0.5) wp.y = -wp.y;
+      vec4 cp = uVP * vec4(wp, 1.0);
+      int vi = gl_VertexID; vec2 cn = vec2((vi == 1 || vi == 2 || vi == 4) ? 0.5 : -0.5, (vi == 2 || vi == 4 || vi == 5) ? 0.5 : -0.5);
+      cp.xy += cn * sz * 2.0 / uRes * cp.w;
+      vW = wp; gl_Position = cp; return;
+    }
+    if (wq >= 1.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); vA = 0.0; vW = p; return; }
+    vA = 1.0 - wq;
+    vec3 w = p + (Rv * m.x + Uv * m.y + fwd * m.z);
+    if (uExpo > 0.0 && aM.z < 0.0) { float L = spd * uExpo; w -= fwd * L * clamp(-aM.z / 0.11, 0.0, 1.0); vA *= 0.21 / (0.21 + L); }
+    if (uMirror > 0.5) w.y = -w.y;
+    vW = w; gl_Position = uVP * vec4(w, 1.0); return;
+  }
+  float k = max(1.0, uMinPx / px);
+  vA = 1.0 / (k * k);
+  vec3 w = p + (Rv * m.x + Uv * m.y + fwd * m.z) * k;
+  if (uExpo > 0.0 && aM.z < 0.0) { float L = spd * uExpo; w -= fwd * L * clamp(-aM.z / (0.11 * uScale), 0.0, 1.0); vA *= 0.21 * uScale * k / (0.21 * uScale * k + L); }
+  if (uMirror > 0.5) w.y = -w.y;
+  vW = w;
+  gl_Position = uVP * vec4(w, 1.0);
+}`;
+const FS_BIRD = HEAD + NOISE + `
+in float vA; in float vAct; in float vDist; in vec3 vW; out vec4 o;
+uniform vec3 uCol, uFogCol, uEye, uAccent; uniform float uVis, uMirror, uShowAct, uAlpha;
+void main(){
+  float a = vA * uAlpha;
+  if (uMirror > 0.5) {
+    vec3 d = vW - uEye; float t = uEye.y / max(uEye.y - vW.y, 1e-3); vec2 q = uEye.xz + d.xz * t;
+    if (!isWater(q)) discard;
+    vec3 dn = normalize(d); float cosi = max(-dn.y, 0.0);
+    a *= 0.02 + 0.98 * pow(1.0 - cosi, 5.0);
+  }
+  vec3 c = mix(uCol, uFogCol, 1.0 - exp(-vDist / uVis));
+  c = mix(c, uAccent, clamp(vAct * uShowAct, 0.0, 1.0));
+  o = vec4(c * a, a);
+}`;
+
+/* -------- reeds: near stems with plumes and leaves -------- */
+const VS_REED = HEAD + `
+layout(location=0) in vec4 aM;   // t, side, part, leaf index
+layout(location=1) in vec4 aI;   // x, z, height, seed
+layout(location=2) in vec4 aJ;   // lean angle, lean amount, leaf azimuth, plume length
+uniform mat4 uVP; uniform vec3 uEye; uniform float uTime, uFocal, uMirror; uniform vec2 uWind;
+out vec2 vUv; out float vPart; out float vDist; out float vA; out vec3 vW; out float vSeed;
+void main(){
+  float H = aI.z, seed = aI.w;
+  vec3 base = vec3(aI.x, 0.0, aI.y);
+  float gust = 0.5 + 0.5 * sin(uTime * 0.37 + aI.x * 0.013);
+  float sway = sin(uTime * 1.3 + aI.x * 0.11 + aI.y * 0.07) * 0.6 + sin(uTime * 2.9 + seed * 20.0) * 0.25;
+  vec2 lean = vec2(cos(aJ.x), sin(aJ.x)) * aJ.y + uWind * (0.05 + 0.05 * sway) * (0.6 + 0.8 * gust);
+  float t = aM.x; float side = aM.y; int part = int(aM.z + 0.5);
+  vec3 pos; vec3 tng; float width;
+  if (part == 0) {
+    pos = base + vec3(lean.x * t * t * H, t * H, lean.y * t * t * H);
+    tng = normalize(vec3(2.0 * lean.x * t * H, H, 2.0 * lean.y * t * H)); width = 0.009 * (1.0 - 0.45 * t);
+  } else if (part == 1) {
+    vec3 top = base + vec3(lean.x * H, H, lean.y * H);
+    vec3 tt = normalize(vec3(2.0 * lean.x * H, H, 2.0 * lean.y * H));
+    vec3 dh = normalize(vec3(lean.x, 0.0, lean.y) + vec3(1e-4, 0.0, 0.0));
+    float L = aJ.w;
+    pos = top + (tt * t * 0.55 + dh * t * 0.5 - vec3(0.0, 0.32 * t * t, 0.0)) * L;
+    tng = normalize(tt * (0.55) + dh * 0.5 - vec3(0.0, 0.64 * t, 0.0));
+    width = 0.034 * sin(3.14159 * pow(max(t, 0.02), 0.55)) + 0.004;
+  } else {
+    float li = aM.w; float tl = 0.3 + 0.22 * li + 0.08 * fract(seed * 13.0);
+    vec3 att = base + vec3(lean.x * tl * tl * H, tl * H, lean.y * tl * tl * H);
+    float az = aJ.z + li * 2.9; vec3 dh = vec3(cos(az), 0.0, sin(az));
+    float L = 0.34 + 0.16 * fract(seed * 7.0 + li * 0.37);
+    float el = 0.75 + 0.35 * fract(seed * 3.0 + li);
+    pos = att + (dh * cos(el) + vec3(0.0, sin(el), 0.0)) * (L * t) - vec3(0.0, 0.55 * t * t * L, 0.0);
+    tng = normalize(dh * cos(el) + vec3(0.0, sin(el) - 1.1 * t, 0.0)); width = 0.011 * (1.0 - t * 0.85) + 0.002;
+  }
+  vec3 toEye = uEye - pos; float dist = length(toEye);
+  vec3 sd = cross(tng, toEye / dist); float sl = length(sd); sd = sl > 1e-4 ? sd / sl : vec3(1.0, 0.0, 0.0);
+  float px = width * 2.0 * uFocal / dist;
+  float k = max(1.0, 1.1 / max(px, 1e-4));
+  vA = 1.0 / k;
+  pos += sd * side * width * k;
+  if (uMirror > 0.5) pos.y = -pos.y;
+  vUv = vec2(t, side); vPart = float(part); vDist = dist; vW = pos; vSeed = seed;
+  gl_Position = uVP * vec4(pos, 1.0);
+}`;
+const FS_REED = HEAD + NOISE + `
+in vec2 vUv; in float vPart; in float vDist; in float vA; in vec3 vW; in float vSeed; out vec4 o;
+uniform vec3 uSil, uFogCol, uEye, uSun, uSunCol; uniform float uVis, uMirror;
+void main(){
+  float a = vA;
+  vec3 c = uSil * 0.8;
+  vec3 vd = normalize(vW - uEye);
+  if (vPart > 0.5 && vPart < 1.5) {
+    float fr = n2(vec2(vUv.y * 4.0 + vSeed * 13.0, vUv.x * 30.0));
+    float fib = smoothstep(0.25, 0.75, n2(vec2(vUv.y * 11.0 + vSeed * 7.0, vUv.x * 2.5)));
+    a *= smoothstep(1.0, 0.7, abs(vUv.y) + 0.45 * (fr - 0.5)) * smoothstep(1.0, 0.8, vUv.x + 0.25 * fr) * (0.55 + 0.4 * fib);
+    float fwdS = pow(max(dot(vd, uSun), 0.0), 5.0);
+    c = uSil * 1.2 + uFogCol * 0.05 * (1.0 - fib) + uSunCol * (0.02 + 0.5 * fwdS);
+  } else if (vPart > 1.5) {
+    c = uSil * 0.9;
+  }
+  if (uMirror > 0.5) {
+    float t = uEye.y / max(uEye.y - vW.y, 1e-3); vec2 q = uEye.xz + (vW - uEye).xz * t;
+    if (!isWater(q)) discard;
+    float cosi = max(-vd.y, 0.0); a *= 0.02 + 0.98 * pow(1.0 - cosi, 5.0);
+  }
+  c = mix(c, uFogCol, 1.0 - exp(-vDist / uVis));
+  o = vec4(c, a);
+}`;
+
+/* -------- reed bed clumps (camera-facing, procedural silhouettes) -------- */
+const VS_CLUMP = HEAD + `
+layout(location=0) in vec2 aQ;
+layout(location=1) in vec4 aI;   // x, z, width, height
+layout(location=2) in float aSeed;
+uniform mat4 uVP; uniform vec3 uEye; uniform float uMirror, uTime;
+out vec2 vL; out float vH; out float vSeed; out float vDist; out vec3 vW; out float vWid; out float vFade;
+void main(){
+  vec3 base = vec3(aI.x, 0.0, aI.y);
+  vec3 tv = normalize(uEye - base - vec3(0.0, aI.w * 0.5, 0.0)); vFade = 1.0 - smoothstep(0.05, 0.12, tv.y);
+  vec3 te = uEye - base; vec3 r = normalize(vec3(te.z, 0.0, -te.x) + vec3(1e-4, 0.0, 0.0));
+  float sway = 0.12 * sin(uTime * 0.9 + aI.x * 0.05) * aQ.y;
+  vec3 pos = base + r * (aQ.x * aI.z + sway) + vec3(0.0, aQ.y * aI.w * 1.35, 0.0);
+  vDist = length(pos - uEye);
+  if (uMirror > 0.5) pos.y = -pos.y;
+  vL = vec2(aQ.x * aI.z, aQ.y * aI.w * 1.35); vH = aI.w; vSeed = aSeed; vW = pos; vWid = aI.z;
+  gl_Position = uVP * vec4(pos, 1.0);
+}`;
+const FS_CLUMP = HEAD + NOISE + `
+in vec2 vL; in float vH; in float vSeed; in float vDist; in vec3 vW; in float vWid; in float vFade; out vec4 o;
+uniform vec3 uSil, uFogCol, uEye; uniform float uVis, uMirror;
+void main(){
+  float x = vL.x, y = vL.y;
+  float top = vH * (0.8 + 0.1 * n1(x * 1.6 + vSeed * 31.0) + 0.1 * n1(x * 7.0 + vSeed * 7.0));
+  float a = step(y, top);
+  float col = floor(x * 5.0); float ph = h1(col + vSeed * 100.0);
+  if (ph > 0.5) { vec2 pc = vec2((col + 0.3 + 0.4 * ph) / 5.0 + 0.04, top + 0.05 + 0.14 * ph); vec2 dd = (vec2(x, y) - pc) / vec2(0.035, 0.13); a = max(a, step(dot(dd, dd), 1.0) * 0.8); }
+  float ex = abs(x) / (vWid * 0.5);
+  a *= 1.0 - smoothstep(0.55, 1.0, ex + 0.25 * (n1(y * 4.0 + vSeed * 9.0) - 0.5));
+  a *= vFade;
+  if (uMirror < 0.5) a = smoothstep(0.35, 0.65, a);
+  if (a < 0.01) discard;
+  if (uMirror > 0.5) {
+    float t = uEye.y / max(uEye.y - vW.y, 1e-3); vec2 q = uEye.xz + (vW - uEye).xz * t;
+    if (!isWater(q)) discard;
+    vec3 vd = normalize(vW - uEye); float cosi = max(-vd.y, 0.0); a *= 0.02 + 0.98 * pow(1.0 - cosi, 5.0);
+  }
+  vec3 c = mix(uSil * 0.9, uFogCol, 1.0 - exp(-vDist / uVis));
+  o = vec4(c, a);
+}`;
+
+/* -------- post: bloom + tone map -------- */
+const FS_DOWN = HEAD + `in vec2 vUv; out vec4 o; uniform sampler2D uSrc; uniform vec2 uTexel; uniform float uThr; uniform float uClamp;
+void main(){ vec2 d = uTexel;
+  vec3 c = texture(uSrc, vUv + vec2(-d.x, -d.y)).rgb + texture(uSrc, vUv + vec2(d.x, -d.y)).rgb + texture(uSrc, vUv + vec2(-d.x, d.y)).rgb + texture(uSrc, vUv + vec2(d.x, d.y)).rgb;
+  c *= 0.25;
+  if (uThr > 0.0) { float m0 = max(c.r, max(c.g, c.b)); c *= min(1.0, uClamp / max(m0, 1e-6)); float l = max(c.r, max(c.g, c.b)); c *= max(l - uThr, 0.0) / max(l, 1e-6); }
+  o = vec4(c, 1.0); }`;
+const FS_UP = HEAD + `in vec2 vUv; out vec4 o; uniform sampler2D uSrc; uniform vec2 uTexel;
+void main(){ vec2 d = uTexel;
+  vec3 c = texture(uSrc, vUv).rgb * 4.0;
+  c += (texture(uSrc, vUv + vec2(d.x, 0.0)).rgb + texture(uSrc, vUv - vec2(d.x, 0.0)).rgb + texture(uSrc, vUv + vec2(0.0, d.y)).rgb + texture(uSrc, vUv - vec2(0.0, d.y)).rgb) * 2.0;
+  c += texture(uSrc, vUv + d).rgb + texture(uSrc, vUv - d).rgb + texture(uSrc, vUv + vec2(d.x, -d.y)).rgb + texture(uSrc, vUv + vec2(-d.x, d.y)).rgb;
+  o = vec4(c / 16.0, 1.0); }`;
+const FS_FINAL = HEAD + `in vec2 vUv; out vec4 o; uniform sampler2D uScene, uBloom; uniform float uExposure, uBloomK, uTime, uGrade;
+vec3 aces(vec3 x){ return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
+void main(){
+  vec3 c = texture(uScene, vUv).rgb + texture(uBloom, vUv).rgb * uBloomK;
+  c *= uExposure;
+  // hue-preserving tone map: compress the largest channel, keep the ratios, roll extreme highlights to white
+  float mx = max(c.r, max(c.g, c.b));
+  vec3 hueC = c / max(mx, 1e-6);
+  float tmx = aces(vec3(mx)).r;
+  vec3 tc = hueC * tmx;
+  tc = mix(tc, vec3(tmx), smoothstep(1.5, 12.0, mx) * 0.85);
+  c = mix(aces(c), tc, 0.7);
+  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  c = max(mix(vec3(l), c, 1.04), 0.0);
+  c *= mix(vec3(0.98, 0.99, 1.04), vec3(1.04, 1.0, 0.95), smoothstep(0.1, 0.7, l));
+  vec2 q = vUv - 0.5; c *= 1.0 - 0.28 * dot(q, q) * 1.8;
+  c = pow(c, vec3(1.0 / 2.2));
+  float n = fract(sin(dot(gl_FragCoord.xy + fract(uTime * 7.13) * 91.0, vec2(12.9898, 78.233))) * 43758.5453);
+  c += (n - 0.5) * (2.0 / 255.0);
+  o = vec4(c, 1.0); }`;
+
+/* ===================================================================== programs */
+const CAP = SMALL ? 32 : 40;
+let P = {};
+try {
+  const FSV = Cosmos.gl.FS_VERT;
+  P.key = Cosmos.gl.program(gl, FSV, FS_KEY);
+  P.sort = Cosmos.gl.program(gl, FSV, FS_SORT);
+  P.reorder = Cosmos.gl.program(gl, FSV, FS_REORDER);
+  P.cell = Cosmos.gl.program(gl, VS_CELL, FS_CELL);
+  P.update = Cosmos.gl.program(gl, FSV, FS_UPDATE.replace('#version 300 es', '#version 300 es\n#define CAP ' + CAP));
+  P.gather = Cosmos.gl.program(gl, FSV, FS_GATHER);
+  P.splat = Cosmos.gl.program(gl, VS_SPLAT, FS_ONE);
+  P.blur = Cosmos.gl.program(gl, FSV, FS_BLUR);
+  P.coarse = Cosmos.gl.program(gl, FSV, FS_COARSE);
+  P.view = Cosmos.gl.program(gl, FSV, FS_VIEW);
+  P.track = Cosmos.gl.program(gl, VS_TRACK.replace('#version 300 es', '#version 300 es\n#define CAP ' + CAP), FS_TRACK);
+  P.opac = Cosmos.gl.program(gl, VS_OPAC, FS_OPAC);
+  P.copy = Cosmos.gl.program(gl, FSV, FS_COPY);
+  P.skylut = Cosmos.gl.program(gl, FSV, FS_SKYLUT);
+  P.scene = Cosmos.gl.program(gl, FSV, FS_SCENE);
+  P.bird = Cosmos.gl.program(gl, VS_BIRD, FS_BIRD);
+  P.reed = Cosmos.gl.program(gl, VS_REED, FS_REED);
+  P.clump = Cosmos.gl.program(gl, VS_CLUMP, FS_CLUMP);
+  P.down = Cosmos.gl.program(gl, FSV, FS_DOWN);
+  P.up = Cosmos.gl.program(gl, FSV, FS_UP);
+  P.final = Cosmos.gl.program(gl, FSV, FS_FINAL);
+} catch (err) { ch.fatal('A shader failed to compile on this GPU.', err); return; }
+const drawFS = Cosmos.gl.quad(gl);
+/* optional GPU profiler (debug only): Cosmos.debug.gpu() */
+const TQ = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+const prof = { on: false, cur: null, pending: [], acc: {}, n: {} };
+function pB(name) { if (!prof.on || !TQ) return; pE(); const q = gl.createQuery(); gl.beginQuery(TQ.TIME_ELAPSED_EXT, q); prof.cur = { q, name }; }
+function pE() { if (!prof.cur) return; gl.endQuery(TQ.TIME_ELAPSED_EXT); prof.pending.push(prof.cur); prof.cur = null; }
+function pPoll() {
+  if (!prof.pending.length) return;
+  prof.pending = prof.pending.filter(({ q, name }) => {
+    if (!gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) return true;
+    const ns = gl.getQueryParameter(q, gl.QUERY_RESULT); prof.acc[name] = (prof.acc[name] || 0) + ns / 1e6; prof.n[name] = (prof.n[name] || 0) + 1; gl.deleteQuery(q); return false; });
+}
+const emptyVAO = gl.createVertexArray();
+const setU = (p, o) => Cosmos.gl.uniforms(gl, p, o);
+
+/* ===================================================================== simulation state */
+const TW = 256, LTW = 8;
+const MAXN = SMALL ? 16000 : 60000;
+let N = SMALL ? 8000 : 40000;
+let NCAP = 0, TH = 0;
+let SA = null, SB = null, KA = null, KB = null;
+const densA = Cosmos.gl.target(gl, { w: 256, h: 128, internal: gl.R16F, format: gl.RED, type: gl.HALF_FLOAT, filter: 'linear' });
+const densB = Cosmos.gl.target(gl, { w: 256, h: 128, internal: gl.R16F, format: gl.RED, type: gl.HALF_FLOAT, filter: 'linear' });
+let densO = [0, 0, 0], densC = 8;
+const coarseT = Cosmos.gl.target(gl, { w: 64, h: 8, internal: gl.R32F, format: gl.RED, type: gl.FLOAT, filter: 'nearest' });
+const viewT = Cosmos.gl.target(gl, { w: 64, h: 64, internal: gl.RGBA16F, format: gl.RGBA, type: gl.HALF_FLOAT, filter: 'linear' });
+const CELLT = Cosmos.gl.target(gl, { w: 512, h: 512, internal: gl.R32F, format: gl.RED, type: gl.FLOAT, filter: 'nearest' });
+const texF = (w, h, data) => Cosmos.gl.texture(gl, { w, h, internal: gl.RGBA32F, format: gl.RGBA, type: gl.FLOAT, filter: 'nearest', data: data || null });
+function makeState(data) {
+  const t = { P: texF(TW, TH, data && data.P), V: texF(TW, TH, data && data.V), X: texF(TW, TH, data && data.X), S: texF(TW, TH, data && data.S) };
+  t.fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo);
+  ['P', 'V', 'X', 'S'].forEach((k, i) => gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D, t[k], 0));
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3]);
+  const st = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  if (st !== gl.FRAMEBUFFER_COMPLETE) throw new Error('state framebuffer incomplete 0x' + st.toString(16));
+  return t;
+}
+function freeState(t) { if (!t) return; ['P', 'V', 'X', 'S'].forEach((k) => gl.deleteTexture(t[k])); gl.deleteFramebuffer(t.fbo); }
+function freeTarget(t) { if (!t) return; gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fbo); }
+
+/* initial flock: an S-shaped ribbon with a thick head (the classic murmuration "snake") */
+const v3n = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+const v3c = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const RIB = {
+  g: 1,
+  c: (t) => { const g = RIB.g; return [ROOST[0] + 20 + (-190 + 300 * t) * g, 70 + (24 * Math.sin(Math.PI * 1.3 * t + 0.4) + 12 * t - 6) * g, ROOST[2] + 30 + 55 * Math.sin(Math.PI * 1.7 * t - 0.3) * g]; },
+  tan(t) { const a = RIB.c(t - 1e-3), b = RIB.c(t + 1e-3); return v3n([b[0] - a[0], b[1] - a[1], b[2] - a[2]]); },
+  r: (t) => 3 + 17 * Math.exp(-(((t - 0.84) / 0.1) ** 2)) + 9 * Math.exp(-(((t - 0.35) / 0.12) ** 2)) + 3 * t,
+  w: (t) => { const r = RIB.r(t); return r * r; }, maxW: 0, k: 1,
+};
+RIB.setup = (n) => { RIB.g = U.clamp(Math.cbrt(n / 40000), 0.55, 1.15); let mw = 0, vol = 0; for (let i = 0; i <= 400; i++) { const t = i / 400; const w = RIB.w(t); if (w > mw) mw = w; const a = RIB.c(t), b = RIB.c(t + 1 / 400); vol += Math.PI * 0.7 * w * Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]); } RIB.maxW = mw; RIB.vol = vol; };
+function seedFlock(n, prev) {
+  const cap = NCAP;
+  const Pd = new Float32Array(cap * 4), Vd = new Float32Array(cap * 4), Xd = new Float32Array(cap * 4), Sd = new Float32Array(cap * 4);
+  const rng = U.rng(9173 + n);
+  const g = () => U.gauss(rng);
+  const V0 = sim.v0;
+  RIB.setup(n); RIB.k = Math.sqrt(n * 0.92 / 0.9 / RIB.vol);
+  for (let i = 0; i < cap; i++) {
+    const o = i * 4;
+    if (i >= n) { Pd[o] = 0; Pd[o + 1] = -5000 - i * 0.01; Pd[o + 2] = 0; Pd[o + 3] = 1; Vd[o] = 1; Xd[o + 1] = -1; Xd[o + 2] = 0.001; Xd[o + 3] = i; continue; }
+    if (prev && i < prev.n) {
+      for (let c = 0; c < 4; c++) { Pd[o + c] = prev.P[o + c]; Vd[o + c] = prev.V[o + c]; Xd[o + c] = prev.X[o + c]; Sd[o + c] = prev.S[o + c]; }
+      Xd[o + 3] = i; continue;
+    }
+    if (prev && prev.n > 0) {
+      const j = Math.floor(rng() * prev.n) * 4;
+      Pd[o] = prev.P[j] + g() * 1.2; Pd[o + 1] = prev.P[j + 1] + g() * 1.2; Pd[o + 2] = prev.P[j + 2] + g() * 1.2; Pd[o + 3] = prev.P[j + 3];
+      Vd[o] = prev.V[j]; Vd[o + 1] = prev.V[j + 1]; Vd[o + 2] = prev.V[j + 2]; Vd[o + 3] = 0;
+      Xd[o] = 0; Xd[o + 1] = -1; Xd[o + 2] = 7; Xd[o + 3] = i; continue;
+    }
+    if (rng() < 0.08) {
+      // a small satellite flock converging on the ribbon
+      let x, y, z; do { x = rng() * 2 - 1; y = rng() * 2 - 1; z = rng() * 2 - 1; } while (x * x + y * y + z * z > 1);
+      const rs = Math.cbrt(n * 0.08 / 0.6 * 3 / (4 * Math.PI));
+      Pd[o] = ROOST[0] + 150 + x * rs * 1.3; Pd[o + 1] = 105 + y * rs * 0.6; Pd[o + 2] = ROOST[2] - 70 + z * rs; Pd[o + 3] = 1.8;
+      const sp = V0 * (0.95 + 0.1 * rng()); const dx = -0.8, dz = 0.6;
+      Vd[o] = (dx + g() * 0.04) * sp; Vd[o + 1] = g() * 0.03 * sp; Vd[o + 2] = (dz + g() * 0.04) * sp; Vd[o + 3] = 0;
+    } else {
+      // an S-shaped ribbon with a thick head, flowing along itself
+      let t;
+      do { t = rng(); } while (rng() * RIB.maxW > RIB.w(t));
+      const c = RIB.c(t), tg = RIB.tan(t);
+      const side = v3n(v3c(tg, [0, 1, 0])), up = v3c(side, tg);
+      const r = RIB.r(t) * RIB.k * Math.sqrt(rng()), a = rng() * Math.PI * 2;
+      const along = (rng() - 0.5) * 3;
+      Pd[o] = c[0] + side[0] * Math.cos(a) * r + up[0] * Math.sin(a) * r * 0.7 + tg[0] * along;
+      Pd[o + 1] = c[1] + side[1] * Math.cos(a) * r + up[1] * Math.sin(a) * r * 0.7 + tg[1] * along;
+      Pd[o + 2] = c[2] + side[2] * Math.cos(a) * r + up[2] * Math.sin(a) * r * 0.7 + tg[2] * along;
+      Pd[o + 3] = 1.8;
+      const sp = V0 * (0.95 + 0.1 * rng());
+      Vd[o] = (tg[0] + g() * 0.04) * sp; Vd[o + 1] = (tg[1] + g() * 0.03) * sp; Vd[o + 2] = (tg[2] + g() * 0.04) * sp; Vd[o + 3] = 0;
+    }
+    Xd[o] = 0; Xd[o + 1] = -1; Xd[o + 2] = 7; Xd[o + 3] = i;
+  }
+  return { P: Pd, V: Vd, X: Xd, S: Sd };
+}
+function readState(t, n) {
+  const out = { n, P: new Float32Array(NCAP * 4), V: new Float32Array(NCAP * 4), X: new Float32Array(NCAP * 4), S: new Float32Array(NCAP * 4) };
+  const fb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  for (const k of ['P', 'V', 'X', 'S']) { gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t[k], 0); gl.readPixels(0, 0, TW, TH, gl.RGBA, gl.FLOAT, out[k]); }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(fb);
+  return out;
+}
+function allocSim(n, keep) {
+  let prev = null;
+  if (keep && SA) { prev = readState(SA, N); }
+  const cap = Math.max(4096, 1 << Math.ceil(Math.log2(n)));
+  freeState(SA); freeState(SB); freeTarget(KA); freeTarget(KB);
+  NCAP = cap; TH = cap / TW; N = n;
+  const data = seedFlock(n, prev);
+  if (!prev) {
+    // aim everything at the seeded flock's centre of mass so the very first frame is framed
+    let cx = 0, cy = 0, cz = 0; for (let i = 0; i < n; i++) { cx += data.P[i * 4]; cy += data.P[i * 4 + 1]; cz += data.P[i * 4 + 2]; }
+    const c = [cx / n, cy / n, cz / n]; sim.centroid = c.slice(); sim.main = c.slice(); if (typeof cam !== 'undefined') cam.C = c.slice();
+  }
+  SA = makeState(data); SB = makeState(null);
+  KA = Cosmos.gl.target(gl, { w: TW, h: TH, internal: gl.RG32F, format: gl.RG, type: gl.FLOAT, filter: 'nearest' });
+  KB = Cosmos.gl.target(gl, { w: TW, h: TH, internal: gl.RG32F, format: gl.RG, type: gl.FLOAT, filter: 'nearest' });
+}
+
+/* ------------------------------------------------------------ simulation parameters */
+const sim = {
+  k: 7, ws: 1.0, wa: 1.0, wc: 1.0, wr: 1.0, v0: 12, noise: 0.2,
+  react: 0.03, thresh: 0.1, fleeR: 36, alarmR: 14, actT: 1.0, spont: 0,
+  gain: [16, 20, 0.2, 6], noiseK: 7, minPx: 1.8, wv: 2, wg: 3, wp: 5, viewSoft: 16, trapL: 120, densH: 120, rSep: 1.15,
+  bullet: null, roostR: ROOST_R, alt: ALT.slice(), altSwing: 0, main: [ROOST[0], 70, ROOST[2]],
+  cell: 3.0, frame: 0, time: 0, timeScale: 1, noStats: /nostats/.test(location.hash), noOpac: /noopac/.test(location.hash), roosting: 0, roostTarget: 0, cloud: 0.5,
+  centroid: [ROOST[0], 70, ROOST[2]], meanV: [12, 0, 0],
+};
+
+function simStep(dt, upto) {
+  upto = upto || 99;
+  const common = { uW: TW, uLW: LTW, uN: N, uCellSize: sim.cell };
+  gl.disable(gl.BLEND); gl.disable(gl.DEPTH_TEST);
+  // 1. keys
+  pB('key');
+  gl.useProgram(P.key); KA.bind(); setU(P.key, Object.assign({ uP: SA.P }, common)); drawFS();
+  if (upto <= 1) return;
+  // 2. bitonic sort
+  pB('sort');
+  gl.useProgram(P.sort);
+  const su = P.sort.uniforms;
+  gl.uniform1i(su.uW.loc, TW); gl.uniform1i(su.uLW.loc, LTW);
+  gl.uniform1i(su.uK.loc, 0); gl.activeTexture(gl.TEXTURE0);
+  let src = KA, dst = KB;
+  for (let k = 2; k <= NCAP; k <<= 1) {
+    gl.uniform1i(su.uKk.loc, k);
+    let j = k >> 1;
+    while (j > 0) {
+      const S = Math.min(3, Math.log2(j) + 1);
+      gl.uniform1i(su.uJ.loc, j); gl.uniform1i(su.uS.loc, S);
+      dst.bind(); gl.bindTexture(gl.TEXTURE_2D, src.tex); drawFS();
+      const t = src; src = dst; dst = t;
+      j >>= S;
+    }
+  }
+  sim.sorted = src;
+  if (upto <= 2) return;
+  // 3. reorder into SB
+  pB('reorder');
+  gl.bindFramebuffer(gl.FRAMEBUFFER, SB.fbo); gl.viewport(0, 0, TW, TH);
+  gl.useProgram(P.reorder); setU(P.reorder, Object.assign({ uK: src.tex, uP: SA.P, uV: SA.V, uX: SA.X, uS: SA.S }, common)); drawFS();
+  if (upto <= 3) return;
+  // 4. cell starts
+  pB('cells');
+  CELLT.bind(); gl.clearBufferfv(gl.COLOR, 0, [-1, 0, 0, 0]);
+  gl.useProgram(P.cell); setU(P.cell, Object.assign({ uP: SB.P }, common));
+  gl.bindVertexArray(emptyVAO); gl.drawArrays(gl.POINTS, 0, N); gl.bindVertexArray(null);
+  if (upto <= 4) return;
+  // 4b. coarse density field (splat + separable blur)
+  pB('density');
+  const H = sim.densH; densC = 2 * H / 32; densO = [sim.centroid[0] - H, Math.max(sim.centroid[1] - H, -2 * densC), sim.centroid[2] - H];
+  densB.bind(); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  gl.useProgram(P.splat); setU(P.splat, Object.assign({ uP: SB.P, uDO: densO, uDC: densC }, common));
+  gl.bindVertexArray(emptyVAO); gl.drawArrays(gl.POINTS, 0, N); gl.bindVertexArray(null);
+  gl.disable(gl.BLEND);
+  gl.useProgram(P.blur);
+  densA.bind(); setU(P.blur, { uSrc: densB.tex, uAx: [1, 0, 0] }); drawFS();
+  densB.bind(); setU(P.blur, { uSrc: densA.tex, uAx: [0, 1, 0] }); drawFS();
+  densA.bind(); setU(P.blur, { uSrc: densB.tex, uAx: [0, 0, 1] }); drawFS();
+  coarseT.bind(); gl.useProgram(P.coarse); setU(P.coarse, { uSrc: densA.tex }); drawFS();
+  viewT.bind(); gl.useProgram(P.view); setU(P.view, { uC: coarseT.tex, uSoft: sim.viewSoft }); drawFS();
+  if (upto <= 5) return;
+  // 5. update SB -> SA
+  pB('update');
+  gl.bindFramebuffer(gl.FRAMEBUFFER, SA.fbo); gl.viewport(0, 0, TW, TH);
+  gl.useProgram(P.update);
+  const fal = falcon.active ? [falcon.p[0], falcon.p[1], falcon.p[2], 1] : [0, -9999, 0, 0];
+  setU(P.update, Object.assign({
+    uP: SB.P, uV: SB.V, uX: SB.X, uS: SB.S, uCell: CELLT.tex,
+    uDt: dt, uK: sim.k, uWs: sim.ws, uWa: sim.wa, uWc: sim.wc, uWr: sim.wr, uV0: sim.v0, uNoise: sim.noise, uRSep: sim.rSep,
+    uRoostR: sim.roostR, uFleeR: sim.fleeR, uReact: sim.react, uThresh: sim.thresh, uSpont: sim.spont / Math.max(N, 1),
+    uFrame: sim.frame, uRoosting: sim.roosting, uAlarmR: sim.alarmR, uActT: sim.actT, uGain: sim.gain, uDens: densA.tex, uDO: densO, uDC: densC, uWv: sim.wv, uMain: sim.main, uWg: sim.wg, uView: viewT.tex, uWp: sim.wp, uTrapL: sim.trapL, uNoiseK: sim.noiseK, uRoost: ROOST, uCentroid: sim.centroid, uAlt: [sim.alt[0] + sim.altSwing, sim.alt[1] + sim.altSwing], uFalcon: fal,
+  }, common));
+  drawFS();
+  pE();
+  sim.frame++;
+}
+
+/* ===================================================================== async readback */
+const STATS_M = 1024;
+const statsT = Cosmos.gl.target(gl, { w: STATS_M, h: 4, internal: gl.RGBA32F, format: gl.RGBA, type: gl.FLOAT, filter: 'nearest' });
+const trackT = Cosmos.gl.target(gl, { w: 12, h: 1, internal: gl.RGBA32F, format: gl.RGBA, type: gl.FLOAT, filter: 'nearest' });
+let readLock = null;   // one readback in flight at a time (interleaved fences upset Chrome's readback shadowing)
+function AsyncReader(bytes) {
+  // Pixel-pack buffer + fence, polled each frame. The buffer is recreated after every read:
+  // reusing it makes Chrome log a "shadow copy discarded" performance warning.
+  const mk = () => { const b = gl.createBuffer(); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, b); gl.bufferData(gl.PIXEL_PACK_BUFFER, bytes, gl.STREAM_READ); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null); return b; };
+  const r = { buf: null, sync: null, busy: false, stamp: 0 };
+  r.start = (target, w, h, stamp) => {
+    if (r.busy || readLock) return false;
+    readLock = r;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
+    r.buf = mk();
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, r.buf);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.FLOAT, 0);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    r.sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
+    r.busy = true; r.stamp = stamp; return true;
+  };
+  r.poll = (dst) => {
+    if (!r.busy) return false;
+    if (gl.getSyncParameter(r.sync, gl.SYNC_STATUS) !== gl.SIGNALED) return false;
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, r.buf); gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, dst); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    gl.deleteSync(r.sync); r.sync = null;
+    gl.deleteBuffer(r.buf); r.buf = null;
+    r.busy = false; if (readLock === r) readLock = null; return true;
+  };
+  return r;
+}
+const statsReader = AsyncReader(STATS_M * 4 * 16);
+const statsBuf = new Float32Array(STATS_M * 4 * 4);
+const trackReader = AsyncReader(12 * 16);
+const trackBuf = new Float32Array(48);
+const opacT = Cosmos.gl.target(gl, { w: 6 * 48, h: 48, internal: gl.RGBA16F, format: gl.RGBA, type: gl.HALF_FLOAT, filter: 'nearest' });
+const opacBuf = new Float32Array(6 * 48 * 48 * 4);
+const opacCopyT = Cosmos.gl.target(gl, { w: 6 * 48, h: 48, internal: gl.RGBA32F, format: gl.RGBA, type: gl.FLOAT, filter: 'nearest' });
+let opacSync = null, opacBufGL = null;
+
+function gatherStats() {
+  if (readLock) return false;
+  statsT.bind(); gl.disable(gl.BLEND);
+  gl.useProgram(P.gather);
+  setU(P.gather, { uP: SA.P, uV: SA.V, uX: SA.X, uS: SA.S, uW: TW, uLW: LTW, uN: N, uM: STATS_M, uOff: (sim.frame * 7919) % Math.max(1, N) });
+  drawFS();
+  if (statsReader.start(statsT, STATS_M, 4, sim.frame)) statsReader.simT = sim.time;
+}
+function trackBird(id) {
+  if (readLock) return;
+  trackT.bind(); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.disable(gl.BLEND);
+  gl.useProgram(P.track); setU(P.track, { uP: SA.P, uV: SA.V, uX: SA.X, uCell: CELLT.tex, uW: TW, uLW: LTW, uN: N, uCellSize: sim.cell, uId: id });
+  gl.bindVertexArray(emptyVAO); gl.drawArraysInstanced(gl.POINTS, 0, N, 12); gl.bindVertexArray(null);
+  trackReader.start(trackT, 12, 1, performance.now());
+}
+const OPAC_ROT = (() => { // world->face rotation matrices (column-major mat3), faces look along -z of each basis
+  const faces = [[[0, 0, 1], [0, 1, 0], [-1, 0, 0]], [[0, 0, -1], [0, 1, 0], [1, 0, 0]], [[1, 0, 0], [0, 0, 1], [0, -1, 0]], [[1, 0, 0], [0, 0, -1], [0, 1, 0]], [[1, 0, 0], [0, 1, 0], [0, 0, 1]], [[-1, 0, 0], [0, 1, 0], [0, 0, -1]]];
+  return faces.map(([x, y, z]) => new Float32Array([x[0], y[0], z[0], x[1], y[1], z[1], x[2], y[2], z[2]]));
+})();
+function probeOpacity(c) {
+  if (opacSync || readLock) return;
+  readLock = 'opac';
+  opacT.bind(); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  gl.useProgram(P.opac);
+  gl.bindVertexArray(emptyVAO);
+  for (let f = 0; f < 6; f++) {
+    setU(P.opac, { uP: SA.P, uW: TW, uLW: LTW, uN: N, uC: c, uRot: OPAC_ROT[f], uFace: f, uRes: 48 });
+    gl.drawArraysInstanced(gl.POINTS, 0, 1, N);
+  }
+  gl.bindVertexArray(null); gl.disable(gl.BLEND);
+  opacCopyT.bind(); gl.useProgram(P.copy); setU(P.copy, { uSrc: opacT.tex }); drawFS();
+  opacBufGL = gl.createBuffer(); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, opacBufGL); gl.bufferData(gl.PIXEL_PACK_BUFFER, opacBuf.byteLength, gl.STREAM_READ);
+  gl.readPixels(0, 0, 6 * 48, 48, gl.RGBA, gl.FLOAT, 0);
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+  opacSync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
+}
+function pollOpacity() {
+  if (!opacSync) return;
+  if (gl.getSyncParameter(opacSync, gl.SYNC_STATUS) !== gl.SIGNALED) return;
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, opacBufGL); gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, opacBuf); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+  gl.deleteSync(opacSync); opacSync = null;
+  if (readLock === 'opac') readLock = null;
+  gl.deleteBuffer(opacBufGL); opacBufGL = null;
+  let s = 0; const n = 6 * 48 * 48;
+  for (let i = 0; i < n; i++) s += Math.min(1, opacBuf[i * 4 + 3]);
+  const th = s / n;
+  stats.opacity = stats.opacity == null ? th : stats.opacity * 0.9 + th * 0.1;
+}
+
+/* ------------------------------------------------------------ correlation worker */
+const WORKER_SRC = `
+onmessage = (e) => {
+  const { pos, vel, m } = e.data;
+  // robust core: drop the 3% of birds furthest from the median centre
+  const cx = [], cy = [], cz = [];
+  for (let i = 0; i < m; i++) { cx.push(pos[i*3]); cy.push(pos[i*3+1]); cz.push(pos[i*3+2]); }
+  const med = (a) => { const b = a.slice().sort((x, y) => x - y); return b[b.length >> 1]; };
+  const mx = med(cx), my = med(cy), mz = med(cz);
+  const dist = []; for (let i = 0; i < m; i++) dist.push([Math.hypot(pos[i*3]-mx, pos[i*3+1]-my, pos[i*3+2]-mz), i]);
+  dist.sort((a, b) => a[0] - b[0]);
+  const keep = dist.slice(0, Math.floor(m * 0.97)).map((d) => d[1]);
+  const n = keep.length;
+  let vx = 0, vy = 0, vz = 0;
+  for (const i of keep) { vx += vel[i*3]; vy += vel[i*3+1]; vz += vel[i*3+2]; }
+  vx /= n; vy /= n; vz /= n;
+  const ux = new Float64Array(n), uy = new Float64Array(n), uz = new Float64Array(n), px = new Float64Array(n), py = new Float64Array(n), pz = new Float64Array(n);
+  let s2 = 0;
+  keep.forEach((i, k) => { ux[k] = vel[i*3]-vx; uy[k] = vel[i*3+1]-vy; uz[k] = vel[i*3+2]-vz; px[k] = pos[i*3]; py[k] = pos[i*3+1]; pz[k] = pos[i*3+2]; s2 += ux[k]*ux[k]+uy[k]*uy[k]+uz[k]*uz[k]; });
+  const nrm = 1 / Math.sqrt(s2 / n + 1e-12);
+  for (let k = 0; k < n; k++) { ux[k] *= nrm; uy[k] *= nrm; uz[k] *= nrm; }
+  let L = 0;
+  for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) { const d = (px[a]-px[b])**2 + (py[a]-py[b])**2 + (pz[a]-pz[b])**2; if (d > L) L = d; }
+  L = Math.sqrt(L);
+  const NB = 30, bw = L / NB; const cs = new Float64Array(NB), cn = new Float64Array(NB);
+  for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) {
+    const d = Math.sqrt((px[a]-px[b])**2 + (py[a]-py[b])**2 + (pz[a]-pz[b])**2);
+    const k = Math.min(NB - 1, Math.floor(d / bw));
+    cs[k] += ux[a]*ux[b] + uy[a]*uy[b] + uz[a]*uz[b]; cn[k]++;
+  }
+  const C = []; for (let k = 0; k < NB; k++) C.push([(k + 0.5) * bw, cn[k] > 4 ? cs[k] / cn[k] : NaN]);
+  let xi = NaN;
+  for (let k = 1; k < NB; k++) { const a = C[k-1][1], b = C[k][1]; if (a > 0 && b <= 0) { xi = C[k-1][0] + (C[k][0]-C[k-1][0]) * a / (a - b); break; } }
+  postMessage({ C, xi, L });
+};`;
+let corrWorker = null, corrBusy = false;
+try { corrWorker = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: 'text/javascript' }))); } catch (e) { corrWorker = null; }
+if (corrWorker) corrWorker.onmessage = (e) => {
+  corrBusy = false;
+  const { C, xi, L } = e.data;
+  if (isFinite(L) && L > 0) { stats.L = L; }
+  if (isFinite(xi)) stats.xi = stats.xi == null ? xi : stats.xi * 0.6 + xi * 0.4;
+  stats.C = C;
+  corrChart.setXY(0, C.filter((p) => isFinite(p[1])));
+  corrChart.setXY(1, [[0, 0], [stats.L || 1, 0]]);
+  corrChart.draw();
+};
+
+const wave = { active: false, p: null, t0: 0, pts: [], speed: null, last: null };
+const stats = { n: 0, polar: 0, speed: 0, R: 0, cnt: 0, r1: 0, rho: 0, alarm: 0, xi: null, L: null, opacity: null, spread: 60, got: false, pos: null, vel: null };
+const subPos = new Float32Array(STATS_M * 3), subVel = new Float32Array(STATS_M * 3), frontIdx = new Int32Array(STATS_M);
+function digestStats() {
+  const b = statsBuf, M = Math.min(STATS_M, N);
+  let cx = 0, cy = 0, cz = 0, vx = 0, vy = 0, vz = 0, hx = 0, hy = 0, hz = 0, sp = 0, sR = 0, sc = 0, sr1 = 0, nr1 = 0, rho = 0, al = 0, n = 0, bA = 0, nA = 0, bI = 0, nI = 0, perched = 0, srel = 0;
+  for (let i = 0; i < M; i++) {
+    const o = i * 4, ov = (STATS_M + i) * 4, ox = (2 * STATS_M + i) * 4, os = (3 * STATS_M + i) * 4;
+    const x = b[o], y = b[o + 1], z = b[o + 2];
+    if (!(y > -1000) || !isFinite(x)) continue;
+    if (b[o + 3] < 0) { perched++; continue; }
+    const u = b[ov], v = b[ov + 1], w = b[ov + 2]; const s = Math.hypot(u, v, w) || 1;
+    cx += x; cy += y; cz += z; vx += u; vy += v; vz += w; hx += u / s; hy += v / s; hz += w / s; sp += s;
+    const R = b[o + 3], cnt = Math.abs(b[ox + 2]);
+    const sw = b[os + 3], r1v = sw % 100, relv = Math.floor(sw / 100) / 10;
+    sR += R; sc += cnt; if (r1v < 50) { sr1 += r1v; nr1++; } srel += relv;
+    rho += Math.min(cnt, 40) / (4.18879 * R * R * R);
+    al += b[ov + 3] > 0.3 ? 1 : 0;
+    if (b[ov + 3] > 0.5) { bA += Math.abs(b[ox]); nA++; } else { bI += Math.abs(b[ox]); nI++; }
+    subPos[n * 3] = x; subPos[n * 3 + 1] = y; subPos[n * 3 + 2] = z; subVel[n * 3] = u; subVel[n * 3 + 1] = v; subVel[n * 3 + 2] = w;
+    n++;
+  }
+  stats.perched = perched / Math.max(1, perched + n);
+  if (!n) { stats.subN = 0; sim.main = v3.lerp(sim.main, [ROOST[0], 25, ROOST[2]], 0.2); return; }
+  stats.n = n; stats.got = true; stats.bankAct = nA ? bA / nA : 0; stats.bankIdle = nI ? bI / nI : 0; stats.nAct = nA;
+  const c = [cx / n, cy / n, cz / n];
+  stats.polar = Math.hypot(hx, hy, hz) / n;
+  stats.relV = srel / n;
+  stats.speed = sp / n; stats.R = sR / n; stats.cnt = sc / n; stats.r1 = nr1 ? sr1 / nr1 : 0; stats.rho = rho / n; stats.alarm = al / n;
+  stats.centroidRaw = c;
+  stats.meanV = [vx / n, vy / n, vz / n];
+  { const mv = stats.meanV; let su = 0; for (let i = 0; i < n; i++) su += (subVel[i * 3] - mv[0]) ** 2 + (subVel[i * 3 + 1] - mv[1]) ** 2 + (subVel[i * 3 + 2] - mv[2]) ** 2; stats.uRms = Math.sqrt(su / n); }
+  let sd = 0; for (let i = 0; i < n; i++) sd += (subPos[i * 3] - c[0]) ** 2 + (subPos[i * 3 + 1] - c[1]) ** 2 + (subPos[i * 3 + 2] - c[2]) ** 2;
+  stats.spread = Math.sqrt(sd / n);
+  { let xx = 0, yy = 0, zz = 0, xy = 0, xz = 0, yz = 0;
+    for (let i = 0; i < n; i++) { const dx = subPos[i * 3] - c[0], dy = subPos[i * 3 + 1] - c[1], dz = subPos[i * 3 + 2] - c[2]; xx += dx * dx; yy += dy * dy; zz += dz * dz; xy += dx * dy; xz += dx * dz; yz += dy * dz; }
+    const A = [[xx / n, xy / n, xz / n], [xy / n, yy / n, yz / n], [xz / n, yz / n, zz / n]];
+    for (let it = 0; it < 12; it++) for (const [p, q] of [[0, 1], [0, 2], [1, 2]]) { if (Math.abs(A[p][q]) < 1e-9) continue; const th = 0.5 * Math.atan2(2 * A[p][q], A[q][q] - A[p][p]); const c1 = Math.cos(th), s1 = Math.sin(th);
+      for (let k = 0; k < 3; k++) { const a = A[k][p], b = A[k][q]; A[k][p] = c1 * a - s1 * b; A[k][q] = s1 * a + c1 * b; }
+      for (let k = 0; k < 3; k++) { const a = A[p][k], b = A[q][k]; A[p][k] = c1 * a - s1 * b; A[q][k] = s1 * a + c1 * b; } }
+    stats.axes = [A[0][0], A[1][1], A[2][2]].map((v) => 2 * Math.sqrt(Math.max(v, 0))).sort((a, b) => b - a); }
+  sim.centroid = c;
+  {
+    const B = 24, cellM = 30, hist = new Float32Array(B * B); let bi = -1, bv = 0;
+    for (let i = 0; i < n; i++) { const gx = Math.floor((subPos[i * 3] - c[0]) / cellM + B / 2), gz = Math.floor((subPos[i * 3 + 2] - c[2]) / cellM + B / 2); if (gx < 0 || gz < 0 || gx >= B || gz >= B) continue; const k = gz * B + gx; hist[k]++; }
+    for (let k = 0; k < B * B; k++) { const gx = k % B, gz = (k / B) | 0; let v = 0; for (let a = -1; a <= 1; a++) for (let b2 = -1; b2 <= 1; b2++) { const x2 = gx + a, z2 = gz + b2; if (x2 >= 0 && z2 >= 0 && x2 < B && z2 < B) v += hist[z2 * B + x2]; } if (v > bv) { bv = v; bi = k; } }
+    if (bi >= 0) {
+      const mx = c[0] + ((bi % B) - B / 2 + 0.5) * cellM, mz = c[2] + (((bi / B) | 0) - B / 2 + 0.5) * cellM;
+      let sx = 0, sy = 0, sz = 0, sn = 0;
+      for (let i = 0; i < n; i++) { const dx = subPos[i * 3] - mx, dz = subPos[i * 3 + 2] - mz; if (dx * dx + dz * dz < 110 * 110) { sx += subPos[i * 3]; sy += subPos[i * 3 + 1]; sz += subPos[i * 3 + 2]; sn++; } }
+      if (sn > 10) sim.main = [sx / sn, sy / sn, sz / sn];
+      stats.mainFrac = sn / n;
+    }
+  }
+  sim.densH = U.clamp(2.4 * stats.spread, 60, 380);
+  // adapt hash-cell size to the topological radius
+  if (isFinite(stats.R) && stats.R > 0) sim.cell = U.clamp(sim.cell * 0.8 + 0.2 * U.clamp(2.2 * stats.R, 1.6, 8), 1.6, 8);
+  stats.subN = n;
+  // the escape-wave front: sampled birds that fired within the last 0.35 s
+  { let nf = 0;
+    for (let q = 0; q < n; q++) { const xy = b[(2 * STATS_M + stats.idxMap[q]) * 4 + 1]; if (xy < 0) continue; const esc = xy - 10 * Math.floor(xy / 10); if (esc < 0.35) frontIdx[nf++] = q; }
+    stats.frontN = nf; stats.frontSimT = statsReader.simT != null ? statsReader.simT : sim.time; }
+  // wave speed, in the flock's own frame: each alarmed bird's position when it fired (back-extrapolated along its
+  // velocity, minus the flock's drift) against its firing time; origin = centroid of the earliest 5% to fire.
+  if (!wave.active && falconMode === 'ai' && stats.alarm > 0.003 && sim.time - (wave.tEnd || -99) > 4) {
+    wave.active = true; wave.t0 = sim.time; wave.V = stats.meanV.slice(); wave.pts = []; wave.seen = new Set();
+  }
+  if (wave.active) {
+    for (let q = 0; q < n; q++) {
+      const row = stats.idxMap[q]; const xy = b[(2 * STATS_M + row) * 4 + 1]; const qi = xy < 0 ? -1 : Math.floor(xy / 10); const esc = xy < 0 ? -1 : xy - 10 * qi; const id = b[(2 * STATS_M + row) * 4 + 3];
+      if (!(esc >= 0) || esc > 0.8 || wave.seen.has(id)) continue;
+      const tt = (statsReader.simT || sim.time) - esc;
+      const px = subPos[q * 3] - subVel[q * 3] * esc - wave.V[0] * (tt - wave.t0);
+      const py = subPos[q * 3 + 1] - subVel[q * 3 + 1] * esc - wave.V[1] * (tt - wave.t0);
+      const pz = subPos[q * 3 + 2] - subVel[q * 3 + 2] * esc - wave.V[2] * (tt - wave.t0);
+      wave.seen.add(id); wave.pts.push([tt, px, py, pz, qi >= 99 ? 1 : 0]);
+    }
+    if (sim.time - wave.t0 > 4) {
+      wave.active = false; wave.tEnd = sim.time;
+      const P = wave.pts.sort((u, w) => u[0] - w[0]);
+      if (P.length > 30 && P.some((u) => !u[4])) {
+        // origin: the earliest birds alarmed directly by the falcon; fit only birds alarmed by their neighbours
+        const direct = P.filter((u) => u[4]); const src = direct.length >= 3 ? direct : P;
+        const m = Math.max(3, Math.floor(src.length * 0.1)); let ox = 0, oy = 0, oz = 0;
+        for (let q = 0; q < m; q++) { ox += src[q][1]; oy += src[q][2]; oz += src[q][3]; } ox /= m; oy /= m; oz /= m;
+        const D = P.filter((u) => !u[4]).map((u) => [u[0], Math.hypot(u[1] - ox, u[2] - oy, u[3] - oz)]).filter((u) => u[1] > 6);
+        let mt = 0, md = 0; for (const [t, d] of D) { mt += t; md += d; } mt /= D.length; md /= D.length;
+        let ctd = 0, ctt = 0; for (const [t, d] of D) { ctd += (t - mt) * (d - md); ctt += (t - mt) * (t - mt); }
+        const v = ctt > 1e-4 ? ctd / ctt : null;
+        wave.lastD = D; wave.lastT0 = P[0][0];
+        { const ds = D.map((u) => u[1]).sort((x, y) => x - y); wave.reach = ds[Math.floor(ds.length * 0.9)] || null; }
+        if (v && v > 3 && v < 200) {
+          wave.speed = v; wave.last = { n: D.length };
+          if (!narr.wave && cam.mode !== 'fly') { narr.wave = true; ch.toast('That escape wave crossed the flock at ' + v.toFixed(0) + ' m/s, passed from bird to bird.', 4200); }
+        }
+      }
+    }
+  }
+}
+
+/* ===================================================================== meshes */
+function birdMesh(kind) {
+  // [x, y, z, part]; part 0 body, 1 inner wing, 2 wing tip. Units: metres (starling: span 0.40, length 0.21)
+  const V = [];
+  const tri = (a, b, c) => V.push(...a, ...b, ...c);
+  if (kind === 'starling') {
+    const Hd = [0, 0, 0.105, 0], NL = [-0.022, 0, 0.06, 0], NR = [0.022, 0, 0.06, 0], ML = [-0.03, 0, 0.0, 0], MR = [0.03, 0, 0.0, 0];
+    const TBL = [-0.02, 0, -0.07, 0], TBR = [0.02, 0, -0.07, 0], TTL = [-0.036, 0, -0.112, 0], TTR = [0.036, 0, -0.112, 0];
+    tri(Hd, NL, NR); tri(NL, ML, NR); tri(NR, ML, MR); tri(ML, TBL, MR); tri(MR, TBL, TBR); tri(TBL, TTL, TBR); tri(TBR, TTL, TTR);
+    const top = [0, 0.028, 0.02, 0], bot = [0, -0.03, 0.0, 0], back = [0, 0, -0.07, 0];
+    tri(Hd, top, back); tri(Hd, bot, back);
+    for (const s of [-1, 1]) {
+      const rF = [s * 0.02, 0, 0.055, 0], rB = [s * 0.025, 0, -0.012, 0], wr = [s * 0.11, 0, 0.045, 1], tip = [s * 0.2, 0, -0.03, 2], tm = [s * 0.1, 0, -0.022, 1];
+      tri(rF, wr, rB); tri(rB, wr, tm); tri(wr, tip, tm);
+    }
+  } else {
+    // peregrine: span ~1.0 m, length ~0.42 m, long pointed wings, longer tail
+    const Hd = [0, 0, 0.2, 0], NL = [-0.045, 0, 0.12, 0], NR = [0.045, 0, 0.12, 0], ML = [-0.06, 0, 0.0, 0], MR = [0.06, 0, 0.0, 0];
+    const TBL = [-0.035, 0, -0.12, 0], TBR = [0.035, 0, -0.12, 0], TTL = [-0.055, 0, -0.26, 0], TTR = [0.055, 0, -0.26, 0];
+    tri(Hd, NL, NR); tri(NL, ML, NR); tri(NR, ML, MR); tri(ML, TBL, MR); tri(MR, TBL, TBR); tri(TBL, TTL, TBR); tri(TBR, TTL, TTR);
+    const top = [0, 0.06, 0.04, 0], bot = [0, -0.06, 0.0, 0], back = [0, 0, -0.14, 0];
+    tri(Hd, top, back); tri(Hd, bot, back);
+    for (const s of [-1, 1]) {
+      const rF = [s * 0.04, 0, 0.1, 0], rB = [s * 0.05, 0, -0.05, 0], wr = [s * 0.25, 0, 0.07, 1], tip = [s * 0.5, 0, -0.17, 2], tm = [s * 0.23, 0, -0.08, 1];
+      tri(rF, wr, rB); tri(rB, wr, tm); tri(wr, tip, tm);
+    }
+  }
+  return new Float32Array(V);
+}
+function meshVAO(data, stride) {
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, stride, gl.FLOAT, false, 0, 0);
+  gl.bindVertexArray(null);
+  return { vao, count: data.length / stride };
+}
+const starlingMesh = meshVAO(birdMesh('starling'), 4);
+const falconMesh = meshVAO(birdMesh('falcon'), 4);
+
+/* reeds: static per-vertex template + per-instance data */
+function reedTemplate() {
+  const V = [];
+  const quad = (t0, t1, part, li) => { V.push(t0, -1, part, li, t1, -1, part, li, t1, 1, part, li, t0, -1, part, li, t1, 1, part, li, t0, 1, part, li); };
+  for (let s = 0; s < 6; s++) quad(s / 6, (s + 1) / 6, 0, 0);
+  for (let s = 0; s < 3; s++) quad(s / 3, (s + 1) / 3, 1, 0);
+  for (let l = 0; l < 2; l++) for (let s = 0; s < 4; s++) quad(s / 4, (s + 1) / 4, 2, l);
+  return new Float32Array(V);
+}
+function buildReeds() {
+  const rng = U.rng(4242);
+  const nNear = SMALL ? 900 : 1700;
+  const I = [], J = [];
+  let tries = 0;
+  while (I.length / 4 < nNear && tries++ < 400000) {
+    // two low reed clusters along the near shore, left and right of the view toward the roost,
+    // plus a few tall stems close by for depth. Their tops stay a few degrees above the horizon.
+    const side = rng() < 0.5 ? -1 : 1;
+    const framing = rng() < 0.05;
+    const azd = side < 0 ? -30 - rng() * 55 : 34 + rng() * 55;
+    const az = azd * Math.PI / 180;
+    const r = framing ? 5 + rng() * 5 : 9 + Math.pow(rng(), 0.8) * 24;
+    const x = Math.sin(az) * r, z = -Math.cos(az) * r;
+    if (waterMask(x, z) > 0.1) continue;
+    const pr = U.smoothstep(0.3, 0.6, n2(x * 0.12 + 3, z * 0.12 + 5)) * U.smoothstep(24, 40, Math.abs(azd - 6));
+    if (rng() > pr) continue;
+    const H = framing ? 2.6 + 0.8 * rng() : 1.9 + 0.9 * rng() + 0.3 * rng() * rng();
+    I.push(x, z, H, rng());
+    J.push(rng() * Math.PI * 2, 0.02 + 0.07 * rng(), rng() * Math.PI * 2, 0.26 + 0.16 * rng());
+  }
+  const tpl = reedTemplate();
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const b0 = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b0); gl.bufferData(gl.ARRAY_BUFFER, tpl, gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0);
+  const b1 = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b1); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(I), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0); gl.vertexAttribDivisor(1, 1);
+  const b2 = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b2); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(J), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 4, gl.FLOAT, false, 0, 0); gl.vertexAttribDivisor(2, 1);
+  gl.bindVertexArray(null);
+  const near = { vao, count: tpl.length / 4, inst: I.length / 4 };
+  // far reed bed clumps and lagoon fringe
+  const C = [], S = [];
+  const nFar = SMALL ? 1600 : 3400;
+  tries = 0;
+  while (C.length / 4 < nFar && tries++ < 400000) {
+    const x = ROOST[0] + (rng() * 2 - 1) * 360, z = ROOST[2] + (rng() * 2 - 1) * 120;
+    if (reedMask(x, z) <= 0) continue;
+    C.push(x, z, 3 + 4 * rng(), 2.5 + 0.9 * rng()); S.push(rng());
+  }
+  const nFringe = SMALL ? 400 : 900; tries = 0; let f = 0;
+  while (f < nFringe && tries++ < 400000) {
+    const x = -15 + (rng() * 2 - 1) * 300, z = -140 + (rng() * 2 - 1) * 130;
+    const w = waterMask(x, z);
+    if (w > 0.0 || w < -0.06 || z > -30 || reedMask(x, z) > 0) continue;
+    C.push(x, z, 2.5 + 3.5 * rng(), 1.9 + 0.9 * rng()); S.push(rng()); f++;
+  }
+  const cv = gl.createVertexArray(); gl.bindVertexArray(cv);
+  const q = new Float32Array([-0.5, 0, 0.5, 0, 0.5, 1, -0.5, 0, 0.5, 1, -0.5, 1]);
+  const c0 = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, c0); gl.bufferData(gl.ARRAY_BUFFER, q, gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  const c1 = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, c1); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(C), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0); gl.vertexAttribDivisor(1, 1);
+  const c2 = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, c2); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(S), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 0, 0); gl.vertexAttribDivisor(2, 1);
+  gl.bindVertexArray(null);
+  return { near, clumps: { vao: cv, count: 6, inst: C.length / 4 } };
+}
+const reeds = buildReeds();
+
+/* ===================================================================== sky (LUT + JS twin for lighting) */
+const skyLUT = Cosmos.gl.target(gl, { w: 256, h: 128, internal: gl.RGBA16F, format: gl.RGBA, type: gl.HALF_FLOAT, filter: 'linear', wrap: 'clamp' });
+const cloudLUT = Cosmos.gl.texture(gl, { w: 256, h: 128, internal: gl.RGBA16F, format: gl.RGBA, type: gl.HALF_FLOAT, filter: 'linear', wrap: 'clamp' });
+gl.bindTexture(gl.TEXTURE_2D, cloudLUT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+gl.bindFramebuffer(gl.FRAMEBUFFER, skyLUT.fbo); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, cloudLUT, 0);
+gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+gl.bindTexture(gl.TEXTURE_2D, skyLUT.tex); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+const SUN_I = 20, MS_K = 0.05;
+const AT = { RE: 6360e3, RA: 6460e3, BR: [5.802e-6, 13.558e-6, 33.1e-6], BMS: 7.0e-6, BME: 7.8e-6, BO: [0.65e-6, 1.881e-6, 0.085e-6] };
+const STRAT = 0.012;
+function mieD(h) { const q = (h - 20000) / 4500; return Math.exp(-h / 1200) + STRAT * Math.exp(-q * q); }
+function extAt(h, o) { h = Math.max(h, 0); const r = Math.exp(-h / 8000), m = mieD(h), oz = Math.max(0, 1 - Math.abs(h - 25000) / 15000); for (let c = 0; c < 3; c++) o[c] = AT.BR[c] * r + AT.BME * m + AT.BO[c] * oz; return o; }
+function raySphereFar(o, d, R) { const b = o[0] * d[0] + o[1] * d[1] + o[2] * d[2]; const c = o[0] * o[0] + o[1] * o[1] + o[2] * o[2] - R * R; const disc = b * b - c; return disc < 0 ? -1 : -b + Math.sqrt(disc); }
+const _e = [0, 0, 0];
+function odSeg(x, d, t0, t1, clusterEnd, od) {
+  let u0 = 0;
+  for (let i = 0; i < 8; i++) { const f = (i + 1) / 8; const u1 = clusterEnd ? 1 - (1 - f) * (1 - f) : f * f; const t = t0 + (t1 - t0) * 0.5 * (u0 + u1);
+    const y0 = x[0] + d[0] * t, y1 = x[1] + d[1] * t, y2 = x[2] + d[2] * t; extAt(Math.hypot(y0, y1, y2) - AT.RE, _e);
+    const w = (t1 - t0) * (u1 - u0); od[0] += _e[0] * w; od[1] += _e[1] * w; od[2] += _e[2] * w; u0 = u1; }
+}
+function sunTransJS(x, s) {
+  const tm = raySphereFar(x, s, AT.RA); if (tm <= 0) return [1, 1, 1];
+  const b = x[0] * s[0] + x[1] * s[1] + x[2] * s[2]; const od = [0, 0, 0]; let sh = 1;
+  if (b < 0) { const hmin = Math.sqrt(Math.max(x[0] * x[0] + x[1] * x[1] + x[2] * x[2] - b * b, 0)) - AT.RE; sh = U.smoothstep(-2500, 2500, hmin); if (sh <= 0) return [0, 0, 0]; odSeg(x, s, 0, -b, true, od); odSeg(x, s, -b, tm, false, od); }
+  else odSeg(x, s, 0, tm, false, od);
+  return od.map((v) => Math.exp(-v) * sh);
+}
+function skyRadJS(d, s) {
+  const org = [0, AT.RE + 5, 0]; const tm = raySphereFar(org, d, AT.RA);
+  const mu = d[0] * s[0] + d[1] * s[1] + d[2] * s[2];
+  const pr = 3 / (16 * Math.PI) * (1 + mu * mu); const g = 0.76; const pm = 3 / (8 * Math.PI) * ((1 - g * g) * (1 + mu * mu)) / ((2 + g * g) * Math.pow(1 + g * g - 2 * g * mu, 1.5));
+  const T = [1, 1, 1], L = [0, 0, 0]; let tp = 0; const ext = [0, 0, 0];
+  for (let i = 0; i < 36; i++) {
+    const f = (i + 1) / 36, t = tm * f * f, dt = t - tp, tc = 0.5 * (t + tp); tp = t;
+    const x = [org[0] + d[0] * tc, org[1] + d[1] * tc, org[2] + d[2] * tc]; const h = Math.max(Math.hypot(x[0], x[1], x[2]) - AT.RE, 0);
+    const dr = Math.exp(-h / 8000), dm = mieD(h); extAt(h, ext);
+    const st = sunTransJS(x, s); const rl = Math.hypot(x[0], x[1], x[2]); const muS = (x[0] * s[0] + x[1] * s[1] + x[2] * s[2]) / rl;
+    const msf = MS_K * U.smoothstep(-0.28, 0.25, muS) * (0.35 + 0.65 * U.smoothstep(-0.1, 0.3, muS));
+    for (let c = 0; c < 3; c++) {
+      const sc = AT.BR[c] * dr * pr + AT.BMS * dm * pm; const ms = (AT.BR[c] * dr + AT.BMS * dm) * msf;
+      const Sv = (st[c] * sc + ms) * SUN_I; const Ts = Math.exp(-ext[c] * dt);
+      L[c] += T[c] * (Sv - Sv * Ts) / Math.max(ext[c], 1e-12); T[c] *= Ts;
+    }
+  }
+  return L;
+}
+const dirAzEl = (az, el) => [Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)];
+const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+const light = { sunEl: -99, sun: [0, 0, -1], sunDisk: [0, 0, 0], sunCol: [0, 0, 0], sil: [0, 0, 0], ground: [0, 0, 0], bird: [0, 0, 0], fog: [0, 0, 0], exposure: 1, moon: [0, 0, -1], moonCol: [0, 0, 0], venus: [0, 0, -1], venusCol: [0, 0, 0], stars: 0, refL: 1 };
+function updateSky(elDeg) {
+  if (Math.abs(elDeg - light.sunEl) < 0.004) return;
+  light.sunEl = elDeg;
+  const el = elDeg * Math.PI / 180;
+  const s = dirAzEl(SUN_AZ, el); light.sun = s;
+  // LUT
+  skyLUT.bind(); gl.disable(gl.BLEND);
+  gl.useProgram(P.skylut); setU(P.skylut, { uSun: s, uSunI: SUN_I, uMS: MS_K }); drawFS();
+  // lighting twins
+  const org = [0, AT.RE + 5, 0];
+  const Ts = sunTransJS(org, s);
+  const sunSolid = 6.8e-5;
+  light.sunDisk = Ts.map((v) => v * SUN_I / sunSolid * (el > -0.02 ? 1 : 0));
+  light.sunCol = Ts.map((v) => v * SUN_I * 0.02);
+  const zen = skyRadJS([0, 1, 0], s), hzS = skyRadJS(dirAzEl(SUN_AZ, 0.03), s), hzA = skyRadJS(dirAzEl(SUN_AZ + Math.PI, 0.03), s);
+  const ref = skyRadJS(dirAzEl(0, 0.2), s);
+  const refL = Math.max(lum(ref), 1e-6); light.refL = refL;
+  light.exposure = 0.19 * Math.pow(refL, -0.84);
+  const amb = zen.map((z, c) => z * 0.6 + (hzS[c] + hzA[c]) * 0.2);
+  light.sil = amb.map((v) => v * 0.07);
+  light.ground = amb.map((v, c) => v * 0.026 * [1.0, 0.97, 0.9][c]);
+  light.bird = amb.map((v) => v * 0.035);
+  light.fog = hzS.map((v, c) => (v + hzA[c]) * 0.5);
+  // moon, Venus: fixed offsets from the sun along the evening sky
+  light.moon = dirAzEl(SUN_AZ - 0.72, el + 0.36);
+  const Tm = sunTransJS(org, light.moon);
+  light.moonCol = Tm.map((v) => v * SUN_I * 0.9);
+  light.venus = dirAzEl(SUN_AZ - 0.2, el + 0.44);
+  const Tv = sunTransJS(org, light.venus);
+  light.venusCol = Tv.map((v) => v * SUN_I * 0.0035);
+  light.stars = SUN_I * 0.0016 * U.smoothstep(-3.5, -9, elDeg);
+}
+
+/* ===================================================================== render targets */
+let RT = null;
+const MSAA = (() => { try { const s = gl.getInternalformatParameter(gl.RENDERBUFFER, gl.RGBA16F, gl.SAMPLES); return s && s.length ? Math.min(4, Math.max(...s)) : 0; } catch (e) { return 0; } })();
+function buildTargets() {
+  const w = canvas.width, h = canvas.height;
+  if (RT && RT.w === w && RT.h === h) return;
+  if (RT) {
+    gl.deleteFramebuffer(RT.msFbo); if (RT.msColor) gl.deleteRenderbuffer(RT.msColor); gl.deleteRenderbuffer(RT.msDepth);
+    freeTarget(RT.resolve); RT.bloom.forEach(freeTarget);
+  }
+  const resolve = Cosmos.gl.target(gl, { w, h, internal: gl.RGBA16F, format: gl.RGBA, type: gl.HALF_FLOAT, filter: 'linear' });
+  const msFbo = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, msFbo);
+  let msColor = null;
+  const msDepth = gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER, msDepth);
+  if (MSAA > 1) {
+    msColor = gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER, msColor);
+    gl.renderbufferStorageMultisample(gl.RENDERBUFFER, MSAA, gl.RGBA16F, w, h);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, msColor);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, msDepth);
+    gl.renderbufferStorageMultisample(gl.RENDERBUFFER, MSAA, gl.DEPTH_COMPONENT24, w, h);
+  } else {
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, resolve.tex, 0);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h);
+  }
+  gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, msDepth);
+  const st = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  if (st !== gl.FRAMEBUFFER_COMPLETE) throw new Error('scene framebuffer incomplete 0x' + st.toString(16));
+  const bloom = [];
+  let bw = w, bh = h;
+  for (let i = 0; i < 5; i++) { bw = Math.max(1, bw >> 1); bh = Math.max(1, bh >> 1); bloom.push(Cosmos.gl.target(gl, { w: bw, h: bh, internal: gl.RGBA16F, format: gl.RGBA, type: gl.HALF_FLOAT, filter: 'linear' })); }
+  RT = { w, h, msFbo, msColor, msDepth, resolve, bloom };
+}
+
+/* ===================================================================== camera */
+const cam = {
+  mode: 'ground', yaw: 0, pitch: 0.2, fov: (SMALL ? 58 : 40) * Math.PI / 180, fovT: (SMALL ? 58 : 40) * Math.PI / 180,
+  yawOff: 0, pitchOff: 0, idle: 99, eye: EYE0.slice(), fwd: [0, 0, -1], up: [0, 1, 0], roll: 0,
+  orbTheta: 0.35, orbPhi: 0.28, orbDist: 330, orbDistT: 330, track: null,
+  C: [ROOST[0], 70, ROOST[2]], focus: null, VP: null, invVP: null, view: null, proj: null, focal: 1000, flyEye: null, flyFwd: null,
+};
+const v3 = {
+  sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], scale: (a, s) => [a[0] * s, a[1] * s, a[2] * s],
+  dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], len: (a) => Math.hypot(a[0], a[1], a[2]), norm: (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; },
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], lerp: (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t],
+};
+function viewMatrix(eye, f, roll) {
+  let r = v3.norm(v3.cross(f, [0, 1, 0])); let u = v3.cross(r, f);
+  if (roll) { const c = Math.cos(roll), s = Math.sin(roll); const r2 = v3.add(v3.scale(r, c), v3.scale(u, s)); const u2 = v3.sub(v3.scale(u, c), v3.scale(r, s)); r = r2; u = u2; }
+  return new Float32Array([r[0], u[0], -f[0], 0, r[1], u[1], -f[1], 0, r[2], u[2], -f[2], 0, -v3.dot(r, eye), -v3.dot(u, eye), v3.dot(f, eye), 1]);
+}
+const freeArea = { t: -1, s: 0 };
+function deckShift() {
+  // horizontal lens shift (NDC, + = right) that centres the view in the free area between the
+  // field-notes card (left) and the control deck (right). Rects are sampled twice a second.
+  if (SMALL || document.body.classList.contains('cz-cinema')) return 0;
+  const now = performance.now();
+  if (now - freeArea.t < 500) return freeArea.s;
+  freeArea.t = now;
+  const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
+  let L = 0, R = w;
+  const notes = document.querySelector('.cz-notes');
+  if (notes) { const r = notes.getBoundingClientRect(); if (r.width > 0 && r.left < w * 0.4 && r.right < w * 0.5 && r.top < h * 0.55 && r.bottom > h * 0.3) L = r.right; }
+  const deck = document.querySelector('.cz-deck');
+  if (deck && deck.classList.contains('cz-open')) { const r = deck.getBoundingClientRect(); if (r.width > 0 && r.left > w * 0.5 && r.left < w - 8) R = r.left; }
+  freeArea.s = U.clamp(2 * ((L + R) / 2 - w / 2) / w, -0.35, 0.35);
+  return freeArea.s;
+}
+let shiftCur = 0;
+function updateCamera(dt) {
+  if (cam.freeze && cam.VP) return;
+  const aspect = canvas.width / Math.max(1, canvas.height);
+  cam.C = v3.lerp(cam.C, sim.main, 1 - Math.exp(-dt / 1.6));
+  cam.fov += (cam.fovT - cam.fov) * (1 - Math.exp(-dt / 0.25));
+  cam.idle += dt;
+  if (cam.idle > 9) { const k = 1 - Math.exp(-dt / 4); cam.yawOff -= cam.yawOff * k; cam.pitchOff -= cam.pitchOff * k; }
+  let eye, f, roll = 0;
+  if (cam.focus) {
+    // documentary zoom on a falcon strike: ease in on the strike point, hold, ease back out
+    const fc = cam.focus; fc.t += dt;
+    const k = U.smoothstep(0, 1.6, fc.t) * (1 - U.smoothstep(6.5, 9.5, fc.t));
+    const tp = falcon.target || sim.main;
+    cam.C = v3.lerp(cam.C, v3.lerp(sim.main, tp, 0.65), k * (1 - Math.exp(-dt / 0.5)));
+    cam.fovT = U.lerp(fc.base, 26 * Math.PI / 180, k);
+    if (fc.t > 9.5) { cam.fovT = fc.base; cam.focus = null; }
+  }
+  if (cam.mode === 'ground') {
+    eye = [EYE0[0] + 0.05 * Math.sin(sim.time * 0.3), EYE0[1] + 0.03 * Math.sin(sim.time * 0.47), EYE0[2]];
+    const d = v3.sub(cam.C, eye); const hd = Math.hypot(d[0], d[2]);
+    const tYaw = Math.atan2(d[0], -d[2]); const tEl = Math.atan2(d[1], hd);
+    let dy = tYaw - cam.yaw; while (dy > Math.PI) dy -= 2 * Math.PI; while (dy < -Math.PI) dy += 2 * Math.PI;
+    cam.yaw += dy * (1 - Math.exp(-dt / 2.5));
+    const zf = U.smoothstep(0.62, 0.3, cam.fov);
+    const tp = U.clamp(U.lerp(tEl * 0.6 + 0.012, tEl, zf), 0.05, 1.25);
+    cam.pitch += (tp - cam.pitch) * (1 - Math.exp(-dt / 2.5));
+    if (!cam.snapped) { cam.snapped = true; cam.yaw = tYaw; cam.pitch = tp; }
+    const yw = cam.yaw + cam.yawOff, pt = U.clamp(cam.pitch + cam.pitchOff, -0.35, 1.45);
+    f = [Math.sin(yw) * Math.cos(pt), Math.sin(pt), -Math.cos(yw) * Math.cos(pt)];
+  } else if (cam.mode === 'orbit') {
+    cam.orbDist += (cam.orbDistT - cam.orbDist) * (1 - Math.exp(-dt / 0.3));
+    if (cam.idle > 3) cam.orbTheta += dt * 0.025;
+    const th = cam.orbTheta, ph = cam.orbPhi;
+    eye = [cam.C[0] + cam.orbDist * Math.sin(th) * Math.cos(ph), cam.C[1] + cam.orbDist * Math.sin(ph), cam.C[2] + cam.orbDist * Math.cos(th) * Math.cos(ph)];
+    eye[1] = Math.max(eye[1], 15);
+    const eh = Math.hypot(eye[0], eye[2]); if (eh > 650) { eye[0] *= 650 / eh; eye[2] *= 650 / eh; }
+    f = v3.norm(v3.sub(cam.C, eye));
+  } else {
+    // fly with the flock: ride behind a tracked bird (async readback, extrapolated)
+    const tb = cam.track;
+    if (tb && tb.ok) {
+      const lag = (performance.now() - tb.t) / 1000;
+      const bp = v3.add(tb.p, v3.scale(tb.v, lag)); const bf = v3.norm(tb.v);
+      const want = v3.add(v3.sub(bp, v3.scale(bf, 5.0)), [0, 1.1, 0]);
+      cam.flyEye = cam.flyEye ? v3.lerp(cam.flyEye, want, 1 - Math.exp(-dt / 0.12)) : want;
+      cam.flyFwd = cam.flyFwd ? v3.norm(v3.lerp(cam.flyFwd, bf, 1 - Math.exp(-dt / 0.35))) : bf;
+      cam.roll += (-tb.bank * 0.45 - cam.roll) * (1 - Math.exp(-dt / 0.3));
+    }
+    eye = cam.flyEye || v3.add(cam.C, [0, 5, 30]);
+    const base = cam.flyFwd || [0, 0, -1];
+    const yw = cam.yawOff, pt = cam.pitchOff;
+    const r = v3.norm(v3.cross(base, [0, 1, 0]));
+    f = v3.norm(v3.add(v3.add(base, v3.scale(r, Math.sin(yw))), [0, Math.sin(pt), 0]));
+    roll = cam.roll;
+  }
+  cam.eye = eye; cam.fwd = f;
+  const fovY = SMALL ? 2 * Math.atan(Math.tan(cam.fov / 2) / Math.min(1, aspect) * 0.62) : cam.fov;
+  shiftCur += (deckShift() - shiftCur) * (1 - Math.exp(-dt / 0.4));
+  const proj = M4.perspective(fovY, aspect, cam.mode === 'fly' ? 0.08 : 0.5, 20000);
+  proj[8] = -shiftCur;   // lens shift: moves the image by +shiftCur in NDC
+  cam.view = viewMatrix(eye, f, roll); cam.proj = proj;
+  cam.VP = M4.multiply(proj, cam.view); cam.invVP = M4.invert(cam.VP);
+  cam.fovY = fovY;
+  cam.focal = canvas.height / (2 * Math.tan(fovY / 2));
+}
+function project(p) {
+  const m = cam.VP; const x = m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12], y = m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13], w = m[3] * p[0] + m[7] * p[1] + m[11] * p[2] + m[15];
+  if (w <= 0.01) return null;
+  return [(x / w * 0.5 + 0.5) * canvas.clientWidth, (1 - (y / w * 0.5 + 0.5)) * canvas.clientHeight, w];
+}
+function pointerRay(cx, cy) {
+  const x = cx / canvas.clientWidth * 2 - 1, y = 1 - cy / canvas.clientHeight * 2;
+  const m = cam.invVP; const a = [x, y, 1, 1];
+  const o = [0, 1, 2, 3].map((r) => m[r] * a[0] + m[4 + r] * a[1] + m[8 + r] * a[2] + m[12 + r] * a[3]);
+  return v3.norm(v3.sub([o[0] / o[3], o[1] / o[3], o[2] / o[3]], cam.eye));
+}
+
+/* ------------------------------------------------------------ input */
+const ptrs = new Map(); let pinch0 = 0; let lastX = 0, lastY = 0;
+const falconPtr = { x: 0, y: 0, down: false, has: false };
+ch.stage.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]); lastX = e.clientX; lastY = e.clientY;
+  try { ch.stage.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); }
+  if (falconMode === 'user') { falconPtr.down = true; falconPtr.x = e.clientX; falconPtr.y = e.clientY; falconPtr.has = true; }
+  cam.idle = 0; endFocus();
+});
+ch.stage.addEventListener('pointermove', (e) => {
+  if (falconMode === 'user') { falconPtr.x = e.clientX; falconPtr.y = e.clientY; falconPtr.has = true; }
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch0 > 0) zoomBy(pinch0 / d); pinch0 = d; return; }
+  const dx = e.clientX - lastX, dy = e.clientY - lastY; lastX = e.clientX; lastY = e.clientY;
+  if (falconMode === 'user') return;
+  cam.idle = 0;
+  const k = cam.fov / Math.max(300, canvas.clientHeight) * 1.1;
+  if (cam.mode === 'orbit') { cam.orbTheta -= dx * 0.005; cam.orbPhi = U.clamp(cam.orbPhi + dy * 0.004, -0.4, 1.35); }
+  else { cam.yawOff -= dx * k; cam.pitchOff = U.clamp(cam.pitchOff + dy * k, -1.0, 1.0); }
+});
+const ptrUp = (e) => { ptrs.delete(e.pointerId); pinch0 = 0; if (!ptrs.size) falconPtr.down = false; };
+ch.stage.addEventListener('pointerup', ptrUp); ch.stage.addEventListener('pointercancel', ptrUp);
+ch.stage.addEventListener('wheel', (e) => { e.preventDefault(); endFocus(); zoomBy(Math.exp(e.deltaY * 0.0011)); cam.idle = 0; }, { passive: false });
+function endFocus() { if (cam.focus) { cam.fovT = cam.focus.base; cam.focus = null; } }
+function zoomBy(f) {
+  if (cam.mode === 'orbit') cam.orbDistT = U.clamp(cam.orbDistT * f, 40, 1200);
+  else cam.fovT = U.clamp(cam.fovT * f, 6 * Math.PI / 180, 80 * Math.PI / 180);
+}
+
+/* ===================================================================== falcon */
+let falconMode = 'ai';
+const falcon = { p: [ROOST[0] + 30, 190, ROOST[2] - 40], v: [-12, 0, 8], bank: 0, tuck: 0, state: 'loiter', t: 0, next: 3.6, active: true, target: null, attacks: 0, called: false, speed: 16 };
+let attackEvery = [14, 26];
+function falconSteer(dt, dir, speed, turnRate, accel) {
+  accel = accel || 9;
+  const v = falcon.v; const sp = v3.len(v) || 1; const f = v3.scale(v, 1 / sp);
+  const want = v3.norm(dir);
+  const ang = Math.acos(U.clamp(v3.dot(f, want), -1, 1));
+  const maxA = turnRate * dt;
+  let nf = want;
+  if (ang > maxA && ang > 1e-4) { const t = maxA / ang; nf = v3.norm(v3.lerp(f, want, t)); }
+  const nsp = sp + U.clamp(speed - sp, -8 * dt, accel * dt);
+  // bank from lateral turn
+  const lat = v3.cross(f, nf); const turn = ang > 1e-5 ? Math.min(ang, maxA) / dt : 0;
+  const bankT = Math.atan((turn * nsp) / 9.81) * Math.sign(-lat[1] || 1);
+  falcon.bank += (U.clamp(bankT, -1.3, 1.3) - falcon.bank) * (1 - Math.exp(-dt / 0.15));
+  falcon.v = v3.scale(nf, nsp);
+  falcon.p = v3.add(falcon.p, v3.scale(falcon.v, dt));
+  if (falcon.p[1] < 4) { falcon.p[1] = 4; falcon.v[1] = Math.abs(falcon.v[1]); }
+}
+function pickTarget() {
+  // the falcon picks a bird on the near side of the main flock and aims a little inside it
+  if (!stats.got) return sim.main.slice();
+  const m = sim.main, fp = falcon.p; let best = -1, bd = 1e18;
+  for (let i = 0; i < stats.subN; i++) {
+    const x = subPos[i * 3], y = subPos[i * 3 + 1], z = subPos[i * 3 + 2];
+    const dm = (x - m[0]) ** 2 + (y - m[1]) ** 2 + (z - m[2]) ** 2; if (dm > 70 * 70) continue;
+    const d = (x - fp[0]) ** 2 + (y - fp[1]) ** 2 + (z - fp[2]) ** 2; if (d < bd) { bd = d; best = i; }
+  }
+  if (best < 0) return m.slice();
+  const p = [subPos[best * 3], subPos[best * 3 + 1], subPos[best * 3 + 2]];
+  const v = [subVel[best * 3], subVel[best * 3 + 1], subVel[best * 3 + 2]];
+  return v3.add(v3.lerp(p, m, 0.3), v3.scale(v, 0.6));
+}
+const trail = [];
+const narr = { stoop: false, wave: false };
+function falconUpdate(dt) {
+  falcon.active = falconMode !== 'off';
+  if (!falcon.active) { trail.length = 0; return; }
+  if (falcon.pulse != null) { if (falcon.pulse-- > 0) { falcon.p = sim.main.slice(); return; } falcon.pulse = null; falcon.p = [0, -3000, 0]; falcon.state = 'climb'; falcon.t = 0; }
+  falcon.t += dt;
+  const hot = falcon.state === 'stoop' || falcon.state === 'pass' || (falconMode === 'user' && falconPtr.down);
+  trail.push(hot ? falcon.p.slice() : null); if (trail.length > 90) trail.shift();
+  const C = sim.main;
+  if (falconMode === 'user') {
+    let target = v3.add(C, [0, 20, 0]);
+    if (falconPtr.has && cam.invVP) {
+      const rd = pointerRay(falconPtr.x, falconPtr.y);
+      const dist = Math.max(40, v3.len(v3.sub(C, cam.eye)));
+      target = v3.add(cam.eye, v3.scale(rd, dist));
+      target[1] = Math.max(target[1], 8);
+    }
+    falcon.tuck += ((falconPtr.down ? 1 : 0) - falcon.tuck) * (1 - Math.exp(-dt / 0.25));
+    falconSteer(dt, v3.sub(target, falcon.p), falconPtr.down ? 34 : 19, falconPtr.down ? 2.2 : 2.8);
+    falcon.state = falconPtr.down ? 'stoop' : 'hunt';
+    if (falconPtr.down && !falcon.called) { falcon.called = true; falconCall(); }
+    if (!falconPtr.down) falcon.called = false;
+    return;
+  }
+  if (falcon.state === 'loiter') {
+    const ctr = v3.add(C, [0, 70, 0]);
+    const rel = v3.sub(falcon.p, ctr); rel[1] = 0; const r = Math.hypot(rel[0], rel[2]) || 1;
+    const tang = [-rel[2] / r, 0, rel[0] / r];
+    const radial = v3.scale([rel[0] / r, 0, rel[2] / r], -(r - 120) / 50);
+    const vert = [0, U.clamp((ctr[1] - falcon.p[1]) / 30, -0.5, 0.5), 0];
+    falconSteer(dt, v3.add(v3.add(tang, radial), vert), 16, 1.2);
+    falcon.tuck += (0 - falcon.tuck) * (1 - Math.exp(-dt / 0.5));
+    if (sim.time > falcon.next && sim.roosting < 0.3) startAttack();
+    if (sim.roosting > 0.3) falcon.next = Math.max(falcon.next, sim.time + 6);
+  } else if (falcon.state === 'stoop') {
+    if (!falcon.target || falcon.t % 0.5 < dt) falcon.target = pickTarget();
+    const tgt = falcon.target;
+    const to = v3.sub(tgt, falcon.p); const d = v3.len(to);
+    falcon.tuck += (1 - falcon.tuck) * (1 - Math.exp(-dt / 0.3));
+    falconSteer(dt, to, 36, 1.7, 16);
+    if (falcon.slowmo && d < 22 && cam.mode !== 'fly') { falcon.slowmo = false; if (sim.timeScale > 0.5) sim.bullet = { t: 0 }; }
+    if (d < 5 || falcon.t > 7) { falcon.state = 'pass'; falcon.t = 0; }
+  } else if (falcon.state === 'pass') {
+    falconSteer(dt, falcon.v, 30, 0.5);
+    if (falcon.t > 1.3) { falcon.state = 'climb'; falcon.t = 0; }
+  } else if (falcon.state === 'climb') {
+    falcon.tuck += (0 - falcon.tuck) * (1 - Math.exp(-dt / 0.4));
+    const out = v3.norm([falcon.v[0], 0, falcon.v[2]]);
+    falconSteer(dt, v3.add(out, [0, 0.9, 0]), 18, 1.0);
+    if (falcon.t > 5 && falcon.p[1] > C[1] + 50) { falcon.state = 'loiter'; falcon.t = 0; falcon.next = sim.time + attackEvery[0] + Math.random() * (attackEvery[1] - attackEvery[0]); }
+    if (falcon.t > 12) { falcon.state = 'loiter'; falcon.t = 0; falcon.next = sim.time + attackEvery[0]; }
+  }
+}
+function startAttack(manual) {
+  if (falconMode === 'off') { selFalcon.set('ai', true); }
+  if (falconMode === 'user') return;
+  if (falcon.state === 'stoop' || falcon.state === 'pass') return;
+  // if too far away, reposition the falcon above and behind the flock (out of sight) first
+  const C = sim.main;
+  const d = v3.len(v3.sub(falcon.p, C));
+  if (d > 200) {
+    const side = v3.norm(v3.cross(cam.fwd, [0, 1, 0]));
+    falcon.p = v3.add(C, v3.add(v3.scale(side, (Math.random() < 0.5 ? -1 : 1) * 100), [0, 80, 0]));
+    falcon.v = v3.scale(v3.norm(v3.sub(C, falcon.p)), 16);
+  }
+  falcon.state = 'stoop'; falcon.t = 0; falcon.target = pickTarget(); falcon.attacks++;
+  falcon.slowmo = !!manual || falcon.attacks === 1;
+  if (!narr.stoop) { narr.stoop = true; ch.toast('A peregrine falcon stoops into the flock. Watch for the dark wave.', 3600); }
+  falconCall();
+  if (cam.mode === 'ground' && !cam.focus && (cam.idle > 4 || manual)) cam.focus = { t: 0, base: cam.fovT };
+}
+
+/* ===================================================================== sound */
+let snd = null;
+function soundInit() {
+  const ctx = ch.sound.ensure(); if (!ctx || snd) return;
+  const len = ctx.sampleRate * 3; const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); let b0 = 0, b1 = 0, b2 = 0; for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; b0 = 0.99765 * b0 + w * 0.099; b1 = 0.963 * b1 + w * 0.2965; b2 = 0.57 * b2 + w * 1.0527; d[i] = (b0 + b1 + b2 + w * 0.1848) * 0.12; } }
+  const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 800; bp.Q.value = 0.5;
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600;
+  const flut = ctx.createGain(); flut.gain.value = 0.8;
+  const lfo = ctx.createOscillator(); lfo.frequency.value = 12.5; const lfoG = ctx.createGain(); lfoG.gain.value = 0.2; lfo.connect(lfoG).connect(flut.gain); lfo.start();
+  const g = ctx.createGain(); g.gain.value = 0;
+  const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain();
+  src.connect(bp).connect(lp).connect(flut).connect(g).connect(pan).connect(ch.sound.out); src.start();
+  // reverb for the falcon
+  const ir = ctx.createBuffer(2, ctx.sampleRate * 2.2, ctx.sampleRate);
+  for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3.2); }
+  const conv = ctx.createConvolver(); conv.buffer = ir; const wet = ctx.createGain(); wet.gain.value = 0.5; conv.connect(wet).connect(ch.sound.out);
+  snd = { ctx, g, bp, lp, pan, lfo, conv };
+}
+ch.onSound((on) => { if (on) soundInit(); });
+document.addEventListener('visibilitychange', () => { if (snd && document.hidden) snd.g.gain.setTargetAtTime(0, snd.ctx.currentTime, 0.05); });
+function soundUpdate() {
+  if (!snd || !ch.sound.enabled) return;
+  const t = snd.ctx.currentTime;
+  // near-camera density of wings from the subsample
+  let near = 0, px = 0;
+  if (stats.got) {
+    const e = cam.eye; const r = v3.norm(v3.cross(cam.fwd, [0, 1, 0]));
+    for (let i = 0; i < stats.subN; i++) { const dx = subPos[i * 3] - e[0], dy = subPos[i * 3 + 1] - e[1], dz = subPos[i * 3 + 2] - e[2]; const d = Math.hypot(dx, dy, dz); const w = 1 / (1 + (d / 30) ** 2); near += w; px += w * (dx * r[0] + dz * r[2]) / (d + 1); }
+    px /= near + 1e-6; near *= N / Math.max(1, stats.subN);
+  }
+  const lvl = Math.min(1, Math.sqrt(near / 3000)) * 0.8 * (ch.paused || document.hidden ? 0 : 1);
+  snd.g.gain.setTargetAtTime(lvl, t, 0.25);
+  snd.bp.frequency.setTargetAtTime(500 + stats.speed * 45, t, 0.3);
+  if (snd.pan.pan) snd.pan.pan.setTargetAtTime(U.clamp(px, -0.9, 0.9), t, 0.3);
+  roostChatter();
+}
+function roostChatter() {
+  if (!snd || !ch.sound.enabled || ch.paused) return;
+  const pf = stats.perched || 0; if (pf < 0.03) return;
+  const d = v3.len(v3.sub(ROOST, cam.eye));
+  if (Math.random() > pf * 0.5) return;
+  const ctx = snd.ctx, t = ctx.currentTime + Math.random() * 0.05;
+  const o = ctx.createOscillator(); o.type = 'sine';
+  const f0 = 2200 + Math.random() * 2600;
+  o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * (0.6 + Math.random() * 0.9), t + 0.06 + Math.random() * 0.08);
+  const e = ctx.createGain(); e.gain.setValueAtTime(0, t); e.gain.linearRampToValueAtTime(U.clamp(18 / (d + 20), 0.01, 0.08) * pf, t + 0.01); e.gain.exponentialRampToValueAtTime(0.0005, t + 0.16);
+  const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain(); if (pan.pan) pan.pan.value = (Math.random() - 0.5) * 1.2;
+  o.connect(e).connect(pan).connect(ch.sound.out); o.start(t); o.stop(t + 0.2);
+}
+function falconCall() {
+  if (!snd || !ch.sound.enabled) return;
+  const ctx = snd.ctx, t0 = ctx.currentTime + 0.05;
+  const d = v3.len(v3.sub(falcon.p, cam.eye));
+  const vol = U.clamp(60 / (d + 30), 0.05, 0.5);
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = U.clamp(9000 - d * 12, 1800, 9000);
+  const out = ctx.createGain(); out.gain.value = vol; lp.connect(out); out.connect(ch.sound.out); out.connect(snd.conv);
+  const n = 5 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < n; i++) {
+    const t = t0 + i * 0.145 + Math.random() * 0.01;
+    const o = ctx.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(2750, t); o.frequency.exponentialRampToValueAtTime(2050, t + 0.09);
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2500; bp.Q.value = 3.5;
+    const e = ctx.createGain(); e.gain.setValueAtTime(0, t); e.gain.linearRampToValueAtTime(1, t + 0.008); e.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
+    o.connect(bp).connect(e).connect(lp); o.start(t); o.stop(t + 0.13);
+  }
+  setTimeout(() => { try { out.disconnect(); } catch (_) { /* gone */ } }, 3500);
+}
+
+/* ===================================================================== UI */
+const gPre = ch.ui.group('Presets');
+const PRESETS = {
+  calm: { k: 7, ws: 1, wa: 1, wc: 1, v0: 12, noise: 0.2, falcon: 'off', msg: 'Calm roost: the flock circles the reed bed undisturbed.' },
+  attack: { k: 7, ws: 1, wa: 1, wc: 1, v0: 12, noise: 0.2, falcon: 'ai', attack: true, msg: 'Falcon attack: a peregrine hunts every few seconds.' },
+  chaos: { k: 1, ws: 1, wa: 1, wc: 1, v0: 12, noise: 0.2, falcon: 'off', msg: 'k = 1: each bird copies only its nearest neighbour. Order melts into a swarm.' },
+  frozen: { k: 7, ws: 1, wa: 3, wc: 0.7, v0: 12, noise: 0, wr: 0.4, falcon: 'off', msg: 'High alignment, no noise, gentle turns: the flock sets into one rigid block. Watch Φ climb toward 1.' },
+};
+function applyPreset(name) {
+  const p = PRESETS[name];
+  presetLock = true;
+  sim.wr = p.wr || 1;
+  sK.set(p.k, true); sWs.set(p.ws, true); sWa.set(p.wa, true); sWc.set(p.wc, true); sV0.set(p.v0, true); sNoise.set(p.noise, true);
+  selFalcon.set(p.falcon, true);
+  attackEvery = p.attack ? [6, 10] : [14, 26];
+  if (p.attack) { falcon.next = sim.time + 0.5; startAttack(); }
+  presetLock = false; markPreset(name);
+  ch.toast(p.msg);
+}
+const preBtns = {};
+[[['calm', 'Calm roost'], ['attack', 'Falcon attack']], [['chaos', 'Chaos (k = 1)'], ['frozen', 'Frozen']]].forEach((row) => {
+  const bs = gPre.buttons(row.map(([k, label]) => ({ label, title: k === 'frozen' ? 'High alignment, low noise' : null, onClick: () => applyPreset(k) })));
+  row.forEach(([k], i) => (preBtns[k] = bs[i]));
+});
+let presetLock = false;
+function markPreset(name) { for (const k in preBtns) preBtns[k].setPressed(k === name); }
+
+const gF = ch.ui.group('Flock');
+const sN = gF.slider({ id: 'mm-n', label: 'Birds', min: 1000, max: MAXN, step: 1000, value: N, format: (v) => FMT.num(v), onChange: (v) => { allocSim(Math.round(v), true); ch.toast(FMT.num(N) + ' starlings'); } });
+const sK = gF.slider({ id: 'mm-k', label: 'Topological neighbours k', min: 1, max: 20, step: 1, value: sim.k, format: (v) => v.toFixed(0), onInput: (v) => { sim.k = v; if (!presetLock && !sweep.on) markPreset(null); }, hint: 'Real starlings track 6 to 7 neighbours (Ballerini 2008).' });
+const sWs = gF.slider({ id: 'mm-ws', label: 'Separation', min: 0, max: 3, step: 0.05, value: sim.ws, format: (v) => v.toFixed(2), onInput: (v) => { sim.ws = v; if (!presetLock && !sweep.on) markPreset(null); } });
+const sWa = gF.slider({ id: 'mm-wa', label: 'Alignment', min: 0, max: 3, step: 0.05, value: sim.wa, format: (v) => v.toFixed(2), onInput: (v) => { sim.wa = v; if (!presetLock && !sweep.on) markPreset(null); } });
+const sWc = gF.slider({ id: 'mm-wc', label: 'Cohesion', min: 0, max: 3, step: 0.05, value: sim.wc, format: (v) => v.toFixed(2), onInput: (v) => { sim.wc = v; if (!presetLock && !sweep.on) markPreset(null); } });
+const sV0 = gF.slider({ id: 'mm-v0', label: 'Cruise speed v₀', min: 8, max: 18, step: 0.5, value: sim.v0, unit: 'm/s', format: (v) => v.toFixed(1) + ' m/s', onInput: (v) => { sim.v0 = v; if (!presetLock && !sweep.on) markPreset(null); } });
+const sNoise = gF.slider({ id: 'mm-noise', label: 'Noise η', min: 0, max: 3, step: 0.01, value: sim.noise, format: (v) => v.toFixed(2), onInput: (v) => { sim.noise = v; if (!presetLock && !sweep.on) markPreset(null); }, hint: 'Random steering. High noise melts the order (Vicsek transition).' });
+
+const gP = ch.ui.group('Predator');
+const selFalcon = gP.select({ id: 'mm-falcon', label: 'Peregrine falcon', options: [{ value: 'off', label: 'Off' }, { value: 'ai', label: 'Hunting' }, { value: 'user', label: 'Be the falcon' }], value: 'ai',
+  onChange: (v) => { falconMode = v; document.body.classList.toggle('mm-falcon', v === 'user'); if (v === 'user') { ch.toast('You are the falcon. Point to steer, hold to stoop.'); falcon.p = v3.add(sim.centroid, [60, 60, 80]); } if (v === 'ai') { falcon.state = 'loiter'; falcon.next = sim.time + 6; } } });
+gP.buttons([{ label: 'Attack now', kind: 'primary', id: 'mm-attack', onClick: () => startAttack(true) }]);
+
+const gR = ch.ui.group('Roost');
+function setRoost(on, why) {
+  sim.roostTarget = on ? 1 : 0;
+  if (why) ch.toast(why);
+  roostBtns[0].setPressed(on); roostBtns[1].setPressed(!on && stats.perched > 0.02);
+}
+const roostBtns = gR.buttons([
+  { label: 'Go to roost', id: 'mm-roost', onClick: () => setRoost(true, 'The flock funnels down into the reed bed.') },
+  { label: 'Take off', id: 'mm-takeoff', onClick: () => setRoost(false, 'The roost empties in waves.') },
+]);
+const roRoost = gR.readouts([{ id: 'perched', label: 'In the reeds' }, { id: 'air', label: 'Flying' }]);
+gR.note('Past about −6.5° the light fails and the flock drops into the reeds on its own. Raise the sun again and it leaves in waves, as starlings do at dawn.');
+
+const gS = ch.ui.group('Sky & camera');
+function sunLabel(v) { const s = 'sun ' + (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1) + '°'; const ph = v > 3 ? 'golden hour' : v > -0.83 ? 'sunset' : v > -6 ? 'twilight' : 'nautical'; return s + ' · ' + ph; }
+const sSun = gS.slider({ id: 'mm-sun', label: 'Time of dusk', min: -9, max: 8, step: 0.1, value: -1.0, format: sunLabel, onInput: () => { if (duskAnim) stopDusk(); } });
+let duskAnim = null;
+const duskBtn = gS.buttons([{ label: 'Let dusk fall', id: 'mm-dusk', title: 'Lower the sun to −8° over two and a half minutes', onClick: () => (duskAnim ? stopDusk() : startDusk()) }])[0];
+function startDusk() {
+  const from = Math.min(sSun.value, 2.5);
+  duskAnim = { from, to: -8, t: 0, dur: 150 * (from + 8) / 10.5 };
+  duskBtn.setLabel('Stop the clock'); duskBtn.setPressed(true);
+  ch.toast('The sun sinks. Watch the clouds lose their colour and the flock go to roost.');
+}
+function stopDusk() { duskAnim = null; duskBtn.setLabel('Let dusk fall'); duskBtn.setPressed(false); }
+function duskUpdate(dt) {
+  if (!duskAnim) return;
+  duskAnim.t += dt;
+  const k = Math.min(1, duskAnim.t / duskAnim.dur);
+  sSun.set(duskAnim.from + (duskAnim.to - duskAnim.from) * k);
+  if (k >= 1) stopDusk();
+}
+const sCloud = gS.slider({ id: 'mm-cloud', label: 'Cloud cover', min: 0, max: 1, step: 0.01, value: sim.cloud, format: (v) => Math.round(v * 100) + '%', onInput: (v) => (sim.cloud = v), hint: 'Altocumulus at 6 km, lit by the sun until Earth\'s shadow climbs past it.' });
+const selCam = gS.select({ id: 'mm-cam', label: 'Camera', options: [{ value: 'ground', label: 'Ground observer' }, { value: 'orbit', label: 'Orbit the flock' }, { value: 'fly', label: 'Fly with the flock' }], value: 'ground', onChange: (v) => setCamMode(v) });
+const tSlow = gS.toggle({ id: 'mm-slow', label: 'Slow motion (¼ speed)', value: false, onChange: (v) => { sim.timeScale = v ? 0.25 : 1; } });
+const tExpo = gS.toggle({ id: 'mm-expo', label: 'Long exposure', value: false, hint: 'Streak each bird along 1/8 s of its path.' });
+const tWave = gS.toggle({ id: 'mm-wave', label: 'Highlight escape waves', value: false });
+const tNeigh = gS.toggle({ id: 'mm-neigh', label: 'Show a bird\'s k nearest', value: true, hint: 'In Fly with the flock: lines to the neighbours the tracked bird responds to.' });
+const tAnn = gS.toggle({ id: 'mm-ann', label: 'Annotations', value: true });
+
+const gM = ch.ui.group('Measurements');
+const ro = gM.readouts([
+  { id: 'n', label: 'Birds' }, { id: 'v', label: 'Mean speed' },
+  { id: 'phi', label: 'Polarisation' }, { id: 'rho', label: 'Density' },
+  { id: 'r1', label: 'Nearest bird' }, { id: 'kk', label: 'Neighbours seen' },
+  { id: 'xi', label: 'Corr. length' }, { id: 'L', label: 'Flock size L' },
+  { id: 'xil', label: 'Corr. / size' }, { id: 'op', label: 'Sky hidden' },
+  { id: 'ws', label: 'Escape wave' }, { id: 'drift', label: 'Neighbour drift' },
+]);
+const polChart = gM.chart({ height: 70, series: [{ label: 'Φ' }, { label: 'alarmed ×5', color: '#e7a36a' }], yMin: 0, yMax: 1, maxPoints: 180, yFormat: (v) => v.toFixed(1) });
+const corrChart = gM.chart({ height: 96, series: [{ label: 'C(r)' }, { label: '', color: 'rgba(236,230,214,0.35)' }], yMin: -0.4, yMax: 1, xMin: 0, yFormat: (v) => v.toFixed(1), xLabel: 'r (m) →' });
+gM.note('C(r): velocity-fluctuation correlation vs distance, from 1,024 birds each second. Its first zero is the correlation length. Scale-free flocks keep that length at a fixed fraction of the flock size L.');
+const phaseChart = gM.chart({ height: 90, series: [{ label: 'Φ vs noise η' }], yMin: 0, yMax: 1, xMin: 0, xMax: 3, yFormat: (v) => v.toFixed(1), xLabel: 'η →' });
+const sweep = { on: false, t: 0, pts: [], prev: 0.2 };
+setTimeout(() => { phaseChart.draw(); corrChart.draw(); }, 50);
+document.querySelector('.cz-deck') && new ResizeObserver(() => { if (!sweep.pts.length) phaseChart.draw(); }).observe(document.querySelector('.cz-deck'));
+const sweepBtn = gM.buttons([{ label: 'Sweep noise 0 → 3', id: 'mm-sweep', title: 'Ramp the noise and plot the order parameter: the Vicsek transition', onClick: () => startSweep() }])[0];
+function startSweep() {
+  if (sweep.on) { endSweep(false); return; }
+  sweep.on = true; sweep.t = 0; sweep.lastPt = 0; sweep.pts = []; sweep.prev = sim.noise; sweepBtn.setLabel('Stop sweep'); sweepBtn.setPressed(true);
+  phaseChart.setXY(0, []); phaseChart.draw();
+  ch.toast('Raising the noise from 0 to 3 over 30 s. Watch the order melt.');
+}
+function endSweep(done) {
+  sweep.on = false; sweepBtn.setLabel('Sweep noise 0 → 3'); sweepBtn.setPressed(false);
+  sNoise.set(sweep.prev, true);
+  if (done && sweep.pts.length > 8) {
+    let ec = null; const P = sweep.pts; for (let i = 3; i < P.length; i++) { const m = (P[i][1] + P[i - 1][1] + P[i - 2][1]) / 3; if (m < 0.45) { ec = P[i - 1][0]; break; } }
+    ch.toast(ec != null ? 'Order collapses near η ≈ ' + ec.toFixed(1) + '. Noise restored.' : 'The flock held its order. Noise restored.', 4200);
+  }
+}
+function sweepUpdate(dt) {
+  if (!sweep.on) return;
+  sweep.t += dt;
+  const eta = Math.min(3, sweep.t / 10);
+  sNoise.set(eta, true);
+  if (sweep.t - (sweep.lastPt || 0) > 0.5) { sweep.lastPt = sweep.t; sweep.pts.push([eta, stats.polar]); phaseChart.setXY(0, sweep.pts); phaseChart.draw(); }
+  if (sweep.t > 30.5) endSweep(true);
+}
+
+const hudN = ch.hud.add('Starlings', '');
+const hudV = ch.hud.add('Speed', '');
+const hudPhi = ch.hud.add('Order', '');
+const hudXi = ch.hud.add('Corr / size', '');
+
+function setCamMode(m) {
+  endFocus();
+  cam.mode = m; cam.yawOff = 0; cam.pitchOff = 0; cam.roll = 0; cam.flyEye = null; cam.flyFwd = null;
+  if (m === 'fly') { cam.track = null; cam.fovT = 66 * Math.PI / 180; pickTrackBird(); ch.toast('Riding with one bird. Drag to look around.'); }
+  else cam.fovT = (SMALL ? 58 : 40) * Math.PI / 180;
+  if (m === 'orbit') { const d = v3.sub(cam.eye, sim.main); cam.orbTheta = Math.atan2(d[0], d[2]); cam.orbPhi = -0.1; cam.orbDistT = 240; cam.orbDist = Math.max(80, v3.len(d)); }
+  if (selCam.value !== m) selCam.set(m);
+}
+function pickTrackBird() {
+  if (!stats.got) { cam.track = { id: 0, ok: false }; return; }
+  // a bird near the centre of the flock
+  const c = sim.centroid; let best = 0, bd = 1e18;
+  for (let i = 0; i < stats.subN; i++) { const d = (subPos[i * 3] - c[0]) ** 2 + (subPos[i * 3 + 1] - c[1]) ** 2 + (subPos[i * 3 + 2] - c[2]) ** 2; if (d < bd) { bd = d; best = i; } }
+  cam.track = { id: statsBuf[(2 * STATS_M + stats.idxMap[best]) * 4 + 3], ok: false, p: [0, 0, 0], v: [1, 0, 0], bank: 0, t: 0 };
+}
+ch.onKey('a', () => startAttack(true), 'Falcon attack now');
+ch.onKey('v', () => { const order = ['ground', 'orbit', 'fly']; setCamMode(order[(order.indexOf(cam.mode) + 1) % 3]); }, 'Cycle camera: ground, orbit, fly');
+ch.onKey('e', () => tExpo.set(!tExpo.value, true), 'Long exposure');
+ch.onKey('s', () => tSlow.set(!tSlow.value, true), 'Slow motion');
+ch.onKey('w', () => tWave.set(!tWave.value, true), 'Highlight escape waves');
+ch.onKey('r', () => { allocSim(N, false); ch.toast('Flock reset'); }, 'Reset the flock');
+ch.onKey('d', () => (duskAnim ? stopDusk() : startDusk()), 'Let dusk fall');
+// The shared help dialog stringifies its [dt, dd] pairs (cosmos.js flattens one level only); rebuild its list here.
+const HELP_KEYS = [['Space', 'Pause / play'], ['H', 'Hide the interface'], ['N', 'Field notes'], ['C', 'Controls'], ['M', 'Sound'], ['F', 'Fullscreen'], ['[ ]', 'Previous / next chapter'], ['?', 'This help'],
+  ['A', 'Falcon attack now'], ['V', 'Cycle camera: ground, orbit, fly'], ['S', 'Slow motion'], ['E', 'Long exposure'], ['W', 'Highlight escape waves'], ['D', 'Let dusk fall'], ['R', 'Reset the flock'], ['Drag · wheel', 'Look around · zoom']];
+new MutationObserver(() => {
+  const dl = document.querySelector('.cz-help dl');
+  if (!dl || !/object/.test(dl.textContent)) return;
+  dl.textContent = '';
+  HELP_KEYS.forEach(([k, d]) => { dl.append(Cosmos.h('dt', {}, Cosmos.h('kbd', { text: k })), Cosmos.h('dd', { style: { margin: 0 }, text: d })); });
+}).observe(document.body, { childList: true });
+
+/* ===================================================================== main loop */
+try { allocSim(N, false); } catch (err) { ch.fatal('Could not allocate the flock textures on this GPU.', err); return; }
+updateSky(sSun.value);
+// pre-roll so the first frame is already a formed flock
+for (let i = 0; i < 40; i++) { simStep(1 / 60); sim.time += 1 / 60; }
+
+let lastSun = sSun.value;
+let statsT0 = 0, corrT0 = 0, opacT0 = 0, hudT0 = 0, fpsAcc = 0, fpsN = 0, fps = 60;
+stats.idxMap = new Int32Array(STATS_M);
+function digestWithMap() {
+  // keep a map from compact subsample index to row index (for bird ids)
+  const b = statsBuf; let n = 0;
+  for (let i = 0; i < Math.min(STATS_M, N); i++) { const y = b[i * 4 + 1]; if (!(y > -1000) || !isFinite(b[i * 4]) || b[i * 4 + 3] < 0) continue; stats.idxMap[n++] = i; }
+  digestStats();
+}
+
+function renderAnnotations() {
+  const w = canvas.clientWidth, h = canvas.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (annCanvas.width !== Math.round(w * dpr) || annCanvas.height !== Math.round(h * dpr)) { annCanvas.width = Math.round(w * dpr); annCanvas.height = Math.round(h * dpr); }
+  ann.setTransform(dpr, 0, 0, dpr, 0, 0); ann.clearRect(0, 0, w, h);
+  if (!tAnn.value || document.body.classList.contains('cz-cinema')) return;
+  const acc = ch.meta.accent;
+  ann.font = '500 10px "JetBrains Mono", ui-monospace, monospace'; ann.textBaseline = 'middle';
+  // falcon marker
+  if (falcon.active && cam.mode !== 'fly') {
+    const s = project(falcon.p);
+    if (s && s[0] > -50 && s[0] < w + 50 && s[1] > -50 && s[1] < h + 50) {
+      const hot = falcon.state === 'stoop' || falcon.state === 'pass' || falconMode === 'user';
+      ann.strokeStyle = hot ? acc : 'rgba(236,230,214,0.45)'; ann.lineWidth = 1;
+      ann.beginPath(); ann.arc(s[0], s[1], 11, 0, Math.PI * 2); ann.stroke();
+      ann.beginPath(); ann.moveTo(s[0] + 8, s[1] - 8); ann.lineTo(s[0] + 26, s[1] - 26); ann.lineTo(s[0] + 34, s[1] - 26); ann.stroke();
+      ann.fillStyle = hot ? acc : 'rgba(236,230,214,0.6)';
+      ann.fillText('PEREGRINE  ' + v3.len(falcon.v).toFixed(0) + ' m/s', s[0] + 38, s[1] - 26);
+    }
+    // the stoop path, fading
+    let prev = null;
+    for (let i = 0; i < trail.length; i++) {
+      const q = trail[i] ? project(trail[i]) : null;
+      if (q && prev) { ann.strokeStyle = 'rgba(201,212,232,' + (0.5 * i / trail.length).toFixed(3) + ')'; ann.beginPath(); ann.moveTo(prev[0], prev[1]); ann.lineTo(q[0], q[1]); ann.stroke(); }
+      prev = q;
+    }
+  }
+  // the escape-wave front: every sampled bird that has just fired, as a fine accent dot
+  if (cam.mode !== 'fly' && stats.frontN > 2) {
+    const lag = Math.max(0, sim.time - stats.frontSimT);
+    let sx = 0, sy = 0, sn = 0, maxY = -1e9, minX = 1e9, maxX = -1e9;
+    const ALARM = '#e7a36a'; ann.fillStyle = ALARM; ann.globalAlpha = 0.9;
+    for (let f = 0; f < stats.frontN; f++) {
+      const q = frontIdx[f];
+      const s = project([subPos[q * 3] + subVel[q * 3] * lag, subPos[q * 3 + 1] + subVel[q * 3 + 1] * lag, subPos[q * 3 + 2] + subVel[q * 3 + 2] * lag]);
+      if (!s || s[0] < 0 || s[0] > w || s[1] < 0 || s[1] > h) continue;
+      ann.fillRect(s[0] - 1.25, s[1] - 1.25, 2.5, 2.5); sx += s[0]; sy += s[1]; sn++; if (s[1] > maxY) maxY = s[1]; minX = Math.min(minX, s[0]); maxX = Math.max(maxX, s[0]);
+    }
+    ann.globalAlpha = 1;
+    if (sn > 2) {
+      const lx = sx / sn, ly = Math.min(h - 90, maxY + 26);
+      ann.strokeStyle = 'rgba(231,163,106,0.6)'; ann.lineWidth = 1; ann.beginPath(); ann.moveTo(lx, sy / sn + 6); ann.lineTo(lx, ly - 8); ann.stroke();
+      ann.textAlign = 'center'; ann.fillStyle = ALARM;
+      ann.fillText('ESCAPE WAVE FRONT' + (wave.speed ? '  ·  LAST ' + wave.speed.toFixed(0) + ' m/s' : ''), lx, ly);
+      ann.textAlign = 'left';
+    }
+  }
+  if (sim.bullet) {
+    ann.textAlign = 'center'; ann.fillStyle = 'rgba(236,230,214,0.7)';
+    ann.fillText('SLOW MOTION  ×' + bulletScale(0).toFixed(2), w / 2 + shiftCur * w / 2, SMALL ? 150 : h - 84);
+    ann.textAlign = 'left';
+  }
+  // fly mode: the tracked bird and the k nearest birds it watches
+  if (cam.mode === 'fly' && tNeigh.value && cam.track && cam.track.ok && cam.track.nb) {
+    const tb = cam.track; const lag = (performance.now() - tb.t) / 1000;
+    const shift = v3.scale(tb.v, lag);
+    const me = project(v3.add(tb.p, shift));
+    if (me && me[2] > 0.3) {
+      const k = Math.min(Math.round(sim.k), tb.nb.length);
+      ann.lineWidth = 1;
+      for (let q = 0; q < k; q++) {
+        const nb = project(v3.add(tb.nb[q], shift));
+        if (!nb || nb[2] < 0.2) continue;
+        ann.strokeStyle = 'rgba(201,212,232,0.55)'; ann.beginPath(); ann.moveTo(me[0], me[1]); ann.lineTo(nb[0], nb[1]); ann.stroke();
+        ann.strokeStyle = acc; ann.beginPath(); ann.arc(nb[0], nb[1], 5, 0, Math.PI * 2); ann.stroke();
+      }
+      ann.strokeStyle = acc; ann.beginPath(); ann.arc(me[0], me[1], 8, 0, Math.PI * 2); ann.stroke();
+      ann.fillStyle = acc;
+      const far = k ? tb.nb[k - 1][3] : 0;
+      ann.fillText('THIS BIRD WATCHES ITS ' + k + ' NEAREST  ·  FARTHEST ' + far.toFixed(1) + ' m', me[0] + 14, me[1] + 16);
+    }
+  }
+  // roost label
+  if (cam.mode === 'ground') {
+    const r = project([ROOST[0] - 120, 5, ROOST[2] + 20]);
+    if (r && r[1] < h - 60) { ann.fillStyle = 'rgba(236,230,214,0.4)'; ann.fillText('REED-BED ROOST · ' + Math.round(v3.len(v3.sub(ROOST, cam.eye))) + ' m', r[0], r[1] + 14); }
+  }
+}
+
+const dyn = { scale: 1, acc: 0, n: 0, fixed: false };
+/* documentary slow motion on the first strike and on manual attacks: ease to 0.3x as the falcon
+   arrives, hold while the escape wave spreads, ease back */
+function bulletScale(dtRaw) {
+  const b = sim.bullet; if (!b) return 1;
+  b.t += dtRaw;
+  const S = 0.3, T = b.t;
+  if (T > 7.2) { sim.bullet = null; return 1; }
+  if (T < 0.35) return U.lerp(1, S, U.smoothstep(0, 0.35, T));
+  if (T < 5.6) return S;
+  return U.lerp(S, 1, U.smoothstep(5.6, 7.2, T));
+}
+ch.loop((dtRaw, t) => {
+  if (!Cosmos.debug.firstFrame) Cosmos.debug.firstFrame = performance.now();
+  Cosmos.gl.fit(canvas, SMALL ? 1.75 : 1.5, dyn.scale);
+  buildTargets();
+  const dt = Math.min(dtRaw, 1 / 30) * Math.min(sim.timeScale, bulletScale(dtRaw));
+  updateSky(sSun.value);
+  if (sSun.value < -6.5 && lastSun >= -6.5 && !sim.roostTarget) setRoost(true, 'Too dark to fly: the flock pours into the reeds.');
+  if (sSun.value > -5.5 && lastSun <= -5.5 && sim.roostTarget) setRoost(false, 'Light returns. The roost empties in waves.');
+  lastSun = sSun.value;
+  // ---- simulate
+  if (dt > 0) {
+    sim.roosting += (sim.roostTarget - sim.roosting) * (1 - Math.exp(-dt / 3));
+    sweepUpdate(dt);
+    duskUpdate(dtRaw);
+    falconUpdate(dt);
+    sim.altSwing = 18 * Math.sin(sim.time * 0.11) + 8 * Math.sin(sim.time * 0.29 + 1.3);
+    simStep(dt, sim.upto);
+    sim.time += dt;
+  }
+  // ---- readbacks
+  pPoll();
+  if (statsReader.poll(statsBuf)) digestWithMap();
+  const now = performance.now();
+  if (now - statsT0 > 250 && !statsReader.busy && !sim.noStats && !readLock) { statsT0 = now; gatherStats(); }
+  if (cam.mode !== 'fly' || !cam.track) trackReader.poll(trackBuf); // drain a read left in flight when leaving fly mode (else readLock never frees)
+  if (cam.mode === 'fly' && cam.track) {
+    if (trackReader.poll(trackBuf)) {
+      if (trackBuf[3] > 0 || Math.abs(trackBuf[0]) + Math.abs(trackBuf[1]) > 0) {
+        cam.track.p = [trackBuf[0], trackBuf[1], trackBuf[2]]; cam.track.v = [trackBuf[4], trackBuf[5], trackBuf[6]]; cam.track.bank = trackBuf[8]; cam.track.R = trackBuf[3]; cam.track.t = trackReader.stampT || now; cam.track.ok = true;
+        cam.track.nb = []; for (let q = 0; q < 9; q++) { const o = (3 + q) * 4; if (trackBuf[o + 3] > 0) cam.track.nb.push([trackBuf[o], trackBuf[o + 1], trackBuf[o + 2], trackBuf[o + 3]]); }
+      } else { pickTrackBird(); }
+    }
+    if (!trackReader.busy && !(now - statsT0 > 250 && !sim.noStats) && !(now - opacT0 > 350 && stats.got && !sim.noOpac)) { trackReader.stampT = now; trackBird(cam.track.id); } // yield to a due stats gather
+    if (!cam.track.ok && stats.got && cam.track.id === 0) pickTrackBird();
+  }
+  if (corrWorker && !corrBusy && now - corrT0 > 1000 && stats.got) {
+    corrT0 = now; corrBusy = true;
+    const m = stats.subN; const pos = new Float32Array(subPos.subarray(0, m * 3)), vel = new Float32Array(subVel.subarray(0, m * 3));
+    corrWorker.postMessage({ pos, vel, m }, [pos.buffer, vel.buffer]);
+  }
+  pollOpacity();
+  if (now - opacT0 > 350 && stats.got && stats.subN > 0 && !sim.noOpac) {
+    opacT0 = now;
+    // probe from a random bird: averaged over many probes this is the flock-mean opacity
+    const b = Math.floor(Math.random() * stats.subN);
+    probeOpacity([subPos[b * 3], subPos[b * 3 + 1] + 0.01, subPos[b * 3 + 2]]);
+  }
+  // ---- camera & render
+  updateCamera(Math.max(dtRaw, 1 / 240));
+  render(t);
+  renderAnnotations();
+  soundUpdate();
+  // ---- readouts
+  fpsAcc += dtRaw; fpsN++;
+  // conservative dynamic resolution for slower GPUs (the simulation itself is never reduced)
+  if (!dyn.fixed && !ch.paused && !document.hidden) {
+    dyn.acc += dtRaw; dyn.n++;
+    if (dyn.acc > 3) { const f = dyn.n / dyn.acc; dyn.acc = 0; dyn.n = 0;
+      if (f < 38 && dyn.scale > 0.72) dyn.scale = Math.max(0.72, dyn.scale * 0.88);
+      else if (f > 57 && dyn.scale < 1) dyn.scale = Math.min(1, dyn.scale * 1.07); }
+  }
+  if (now - hudT0 > 250) {
+    hudT0 = now; fps = fpsN / Math.max(fpsAcc, 1e-3); fpsAcc = 0; fpsN = 0;
+    const xiL = stats.xi && stats.L ? stats.xi / stats.L : null;
+    hudN.set(FMT.num(N)); hudV.set(stats.speed.toFixed(1) + ' m/s'); hudPhi.set(stats.polar.toFixed(3)); hudXi.set(xiL ? xiL.toFixed(2) : '—');
+    ro.n.set(FMT.num(N)); ro.v.set(stats.speed.toFixed(1) + ' m/s'); ro.phi.set(stats.polar.toFixed(3));
+    ro.rho.set(stats.rho.toFixed(2) + ' /m³'); ro.r1.set(stats.r1.toFixed(2) + ' m'); ro.kk.set(stats.cnt.toFixed(1));
+    ro.xi.set(stats.xi ? stats.xi.toFixed(1) + ' m' : '—'); ro.L.set(stats.L ? stats.L.toFixed(0) + ' m' : '—');
+    ro.xil.set(xiL ? xiL.toFixed(2) : '—'); ro.op.set(stats.opacity != null ? stats.opacity.toFixed(2) : '—');
+    ro.ws.set(wave.active ? 'measuring' : wave.speed ? wave.speed.toFixed(0) + ' m/s' : '—'); ro.drift.set(stats.relV != null ? stats.relV.toFixed(1) + ' m/s' : '—');
+    const pf = stats.perched || 0; roRoost.perched.set(FMT.num(Math.round(pf * N))); roRoost.air.set(FMT.num(Math.round((1 - pf) * N)));
+    if (!ch.paused) polChart.push([stats.polar, Math.min(1, stats.alarm * 5)]);
+  }
+}, { always: true });
+
+function render(t) {
+  const W = canvas.width, H = canvas.height;
+  const eye = cam.eye;
+  const L = light;
+  const fogCol = L.fog;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, RT.msFbo); gl.viewport(0, 0, W, H);
+  gl.disable(gl.BLEND); gl.disable(gl.DEPTH_TEST); gl.depthMask(true);
+  gl.clear(gl.DEPTH_BUFFER_BIT);
+  // sky + landscape
+  pB('r-sky');
+  gl.useProgram(P.scene);
+  setU(P.scene, {
+    uInvVP: cam.invVP, uEye: eye, uSky: skyLUT.tex, uSun: L.sun, uSunDisk: L.sunDisk, uMoon: L.moon, uMoonCol: L.moonCol, uVenus: L.venus, uVenusCol: L.venusCol,
+    uSil: L.sil, uGround: L.ground, uFogCol: fogCol, uTime: sim.time, uVis: 7500, uPixAng: 1 / cam.focal, uStars: L.stars, uTorS: TOR_AZ * RING_H, uCloud: sim.cloud, uCloudL: cloudLUT,
+  });
+  drawFS();
+  // reeds (alpha to coverage)
+  pB('r-reeds');
+  gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS);
+  if (MSAA > 1) gl.enable(gl.SAMPLE_ALPHA_TO_COVERAGE);
+  const wind = [0.8, 0.35];
+  for (const mir of [0, 1]) {
+    if (mir) { gl.disable(gl.SAMPLE_ALPHA_TO_COVERAGE); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); }
+    gl.useProgram(P.clump);
+    setU(P.clump, { uVP: cam.VP, uEye: eye, uMirror: mir, uTime: sim.time, uSil: L.sil, uFogCol: fogCol, uVis: 5200 });
+    gl.bindVertexArray(reeds.clumps.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, reeds.clumps.count, reeds.clumps.inst);
+    gl.useProgram(P.reed);
+    setU(P.reed, { uVP: cam.VP, uEye: eye, uTime: sim.time, uFocal: cam.focal, uMirror: mir, uWind: wind, uSil: L.sil, uFogCol: fogCol, uSun: L.sun, uSunCol: L.sunCol, uVis: 5200 });
+    gl.bindVertexArray(reeds.near.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, reeds.near.count, reeds.near.inst);
+  }
+  gl.bindVertexArray(null);
+  gl.disable(gl.SAMPLE_ALPHA_TO_COVERAGE); gl.disable(gl.BLEND); gl.depthMask(true);
+  // birds
+  pB('r-birds');
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+  gl.useProgram(P.bird);
+  const expo = tExpo.value ? 0.125 : 0;
+  const base = { uP: SA.P, uV: SA.V, uX: SA.X, uW: TW, uLW: LTW, uN: N, uCellSize: sim.cell, uVP: cam.VP, uEye: eye, uFocal: cam.focal, uTime: sim.time % 900, uMinPx: sim.minPx, uExpo: expo,
+    uCol: L.bird, uFogCol: fogCol, uAccent: ERA.map((c) => c * L.refL * 9), uVis: 5200, uShowAct: tWave.value ? 1 : 0 };
+  for (const mir of [1, 0]) {
+    gl.bindVertexArray(starlingMesh.vao);
+    setU(P.bird, Object.assign({}, base, { uMirror: mir, uScale: 1, uSpan: 0.4, uSingle: 0, uAlpha: 0.95, uQuad: 0, uRes: [W, H] }));
+    gl.drawArraysInstanced(gl.TRIANGLES, 0, starlingMesh.count, N);
+    setU(P.bird, { uQuad: 1 });
+    gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, N);
+    if (falcon.active) {
+      setU(P.bird, Object.assign({}, base, { uMirror: mir, uScale: 1, uSpan: 1.0, uSingle: 1, uQuad: 0, uSP: falcon.p, uSV: falcon.v, uSBank: falcon.bank, uSTuck: falcon.tuck, uAlpha: 1, uShowAct: 0, uExpo: 0 }));
+      gl.bindVertexArray(falconMesh.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, falconMesh.count, 1);
+    }
+  }
+  gl.bindVertexArray(null);
+  gl.depthMask(true); gl.disable(gl.BLEND); gl.disable(gl.DEPTH_TEST);
+  // resolve
+  pB('r-post');
+  if (MSAA > 1) {
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, RT.msFbo); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, RT.resolve.fbo);
+    gl.blitFramebuffer(0, 0, W, H, 0, 0, W, H, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+  }
+  // bloom
+  const B = RT.bloom;
+  gl.useProgram(P.down);
+  let srcTex = RT.resolve.tex, sw = W, sh = H;
+  for (let i = 0; i < B.length; i++) {
+    B[i].bind();
+    setU(P.down, { uSrc: srcTex, uTexel: [1 / sw, 1 / sh], uThr: i === 0 ? 0.9 / L.exposure : 0, uClamp: 60 / L.exposure });
+    drawFS(); srcTex = B[i].tex; sw = B[i].w; sh = B[i].h;
+  }
+  gl.useProgram(P.up); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  for (let i = B.length - 1; i > 0; i--) {
+    B[i - 1].bind(); setU(P.up, { uSrc: B[i].tex, uTexel: [1 / B[i].w, 1 / B[i].h] }); drawFS();
+  }
+  gl.disable(gl.BLEND);
+  // final
+  Cosmos.gl.screen(gl);
+  gl.useProgram(P.final);
+  setU(P.final, { uScene: RT.resolve.tex, uBloom: B[0].tex, uExposure: L.exposure, uBloomK: 0.12, uTime: sim.time });
+  drawFS();
+  pE();
+}
+
+Cosmos.debug.state = () => ({
+  birds: N, cap: NCAP, cell: +sim.cell.toFixed(2), polar: +stats.polar.toFixed(3), speed: +stats.speed.toFixed(2), R: +stats.R.toFixed(2), neighbours: +stats.cnt.toFixed(2),
+  r1: +stats.r1.toFixed(2), bankAct: +(stats.bankAct || 0).toFixed(2), bankIdle: +(stats.bankIdle || 0).toFixed(2), nAct: stats.nAct, rho: +stats.rho.toFixed(3), alarm: +stats.alarm.toFixed(3), xi: stats.xi && +stats.xi.toFixed(1), L: stats.L && +stats.L.toFixed(1), opacity: stats.opacity && +stats.opacity.toFixed(3),
+  centroid: sim.centroid.map((v) => +v.toFixed(1)), main: sim.main.map((v) => +v.toFixed(1)), mainFrac: stats.mainFrac && +stats.mainFrac.toFixed(2), spread: +stats.spread.toFixed(1), axes: stats.axes && stats.axes.map((v) => +v.toFixed(1)), falcon: { mode: falconMode, state: falcon.state, p: falcon.p.map((v) => +v.toFixed(1)) },
+  waveSpeed: wave.speed && +wave.speed.toFixed(1), relV: stats.relV && +stats.relV.toFixed(2), waveN: wave.last && wave.last.n,
+  roosting: +sim.roosting.toFixed(2), perched: stats.perched != null ? +stats.perched.toFixed(3) : null,
+  renderScale: +dyn.scale.toFixed(2),
+  cam: cam.mode, camYaw: +cam.yaw.toFixed(3), camPitch: +cam.pitch.toFixed(3), camC: cam.C.map((v) => +v.toFixed(1)), mainScr: (project(sim.main) || []).map((v) => Math.round(v)), fps: +fps.toFixed(1), msaa: MSAA, sunEl: light.sunEl, exposure: +light.exposure.toFixed(3), simTime: +sim.time.toFixed(2),
+});
+Cosmos.debug.attack = startAttack;
+Cosmos.debug.clusters = (link) => {
+  // largest connected group in the subsample (single linkage), as a fraction of the sample
+  link = link || 7; const n = stats.subN || 0; if (!n) return null;
+  const par = new Int32Array(n); for (let i = 0; i < n; i++) par[i] = i;
+  const f = (i) => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; };
+  const l2 = link * link;
+  for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) { const dx = subPos[a * 3] - subPos[b * 3], dy = subPos[a * 3 + 1] - subPos[b * 3 + 1], dz = subPos[a * 3 + 2] - subPos[b * 3 + 2]; if (dx * dx + dy * dy + dz * dz < l2) { const ra = f(a), rb = f(b); if (ra !== rb) par[ra] = rb; } }
+  const cnt = new Map(); for (let i = 0; i < n; i++) { const r = f(i); cnt.set(r, (cnt.get(r) || 0) + 1); }
+  const sizes = [...cnt.values()].sort((x, y) => y - x);
+  return { largest: +(sizes[0] / n).toFixed(2), second: +((sizes[1] || 0) / n).toFixed(2), groups10: sizes.filter((s) => s > n * 0.05).length };
+};
+Cosmos.debug.waveBins = () => { const D = wave.lastD || []; const bins = {}; for (const [t, d] of D) { const k = Math.floor((t - wave.lastT0) * 5) / 5; (bins[k] = bins[k] || []).push(d); } return Object.keys(bins).sort((a, b) => a - b).map((k) => { const a = bins[k].sort((x, y) => x - y); return [+k, a.length, +a[Math.floor(a.length * 0.5)].toFixed(1), +a[Math.floor(a.length * 0.9)].toFixed(1)]; }); };
+Cosmos.debug.pulse = () => { selFalcon.set('ai', true); falcon.pulse = 3; falcon.p = sim.main.slice(); falcon.v = [0, 0.01, 0]; falcon.state = 'pass'; falcon.t = 0; return sim.main; };
+Cosmos.debug.poke = () => { const m = sim.main; falcon.p = m.slice(); falcon.v = [0, -30, 0]; falcon.state = 'pass'; falcon.t = 0; falcon.active = true; return m; };
+Cosmos.debug.sim = sim;
+Cosmos.debug.wave = wave;
+Cosmos.debug.dyn = dyn;
+Cosmos.debug.setSun = (v) => sSun.set(v);
+Cosmos.debug.roost = (on) => setRoost(on);
+Cosmos.debug.checkSort = () => {
+  simStep(0, 2); const t = sim.sorted; const buf = new Float32Array(NCAP * 4);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo); gl.readPixels(0, 0, TW, TH, gl.RGBA, gl.FLOAT, buf);
+  let bad = 0, seen = new Uint8Array(NCAP), dup = 0;
+  for (let i = 0; i < NCAP; i++) { const k = buf[i * 4], id = buf[i * 4 + 1]; if (seen[id]) dup++; seen[id] = 1; if (i && (k < buf[(i - 1) * 4] || (k === buf[(i - 1) * 4] && id < buf[(i - 1) * 4 + 1]))) bad++; }
+  return { n: NCAP, outOfOrder: bad, duplicates: dup };
+};
+Cosmos.debug.gpu = (on) => { if (on !== undefined) { prof.on = !!on; prof.acc = {}; prof.n = {}; return TQ ? 'timer on' : 'no timer ext'; } const o = {}; let tot = 0; for (const k in prof.acc) { o[k] = +(prof.acc[k] / prof.n[k]).toFixed(2); tot += o[k]; } o.total = +tot.toFixed(2); return o; };
+Cosmos.debug.profile = () => {
+  // coarse CPU-side timing with a readback as a sync point (contended GPUs make this noisy)
+  const r = {}; const px = new Float32Array(4); const sync = () => { gl.bindFramebuffer(gl.FRAMEBUFFER, trackT.fbo); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.FLOAT, px); };
+  const T = (name, fn, n) => { sync(); const t0 = performance.now(); for (let i = 0; i < n; i++) fn(); sync(); r[name] = +((performance.now() - t0) / n).toFixed(2); };
+  T('sim', () => simStep(1 / 60), 10); T('render', () => render(0), 10);
+  r.w = canvas.width; r.h = canvas.height; return r; };
+Cosmos.debug.light = light;
+Cosmos.debug.setCam = setCamMode;
+Cosmos.debug.cam = cam;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,2301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Last Light · Cosmogenesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="cosmos.css">
+<style>
+  /* ---- chapter 21: The Last Light ---- */
+  .ll-over { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+  /* caption plate (top centre on desktop) */
+  .ll-cap {
+    position: fixed; z-index: 21; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 6px);
+    left: 50%; transform: translateX(-50%); width: min(560px, calc(100vw - 32px)); text-align: center; pointer-events: none;
+    text-shadow: 0 1px 14px rgba(0,0,0,.95), 0 0 2px rgba(0,0,0,.8); transition: opacity .6s var(--ease);
+  }
+  .ll-cap .k { font: 600 10.5px/1.3 var(--f-mono); letter-spacing: .2em; text-transform: uppercase; color: var(--era); }
+  .ll-cap .t { font: italic 500 clamp(24px, 2.5vw, 34px)/1.08 var(--f-display); color: var(--star); margin: 4px 0 6px; letter-spacing: -.01em; }
+  .ll-cap .d { font: 400 13.5px/1.5 var(--f-ui); color: #d4cfc2; max-width: 54ch; margin: 0 auto; text-wrap: balance; }
+  .ll-cap .d sup, .ll-cap .k sup { font-size: .7em; line-height: 0; }
+  .ll-cap.swap .t, .ll-cap.swap .d, .ll-cap.swap .k { animation: ll-in 1s var(--ease) both; }
+  .ll-cap.swap .d { animation-delay: .12s; }
+  @keyframes ll-in { from { opacity: 0; transform: translateY(5px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+  body.cz-cinema .ll-cap { opacity: .85; }
+  body.ll-nocap .ll-cap { opacity: 0; }
+
+  /* the log-time ribbon */
+  .ll-rib {
+    position: fixed; z-index: 22; left: 470px; right: 340px; bottom: calc(var(--foot-h) + env(safe-area-inset-bottom, 0px) + 10px);
+    height: 112px; user-select: none; -webkit-user-select: none; touch-action: none;
+    transition: opacity .5s var(--ease), transform .5s var(--ease);
+  }
+  .ll-rib::before {
+    content: ""; position: absolute; inset: -8px -12px -6px; border-radius: 14px;
+    background: linear-gradient(to top, rgba(5,6,12,.72), rgba(5,6,12,.34));
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border: 1px solid rgba(236,230,214,.08); pointer-events: none;
+  }
+  .ll-rib-head { position: relative; display: flex; align-items: flex-end; gap: 12px; height: 40px; }
+  .ll-play {
+    flex: none; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--era); background: var(--era-soft); color: var(--era);
+    display: grid; place-items: center; cursor: pointer; padding: 0; margin-bottom: 2px;
+  }
+  .ll-play:hover { background: var(--era); color: var(--era-ink); }
+  .ll-play svg { width: 14px; height: 14px; fill: currentColor; }
+  .ll-time { min-width: 0; display: grid; gap: 1px; }
+  .ll-time b { font: italic 500 25px/1 var(--f-display); color: var(--star); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .ll-time b sup { font-size: .6em; line-height: 0; vertical-align: .75em; }
+  .ll-time small { font: 500 10.5px/1.2 var(--f-mono); color: var(--dust); letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ll-eraname { margin-left: auto; text-align: right; display: grid; gap: 2px; }
+  .ll-eraname b { font: 600 10.5px/1.1 var(--f-mono); letter-spacing: .2em; text-transform: uppercase; color: var(--era); white-space: nowrap; }
+  .ll-eraname small { font: 500 10.5px/1.1 var(--f-mono); color: var(--faint); white-space: nowrap; }
+  .ll-rib canvas { position: relative; display: block; width: 100%; height: 66px; margin-top: 6px; cursor: ew-resize; }
+  body.cz-cinema .ll-rib { opacity: 0; transform: translateY(10px); pointer-events: none; }
+
+  /* false colour legend */
+  .ll-legend {
+    position: fixed; z-index: 21; right: 340px; bottom: 200px; display: grid; gap: 4px; pointer-events: none;
+    font: 500 10px/1.2 var(--f-mono); color: var(--dust); letter-spacing: .06em; transition: opacity .8s var(--ease); text-align: right;
+  }
+  .ll-legend i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-left: 7px; vertical-align: 0; background: var(--c); box-shadow: 0 0 8px var(--c); }
+  .ll-legend .h { color: var(--faint); letter-spacing: .18em; text-transform: uppercase; font-size: 9.5px; }
+  body.cz-cinema .ll-legend { opacity: 0 !important; }
+
+  /* deck instruments */
+  .ll-ro { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 12px; }
+  .ll-ro > div { display: grid; gap: 2px; min-width: 0; }
+  .ll-ro > div.w { grid-column: 1 / -1; }
+  .ll-ro span:first-child { font: 600 9.5px/1.2 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+  .ll-ro span:last-child { font: 500 13.5px/1.25 var(--f-mono); color: var(--star); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ll-ro span:last-child sup { font-size: .68em; line-height: 0; }
+  .ll-ro span:last-child em { font-style: normal; color: var(--dust); font-size: 11px; }
+  .ll-ro > div.wrap span:last-child { white-space: normal; line-height: 1.5; }
+  .ll-ro > div.wrap em { display: block; }
+  .ll-cap-sm { font: 600 9.5px/1.2 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); margin-bottom: -4px; }
+  .ll-bleg { display: flex; flex-wrap: wrap; gap: 3px 10px; font: 500 10px/1.3 var(--f-mono); color: var(--dust); margin-top: -3px; }
+  .ll-bleg span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; background: var(--c); }
+  .ll-bleg b { color: var(--star); font-weight: 500; }
+  .ll-cal { font: 400 11.5px/1.45 var(--f-ui); color: var(--dust); margin-top: -4px; }
+  .ll-cal b { color: var(--star); font-weight: 500; font-family: var(--f-mono); font-size: 11px; }
+  .ll-cal sup { font-size: .7em; line-height: 0; }
+  .eq .hb { font-family: var(--f-ui); font-style: italic; font-size: .92em; }
+
+  /* final screen */
+  .ll-end {
+    position: fixed; inset: 0; z-index: 26; display: grid; place-items: center; pointer-events: none; opacity: 0;
+    transition: opacity 3.2s ease;
+  }
+  .ll-end.on { opacity: 1; }
+  .ll-end.on .ll-end-box { pointer-events: auto; }
+  .ll-end-box { width: min(520px, calc(100vw - 40px)); text-align: center; display: grid; gap: 12px; margin-top: 16vh; }
+  body.ll-ending .ll-rib { opacity: .28; }
+  body.ll-ending .ll-legend { opacity: 0 !important; }
+  .ll-end .k { font: 600 10.5px/1.2 var(--f-mono); letter-spacing: .22em; text-transform: uppercase; color: var(--era); }
+  .ll-end h2 { margin: 0; font: italic 500 clamp(40px, 6vw, 64px)/1 var(--f-display); color: var(--star); letter-spacing: -.01em; }
+  .ll-end p { margin: 0; font: 400 13.5px/1.6 var(--f-ui); color: #cfc9bb; text-wrap: pretty; }
+  .ll-end p.s { font: 500 10.5px/1.5 var(--f-mono); color: var(--faint); letter-spacing: .04em; }
+  .ll-end .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
+  .ll-end a, .ll-end button {
+    font: 600 12.5px/1 var(--f-ui); padding: 11px 16px; border-radius: 999px; cursor: pointer; text-decoration: none;
+    border: 1px solid var(--era); color: var(--era-ink); background: var(--era);
+  }
+  .ll-end button { background: transparent; color: var(--era); }
+  .ll-end button:hover { background: var(--era-soft); }
+  body.ll-ending .ll-cap { opacity: 0; }
+
+  /* phones */
+  @media (max-width: 760px) {
+    .ll-rib { left: 12px; right: 12px; height: 100px; }
+    .ll-time b { font-size: 21px; }
+    .ll-rib canvas { height: 56px; }
+    .ll-cap { top: auto; text-align: left; left: 12px; transform: none; width: calc(100vw - 24px); }
+    .ll-cap .t { font-size: 22px; margin: 2px 0 3px; }
+    .ll-cap .d { font-size: 12px; line-height: 1.4; margin: 0; max-width: none; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .ll-legend { display: none; }
+    body.ll-deckopen .ll-cap { opacity: 0; }
+    .ll-end-box { margin-top: 8vh; }
+    .ll-end h2 { font-size: 44px; }
+    .ll-end p { font-size: 12.5px; }
+  }
+</style>
+</head>
+<body>
+<script src="cosmos.js"></script>
+<script>
+(function () {
+'use strict';
+
+/* =====================================================================
+   21 · THE LAST LIGHT
+   The far future of one galaxy on a logarithmic clock, 10^10 → 10^110 yr.
+   - a restricted N-body merger of the Milky Way and Andromeda (GPU transform
+     feedback, deterministic so the clock can be scrubbed backwards)
+   - population synthesis per particle: Kroupa IMF, t_MS ∝ M^-2.5, giants,
+     supernovae, blue dwarfs, Mestel white-dwarf cooling, brown dwarfs
+   - dynamical evaporation, proton decay (τp slider), Hawking evaporation
+   - ΛCDM expansion for the CMB temperature and the event horizon
+   ===================================================================== */
+
+const U = Cosmos.util, FM = Cosmos.fmt;
+const lg = Math.log10;
+const clamp = U.clamp, ss = U.smoothstep, lerp = U.lerp;
+
+function hash1(n) { const s = Math.sin(n) * 43758.5453123; return s - Math.floor(s); }
+
+/* ------------------------------------------------------------ constants */
+const T0 = 1.3787e10;                 // age of the universe now, yr (Planck 2018)
+const X_NOW = lg(T0);                 // 10.1395
+const X_MIN = 10, X_MAX = 110;
+const X_SF_END = 14;                  // star formation ends (gas exhausted)
+const TSF = 1e14;
+const H0 = 67.7 / 3.0857e19 * 3.15576e7;  // per yr
+const OM = 0.31, OL = 0.69;
+const HL = H0 * Math.sqrt(OL);             // late-time de Sitter rate, per yr
+const T_CMB0 = 2.7255;
+const GAM = 0.35;                          // per-particle brightness compression, as in the shader
+const T_DS = 2.2155e-30;                   // de Sitter (Gibbons–Hawking) temperature, K
+const S_DS = 3.25e122;                     // horizon entropy / k
+const K_EVAP = 2.0957e67;                  // yr per Msun^3 (photon-only Hawking lifetime)
+const TH_SUN = 6.17e-8;                    // K, Hawking T for 1 Msun
+const S_SUN = 1.049e77;                    // S_BH / k for 1 Msun
+const MSUN_KG = 1.98847e30;
+const K_EVAP_S = 8.4115e-17;               // s per kg^3
+const YR = 3.15576e7;
+const small = window.matchMedia('(max-width: 760px)').matches;
+
+/* ------------------------------------------------------------ stellar physics (JS mirror of the shader) */
+function tauMS(M) { return 1e10 * Math.pow(M, -2.5) * (1 + 1.2 * ss(0.35, 0.08, M)); }
+function logLms(M) {
+  if (M < 0.43) return lg(0.23) + 2.3 * lg(M);
+  if (M < 2) return 4 * lg(M);
+  if (M < 55) return lg(1.4) + 3.5 * lg(M);
+  return lg(32000) + lg(M);
+}
+const TEFF = [[-2, 900], [-1.097, 2300], [-1, 2700], [-0.7, 3200], [-0.5, 3400], [-0.3, 3800], [0, 5770], [0.3, 9000], [0.7, 15500], [1, 25000], [1.5, 38000], [2.1, 45000]];
+function remnantOf(M) { // [type, mass]  type: 0 BD, 1 WD, 2 NS, 3 BH
+  if (M < 0.08) return [0, M];
+  if (M < 0.5) return [1, M];
+  if (M < 8) return [1, Math.min(1.35, 0.109 * M + 0.394)];
+  if (M < 25) return [2, 1.4];
+  return [3, 5 + 0.12 * (M - 25)];
+}
+/* Kroupa (2001) IMF */
+const IMF_SEG = [[0.01, 0.08, 0.3], [0.08, 0.5, 1.3], [0.5, 150, 2.3]];
+const IMF_K = [1]; IMF_K[1] = Math.pow(0.08, -0.3) / Math.pow(0.08, -1.3); IMF_K[2] = IMF_K[1] * Math.pow(0.5, -1.3) / Math.pow(0.5, -2.3);
+function imfXi(M) { for (let i = 0; i < 3; i++) if (M < IMF_SEG[i][1] || i === 2) return IMF_K[i] * Math.pow(M, -IMF_SEG[i][2]); return 0; }
+function imfN(a, b) { let s = 0; IMF_SEG.forEach(([lo, hi, al], i) => { const l = Math.max(lo, a), h = Math.min(hi, b); if (h <= l) return; s += IMF_K[i] * (Math.pow(h, 1 - al) - Math.pow(l, 1 - al)) / (1 - al); }); return s; }
+const IMF_CACHE = {};
+function sampleKroupa(rng, a, b) {
+  const key = a + ',' + b;
+  const w = IMF_CACHE[key] || (IMF_CACHE[key] = IMF_SEG.map(([lo, hi]) => (Math.min(hi, b) > Math.max(lo, a) ? imfN(Math.max(lo, a), Math.min(hi, b)) : 0)));
+  const tot = w[0] + w[1] + w[2]; let u = rng() * tot, i = 0;
+  while (i < 2 && u > w[i]) { u -= w[i]; i++; }
+  const [lo, hi, al] = IMF_SEG[i]; const l = Math.max(lo, a), h = Math.min(hi, b); const e = 1 - al;
+  const v = rng(); return Math.pow(Math.pow(l, e) + v * (Math.pow(h, e) - Math.pow(l, e)), 1 / e);
+}
+
+/* ------------------------------------------------------------ cosmology */
+const A_NORM = Math.cbrt(OM / OL);
+const A_NOW = A_NORM * Math.pow(Math.sinh(1.5 * Math.sqrt(OL) * H0 * T0), 2 / 3);
+/** log10 of the scale factor a(t)/a(now) for t = 10^x years, stable for enormous t */
+function logA(x) {
+  const arg = 1.5 * Math.sqrt(OL) * H0 * Math.pow(10, Math.min(x, 300));
+  let ls;
+  if (x > 300 || arg > 30) { // sinh → e^arg/2
+    const lnArg = Math.log(1.5 * Math.sqrt(OL) * H0) + x * Math.LN10; // ln(arg)
+    const argL = lnArg > 690 ? Infinity : Math.exp(lnArg);
+    if (!isFinite(argL)) return { big: true, l10: (lnArg / Math.LN10) }; // log10 of log10(a) handled below
+    ls = argL / Math.LN10 - lg(2);
+  } else ls = lg(Math.sinh(arg));
+  return { big: false, v: lg(A_NORM) + (2 / 3) * ls - lg(A_NOW) };
+}
+/** CMB temperature: returns {l: log10 T} or {ll: log10(-log10 T)} for astronomically small T */
+function cmbT(x) {
+  const la = logA(x);
+  if (!la.big) {
+    const lt = lg(T_CMB0) - la.v;
+    if (lt > -1e15) return { l: lt };
+    return { ll: lg(-lt) };
+  }
+  // log10 a = (2/3)(arg/ln10) with log10(arg) = la.l10 → log10(-log10 T) ≈ log10(2/3/ln10) + log10(arg)
+  return { ll: lg(2 / 3 / Math.LN10) + la.l10 };
+}
+
+/* ------------------------------------------------------------ text */
+const NOTES = `
+<p>You are looking at our galaxy on a clock that counts powers of ten. Each notch on the ribbon at the bottom marks a time ten times later than the one before it. Everything that has happened so far, all 13.8 billion years, sits in the first sliver at its left edge.</p>
+<p>First Andromeda falls in, and the two spirals merge into one smooth, golden galaxy. Then the lights go out in order of brightness. Blue stars burn out first, then yellow ones. The red dwarfs last a thousand times longer, and at the very end they flare blue. Around 10<sup>14</sup> years the gas runs out and the last star is born.</p>
+<p>After that the galaxy is a swarm of cinders: white dwarfs cooling to black, neutron stars, brown dwarfs, black holes. Over 10<sup>19</sup> years it evaporates. If protons decay, the cinders dissolve too. Then only black holes remain, and each one slowly evaporates into a last flash of gamma rays. The last is our own central black hole, grown fat on a tenth of the galaxy. After it the universe goes dark, and as far as we know nothing ever happens again.</p>
+<p>Starlight is drawn in its true colours, with the exposure raised as the galaxy fades, until even that cannot help. Dead objects are drawn in false colour, and black holes are drawn millions of times larger than they are.</p>
+<h4>Try this</h4>
+<ul>
+<li>Drag along the ribbon to travel. Drag the scene to turn it, scroll or pinch to zoom.</li>
+<li>Press <strong>Last black hole</strong> <kbd>B</kbd> to watch the final evaporation, with a countdown down to its last second.</li>
+<li>Move the <strong>proton lifetime</strong> slider and watch the degenerate era dissolve earlier or later.</li>
+<li>Turn on sound <kbd>M</kbd>. The drone loses a harmonic with each age, and every evaporating black hole rings a bell.</li>
+</ul>`;
+
+const SCIENCE = `
+<h4>The five ages</h4>
+<p>Adams &amp; Laughlin (1997) divide time by the <em>cosmological decade</em> η = log<sub>10</sub>(t / 1 yr). Their Primordial Era runs to η ≈ 5. The <strong>Stelliferous Era</strong> (6 &lt; η &lt; 14) is the age of fusion. In the <strong>Degenerate Era</strong> (15 &lt; η &lt; 39) most baryons sit in white dwarfs, neutron stars and brown dwarfs. In the <strong>Black Hole Era</strong> (40 &lt; η &lt; 100) black holes are the only large objects left, and the <strong>Dark Era</strong> (η &gt; 101) holds only radiation and light particles. The ribbon uses round boundaries at 14, 40 and 100. We live at η = 10.14.</p>
+
+<h4>Population synthesis</h4>
+<p>Each particle is a sample of the galaxy, drawn from the Kroupa (2001) initial mass function, ξ(M) ∝ M<sup>−α</sup> with α = 0.3 (0.01–0.08 M<sub>☉</sub>), 1.3 (0.08–0.5) and 2.3 (above 0.5). The main-sequence lifetime is</p>
+<span class="eq">t<sub>MS</sub> ≈ 10<sup>10</sup> yr (M/M<sub>☉</sub>)<sup>−2.5</sup> × [1 + 1.2 S(M)]</span>
+<p>where S rises from 0 at 0.35 M<sub>☉</sub> to 1 at 0.08 M<sub>☉</sub>. The correction is for fully convective red dwarfs, which burn nearly all their hydrogen instead of about a tenth. It gives about 7 × 10<sup>12</sup> yr at 0.1 M<sub>☉</sub> and 1.2 × 10<sup>13</sup> yr at 0.08 M<sub>☉</sub>, close to the stellar-evolution models of Laughlin, Bodenheimer &amp; Adams (1997). Luminosity follows L ∝ M<sup>2.3</sup> below 0.43 M<sub>☉</sub>, M<sup>4</sup> to 2 M<sub>☉</sub> and M<sup>3.5</sup> above, and colours are blackbody colours of the effective temperature. In the model, stars above 0.5 M<sub>☉</sub> spend a last tenth of their lives as giants. Stars above 8 M<sub>☉</sub> end as supernovae and leave neutron stars, or black holes above 25 M<sub>☉</sub>. Lighter stars leave white dwarfs, with masses from the initial–final relation M<sub>WD</sub> ≈ 0.109 M + 0.394 M<sub>☉</sub> (Kalirai et al. 2008). Black holes keep 5 to 16 M<sub>☉</sub>.</p>
+<p>Red dwarfs below about 0.25 M<sub>☉</sub> never become giants. Laughlin et al. (1997) found that as their hydrogen runs down they grow hotter and several times brighter, becoming “blue dwarfs”, before contracting into helium white dwarfs. No blue dwarf exists yet, because no red dwarf has had time to die.</p>
+
+<h4>White-dwarf cooling</h4>
+<p>A white dwarf has no fuel and simply cools. Mestel’s (1952) theory gives</p>
+<span class="eq">t<sub>cool</sub> ≈ 8.8 × 10<sup>6</sup> yr (A/12)<sup>−1</sup> (M/M<sub>☉</sub>)<sup>5/7</sup> (μ/2)<sup>−2/7</sup> (L/L<sub>☉</sub>)<sup>−5/7</sup></span>
+<p>so a 0.6 M<sub>☉</sub> carbon white dwarf is at L ≈ 3 × 10<sup>−5</sup> L<sub>☉</sub> after 10 billion years, matching the faint end of the observed white-dwarf population. By 10<sup>15</sup> yr it is at tens of kelvin, a black dwarf. Crystallisation and Debye cooling speed up the end.</p>
+
+<h4>Star formation stops</h4>
+<p>The two galaxies together form about two solar masses of stars a year now. The model lets the rate fall as SFR ∝ t<sup>−2</sup>, with a burst during the merger, and ends it at 10<sup>14</sup> yr when the recycled gas is used up. Young massive stars are drawn by particles that stand for “stars younger than their own lifetime”, and their numbers follow this rate. Before the merger they light up where they cross a rigidly rotating two-armed spiral pattern, as in density-wave theory.</p>
+
+<h4>The merger</h4>
+<p>The Milky Way (1.06 × 10<sup>12</sup> M<sub>☉</sub>) and Andromeda (1.6 × 10<sup>12</sup> M<sub>☉</sub>) are rigid potentials: a Hernquist halo and bulge plus a Miyamoto–Nagai disk each. The stars are test particles, integrated with a leapfrog on the GPU in steps of 1.5 Myr, as in Toomre &amp; Toomre’s restricted method. The centres start 780 kpc apart, approaching at 110 km/s with a sideways speed of 29 km/s, and slow by Chandrasekhar dynamical friction. This model makes a first passage about 4 Gyr from now and merges near 6 Gyr. Measured sideways speeds are uncertain, and Gaia-based analyses put the chance of a merger within 10 Gyr at about one half (Sawala et al. 2025). A real merger scrambles orbits by violent relaxation; here the disks are turned into a spheroid by rotating each star’s velocity by small random angles, which keeps its energy. The integration is deterministic, so dragging backwards replays it from today.</p>
+
+<h4>The event horizon and the CMB</h4>
+<p>With H<sub>0</sub> = 67.7 km s<sup>−1</sup> Mpc<sup>−1</sup>, Ω<sub>m</sub> = 0.31 and Ω<sub>Λ</sub> = 0.69, the scale factor is</p>
+<span class="eq">a(t) ∝ sinh<sup>2/3</sup>(<sup>3</sup>⁄<sub>2</sub> √Ω<sub>Λ</sub> H<sub>0</sub> t), &nbsp; T<sub>CMB</sub> = 2.7255 K / a</span>
+<p>Late on, a grows as e<sup>t/17.4 Gyr</sup>. Light that galaxies now more than 16.6 billion light-years away (comoving distance) emit today will never reach us, and the galaxies we can see are redshifted exponentially until they fade. After about 10<sup>11</sup> yr nothing beyond the Local Group is visible (Krauss &amp; Scherrer 2007). By 10<sup>14</sup> yr the CMB temperature is about 10<sup>−2500</sup> K. It drops below the temperature of the cosmic horizon itself, T = ħH/2πk<sub>B</sub> ≈ 2.2 × 10<sup>−30</sup> K (Gibbons &amp; Hawking 1977), at about 10<sup>12</sup> yr.</p>
+
+<h4>Dynamical evaporation</h4>
+<p>Two-body encounters exchange energy on the relaxation time</p>
+<span class="eq">t<sub>relax</sub> ≈ (N / 8 ln N) t<sub>cross</sub></span>
+<p>For N ≈ 10<sup>12</sup> stars and t<sub>cross</sub> ≈ 10<sup>8</sup> yr that is about 5 × 10<sup>17</sup> yr. A stellar system evaporates in roughly a hundred relaxation times, so over 10<sup>19</sup>–10<sup>20</sup> yr most objects are flung out and the rest sink to the centre (Adams &amp; Laughlin 1997). The model ejects 90% of the particles, and sends the rest (preferring heavy remnants) into the central black hole. That grows it from 1.4 × 10<sup>8</sup> M<sub>☉</sub> (Andromeda’s hole, which absorbs the Milky Way’s 4.3 × 10<sup>6</sup> M<sub>☉</sub> Sagittarius A* in the merger) to more than 10<sup>10</sup> M<sub>☉</sub>. Escaping objects are drawn at compressed distances.</p>
+
+<h4>Brown-dwarf collisions</h4>
+<p>With number density n ≈ 0.1 pc<sup>−3</sup>, speed v ≈ 200 km/s and cross-section σ ≈ π(2R)²(1 + v<sub>esc</sub>²/v²), a brown dwarf meets another about once every 10<sup>20</sup> yr. In a galaxy of about 10<sup>11</sup> brown dwarfs that is a new low-mass star every few billion years, each shining for trillions. The flashes in the Degenerate Era stand for this process; there are far fewer of them than the real rate.</p>
+
+<h4>Proton decay (hypothetical)</h4>
+<p>Grand unified theories predict that protons decay, for example p → e<sup>+</sup>π<sup>0</sup>. None has been seen. Super-Kamiokande finds τ/B(p → e<sup>+</sup>π<sup>0</sup>) &gt; 1.6 × 10<sup>34</sup> yr (Abe et al. 2017), raised to 2.4 × 10<sup>34</sup> yr with more data (Takenaka et al. 2020). The slider starts at that bound. If τ<sub>p</sub> = 10<sup>37</sup> yr, a white dwarf powered by proton decay emits</p>
+<span class="eq">L ≈ M c² / τ<sub>p</sub> ≈ 400 W, &nbsp; T<sub>eff</sub> ≈ 0.06 K</span>
+<p>and by about 40 τ<sub>p</sub> less than 10<sup>−17</sup> of the degenerate matter is left. The remnants’ mass falls as e<sup>−t/τ<sub>p</sub></sup>, and their glow is drawn in proportion to the energy released per logarithmic interval of time. If protons do not decay, degenerate stars survive much longer.</p>
+
+<h4>Hawking evaporation</h4>
+<span class="eq">T<sub>H</sub> = <span class="hb">ħ</span>c³ / (8πGMk<sub>B</sub>) ≈ 6.2 × 10<sup>−8</sup> K (M<sub>☉</sub>/M)</span>
+<span class="eq">t<sub>ev</sub> ≈ 5120π G²M³ / <span class="hb">ħ</span>c⁴ ≈ 2.1 × 10<sup>67</sup> yr (M/M<sub>☉</sub>)³</span>
+<p>This lifetime counts photons only and treats the hole as a perfect blackbody. Greybody factors and graviton emission (Page 1976) change the coefficient by a factor of order unity. A hole only starts to lose mass once the CMB is colder than T<sub>H</sub>; for 10<sup>10</sup> M<sub>☉</sub> that happens after about 10<sup>12</sup> yr. The mass falls as M(t) = M<sub>0</sub>(1 − t/t<sub>ev</sub>)<sup>1/3</sup>, so the hole spends almost all its life near its original mass and dies fast. In the photon-only estimate, the last second releases about 2 × 10<sup>22</sup> J from about 230 tonnes of mass, at T<sub>H</sub> ≈ 5 × 10<sup>17</sup> K. At those temperatures every particle species is emitted, so the true end is somewhat quicker and hotter.</p>
+
+<h4>Entropy and heat death</h4>
+<span class="eq">S<sub>BH</sub> = k c³ A / (4 G <span class="hb">ħ</span>) = 4πG M² k / <span class="hb">ħ</span>c ≈ 1.05 × 10<sup>77</sup> k (M/M<sub>☉</sub>)²</span>
+<p>The readout sums the Local Group’s black holes, its CMB photons (about 2 × 10<sup>77</sup> k in a 1 Mpc comoving sphere) and its stars. Black holes dominate by more than fifteen orders of magnitude, and the jump at 10<sup>19</sup>–10<sup>20</sup> yr is the central hole swallowing stars. Evaporation turns each hole into radiation carrying somewhat more entropy than the hole had (the model uses 1.5 times), so the total never falls. The ceiling for everything inside our cosmic horizon is the horizon’s own entropy, πc⁵/(GħH²) ≈ 3 × 10<sup>122</sup> k. A universe near that ceiling, in equilibrium at 2 × 10<sup>−30</sup> K, can do no more work. That is heat death.</p>
+
+<h4>Begin again? (speculation)</h4>
+<p>Penrose’s conformal cyclic cosmology (2010) notes that once only massless particles remain, there is no clock and no ruler. He argues that the cold, infinite future can then be rescaled into the hot, dense Big Bang of a new aeon. It needs even the electron’s mass to fade away, which no known physics does, and the patterns claimed as evidence in the CMB are disputed. It is a beautiful idea, and speculation.</p>
+
+<h4>What is scaled for the screen</h4>
+<p>A particle stands for a few million stars, and its brightness is compressed as L<sup>0.35</sup> so that dwarfs and giants share one picture. The exposure rises automatically as the galaxy dims (the HUD shows by how much). Remnants, brown dwarfs and black holes are in false colour. Black holes are drawn millions of times larger than their horizons, and orbits keep turning at a watchable pace even when a frame spans 10<sup>50</sup> years.</p>
+
+<span class="cite">Adams, F. C. &amp; Laughlin, G. (1997). A dying universe: the long-term fate and evolution of astrophysical objects. Rev. Mod. Phys. 69, 337.</span>
+<span class="cite">Laughlin, G., Bodenheimer, P. &amp; Adams, F. C. (1997). The end of the main sequence. ApJ 482, 420.</span>
+<span class="cite">Hawking, S. W. (1974). Black hole explosions? Nature 248, 30.</span>
+<span class="cite">Page, D. N. (1976). Particle emission rates from a black hole: massless particles from an uncharged, nonrotating hole. Phys. Rev. D 13, 198.</span>
+<span class="cite">Abe, K. et al. (Super-Kamiokande) (2017). Search for proton decay via p → e⁺π⁰ and p → μ⁺π⁰ in 0.31 megaton·years exposure. Phys. Rev. D 95, 012004.</span>
+<span class="cite">Takenaka, A. et al. (Super-Kamiokande) (2020). Search for proton decay via p → e⁺π⁰ and p → μ⁺π⁰ with an enlarged fiducial volume. Phys. Rev. D 102, 112011.</span>
+<span class="cite">Mestel, L. (1952). On the theory of white dwarf stars. I. The energy sources of white dwarfs. MNRAS 112, 583.</span>
+<span class="cite">Kroupa, P. (2001). On the variation of the initial mass function. MNRAS 322, 231.</span>
+<span class="cite">Krauss, L. M. &amp; Scherrer, R. J. (2007). The return of a static universe and the end of cosmology. Gen. Rel. Grav. 39, 1545.</span>
+<span class="cite">Gibbons, G. W. &amp; Hawking, S. W. (1977). Cosmological event horizons, thermodynamics, and particle creation. Phys. Rev. D 15, 2738.</span>
+<span class="cite">Sawala, T. et al. (2025). No certainty of a Milky Way–Andromeda collision. Nature Astronomy.</span>
+<span class="cite">Penrose, R. (2010). Cycles of Time: An Extraordinary New View of the Universe. Bodley Head.</span>`;
+
+const ch = Cosmos.chapter({ id: 'last-light', notes: NOTES, science: SCIENCE });
+const ERA = U.rgbf(ch.meta.accent);
+
+/* ------------------------------------------------------------ WebGL */
+const canvas = ch.canvas('gl');
+const gl = Cosmos.gl.context(canvas, { antialias: false });
+if (!gl) { ch.fatal('This chapter needs WebGL2, which this browser does not provide.'); return; }
+let HDR = gl.ext.floatRT || gl.ext.halfFloatRT;   // half-float render targets; falls back to 8-bit (with rescaled light) if unavailable
+if (/[?&]ldr\b/.test(location.search)) HDR = false;   // QA: force the 8-bit path
+const LDR_K = 0.2;   // 8-bit targets clip at 1: draw the light this much fainter and restore it in the composite
+const overlay = ch.canvas('ll-over'); overlay.classList.add('ll-over');
+const octx = overlay.getContext('2d');
+
+/* ------------------------------------------------------------ merger orbit (centres), units kpc, Myr, 1e10 Msun */
+const G = 0.044985;
+const GAL = [
+  { Mh: 100, ah: 30, Mb: 1.0, ab: 0.6, Md: 5, ad: 3.0, bd: 0.3, hd: 2.6, name: 'Milky Way' },
+  { Mh: 150, ah: 36, Mb: 3.0, ab: 1.0, Md: 7, ad: 5.5, bd: 0.5, hd: 5.0, name: 'Andromeda' },
+];
+GAL.forEach((g) => { g.M = g.Mh + g.Mb + g.Md; });
+const MT = GAL[0].M + GAL[1].M, F0 = GAL[0].M / MT, F1 = GAL[1].M / MT;
+const N0 = norm3([-0.42, 0.91, 0]);           // Milky Way disk normal (prograde to the orbit, whose L is +y)
+const N1 = norm3([0.30, 0.45, -0.84]);         // Andromeda: steep, as we see it on the sky
+function norm3(v) { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }
+const DT = 1.5;                  // Myr per leapfrog step
+const K_END = 5334;              // 8 Gyr of physical integration
+const X_WIN = lg(T0 + K_END * DT * 1e6);
+const Menc = (g, r) => g.Mh * r * r / ((r + g.ah) ** 2) + g.Mb * r * r / ((r + g.ab) ** 2) + g.Md * r ** 3 / Math.pow(r * r + (g.ad + g.bd) ** 2, 1.5);
+const rhoH = (g, r) => g.Mh * g.ah / (2 * Math.PI * r * (r + g.ah) ** 3);
+const sigH = (g, r) => Math.sqrt(G * Menc(g, r) / Math.max(r, 1) / 2);
+function erf(x) { const t = 1 / (1 + 0.3275911 * x); return 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); }
+const ORB = new Float64Array((K_END + 1) * 3);  // relative vector r = C1 - C0 per step
+let K_PERI = 0, K_MERGE = 0, K_APO = 0;
+(function orbit() {
+  let r = [780, 0, 0], v = [-0.1125, 0, -0.030];
+  const lnL = 0.45;
+  const acc = (r, v) => {
+    const d = Math.hypot(r[0], r[1], r[2]); const ds = Math.sqrt(d * d + 1);
+    const M = Menc(GAL[0], d) + Menc(GAL[1], d);
+    const vv = Math.max(Math.hypot(v[0], v[1], v[2]), 0.08);
+    const s = Math.hypot(sigH(GAL[0], d), sigH(GAL[1], d)) / Math.SQRT2; const X = vv / (Math.SQRT2 * s);
+    const Fx = erf(X) - 2 * X / Math.sqrt(Math.PI) * Math.exp(-X * X);
+    const df = Math.min(0.02, 4 * Math.PI * G * G * lnL * (GAL[1].Mh * rhoH(GAL[0], Math.max(d, 2)) + GAL[0].Mh * rhoH(GAL[1], Math.max(d, 2))) * Fx / (vv ** 3));
+    return [-G * M * r[0] / ds ** 3 - df * v[0], -G * M * r[1] / ds ** 3 - df * v[1], -G * M * r[2] / ds ** 3 - df * v[2]];
+  };
+  let prev = 1e9, dec = false, nMin = 0;
+  for (let k = 0; k <= K_END; k++) {
+    ORB[k * 3] = r[0]; ORB[k * 3 + 1] = r[1]; ORB[k * 3 + 2] = r[2];
+    const d = Math.hypot(r[0], r[1], r[2]);
+    if (d > prev && dec) { nMin++; if (nMin === 1) K_PERI = k; }
+    if (nMin === 1 && d < prev && !dec && !K_APO) K_APO = k;
+    if (!K_MERGE && d < 4) K_MERGE = k;
+    dec = d < prev; prev = d;
+    let a = acc(r, v);
+    for (let i = 0; i < 3; i++) v[i] += 0.5 * DT * a[i];
+    for (let i = 0; i < 3; i++) r[i] += DT * v[i];
+    a = acc(r, v);
+    for (let i = 0; i < 3; i++) v[i] += 0.5 * DT * a[i];
+  }
+  if (!K_MERGE) K_MERGE = Math.round(K_END * 0.8);
+  // after the merger the centres coincide
+  for (let k = K_MERGE; k <= K_END; k++) { const f = Math.exp(-(k - K_MERGE) / 60); for (let i = 0; i < 3; i++) ORB[k * 3 + i] *= f; }
+})();
+const X_PERI = lg(T0 + K_PERI * DT * 1e6), X_MERGE = lg(T0 + K_MERGE * DT * 1e6);
+function centres(k, out) { // out: [c0x,c0y,c0z,c1x,c1y,c1z]
+  const kk = clamp(k, 0, K_END); const k0 = Math.floor(kk), k1 = Math.min(K_END, k0 + 1), f = kk - k0;
+  for (let i = 0; i < 3; i++) { const r = ORB[k0 * 3 + i] * (1 - f) + ORB[k1 * 3 + i] * f; out[i] = -F1 * r; out[3 + i] = F0 * r; }
+  return out;
+}
+const sepAt = (k) => { const kk = clamp(Math.round(k), 0, K_END); return Math.hypot(ORB[kk * 3], ORB[kk * 3 + 1], ORB[kk * 3 + 2]); };
+
+/* ------------------------------------------------------------ particles */
+const N = small ? 65536 : 196608;
+const NT = 512;                          // tracked block at the end of the buffer
+const I_SUN = N - NT, I_LAST = N - NT + 1, I_PROX = N - NT + 2;
+const I_COL0 = N - NT + 3, N_COL = 96;
+const I_BH0 = I_COL0 + N_COL, N_BH = 256;
+const N_YOUNG = Math.round(N * 0.13);
+const I_YOUNG0 = N - NT - N_YOUNG;        // young particles occupy [I_YOUNG0, N-NT)
+const STATIC = new Float32Array(N * 16);  // aA, aB, aC, aD
+const POS0 = new Float32Array(N * 4), VEL0 = new Float32Array(N * 4);
+const CPU = { M: new Float32Array(N), kind: new Uint8Array(N), rtype: new Uint8Array(N), mRem: new Float32Array(N), xMS: new Float32Array(N), xRem: new Float32Array(N), xB: new Float32Array(N), xF: new Float32Array(N), fate: new Int8Array(N), xBH: new Float32Array(N), seed: new Float32Array(N), yb: new Float32Array(N), ltau: new Float32Array(N) };
+const rng = U.rng(2101);
+const gauss = () => U.gauss(rng);
+
+function circV(g, R) { // in-plane circular speed of a galaxy's own potential at radius R (kpc/Myr)
+  const eps2 = 0.0625, r2 = R * R + eps2, r = Math.sqrt(r2);
+  const aH = G * g.Mh / ((r + g.ah) ** 2), aB = G * g.Mb / ((r + g.ab) ** 2);
+  const ab = g.ad + g.bd; const D = R * R + ab * ab + eps2; const aD = G * g.Md * R / Math.pow(D, 1.5);
+  return Math.sqrt(Math.max(0, (aH + aB) * R * R / r + aD * R));
+}
+function basis(n) { // two unit vectors spanning the plane ⟂ n
+  const a = Math.abs(n[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+  let u = [a[1] * n[2] - a[2] * n[1], a[2] * n[0] - a[0] * n[2], a[0] * n[1] - a[1] * n[0]]; u = norm3(u);
+  const w = [n[1] * u[2] - n[2] * u[1], n[2] * u[0] - n[0] * u[2], n[0] * u[1] - n[1] * u[0]];
+  return [u, w];
+}
+const BAS = [basis(N0), basis(N1)], NRM = [N0, N1];
+const C_INIT = centres(0, new Float64Array(6));
+const V_INIT = (() => { // centre velocities at k=0: relative v = (-0.1125,0,-0.03)
+  const v = [-0.1125, 0, -0.030]; return [[-F1 * v[0], -F1 * v[1], -F1 * v[2]], [F0 * v[0], F0 * v[1], F0 * v[2]]];
+})();
+
+function placeParticle(i, host, comp, opts) {
+  const g = GAL[host], n = NRM[host], [u, w] = BAS[host];
+  let lp = [0, 0, 0], lv = [0, 0, 0];
+  if (comp === 'disk') {
+    let R = opts && opts.R != null ? opts.R : -g.hd * Math.log(Math.max(1e-9, rng() * rng()));
+    if (R > 6.5 * g.hd) R = rng() * 6 * g.hd;
+    const phi = opts && opts.phi != null ? opts.phi : rng() * Math.PI * 2;
+    const z0 = opts && opts.z0 != null ? opts.z0 : 0.28 * (0.6 + 0.4 * R / (3 * g.hd));
+    const zz = z0 * Math.atanh(clamp(2 * rng() - 1, -0.995, 0.995)) * 0.5;
+    const vc = circV(g, R);
+    const sR = (opts && opts.cold ? 0.04 : 0.1) * vc * Math.exp(-R / (4 * g.hd)) + 0.004, sZ = 0.5 * sR;
+    const cp = Math.cos(phi), sp = Math.sin(phi);
+    // position in disk frame: R (cos φ u + sin φ w) + z n ; rotation counter-clockwise about n
+    const vt = vc * (1 - 0.05 * rng()) + gauss() * sR * 0.6, vr = gauss() * sR * 0.8, vz = gauss() * sZ * 0.3;
+    for (let k = 0; k < 3; k++) {
+      lp[k] = R * (cp * u[k] + sp * w[k]) + zz * n[k];
+      lv[k] = vt * (-sp * u[k] + cp * w[k]) + vr * (cp * u[k] + sp * w[k]) + vz * n[k];
+    }
+  } else if (comp === 'bulge' || comp === 'halo') {
+    const a = comp === 'bulge' ? g.ab : 8 + 4 * host;
+    let r; do { const s = Math.sqrt(rng()); r = a * s / (1 - s); } while (r > (comp === 'bulge' ? 12 * a : 60));
+    const ct = 2 * rng() - 1, st = Math.sqrt(1 - ct * ct), ph = rng() * Math.PI * 2;
+    const dir = [st * Math.cos(ph), st * Math.sin(ph), ct];
+    // squash the bulge a little along the disk normal
+    const dn = dir[0] * n[0] + dir[1] * n[1] + dir[2] * n[2];
+    for (let k = 0; k < 3; k++) lp[k] = r * (dir[k] - (comp === 'bulge' ? 0.3 : 0.1) * dn * n[k]);
+    const rr = Math.hypot(lp[0], lp[1], lp[2]);
+    const vc = Math.sqrt(G * Menc(g, rr) / Math.max(rr, 0.2));
+    const sig = vc * (comp === 'bulge' ? 0.62 : 0.66);
+    // a little net rotation about n
+    const rot = comp === 'bulge' ? 0.35 * vc : 0.1 * vc;
+    const t = [n[1] * lp[2] - n[2] * lp[1], n[2] * lp[0] - n[0] * lp[2], n[0] * lp[1] - n[1] * lp[0]];
+    const tl = Math.hypot(t[0], t[1], t[2]) || 1;
+    for (let k = 0; k < 3; k++) lv[k] = gauss() * sig + rot * t[k] / tl;
+  }
+  const c = host === 0 ? [C_INIT[0], C_INIT[1], C_INIT[2]] : [C_INIT[3], C_INIT[4], C_INIT[5]];
+  for (let k = 0; k < 3; k++) { POS0[i * 4 + k] = c[k] + lp[k]; VEL0[i * 4 + k] = V_INIT[host][k] + lv[k]; }
+  POS0[i * 4 + 3] = host; VEL0[i * 4 + 3] = rng();
+}
+
+function setStatic(i, o) {
+  const j = i * 16;
+  STATIC[j] = o.M; STATIC[j + 1] = o.xMS; STATIC[j + 2] = o.xRem; STATIC[j + 3] = o.kind;
+  STATIC[j + 4] = o.xF; STATIC[j + 5] = o.fate; STATIC[j + 6] = o.seed; STATIC[j + 7] = o.mRem;
+  STATIC[j + 8] = o.xBH; STATIC[j + 9] = o.host; STATIC[j + 10] = o.disk; STATIC[j + 11] = o.ltau;
+  STATIC[j + 12] = o.xB; STATIC[j + 13] = o.yb; STATIC[j + 14] = o.rtype; STATIC[j + 15] = 0;
+  CPU.M[i] = o.M; CPU.kind[i] = o.kind; CPU.rtype[i] = o.rtype; CPU.mRem[i] = o.mRem; CPU.xMS[i] = o.xMS; CPU.xRem[i] = o.xRem; CPU.xB[i] = o.xB;
+  CPU.xF[i] = o.xF; CPU.fate[i] = o.fate; CPU.xBH[i] = o.xBH; CPU.seed[i] = o.seed; CPU.yb[i] = o.yb; CPU.ltau[i] = o.ltau;
+}
+function fateOf(rtype, forceEject) {
+  const ps = forceEject ? 0 : rtype === 3 ? 0.45 : rtype === 2 ? 0.25 : 0.085;
+  if (rng() < ps) return [clamp(19.7 + 0.3 * gauss(), 18.9, 20.5), -1];
+  return [clamp(19.35 + 0.42 * gauss(), 17.9, 20.7), 1];
+}
+function starRecord(M, tb, kind) {
+  const tau = tauMS(M);
+  const [rt, mr] = remnantOf(M);
+  const xMS = M < 0.08 ? lg(tb) : lg(tb + tau);
+  const xRem = M < 0.5 ? xMS : lg(tb + 1.1 * tau);
+  const xBH = rt === 3 ? lg(Math.pow(10, xRem) + K_EVAP * mr * mr * mr) : 999;
+  const [xF, fate] = fateOf(rt, kind === 4);
+  return { M, xMS, xRem, kind, xF, fate, seed: rng(), mRem: mr, xBH, ltau: lg(tau), xB: lg(tb), yb: 0, rtype: rt };
+}
+
+(function generate() {
+  // field population (past star formation), plus colliders, BH tracers, the Sun and the last star
+  for (let i = 0; i < N; i++) {
+    const tracked = i >= N - NT, young = i >= I_YOUNG0 && !tracked;
+    const host = rng() < 0.42 ? 0 : 1;
+    if (young) {
+      // young disk stars: stand for "stars younger than their lifetime" at each epoch
+      const M = Math.exp(Math.log(0.1) + rng() * Math.log(600));
+      const tau = tauMS(M);
+      const yb = imfXi(M) * M * Math.min(tau, T0) / 1e10;
+      const o = starRecord(M, T0, 1); o.yb = yb; o.xB = X_NOW;
+      o.xMS = 99; o.xRem = 99;
+      setStatic(i, Object.assign(o, { host, disk: 1 }));
+      placeParticle(i, host, 'disk', { cold: true, z0: 0.12 });
+      continue;
+    }
+    let M, tb, kind = 0, comp;
+    const u = rng();
+    comp = u < 0.20 ? 'bulge' : u < 0.235 ? 'halo' : 'disk';
+    if (i === I_SUN) { M = 1.0; tb = T0 - 4.57e9; kind = 4; comp = 'disk'; }
+    else if (i === I_PROX) { M = 0.122; tb = T0 - 4.85e9; kind = 4; comp = 'disk'; }
+    else if (i === I_LAST) { M = 0.09; tb = 9.3e13; kind = 5; comp = 'disk'; }
+    else if (i >= I_COL0 && i < I_COL0 + N_COL) { M = 0.03 + 0.045 * rng(); tb = T0 - (1 + 11 * rng()) * 1e9; kind = 2; }
+    else if (i >= I_BH0 && i < I_BH0 + N_BH) { M = sampleKroupa(rng, 25, 120); tb = T0 - (0.1 + 12.5 * rng()) * 1e9; kind = 3; }
+    else {
+      M = sampleKroupa(rng, 0.01, 25);
+      tb = comp === 'disk' ? T0 - (0.05 + 10 * Math.pow(rng(), 0.8)) * 1e9 : T0 - (10 + 3 * rng()) * 1e9;
+    }
+    const o = starRecord(M, tb, kind);
+    if (kind === 2) { o.xMS = 14.6 + 5.6 * Math.pow(rng(), 0.7); } // collision time, stored in xMS
+    if (kind === 5) { o.xF = 19.2; o.fate = 1; }
+    setStatic(i, Object.assign(o, { host, disk: comp === 'disk' ? 1 : 0 }));
+    if (i === I_SUN) placeParticle(i, 0, 'disk', { R: 8.2, phi: 2.2, z0: 0.02, cold: true });
+    else if (i === I_PROX) { // Proxima Centauri: 1.3 pc from the Sun, moving about 30 km/s relative to it
+      for (let k = 0; k < 3; k++) { POS0[i * 4 + k] = POS0[I_SUN * 4 + k] + 0.0013 * (k === 1 ? 1 : 0); VEL0[i * 4 + k] = VEL0[I_SUN * 4 + k]; }
+      VEL0[i * 4] += -0.018; VEL0[i * 4 + 1] += 0.011; VEL0[i * 4 + 2] += 0.02; POS0[i * 4 + 3] = 0; VEL0[i * 4 + 3] = 0.5;
+    }
+    else placeParticle(i, host, comp);
+  }
+})();
+
+/* ------------------------------------------------------------ weights & tables */
+// Field particles share one weight W_F, calibrated so that the stellar + remnant mass today is 1.6e11 Msun.
+const FIELD_END = I_YOUNG0; // [0, I_YOUNG0) field; plus tracked field-like (Sun, last star, colliders)
+function massNow(i) {
+  const x = X_NOW, rt = CPU.rtype[i];
+  if (CPU.kind[i] === 5) return 0;
+  if (CPU.M[i] < 0.08 || x < CPU.xRem[i]) return CPU.M[i];
+  return CPU.mRem[i];
+}
+let sumField = 0, nFieldP = 0;
+for (let i = 0; i < N; i++) { const k = CPU.kind[i]; if (k === 0 || k === 2 || k === 4) { sumField += massNow(i); nFieldP++; } }
+const F25 = imfN(25, 120) / imfN(0.01, 120);
+// BH tracers carry the IMF share above 25 Msun
+let sumBH = 0; for (let i = I_BH0; i < I_BH0 + N_BH; i++) sumBH += CPU.mRem[i];
+const W_F = 1.6e11 / (sumField + sumBH * (nFieldP * F25 / (1 - F25)) / N_BH);
+const W_BH = W_F * nFieldP * F25 / (1 - F25) / N_BH;
+const weight = (i) => (CPU.kind[i] === 3 ? W_BH : CPU.kind[i] === 1 || CPU.kind[i] === 5 ? 0 : W_F);
+
+// young population: normalisation of per-particle light so that it carries ~45% of today's light
+let sumYoungL = 0, sumFieldL = 0;
+for (let i = 0; i < N; i++) {
+  const k = CPU.kind[i];
+  if (k === 1) sumYoungL += Math.pow(CPU.yb[i] * Math.pow(10, logLms(CPU.M[i])), GAM);
+  else if (k === 0 || k === 4) { const M = CPU.M[i]; if (M >= 0.08 && X_NOW < CPU.xMS[i]) sumFieldL += Math.pow(10, GAM * logLms(M)); else if (M >= 0.5 && X_NOW < CPU.xRem[i]) sumFieldL += Math.pow(10, GAM * (2.0 + 0.6 * lg(M))); }
+}
+const YOUNG_GAIN = 6.0 * sumFieldL / Math.max(1e-9, sumYoungL);   // arms and flicker leave ~1/5 of these lit at once
+
+/* SFR model: relative number of stars of lifetime tau alive at t, compared with today (mirrors the shader) */
+function aliveFrac(ltau, x) {
+  if (x > 16) return 0;
+  const t = Math.pow(10, x), tau = Math.pow(10, ltau);
+  const pre = Math.max(0, T0 - Math.max(0, t - tau));
+  const lo = Math.max(T0, t - tau), hi = Math.min(t, TSF);
+  const post = hi > lo ? T0 * T0 * (1 / lo - 1 / hi) : 0;
+  return (pre + post) / Math.min(tau, T0);
+}
+const MERGE_BURST = (x) => 1 + 0.8 * Math.exp(-Math.pow((x - X_MERGE + 0.005) / 0.02, 2));
+
+// central black hole: Andromeda's 1.4e8 (the Milky Way's Sgr A* is 4.3e6) plus everything that sinks in
+const SINKERS = [];
+for (let i = 0; i < N; i++) { const k = CPU.kind[i]; if ((k === 0 || k === 2 || k === 3 || k === 4) && CPU.fate[i] < 0) SINKERS.push([CPU.xF[i], (CPU.M[i] < 0.08 || CPU.xF[i] < CPU.xRem[i]) ? CPU.M[i] * weight(i) : CPU.mRem[i] * weight(i)]); }
+SINKERS.sort((a, b) => a[0] - b[0]);
+const M_SGR = 4.3e6, M_M31BH = 1.4e8, M_C0 = 1.443e8;
+const M_FINAL = M_C0 + SINKERS.reduce((s, a) => s + a[1], 0);
+const X_FINAL = lg(K_EVAP * Math.pow(M_FINAL, 3));   // central hole evaporates (≈ 98)
+const X_CD = X_FINAL - 0.004;                        // countdown begins
+function centralMass(x) {
+  if (x < X_MERGE) return M_M31BH;
+  let m = M_C0;
+  for (const s of SINKERS) { if (s[0] > x) break; m += s[1]; }
+  return m;
+}
+/** the last hole: log10 of remaining years at log time x (if not in countdown) */
+function remLog(x) { if (x >= X_FINAL) return -Infinity; return X_FINAL + lg(1 - Math.pow(10, x - X_FINAL)); }
+let HOLE_GONE = false;   // set by the director once the countdown has run out
+function centralMassAt(x, remL) { // includes evaporation
+  if (HOLE_GONE && remL == null) return 0;
+  const m0 = centralMass(x);
+  if (x < X_FINAL - 0.3 && remL == null) return m0;
+  const rl = remL != null ? remL : remLog(x);
+  if (!isFinite(rl)) return 0;
+  return M_FINAL * Math.cbrt(Math.pow(10, Math.min(0, rl - X_FINAL)));
+}
+
+// wandering intermediate-mass black holes (cores of shredded clusters and dwarfs)
+const WANDER = [];
+(function () {
+  const r = U.rng(77);
+  const masses = [2.1e3, 8e3, 3.5e4, 1.2e5, 6e5, 2.4e6];
+  masses.forEach((m, i) => {
+    const R = 70 + 140 * r(), th = r() * 6.283, inc = (r() - 0.5) * 1.6;
+    WANDER.push({ m, x: lg(K_EVAP * m * m * m), R, th, inc, w: 0.01 + 0.01 * r(), node: r() * 6.283 });
+  });
+})();
+
+/* ---- tables over log time: counts, light, mass budget, entropy ---- */
+const XG = []; { for (let x = X_NOW; x < 14.5; x += 0.004) XG.push(x); for (let x = 14.5; x <= 110.001; x += 0.08) XG.push(x); }
+const NG = XG.length;
+const TB = { ms: new Float64Array(NG), wd: new Float64Array(NG), ns: new Float64Array(NG), bd: new Float64Array(NG), bh: new Float64Array(NG), L: new Float64Array(NG),
+  mStar: new Float64Array(NG), mRemn: new Float64Array(NG), mBH: new Float64Array(NG), sBH: new Float64Array(NG), sRad: new Float64Array(NG), bhMax: new Float64Array(NG), ly: new Float64Array(NG) };
+const XG_I0 = XG.findIndex((v) => v >= 14.5);
+function gIndex(x) { // fractional index into XG
+  if (x <= XG[0]) return 0;
+  if (x < XG[XG_I0]) return Math.min(NG - 1, (x - XG[0]) / 0.004);
+  return Math.min(NG - 1, XG_I0 + (x - XG[XG_I0]) / 0.08);
+}
+function tget(arr, x) { const f = gIndex(x); const i = Math.floor(f), j = Math.min(NG - 1, i + 1), t = f - i; return arr[i] * (1 - t) + arr[j] * t; }
+/* Tables are built with difference arrays: each particle adds a constant over each phase of its life
+   (main sequence, giant, remnant), so the cost is O(particles), not O(particles × grid). Only white-dwarf
+   cooling light and the young population vary within a phase; those are sampled. */
+(function buildTables() {
+  const D = {}; for (const k in TB) D[k] = new Float64Array(NG + 1);
+  const gi = (x) => (x <= XG[0] ? 0 : x >= 999 ? NG : Math.min(NG, Math.ceil(gIndex(x) - 1e-9)));
+  const add = (k, x0, x1, v) => { const i0 = gi(x0), i1 = gi(x1); if (i1 <= i0) return; D[k][i0] += v; D[k][i1] -= v; };
+  const wdSample = [];
+  for (let i = 0; i < N; i++) {
+    const k = CPU.kind[i];
+    if (k === 1 || k === 5) continue;
+    const w = weight(i);
+    const M = CPU.M[i], rt = CPU.rtype[i], mr = CPU.mRem[i];
+    const xMS = CPU.xMS[i], xRem = CPU.xRem[i], xF = CPU.xF[i], xBH = CPU.xBH[i];
+    const end = CPU.fate[i] < 0 ? xF : 999;
+    if (M < 0.08 || k === 2) { add('bd', 0, end, w); add('mRemn', 0, end, w * M); continue; }
+    const e1 = Math.min(xMS, end), e2 = Math.min(xRem, end);
+    add('ms', 0, e1, w); add('mStar', 0, e1, w * M); add('L', 0, e1, w * Math.pow(10, GAM * logLms(M)));
+    add('mStar', e1, e2, w * M); add('L', e1, e2, w * Math.pow(10, GAM * (M >= 8 ? 4.6 : 2.0 + 0.6 * lg(M))));
+    if (rt === 1) { add('wd', e2, end, w); add('mRemn', e2, end, w * mr); if ((i % 31) === 0) wdSample.push(i); }
+    else if (rt === 2) { add('ns', e2, end, w); add('mRemn', e2, end, w * mr); }
+    else if (rt === 3) {
+      const e3 = Math.min(xBH, end);
+      add('bh', e2, e3, w); add('mBH', e2, e3, w * mr); add('sBH', e2, e3, w * S_SUN * mr * mr);
+      if (end > xBH) add('sRad', xBH, 999, 1.5 * w * S_SUN * mr * mr);
+    }
+  }
+  for (const key in D) { let acc = 0, mx = 0; for (let g = 0; g < NG; g++) { acc += D[key][g]; TB[key][g] = acc; mx = Math.max(mx, Math.abs(acc)); } for (let g = 0; g < NG; g++) if (Math.abs(TB[key][g]) < mx * 1e-9) TB[key][g] = 0; }
+  // white-dwarf cooling light (Mestel), sampled
+  for (const i of wdSample) {
+    const w = weight(i) * 31, mr = CPU.mRem[i], xRem = CPU.xRem[i], end = CPU.fate[i] < 0 ? CPU.xF[i] : 999;
+    for (let g = Math.max(0, gi(xRem)); g < NG; g++) {
+      const x = XG[g]; if (x >= end || x > 15.5) break;
+      const tc = x + lg(Math.max(1e-9, 1 - Math.pow(10, xRem - x)));
+      TB.L[g] += w * Math.pow(10, GAM * clamp(-1.4 * (tc - 6.944 - 0.714 * lg(mr)), -14, 2));
+    }
+  }
+  // young population light (for the auto-exposure), sampled
+  const gy = gi(14.3), stepY = 23;
+  for (let i = I_YOUNG0; i < N - NT; i += stepY) {
+    const L = Math.pow(CPU.yb[i] * Math.pow(10, logLms(CPU.M[i])), GAM) * YOUNG_GAIN * stepY * 0.12;
+    for (let g = 0; g < gy; g++) { const x = XG[g]; const A = aliveFrac(CPU.ltau[i], x) * (CPU.ltau[i] < 9 ? MERGE_BURST(x) : 1); TB.ly[g] += L * Math.min(1, A); }
+  }
+})();
+const L_NOW = (TB.L[0] / W_F) + TB.ly[0];
+const MASS0 = TB.mStar[0] + TB.mRemn[0] + TB.mBH[0];
+
+/* late-born stars (after today) still shining, from SFR ∝ t^-2 until 1e14 yr (analytic, IMF-weighted) */
+const SFR0 = 2.2; // Msun/yr, both galaxies (Milky Way ≈ 1.7, Andromeda ≈ 0.5)
+const LATE_BINS = []; { const e = [0.08, 0.12, 0.18, 0.27, 0.4, 0.6, 0.9, 1.4, 2.2, 4, 8, 20, 60]; const tot = imfN(0.08, 120); let mm = 0; for (let i = 0; i < e.length - 1; i++) mm += (imfN(e[i], e[i + 1]) / tot) * Math.sqrt(e[i] * e[i + 1]); for (let i = 0; i < e.length - 1; i++) { const m = Math.sqrt(e[i] * e[i + 1]); LATE_BINS.push({ f: imfN(e[i], e[i + 1]) / tot, tau: tauMS(m), mean: mm }); } }
+function lateStars(x) {
+  if (x < X_NOW || x > 14.2) return 0;
+  const t = Math.pow(10, x); let n = 0;
+  for (const b of LATE_BINS) { const lo = Math.max(T0, t - b.tau), hi = Math.min(t, TSF); if (hi > lo) n += b.f * (SFR0 / b.mean) * T0 * T0 * (1 / lo - 1 / hi); }
+  return n;
+}
+/* brown-dwarf collision stars in the degenerate era: rate ∝ (bound fraction)^2 */
+const BD_TOTAL = tget(TB.bd, X_NOW);
+function boundFrac(x) { return 1 - 0.9 * ss(18.2, 20.6, x) - 0.1 * ss(18.8, 20.4, x); }
+function collStars(x) { if (x < 13.5) return 0; return 3.9e-10 * (BD_TOTAL / 1e11) * Math.pow(boundFrac(x), 2) * 6e12 * pdSurv(x); }
+
+/* proton decay */
+let LP = 37; // log10 tau_p
+function pdMass(x) { const e = x - LP; return e < -6 ? 1 : e > 3 ? 0 : Math.exp(-Math.pow(10, e)); }
+function pdSurv(x) { return x < LP + 1.14 ? 1 : 0; } // an object "exists" while it keeps >1e-6 of its mass
+
+function stateAt(x) {
+  const s = {};
+  s.ms = tget(TB.ms, x) + lateStars(x) + collStars(x);
+  const surv = pdSurv(x), pm = pdMass(x);
+  s.wd = tget(TB.wd, x) * surv; s.ns = tget(TB.ns, x) * surv; s.bd = tget(TB.bd, x) * surv;
+  s.bh = tget(TB.bh, x);
+  s.lum = (tget(TB.L, x) / W_F * (x > LP - 3 ? pdMass(x) : 1) + tget(TB.ly, x)) + collStars(x) * Math.pow(1e-3, GAM) / W_F;
+  // mass budget: baryons of the two galaxies (1.6e11 Msun in stars and remnants, 1.6e10 in gas)
+  const GAS0 = 1.6e10;
+  const t = Math.pow(10, Math.min(x, 30));
+  const converted = x < 14 ? GAS0 * Math.max(0, 1 - T0 / t) : GAS0 * (1 - T0 / TSF);
+  const rdDead = ss(12.2, 14.05, x);
+  const mS = tget(TB.mStar, x), mR = tget(TB.mRemn, x), mB = tget(TB.mBH, x);
+  const sunk = x > X_MERGE ? centralMass(x) - M_C0 : 0;
+  const lost = Math.max(0, MASS0 - (mS + mR + mB + sunk));   // shed by dying stars: back into gas
+  const mStar = mS + converted * (1 - rdDead);
+  const mRemn = (mR + converted * rdDead) * pm;
+  const gasM = (GAS0 - converted + lost) * pm;
+  const mc = centralMassAt(x);
+  const mBH = mB + (x < X_MERGE ? M_M31BH + M_SGR : mc);
+  const tot = MASS0 + GAS0 + M_M31BH + M_SGR;
+  s.fGas = gasM / tot; s.fStar = mStar / tot; s.fRemn = mRemn / tot; s.fBH = mBH / tot;
+  s.fGone = Math.max(0, 1 - s.fGas - s.fStar - s.fRemn - s.fBH);
+  s.mc = mc;
+  s.bhMax = x < X_MERGE ? M_M31BH : mc;
+  if (x >= X_FINAL) { // largest left: none nearby; report wanderers already gone
+    s.bhMax = 0;
+  } else if (x > 72 && s.bhMax < 1) s.bhMax = 0;
+  // entropy (Local Group), log10 S/k
+  const sStars = 1e58 * (s.ms + 1e-9) + 1e57 * (s.wd + s.ns + s.bd);
+  const sCMB = 2e77;
+  let sBH = tget(TB.sBH, x) + tget(TB.sRad, x);
+  const sC0 = S_SUN * M_FINAL * M_FINAL;
+  if (x < X_MERGE) sBH += S_SUN * (M_M31BH * M_M31BH + M_SGR * M_SGR);
+  else if (x < X_FINAL) sBH += S_SUN * mc * mc + 1.5 * (S_SUN * centralMass(x) ** 2 - S_SUN * mc * mc);
+  else sBH += 1.5 * sC0;
+  WANDER.forEach((wd) => { const s0 = S_SUN * wd.m * wd.m; sBH += x < wd.x ? s0 : 1.5 * s0; });
+  s.logS = lg(sStars + sCMB + sBH);
+  s.remL = remLog(x);
+  return s;
+}
+
+/* ------------------------------------------------------------ GL programs */
+const P = {};
+const EPS2 = '0.0625';
+try {
+  P.tf = Cosmos.gl.program(gl, `#version 300 es
+precision highp float;
+layout(location=0) in vec4 aPos;
+layout(location=1) in vec4 aVel;
+uniform vec3 uCa0, uCa1, uCb0, uCb1;   // centres at t and t+dt
+uniform vec4 uH0, uH1;                 // (G Mh, ah, G Mb, ab)
+uniform vec4 uD0, uD1;                 // (G Md, ad, bd, -)
+uniform vec3 uN0, uN1;
+uniform float uSph, uDt, uIso, uSeed;
+out vec4 oPos; out vec4 oVel;
+vec3 accG(vec3 r, vec4 H, vec4 D, vec3 n){
+  float r2 = dot(r,r) + ${EPS2}; float rr = sqrt(r2);
+  vec3 a = -r * (H.x / (rr*(rr+H.y)*(rr+H.y)) + H.z / (rr*(rr+H.w)*(rr+H.w)));
+  float z = dot(r,n); vec3 R = r - z*n; float zb = sqrt(z*z + D.z*D.z); float ab = D.y + zb;
+  float Dd = dot(R,R) + ab*ab + ${EPS2}; float D3 = Dd*sqrt(Dd);
+  vec3 aMN = -D.x / D3 * (R + n*(z*ab/zb));
+  float ae = D.y + D.z; vec3 aS = -r * D.x / (rr*(rr+ae)*(rr+ae));
+  return a + mix(aMN, aS, uSph);
+}
+vec3 acc(vec3 p, vec3 c0, vec3 c1){ return accG(p - c0, uH0, uD0, uN0) + accG(p - c1, uH1, uD1, uN1); }
+float h1(float n){ return fract(sin(n)*43758.5453123); }
+void main(){
+  vec3 p = aPos.xyz, v = aVel.xyz;
+  v += 0.5*uDt*acc(p, uCa0, uCa1);
+  p += uDt*v;
+  v += 0.5*uDt*acc(p, uCb0, uCb1);
+  if (uIso > 0.0) {
+    float id = float(gl_VertexID);
+    float a1 = h1(id*0.1373 + uSeed)*6.2831853, u1 = h1(id*0.7117 + uSeed*1.37)*2.0 - 1.0;
+    vec3 ax = vec3(sqrt(1.0-u1*u1)*cos(a1), sqrt(1.0-u1*u1)*sin(a1), u1);
+    float th = uIso * smoothstep(70.0, 30.0, length(p - 0.5*(uCb0+uCb1))) * (h1(id*0.311 + uSeed*2.1)*2.0 - 1.0);
+    float c = cos(th), s = sin(th);
+    v = v*c + cross(ax, v)*s + ax*dot(ax, v)*(1.0-c);
+  }
+  if (!(dot(p,p) < 4.0e7) || !(dot(v,v) < 100.0)) { p = aPos.xyz; v = vec3(0.0); }
+  oPos = vec4(p, aPos.w); oVel = vec4(v, aVel.w);
+}`, `#version 300 es
+precision highp float; out vec4 o; void main(){ o = vec4(0.0); }`, ['oPos', 'oVel']);
+
+  const GLSL_COMMON = `
+float lg10(float x){ return log(max(x,1e-30))*0.43429448; }
+float p10(float x){ return exp2(clamp(x, -120.0, 120.0)*3.32192809); }
+vec3 bb(float T){
+  float t = clamp(T, 500.0, 60000.0)/100.0; vec3 c;
+  if (t <= 66.0) { c.r = 1.0; c.g = clamp((99.4708025861*log(t)-161.1195681661)/255.0, 0.0, 1.0); c.b = t <= 19.0 ? 0.0 : clamp((138.5177312231*log(t-10.0)-305.0447927307)/255.0, 0.0, 1.0); }
+  else { c.r = clamp(329.698727446*pow(t-60.0, -0.1332047592)/255.0, 0.0, 1.0); c.g = clamp(288.1221695283*pow(t-60.0, -0.0755148492)/255.0, 0.0, 1.0); c.b = 1.0; }
+  c = pow(c, vec3(2.2));
+  return c / max(0.35, dot(c, vec3(0.2126, 0.7152, 0.0722)));
+}
+float Tms(float M){
+  float l = lg10(M);
+  ${TEFF.slice(0, -1).map((p, i) => `if (l < ${TEFF[i + 1][0].toFixed(3)}) return mix(${p[1].toFixed(1)}, ${TEFF[i + 1][1].toFixed(1)}, clamp((l - (${p[0].toFixed(3)}))/(${(TEFF[i + 1][0] - p[0]).toFixed(3)}), 0.0, 1.0));`).join('\n  ')}
+  return 45000.0;
+}
+float Lms(float M){
+  float l = lg10(M);
+  if (M < 0.43) return -0.638 + 2.3*l;
+  if (M < 2.0) return 4.0*l;
+  if (M < 55.0) return 0.146 + 3.5*l;
+  return 4.505 + l;
+}
+float hash1(float n){ return fract(sin(n)*43758.5453123); }
+`;
+
+  P.star = Cosmos.gl.program(gl, `#version 300 es
+precision highp float;
+layout(location=0) in vec4 aPos;
+layout(location=2) in vec4 aA;  // M, xMS (collision time for colliders), xRem, kind
+layout(location=3) in vec4 aB;  // xFate, fate, seed, mRem
+layout(location=4) in vec4 aC;  // xBH, host, disk, log tau
+layout(location=5) in vec4 aD;  // xBorn, young weight, rtype, -
+uniform mat4 uVP; uniform vec3 uEye;
+uniform float uX, uLp, uFW, uExpo, uGhost, uPx, uArm, uPat, uYoung, uMergeX, uTime, uFxK, uPhysK, uDref;
+const float GAM = 0.35;  // per-particle brightness compression (L^0.35)
+uniform vec3 uC0, uC1, uN0, uN1, uU0, uU1, uW0, uW1;
+uniform float uDust;
+out vec3 vCol; out float vShape;
+${GLSL_COMMON}
+vec2 armF(vec3 p, float host){
+  vec3 c = host < 0.5 ? uC0 : uC1; vec3 u = host < 0.5 ? uU0 : uU1; vec3 w = host < 0.5 ? uW0 : uW1;
+  vec3 d = p - c; float x = dot(d,u), y = dot(d,w); float R = length(vec2(x,y)) + 0.01;
+  float ph = atan(y, x);
+  float pitch = host < 0.5 ? 0.29 : 0.17;
+  float arm = 2.0*(ph - uPat*(host < 0.5 ? 1.0 : 0.8) - log(R/3.0)/tan(pitch));
+  float env = smoothstep(1.0, 3.0, R) * smoothstep(host < 0.5 ? 20.0 : 30.0, host < 0.5 ? 12.0 : 18.0, R);
+  float f = pow(0.5 + 0.5*cos(arm), 5.0) * env;
+  float lane = pow(0.5 + 0.5*cos(arm + 0.75), 14.0) * env;
+  return vec2(f, lane);
+}
+float aliveFrac(float ltau, float x){
+  if (x > 16.0) return 0.0;
+  float t = p10(x), tau = p10(ltau), t0 = 1.3787e10;
+  float pre = max(0.0, t0 - max(0.0, t - tau));
+  float lo = max(t0, t - tau), hi = min(t, 1e14);
+  float post = hi > lo ? (t0/lo - t0/hi)*t0 : 0.0;
+  return (pre + post) / min(tau, t0);
+}
+void main(){
+  float M = aA.x, xMS = aA.y, xRem = aA.z, kind = aA.w;
+  float xF = aB.x, fate = aB.y, seed = aB.z, mRem = aB.w;
+  float xBH = aC.x, host = aC.y, disk = aC.z, ltau = aC.w;
+  float xB = aD.x, yb = aD.y, rtype = aD.z;
+  float x = uX;
+  vec3 p = aPos.xyz;
+  vec3 phys = vec3(0.0), ghost = vec3(0.0), fx = vec3(0.0);
+  float shape = 0.0, sizeK = 1.0, alive = 1.0;
+  float pd = exp(-p10(min(x - uLp, 3.0)));                    // surviving mass fraction under proton decay
+  float pdE = p10(min(x - uLp, 3.0)) * pd;                     // energy per log interval (peaks at t = tau_p)
+
+  /* ---- dynamical evaporation (ejection or sinking) ---- */
+  float fadeEj = 1.0;
+  if (x > 17.0) {
+    float rr = length(p) + 1e-3;
+    if (fate > 0.0) {
+      float e = smoothstep(xF - 0.3, xF + 1.8, x);
+      vec3 sd = normalize(vec3(hash1(seed*91.7)-0.5, hash1(seed*57.3)-0.5, hash1(seed*33.1)-0.5) + 1e-4);
+      vec3 dir = normalize(mix(p/rr, sd, 0.6));
+      float Rf = (rr + 25.0) * (1.0 + 5.0*e) * (1.0 + 0.9*smoothstep(21.0, 110.0, x));
+      p = mix(p, dir*Rf, smoothstep(0.0, 0.5, e));
+      fadeEj = mix(1.0, 0.45, e);
+    } else {
+      float f = smoothstep(xF - 1.1, xF, x);
+      p *= pow(1.0 - f, 1.5);
+      if (x > xF) alive = 0.0;
+    }
+  }
+
+  if (kind < 0.5 || kind > 3.5) {
+    /* ---- field star, the Sun (4) or the last star (5) ---- */
+    if (x < xB) alive = 0.0;
+    else if (M < 0.08) {
+      float la = x + lg10(max(1.0 - p10(xB - x), 1e-7));
+      float lL = -4.4 - 1.3*(la - 9.0) + 2.64*lg10(M/0.05);
+      phys = bb(5772.0*p10(0.25*(lL + 2.0))) * p10(GAM*lL);
+      ghost = vec3(0.60, 0.10, 0.08) * 0.03 * pd;
+    } else if (x < xMS) {
+      float lL = Lms(M), T = Tms(M);
+      if (M < 0.3) { // blue dwarf phase at the end of a red dwarf's life
+        float la = x + lg10(max(1.0 - p10(xB - x), 1e-7));
+        float fr = p10(la - ltau);
+        float b = smoothstep(0.80, 1.0, fr) * smoothstep(0.3, 0.12, M);
+        lL += 1.2*b; T *= 1.0 + 1.9*b;
+        sizeK *= 1.0 + 0.6*b;
+      }
+      phys = bb(T) * p10(GAM*lL);
+    } else if (x < xRem) {
+      float fr = clamp((x - xMS)/max(1e-6, xRem - xMS), 0.0, 1.0);
+      float lL = M >= 8.0 ? 4.6 + 0.3*lg10(M/10.0) : 2.0 + 0.6*lg10(M) + 1.0*fr*fr;
+      phys = bb(mix(4400.0, 3300.0, fr)) * p10(GAM*lL);
+    } else {
+      float df = (x - xRem) / uFW;
+      if (df < 1.2 && M >= 8.0) { float e = (1.0 - df/1.2); fx += vec3(0.75, 0.85, 1.0) * 3.0 * e*e; shape = 2.0; sizeK = 4.0 + 8.0*e; }
+      else if (df < 1.0 && M >= 0.5) { float e = 1.0 - df; fx += vec3(0.35, 0.95, 0.85) * 1.5 * e*e; sizeK = 2.5; }
+      if (rtype < 1.5) {                // white dwarf, Mestel cooling
+        float tc = x + lg10(max(1.0 - p10(xRem - x), 1e-9));
+        float lL = clamp(-1.4*(tc - 6.944 - 0.714*lg10(mRem)), -40.0, 2.0);
+        float lR = lg10(0.0126) - lg10(mRem/0.6)/3.0;
+        float T = 5772.0*p10(0.25*(lL - 2.0*lR));
+        phys = bb(T) * p10(GAM*lL) * pd;
+        ghost = vec3(0.25, 0.42, 1.0) * 0.055 * pd;
+        ghost += vec3(0.45, 0.95, 0.9) * 2.2 * pdE;
+        if (x > uLp + 0.5) sizeK = 1.0 + 2.0*smoothstep(uLp + 0.5, uLp + 1.2, x);
+      } else if (rtype < 2.5) {         // neutron star
+        ghost = vec3(0.35, 0.95, 1.0) * 0.45 * pd + vec3(0.45, 0.95, 0.9) * 2.2 * pdE;
+      } else {                          // stellar black hole
+        shape = 1.0;
+        ghost = vec3(0.60, 0.45, 1.0) * 0.9;
+      }
+    }
+    if (kind > 4.5 && x > xMS) alive = 0.0;
+    // decay products: a few photons and leptons keep drifting outward, the only things left in the dark
+    if (rtype < 2.5 && seed < 0.2 && x > uLp + 0.4 && fate > 0.0) {
+      float db = smoothstep(uLp + 0.4, uLp + 1.6, x);
+      float fl = 0.6 + 0.4*sin(uTime*(0.7 + seed*3.0) + seed*50.0);
+      // in the Dark Era only a sparse handful stay visible, reddening as they drift apart
+      float dark = smoothstep(98.5, 100.5, x);
+      float keep = mix(1.0, step(seed, 0.006) * 5.0, dark);
+      vec3 dc = mix(mix(vec3(1.0, 0.72, 0.5), vec3(0.75, 0.8, 1.0), step(0.1, seed)), vec3(1.0, 0.45, 0.3), smoothstep(100.0, 110.0, x));
+      fx += dc * 0.07 * db * fl * keep * (1.0 - 0.55*smoothstep(102.0, 110.0, x));
+      p *= 1.0 + 0.6*smoothstep(99.0, 110.0, x) * (0.5 + seed*60.0);
+      shape = 0.0;
+    }
+    if (disk > 0.5 && uArm > 0.01) { vec2 a = armF(p, host); phys *= 1.0 + uArm*(1.3*a.x - 0.8*a.y); }
+  } else if (kind < 1.5) {
+    /* ---- young stars: stand for stars younger than their own lifetime ---- */
+    float A = aliveFrac(ltau, x);
+    if (ltau < 9.0) A *= 1.0 + 0.8*exp(-pow((x - uMergeX + 0.005)/0.02, 2.0));
+    float cyc = x*9.0 + seed*17.0;
+    float c = fract(cyc), idc = floor(cyc);
+    float h = hash1(idc*1.713 + seed*311.0);
+    float vis = step(h, min(A, 1.0));
+    float env = smoothstep(0.0, 0.12, c) * (1.0 - smoothstep(0.82, 1.0, c));
+    vec2 arm = armF(p, host);
+    vis *= mix(1.0, 0.06 + 0.94*arm.x, uArm);
+    vis *= 1.0 - 0.7*arm.y*uArm;
+    float lL = Lms(M);
+    phys = bb(Tms(M)) * p10(GAM*(lL + lg10(yb))) * uYoung * env * vis;
+    if (M > 10.0) { phys = mix(phys, vec3(1.0, 0.28, 0.45)*dot(phys, vec3(0.33)), 0.22 * uArm); sizeK = 1.6; }
+    if (M >= 8.0 && hash1(idc*3.1 + seed*97.0) < 0.02) {
+      float e = smoothstep(0.90, 0.92, c) * (1.0 - smoothstep(0.92, 1.0, c));
+      fx += vec3(0.75, 0.85, 1.0) * 1.6 * e * vis; if (e * vis > 0.01) { shape = 2.0; sizeK = 3.0 + 5.0*e; }
+    }
+    if (M > 2.0) vis *= 1.0 - smoothstep(11.0, 11.6, x);
+    if (x > 14.2) alive = 0.0;
+  } else if (kind < 2.5) {
+    /* ---- brown dwarf that collides and makes a new red dwarf ---- */
+    float xc = xMS;
+    float la = x + lg10(max(1.0 - p10(xB - x), 1e-7));
+    float lL = -4.4 - 1.3*(la - 9.0) + 2.64*lg10(M/0.05);
+    if (x < xc) { phys = bb(5772.0*p10(0.25*(lL + 2.0))) * p10(GAM*lL); ghost = vec3(0.60, 0.10, 0.08) * 0.03 * pd; }
+    else {
+      float df = (x - xc) / max(uFW, 0.002);
+      float e = exp(-df*1.1);
+      fx += mix(vec3(1.0, 0.45, 0.2), vec3(1.0, 0.88, 0.75), e) * 5.0 * e;
+      fx += vec3(1.0, 0.35, 0.18) * 0.25 * smoothstep(5.0, 0.0, df);
+      if (e > 0.02) { shape = 2.0; sizeK = 4.0 + 12.0*e; }
+      ghost = vec3(0.60, 0.10, 0.08) * 0.03 * pd;
+    }
+  } else {
+    /* ---- stellar black hole tracer ---- */
+    shape = 1.0;
+    float df = (x - xBH) / max(uFW, 0.002);
+    if (df < 0.0) { ghost = vec3(0.60, 0.45, 1.0) * (0.5 + 2.2*smoothstep(36.0, 44.0, x)); sizeK = 1.0 + 0.6*smoothstep(36.0, 44.0, x); }
+    else { float e = exp(-df*1.0); fx += mix(vec3(0.7, 0.6, 1.0), vec3(0.85, 0.9, 1.0), e) * 4.0 * e; sizeK = 3.0 + 11.0*e; shape = 2.0; if (df > 6.0) alive = 0.0; }
+  }
+
+  // dust: light from behind each disk's dusty midplane is dimmed, most along the arms' inner edges
+  if (uDust > 0.01) {
+    for (int g = 0; g < 2; g++) {
+      vec3 c = g == 0 ? uC0 : uC1; vec3 n = g == 0 ? uN0 : uN1;
+      vec3 d = p - c; float zc = dot(d, n) * sign(dot(uEye - c, n) + 1e-4);
+      float R = length(d - dot(d, n)*n);
+      if (R > 30.0) continue;
+      float behind = smoothstep(0.12, -0.25, zc);
+      vec2 a = armF(p, float(g));
+      float tau = uDust * (g == 0 ? 1.1 : 0.9) * exp(-R/7.0) * (0.55 + 2.2*a.y + 0.6*a.x) * smoothstep(0.6, 2.5, R + 1.2);
+      phys *= exp(-tau*behind);
+    }
+  }
+  vec3 col = phys * uExpo * uPhysK * fadeEj + ghost * uGhost * fadeEj + fx * uFxK;
+  float I = dot(col, vec3(0.3, 0.55, 0.15));
+  if (alive < 0.5 || I < 1e-5) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; vCol = vec3(0.0); vShape = 0.0; return; }
+
+  vec4 cp = uVP * vec4(p, 1.0);
+  float dist = max(cp.w, 0.1);
+  float dimP = clamp(pow(60.0/dist, 2.0), 0.0, 3.0), dimG = clamp(300.0/dist, 0.25, 2.5);
+  col = phys * uExpo * uPhysK * fadeEj * dimP + (ghost * uGhost * fadeEj + fx * uFxK) * dimG;
+  I = dot(col, vec3(0.3, 0.55, 0.15));
+  float persp = clamp(70.0 / dist, 0.55, 2.4);
+  float size = uPx * persp * sizeK * (1.0 + 0.3*clamp(lg10(1.0 + I*2.0), 0.0, 3.0));
+  if (shape > 0.5 && shape < 1.5) size = max(size, uPx * 3.2 * clamp(160.0/dist, 0.6, 2.2));
+  if (shape > 1.5) size = uPx * sizeK * 2.4 * clamp(250.0/dist, 0.7, 1.6);
+  size = clamp(size, 1.0, 96.0);
+  float norm = (uPx*uPx) / (size*size);
+  vCol = col * (shape > 0.5 ? 1.0 : clamp(norm * 1.6, 0.02, 1.6));
+  vShape = shape;
+  gl_Position = cp;
+  gl_PointSize = size;
+}`, `#version 300 es
+precision highp float;
+in vec3 vCol; in float vShape; out vec4 o;
+void main(){
+  vec2 q = gl_PointCoord*2.0 - 1.0; float r2 = dot(q,q);
+  if (r2 > 1.0) discard;
+  float a;
+  if (vShape < 0.5) a = exp(-r2*6.0) + 0.06*exp(-r2*1.5);
+  else if (vShape > 1.5) { vec2 aq = abs(q); a = exp(-r2*40.0)*1.6 + 0.3*exp(-r2*7.0) + 0.9*(exp(-aq.y*70.0)*exp(-aq.x*3.2) + exp(-aq.x*70.0)*exp(-aq.y*3.2)); a *= 1.0 - r2; }
+  else { float r = sqrt(r2); a = exp(-pow((r - 0.45)/0.09, 2.0)) * 0.9 + 0.12*exp(-r2*2.0); a *= smoothstep(0.2, 0.35, r); }
+  o = vec4(vCol * a, 1.0);
+}`);
+
+  P.bg = Cosmos.gl.program(gl, `#version 300 es
+precision highp float;
+layout(location=0) in vec4 aG;   // dir.xyz, size
+layout(location=1) in vec4 aH;   // xFade, angle, ellipticity, type
+uniform mat4 uP, uV; uniform float uX, uPx, uFade;
+out vec4 vC; out vec3 vE;
+${GLSL_COMMON}
+void main(){
+  vec3 d = mat3(uV) * aG.xyz;
+  vec4 cp = uP * vec4(d * 1000.0, 1.0);
+  float f = smoothstep(aH.x - 0.45, aH.x, uX);
+  float vis = 1.0 - f;
+  vec3 c0 = aH.w > 0.5 ? vec3(1.0, 0.82, 0.62) : vec3(0.72, 0.8, 1.0);
+  vec3 c1 = vec3(1.0, 0.25, 0.08);
+  vec3 c = mix(c0, c1, smoothstep(0.0, 0.8, f)) * vis * vis * uFade;
+  vC = vec4(c, 1.0);
+  vE = vec3(aH.y, aH.z, 0.0);
+  gl_Position = cp;
+  gl_PointSize = vis > 0.001 ? clamp(aG.w * uPx * (1.0 - 0.4*f), 1.5, 40.0) : 0.0;
+}`, `#version 300 es
+precision highp float;
+in vec4 vC; in vec3 vE; out vec4 o;
+void main(){
+  vec2 q = gl_PointCoord*2.0 - 1.0;
+  float c = cos(vE.x), s = sin(vE.x);
+  vec2 r = vec2(c*q.x + s*q.y, -s*q.x + c*q.y);
+  r.y /= max(0.2, vE.y);
+  float d2 = dot(r, r);
+  if (d2 > 1.0) discard;
+  float a = exp(-d2*5.0) * 0.5 + exp(-d2*28.0) * 0.9;
+  o = vec4(vC.rgb * a * 0.55, 1.0);
+}`);
+
+  P.down = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o; uniform sampler2D uT; uniform vec2 uTx;
+void main(){
+  vec3 c = texture(uT, vUv).rgb*0.5;
+  c += texture(uT, vUv + vec2(-uTx.x, -uTx.y)).rgb*0.125;
+  c += texture(uT, vUv + vec2( uTx.x, -uTx.y)).rgb*0.125;
+  c += texture(uT, vUv + vec2(-uTx.x,  uTx.y)).rgb*0.125;
+  c += texture(uT, vUv + vec2( uTx.x,  uTx.y)).rgb*0.125;
+  o = vec4(min(c, vec3(6.0e4)), 1.0);
+}`);
+  P.up = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o; uniform sampler2D uT; uniform sampler2D uB; uniform vec2 uTx; uniform float uK;
+void main(){
+  vec3 c = vec3(0.0);
+  c += texture(uT, vUv + vec2(-uTx.x, 0.0)).rgb*2.0; c += texture(uT, vUv + vec2(uTx.x, 0.0)).rgb*2.0;
+  c += texture(uT, vUv + vec2(0.0, -uTx.y)).rgb*2.0; c += texture(uT, vUv + vec2(0.0, uTx.y)).rgb*2.0;
+  c += texture(uT, vUv + vec2(-uTx.x, -uTx.y)).rgb; c += texture(uT, vUv + vec2(uTx.x, -uTx.y)).rgb;
+  c += texture(uT, vUv + vec2(-uTx.x, uTx.y)).rgb; c += texture(uT, vUv + vec2(uTx.x, uTx.y)).rgb;
+  c += texture(uT, vUv).rgb*4.0;
+  o = vec4(texture(uB, vUv).rgb + c/16.0*uK, 1.0);
+}`);
+  P.comp = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+uniform sampler2D uScene, uBloom;
+uniform vec2 uRes;
+uniform vec4 uLens[8];      // x px, y px, shadow radius px, strength
+uniform vec4 uGlow[8];      // rgb, intensity
+uniform int uNL;
+uniform float uBloomK, uFlash, uGen, uTime, uExpoK, uDim, uSpark, uBurst;
+uniform vec3 uFlashCol, uSparkCol;
+uniform vec2 uGenPos, uBurstPos;
+uniform vec3 uSparkPos;   // x px, y px, radius px
+float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)))*43758.5453); }
+void main(){
+  vec2 px = vUv*uRes;
+  vec2 spx = px; float shadow = 1.0; vec3 add = vec3(0.0);
+  for (int i = 0; i < 8; i++) {
+    if (i >= uNL) break;
+    vec4 L = uLens[i];
+    vec2 d = px - L.xy; float r = length(d) + 1e-3; float rs = L.z;
+    float rE = rs*2.4;
+    spx -= L.w * d * (rE*rE) / (r*r + rs*rs*0.05);
+    shadow *= mix(1.0, smoothstep(rs*0.97, rs*1.05, r), L.w);
+    vec4 g = uGlow[i];
+    float ring = exp(-pow((r - rs*1.07)/(rs*0.07 + 0.8), 2.0));
+    float halo = r > rs ? exp(-(r - rs)/(rs*0.9 + 2.0)) : 0.0;
+    // photon ring: light that has circled the hole, a razor-thin line hugging the shadow
+    float ph = exp(-pow((r - rs*1.012)/(rs*0.011 + 0.45), 2.0));
+    float shim = 0.85 + 0.15*sin(atan(d.y, d.x)*3.0 + uTime*0.4);
+    add += g.rgb * g.a * (0.9*ring + 0.55*halo) * L.w + mix(g.rgb, vec3(1.0), 0.55) * g.a * 1.1 * ph * shim * L.w;
+  }
+  vec2 suv = clamp(spx/uRes, vec2(0.001), vec2(0.999));
+  vec3 c = (texture(uScene, suv).rgb + texture(uBloom, suv).rgb*uBloomK) * uExpoK;
+  c = c*shadow + add;
+  // genesis point: a single brightening point (Penrose's speculative next aeon)
+  if (uGen > 0.0) {
+    float d = length(px - uGenPos) / uRes.y;
+    float tw = 0.85 + 0.15*sin(uTime*2.3) * sin(uTime*1.7 + 1.0);
+    c += vec3(1.0, 0.97, 0.92) * uGen * tw * (3.0*exp(-pow(d/0.0035, 2.0)) + 0.5*0.0012/(d*d + 0.0012));
+    c += vec3(0.55, 0.6, 1.0) * uGen * 0.35 * exp(-d*9.0);
+    // faint cross flare
+    vec2 q = abs(px - uGenPos) / uRes.y;
+    c += vec3(0.8, 0.85, 1.0) * uGen * tw * 0.25 * (exp(-q.y*900.0) * exp(-q.x*18.0) + exp(-q.x*900.0) * exp(-q.y*18.0));
+  }
+  // Hawking radiation streaming out of the dying hole (countdown and the first moments after it)
+  if (uSpark > 0.0) {
+    vec2 d = px - uSparkPos.xy; float r = length(d); float rs = max(uSparkPos.z, 2.0);
+    float ang = atan(d.y, d.x) / 6.2831853 + 0.5;
+    vec3 sp = vec3(0.0);
+    for (int k = 0; k < 2; k++) {
+      float nr = k == 0 ? 90.0 : 170.0;
+      float cell = floor(ang*nr); float fa = fract(ang*nr);
+      float h = hash(vec2(cell, float(k)*7.1));
+      float sp1 = 0.25 + 0.75*h;
+      float pos = fract(h*3.7 + uTime*sp1*(0.35 + 0.5*uSpark));
+      float rr = rs*1.05 + pos*uRes.y*0.45;
+      float w = exp(-pow((r - rr)/(3.0 + 6.0*pos), 2.0)) * exp(-pow((fa - 0.5)/0.12, 2.0));
+      sp += uSparkCol * w * (1.0 - pos) * step(0.35, h);
+    }
+    c += sp * uSpark * 3.0;
+  }
+  // the last light: the final second's gamma rays, drawn as a point glare and a shell moving out at c
+  if (uBurst >= 0.0) {
+    vec2 d = px - uBurstPos; float r = length(d); float bt = uBurst;
+    float g = exp(-bt*1.6);
+    float dn = r / uRes.y;
+    c += vec3(0.86, 0.9, 1.0) * g * (7.0*exp(-pow(dn/0.005, 2.0)) + 0.7*0.0015/(dn*dn + 0.0015));
+    vec2 q = abs(d) / uRes.y;
+    float spk = exp(-q.y*800.0)*exp(-q.x*5.0) + exp(-q.x*800.0)*exp(-q.y*5.0);
+    c += vec3(0.8, 0.86, 1.0) * g * 1.6 * spk;
+    float R = bt * uRes.y * 0.21;
+    float s = r - R, w = 1.5 + 1.2*bt;
+    float lead = exp(-pow(s/w, 2.0));
+    float tail = s < 0.0 ? exp(s/(w*3.0 + R*0.06)) : 0.0;
+    float fade = exp(-bt*0.5) / (1.0 + R/(uRes.y*0.7)) * smoothstep(0.0, 0.04, bt);
+    vec3 edgeC = vec3(0.92, 0.95, 1.0), tailC = vec3(0.50, 0.46, 1.0);
+    c += (edgeC * lead * 7.0 + tailC * tail * 1.1) * fade;
+  }
+  c += uFlashCol * uFlash;
+  // tone map: asinh stretch on luminance (Lupton et al. 2004), then soft shoulder
+  float Lm = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  float k = 5.0;
+  float m = Lm > 1e-6 ? asinh(Lm*k)/(Lm*k) : 1.0;
+  c *= m * 0.92;
+  c = 1.0 - exp(-c*1.25);
+  // subtle vignette and grain
+  vec2 q = vUv - 0.5; c *= 1.0 - 0.35*dot(q, q)*1.6;
+  c *= uDim;
+  c = pow(max(c, 0.0), vec3(1.0/2.2));
+  c += (hash(px + fract(uTime)*91.0) - 0.5) * 0.012;
+  o = vec4(c, 1.0);
+}`);
+} catch (e) { ch.fatal('A shader failed to compile on this GPU.', e); return; }
+
+/* ------------------------------------------------------------ buffers */
+const initPos = gl.createBuffer(), initVel = gl.createBuffer();
+function upload(b, data, usage) { gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, data, usage); }
+upload(initPos, POS0, gl.STATIC_COPY); upload(initVel, VEL0, gl.STATIC_COPY);
+const staticBuf = gl.createBuffer(); upload(staticBuf, STATIC, gl.STATIC_DRAW);
+/** A transform-feedback particle system: two ping-pong buffer sets plus the CPU-integrated tracked block */
+function makeSim() {
+  const pos = [gl.createBuffer(), gl.createBuffer()], vel = [gl.createBuffer(), gl.createBuffer()];
+  for (let s = 0; s < 2; s++) { upload(pos[s], POS0, gl.DYNAMIC_COPY); upload(vel[s], VEL0, gl.DYNAMIC_COPY); }
+  const vao = [0, 1].map((s) => {
+    const v = gl.createVertexArray(); gl.bindVertexArray(v);
+    gl.bindBuffer(gl.ARRAY_BUFFER, pos[s]); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, vel[s]); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0);
+    gl.bindVertexArray(null); return v;
+  });
+  const tfo = [0, 1].map((s) => { // tfo[s] writes into the other set
+    const t = gl.createTransformFeedback(); gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, t);
+    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, pos[1 - s]); gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, vel[1 - s]);
+    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null); return t;
+  });
+  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null); gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
+  const sim = { pos, vel, vao, tfo, cur: 0, k: 0, tp: new Float64Array(NT * 3), tv: new Float64Array(NT * 3) };
+  for (let i = 0; i < NT; i++) for (let k = 0; k < 3; k++) { sim.tp[i * 3 + k] = POS0[(N - NT + i) * 4 + k]; sim.tv[i * 3 + k] = VEL0[(N - NT + i) * 4 + k]; }
+  return sim;
+}
+const MAIN = makeSim();
+const posBuf = MAIN.pos;
+const rVao = [0, 1].map((s) => {
+  const v = gl.createVertexArray(); gl.bindVertexArray(v);
+  gl.bindBuffer(gl.ARRAY_BUFFER, posBuf[s]); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, staticBuf);
+  for (let a = 0; a < 4; a++) { gl.enableVertexAttribArray(2 + a); gl.vertexAttribPointer(2 + a, 4, gl.FLOAT, false, 64, a * 16); }
+  gl.bindVertexArray(null); return v;
+});
+/* A second system integrates the whole merger window in the background after load and leaves snapshots,
+   so that jumps and backward scrubs restore the nearest snapshot instead of replaying from today. */
+const BGSIM = makeSim();
+const SNAPS = [0.25, 0.5, 0.75, 1].map((f) => {
+  const k = Math.round(K_END * f), pos = gl.createBuffer(), vel = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, pos); gl.bufferData(gl.ARRAY_BUFFER, N * 16, gl.DYNAMIC_COPY);
+  gl.bindBuffer(gl.ARRAY_BUFFER, vel); gl.bufferData(gl.ARRAY_BUFFER, N * 16, gl.DYNAMIC_COPY);
+  return { k, pos, vel, tp: new Float64Array(NT * 3), tv: new Float64Array(NT * 3), ready: false };
+});
+gl.bindBuffer(gl.ARRAY_BUFFER, null);
+// background galaxies
+const NBG = small ? 260 : 420;
+const BG = new Float32Array(NBG * 8);
+(function () {
+  const r = U.rng(9);
+  for (let i = 0; i < NBG; i++) {
+    const ct = 2 * r() - 1, st = Math.sqrt(1 - ct * ct), ph = r() * 6.283;
+    const big = r() < 0.06;
+    BG.set([st * Math.cos(ph), ct, st * Math.sin(ph), big ? 6 + 8 * r() : 2 + 3.5 * r() * r(),
+      10.3 + 0.85 * Math.pow(r(), 0.7), r() * 3.14, 0.25 + 0.75 * r(), r() < 0.45 ? 1 : 0], i * 8);
+  }
+})();
+const bgBuf = gl.createBuffer(); upload(bgBuf, BG, gl.STATIC_DRAW);
+const bgVao = gl.createVertexArray(); gl.bindVertexArray(bgVao);
+gl.bindBuffer(gl.ARRAY_BUFFER, bgBuf); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 32, 0); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 32, 16);
+gl.bindVertexArray(null);
+const bgFadeCount = (x) => { let n = 0; for (let i = 0; i < NBG; i++) if (x < BG[i * 8 + 4]) n++; return n; };
+
+// the tracked block (Sun, last star, colliders, black-hole tracers) is integrated on the CPU in double precision
+// with the same potentials, and uploaded over the GPU copy every frame, so labels sit exactly on their particles
+const TPF = new Float32Array(NT * 4);
+let trkValid = true;
+/* ------------------------------------------------------------ render targets */
+const quad = Cosmos.gl.quad(gl);
+let RT = null;
+function makeTargets() {
+  const W = gl.drawingBufferWidth, H = gl.drawingBufferHeight;
+  const fmt = HDR ? { internal: gl.RGBA16F, format: gl.RGBA, type: gl.HALF_FLOAT } : { internal: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE };
+  if (RT) { [RT.scene, ...RT.lv, ...RT.up].forEach((t) => { gl.deleteFramebuffer(t.fbo); gl.deleteTexture(t.tex); }); }
+  const mk = (w, h) => Cosmos.gl.target(gl, Object.assign({ w: Math.max(1, w), h: Math.max(1, h), filter: 'linear' }, fmt));
+  let scene; const lv = [], up = [];
+  try {
+    scene = mk(W, H);
+    let w = W, h = H;
+    for (let i = 0; i < 6; i++) { w = Math.max(1, w >> 1); h = Math.max(1, h >> 1); lv.push(mk(w, h)); up.push(mk(w, h)); }
+  } catch (e) {
+    if (!HDR) throw e;
+    HDR = false; RT = null; return makeTargets();
+  }
+  RT = { scene, lv, up, W, H };
+}
+
+/* ------------------------------------------------------------ state */
+const S = {
+  x: X_NOW, J: 0, playing: true, speed: 1, cd: -1, remL: null, flashT: 0, burstT: -1, burstPos: null, lensCss: null, ended: false,
+  labels: true, ghosts: true, captions: true, autoCam: true,
+  kCur: 0, tfMode: 'phys', cur: 0, visT: 0, t0: performance.now(), catching: false, showK: 1, xPrev: X_NOW, dexRate: 0, lastInteract: -1e9, frame: 0,
+};
+Cosmos.debug.S = S;
+
+/* ------------------------------------------------------------ the journey (autoplay path through log time) */
+let JK = [];
+function buildJourney() {
+  const Lp = LP;
+  const pts = [
+    [0, X_NOW], [3.5, X_NOW + 0.004], [9, lg(T0 + 2.2e9)], [16, X_PERI + 0.004], [23, X_MERGE + 0.006], [27, X_WIN],
+    [31, 10.62], [37, 11.25], [43, 12.3], [50, 13.12], [55, 13.93], [58.5, 14.06], [63, 15.6], [69, 18.3], [76, 20.6],
+    [80, Math.min(Lp - 1.6, 36)], [86, Lp + 1.3], [89, Math.max(40, Lp + 1.8)], [94, 67.6], [101, 71.9], [107, 88.5], [111, X_CD],
+    [123, X_CD + 0.0001], [124.5, X_FINAL + 0.0002], [130, X_FINAL + 0.22], [135, 100.3], [144, 110],
+  ];
+  // keep monotone
+  for (let i = 1; i < pts.length; i++) if (pts[i][1] < pts[i - 1][1]) pts[i][1] = pts[i - 1][1];
+  JK = pts;
+  // Fritsch–Carlson slopes
+  const n = pts.length, m = new Array(n).fill(0), dl = [];
+  for (let i = 0; i < n - 1; i++) dl.push((pts[i + 1][1] - pts[i][1]) / (pts[i + 1][0] - pts[i][0]));
+  for (let i = 1; i < n - 1; i++) m[i] = dl[i - 1] * dl[i] <= 0 ? 0 : (dl[i - 1] + dl[i]) / 2;
+  m[0] = dl[0]; m[n - 1] = dl[n - 2];
+  for (let i = 0; i < n - 1; i++) { if (dl[i] === 0) { m[i] = m[i + 1] = 0; continue; } const a = m[i] / dl[i], b = m[i + 1] / dl[i]; const s = a * a + b * b; if (s > 9) { const t = 3 / Math.sqrt(s); m[i] = t * a * dl[i]; m[i + 1] = t * b * dl[i]; } }
+  JK.m = m;
+}
+const J_CD0 = () => JK[21][0], J_CD1 = () => JK[22][0], J_END = () => JK[JK.length - 1][0];
+function xOfJ(J) {
+  const p = JK; if (J <= p[0][0]) return p[0][1]; if (J >= p[p.length - 1][0]) return p[p.length - 1][1];
+  let i = 0; while (i < p.length - 2 && J > p[i + 1][0]) i++;
+  const h = p[i + 1][0] - p[i][0], t = (J - p[i][0]) / h, t2 = t * t, t3 = t2 * t;
+  return (2 * t3 - 3 * t2 + 1) * p[i][1] + (t3 - 2 * t2 + t) * h * JK.m[i] + (-2 * t3 + 3 * t2) * p[i + 1][1] + (t3 - t2) * h * JK.m[i + 1];
+}
+function jOfX(x) { let lo = 0, hi = J_END(); for (let k = 0; k < 50; k++) { const mid = (lo + hi) / 2; if (xOfJ(mid) < x) lo = mid; else hi = mid; } return hi; }
+buildJourney();
+
+/* ------------------------------------------------------------ camera */
+const cam = Cosmos.orbit(ch.stage, { dist: 1, minDist: 0.22, maxDist: 5, theta: -Math.PI / 2 - 0.47, phi: 1.33, autoRotate: 0.018 });
+ch.stage.classList.add('cz-grab');
+const camState = { tgt: [C_INIT[0], 0, 0], dist: 60, eye: [0, 0, 0], view: null, proj: null, vp: null, fov: 0.95, off: [0, 0] };
+['pointerdown', 'wheel'].forEach((ev) => ch.stage.addEventListener(ev, () => { S.lastInteract = performance.now(); }, { passive: true }));
+function camTargetFor(x, k) {
+  const c = centres(k, _cbuf);
+  const sep = sepAt(k);
+  const wMW = ss(90, 420, sep) * (1 - ss(X_WIN, X_WIN + 0.3, x));
+  const tgt = [c[0] * wMW, c[1] * wMW, c[2] * wMW];
+  let d;
+  if (x < X_WIN + 0.05) d = lerp(Math.max(210, 1.3 * sep + 80), 50, ss(260, 520, sep));
+  else d = lerp(210, 125, ss(X_WIN, X_WIN + 0.25, x));
+  if (small) d *= 1.35;
+  d *= 1 + 0.15 * ss(10.4, 12, x);
+  d = lerp(d, 200, ss(13.8, 16.5, x));
+  d = lerp(d, 820, ss(18.6, 21.2, x));
+  d = lerp(d, 640, ss(24, 40, x));
+  d = lerp(d, 520, ss(60, 80, x));
+  d = lerp(d, small ? 230 : 170, ss(88, 97.7, x));   // drift in toward the last hole before its countdown
+  return { tgt, d };
+}
+const _cbuf = new Float64Array(6);
+
+/* ------------------------------------------------------------ DOM: caption, ribbon, legend, final screen */
+const cap = Cosmos.h('div', { class: 'll-cap', 'aria-live': 'polite' }, Cosmos.h('div', { class: 'k' }), Cosmos.h('div', { class: 't' }), Cosmos.h('div', { class: 'd' }));
+const ICON_PLAY = '<svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>', ICON_HOLD = '<svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>';
+const playBtn = Cosmos.h('button', { class: 'll-play', type: 'button', title: 'Play / hold the journey (P)', 'aria-label': 'Play or hold the journey', html: ICON_HOLD });
+const timeEl = Cosmos.h('div', { class: 'll-time' }, Cosmos.h('b'), Cosmos.h('small'));
+const eraEl = Cosmos.h('div', { class: 'll-eraname' }, Cosmos.h('b'), Cosmos.h('small'));
+const ribCanvas = Cosmos.h('canvas', { 'aria-label': 'Logarithmic time ribbon, 10^10 to 10^110 years. Drag to travel.', role: 'slider', tabindex: '0', 'aria-valuemin': '10', 'aria-valuemax': '110' });
+const rib = Cosmos.h('div', { class: 'll-rib' }, Cosmos.h('div', { class: 'll-rib-head' }, playBtn, timeEl, eraEl), ribCanvas);
+const legend = Cosmos.h('div', { class: 'll-legend', style: { opacity: 0 } });
+legend.innerHTML = '<div class="h">false colour</div><div>white dwarf<i style="--c:#8cb0ff"></i></div><div>neutron star<i style="--c:#72f2ff"></i></div><div>brown dwarf<i style="--c:#b0443a"></i></div><div>black hole<i style="--c:#a07cff"></i></div><div>decaying matter<i style="--c:#73f0dc"></i></div>';
+const endEl = Cosmos.h('div', { class: 'll-end', 'aria-hidden': 'true' });
+endEl.innerHTML = `<div class="ll-end-box">
+  <div class="k">t → ∞ · speculation</div>
+  <h2>Begin again</h2>
+  <p>When nothing with mass is left, there is no clock and no ruler. Roger Penrose has suggested that an endless, empty future might then be the same, geometrically, as the hot beginning of a new universe.</p>
+  <p class="s">Conformal cyclic cosmology (Penrose 2010) is a minority speculation, not established physics.</p>
+  <div class="row"><a href="ch01-inflation.html">Chapter 1 · Quantum Foam →</a><button type="button" class="ll-again">Watch again</button></div>
+</div>`;
+document.body.append(cap, rib, legend, endEl);
+endEl.querySelector('.ll-again').addEventListener('click', () => restart());
+
+/* ------------------------------------------------------------ deck */
+const gJ = ch.ui.group('Journey');
+const [btnPlay, btnRestart] = gJ.buttons([
+  { label: 'Hold', kind: 'primary', onClick: () => setPlaying(!S.playing), id: 'll-play' },
+  { label: 'From today', onClick: () => restart(), id: 'll-restart' },
+]);
+const speedS = gJ.slider({ id: 'll-speed', label: 'Journey speed', min: 0.25, max: 4, value: 1, log: true, format: (v) => '×' + v.toFixed(2), hint: 'The whole journey takes a little over two minutes at ×1.', onInput: (v) => { S.speed = v; } });
+const JUMPS = [
+  ['Now', () => X_NOW], ['Merger', () => X_PERI - 0.01], ['Red dwarfs', () => 12.3], ['Last star', () => 13.9],
+  ['Evaporation', () => 18.6], ['Proton decay', () => LP - 1.2], ['Black holes', () => 67.4], ['Last black hole', null], ['Dark Era', () => 100.2],
+];
+gJ.buttons(JUMPS.map(([label, fx]) => ({ label, id: 'll-jump-' + label.toLowerCase().replace(/ /g, '-'), onClick: () => (fx ? jumpTo(fx(), true) : finale()) })));
+
+const gR = ch.ui.group('Instruments');
+const roEl = Cosmos.h('div', { class: 'll-ro' });
+const RO = {};
+[['t', 'Time', 'w'], ['era', 'Era'], ['eta', 'η = log t'], ['stars', 'Stars shining'], ['wd', 'White dwarfs'], ['ns', 'Neutron stars'], ['bh', 'Black holes'], ['cmb', 'CMB temperature', 'w wrap'], ['big', 'Largest black hole', 'w'], ['th', 'Its Hawking temperature', 'w'], ['expo', 'Exposure'], ['gal', 'Other galaxies']].forEach(([id, label, cls]) => {
+  const v = Cosmos.h('span'); roEl.append(Cosmos.h('div', { class: cls || '' }, Cosmos.h('span', { text: label }), v)); RO[id] = v;
+});
+gR.html(roEl);
+gR.html(Cosmos.h('div', { class: 'll-cap-sm', text: 'Where the baryons are' }));
+const budgetC = gR.canvas(78);
+const bleg = gR.html(Cosmos.h('div', { class: 'll-bleg' }));
+gR.html(Cosmos.h('div', { class: 'll-cap-sm', text: 'Entropy, log₁₀ S/k' }));
+const entC = gR.canvas(92);
+gR.html(Cosmos.h('div', { class: 'll-cap-sm', text: 'Cosmic calendar' }));
+const calC = gR.canvas(62);
+const calT = gR.html(Cosmos.h('div', { class: 'll-cal' }));
+
+const gP = ch.ui.group('Physics');
+const tauS = gP.slider({ id: 'll-taup', label: 'Proton lifetime τₚ', min: 2.4e34, max: 1e41, value: 1e37, log: true, format: (v) => FM.sci(v, 2) + ' yr',
+  hint: 'Hypothetical. Super-Kamiokande shows τ(p → e⁺π⁰) > 2.4 × 10³⁴ yr; the slider starts at that bound.',
+  onInput: (v) => { LP = lg(v); buildJourney(); if (S.playing) S.J = jOfX(S.x); drawStaticCharts(); } });
+gP.note('The proton lifetime sets when white dwarfs, neutron stars and brown dwarfs dissolve. Black holes are unaffected.');
+
+const gV = ch.ui.group('View');
+gV.toggle({ id: 'll-labels', label: 'Labels', value: true, onChange: (v) => { S.labels = v; } });
+gV.toggle({ id: 'll-ghosts', label: 'Remnants (false colour)', value: true, hint: 'Dead stars, brown dwarfs and black holes emit little or no visible light.', onChange: (v) => { S.ghosts = v; } });
+gV.toggle({ id: 'll-caps', label: 'Captions', value: true, onChange: (v) => { S.captions = v; document.body.classList.toggle('ll-nocap', !v); } });
+gV.toggle({ id: 'll-autocam', label: 'Cinematic camera', value: true, hint: 'Frames each era. Dragging the scene takes over for a few seconds.', onChange: (v) => { S.autoCam = v; } });
+
+const hud = { t: ch.hud.add('Time', ''), era: ch.hud.add('Era', ''), stars: ch.hud.add('Stars', ''), cmb: ch.hud.add('CMB', '') };
+
+/* ------------------------------------------------------------ formatting helpers */
+const SUPM = (s) => String(s).replace(/-/g, '−');
+function sciH(v, d = 3) { // HTML scientific notation
+  if (!isFinite(v)) return '—'; if (v === 0) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e-3 && a < 1e5) return Number(v.toPrecision(d)).toLocaleString('en-US');
+  const e = Math.floor(lg(a)); let m = v / Math.pow(10, e); let ms = Number(m.toPrecision(d));
+  let ee = e; if (Math.abs(ms) >= 10) { ms /= 10; ee++; }
+  return (ms === 1 ? '' : ms + ' × ') + '10<sup>' + SUPM(ee) + '</sup>';
+}
+function powH(l, d = 3) { // 10^l in HTML, l may be huge
+  if (!isFinite(l)) return '0';
+  if (Math.abs(l) < 300) return sciH(Math.pow(10, l), d);
+  const e = Math.floor(l); const m = Math.pow(10, l - e);
+  return Number(m.toPrecision(d)) + ' × 10<sup>' + SUPM(e.toLocaleString('en-US')) + '</sup>';
+}
+function yearsH(x) {
+  if (x < 12) { const t = Math.pow(10, x); return sciH(t, 3) + ' yr'; }
+  return powH(x, 3) + ' yr';
+}
+function yearsText(x) { return x < 12 ? FM.sci(Math.pow(10, x), 3) + ' yr' : (Math.pow(10, x - Math.floor(x)).toFixed(2) + ' × 10' + FM.sup(Math.floor(x)) + ' yr'); }
+function humanAge(x) {
+  const t = Math.pow(10, x);
+  if (x < 10.5) { const d = (t - T0) / 1e9; return d < 0.005 ? 'today, 13.8 billion years in' : 'now + ' + (d < 1 ? (d * 1000).toFixed(0) + ' million' : d.toFixed(1) + ' billion') + ' years'; }
+  if (x < 12) return (t / 1e9).toFixed(0) + ' billion years';
+  if (x < 15) return (t / 1e12).toPrecision(2) + ' trillion years';
+  const ratio = x - X_NOW;
+  return 'the present age × 10' + FM.sup(Math.round(ratio));
+}
+function eraOf(x) { return x < 14 ? 'Stelliferous Era' : x < 40 ? 'Degenerate Era' : x < 100 ? 'Black Hole Era' : 'Dark Era'; }
+function massH(m) { return sciH(m, 2) + ' M<sub>☉</sub>'; }
+function kelvinH(l) { return powH(l, 2) + ' K'; }
+function cmbH(x) {
+  const c = cmbT(x);
+  if (c.l != null) return c.l > -3 ? (Math.pow(10, c.l)).toPrecision(3) + ' K' : kelvinH(c.l);
+  const e = Math.floor(c.ll), m = Math.pow(10, c.ll - e);
+  return '10<sup>−' + (Number(m.toPrecision(2)) === 1 ? '' : Number(m.toPrecision(2)) + '×') + '10<sup>' + e + '</sup></sup> K';
+}
+function cmbText(x) {
+  const c = cmbT(x);
+  if (c.l != null) return c.l > -3 ? Math.pow(10, c.l).toPrecision(3) + ' K' : c.l > -1e5 ? '10' + FM.sup(Math.round(c.l)) + ' K' : 'log T = −' + FM.sci(-c.l, 2);
+  return 'log T = −' + FM.sci(Math.pow(10, c.ll), 2);
+}
+
+/* ------------------------------------------------------------ captions */
+// a proton-decay-powered white dwarf: L ≈ 400 W at tau_p = 1e37 yr (Adams & Laughlin 1997), T ∝ L^(1/4)
+function pdWatts(Lp) { const w = 400 * Math.pow(10, 37 - Lp); return w >= 1 ? (w >= 100 ? Math.round(w / 10) * 10 : w.toPrecision(2)) + ' watts' : sciH(w, 1) + ' watts'; }
+function pdKelvin(Lp) { return (0.06 * Math.pow(10, (37 - Lp) / 4)).toPrecision(1) + ' K'; }
+const MASS_REF = [[1.989e30, 'Sun', 'Suns'], [1.898e27, 'Jupiter', 'Jupiters'], [5.97e24, 'Earth', 'Earths'], [7.35e22, 'Moon', 'Moons'], [9.4e20, 'Ceres', 'Cereses'], [6e9, 'Great Pyramid', 'Great Pyramids'], [1e8, 'aircraft carrier', 'aircraft carriers'], [1.5e5, 'blue whale', 'blue whales']];
+function massLike(kg) {
+  for (const [m, one, many] of MASS_REF) if (kg >= m * 0.6) { const r = kg / m; return r < 1.5 ? 'about one ' + one : r < 1000 ? 'about ' + Math.round(r).toLocaleString('en-US') + ' ' + many : sciH(r, 2) + ' ' + many; }
+  return 'less than a blue whale';
+}
+function tempLike(T) {
+  if (T < 3.8e-11) return 'colder than any laboratory has ever reached';
+  if (T < 2.7) return 'colder than today’s cosmic microwave background';
+  if (T < 1000) return 'glowing only in the infrared';
+  if (T < 1e4) return 'as hot as the surface of a star';
+  if (T < 1.5e7) return 'hotter than the surface of any star';
+  if (T < 1e10) return 'hotter than the core of the Sun';
+  const t = Math.pow(1e10 / T, 2);
+  return 'as hot as the whole universe was ' + (t > 1e-3 ? t.toPrecision(1) + ' s' : powH(lg(t), 1) + ' s') + ' after the Big Bang';
+}
+function captionFor(x) {
+  const Lp = LP;
+  const cd = S.cd >= 0 && S.cd < 1;
+  if (cd) {
+    const rl = S.remL, m = centralMassAt(x, rl);
+    let left;
+    const ry = Math.pow(10, rl);
+    if (rl > 3) left = powH(rl, 2) + ' years';
+    else if (rl > -2.5) left = (ry < 2 ? ry.toFixed(2) : ry.toFixed(0)) + ' years';
+    else { const sec = ry * YR; left = sec > 86400 ? (sec / 86400).toFixed(1) + ' days' : sec > 3600 ? (sec / 3600).toFixed(1) + ' hours' : sec > 60 ? (sec / 60).toFixed(1) + ' minutes' : sec.toFixed(sec < 2 ? 2 : 1) + ' seconds'; }
+    const mkg = m * MSUN_KG;
+    const mTxt = m > 1e-3 ? massH(m) : sciH(mkg, 2) + ' kg';
+    const TH = TH_SUN / Math.max(m, 1e-40), lT = lg(TH);
+    return { id: 'cd', k: 'The last black hole · evaporating', t: left + ' left', d: 'Mass ' + mTxt + ', ' + massLike(mkg) + '. Hawking temperature ' + kelvinH(lT) + ', ' + tempLike(TH) + '.' };
+  }
+  if ((S.burstT >= 0 && S.burstT < 7 && x < 99.5) || (S.cd >= 1 && x < X_FINAL) || (x >= X_FINAL && x < X_FINAL + 0.22)) {
+    return { id: 'lastlight', k: '≈ 10<sup>' + X_FINAL.toFixed(1) + '</sup> years · the final second', t: 'The last light',
+      d: 'Its last second turns 230 tonnes of mass into 2 × 10<sup>22</sup> joules of gamma rays, what the Sun emits in fifty microseconds. Nothing near us will ever shine again.' };
+  }
+  const L = [
+    [X_NOW - 1, 10.16, 'now', 'Stelliferous Era · 13.8 billion years', 'The Milky Way at noon', 'Our galaxy still makes a few new stars a year. Its blue arms are young stars and its golden core is old ones. Andromeda, 2.5 million light-years away, is falling toward us at 110 km/s.'],
+    [10.16, X_PERI - 0.012, 'approach', '+2 to +4 billion years', 'Andromeda arrives', 'Stars are so far apart that two galaxies can pass through each other without a single collision. Gravity does the damage, drawing stars out into long curving tails.'],
+    [X_PERI - 0.012, X_WIN + 0.02, 'merge', '+4 to +8 billion years', 'Milkomeda', 'After a second pass the two spirals fall together and mix. Somewhere in the chaos the Sun swells into a red giant, then shrinks to a white dwarf. Here they merge; with today’s measurements the odds are about even.'],
+    [X_WIN + 0.02, 10.78, 'ell', '10<sup>10.4</sup> – 10<sup>10.8</sup> years', 'One smooth, golden galaxy', 'The merged galaxy loses its spiral arms and settles into an ellipsoid. With little gas left, few new stars form, and the blue light drains away first.'],
+    [10.78, 11.3, 'horizon', '≈ 10<sup>11</sup> years', 'The sky empties', 'Dark energy speeds up the expansion. Every galaxy beyond our own group slides behind the cosmic event horizon, its light stretched to invisibility. Astronomers here would see one galaxy and nothing else.'],
+    [11.3, 12.3, 'yellow', '10<sup>11</sup> – 10<sup>12</sup> years', 'The yellow stars go out', 'Stars like the Sun last ten billion years; stars of half its mass, a few tens of billions. The hottest die first and nothing replaces them. The galaxy reddens.'],
+    [12.3, 13.3, 'blue', '10<sup>12</sup> – 10<sup>13</sup> years', 'Blue dwarfs', 'Only red dwarfs remain, three of every four stars ever born. At the ends of their lives they grow hotter and brighter and turn blue-white. None has done so yet; the universe is too young.'],
+    [13.3, 14.07, 'last', '≈ 10<sup>14</sup> years', 'The last star', 'The gas is gone. Somewhere a last small cloud collapses into a last dim star. When it fades, the Stelliferous Era, the age of starlight, is over.'],
+    [14.07, 16.3, 'cinders', 'Degenerate Era · 10<sup>14</sup> – 10<sup>40</sup> years', 'Cinders', 'What remains is dead: white dwarfs cooling into black dwarfs, neutron stars, black holes and brown dwarfs. Close encounters strip away the last planets. Remnants are drawn in false colour.'],
+    [16.3, 18.5, 'sparks', '10<sup>16</sup> – 10<sup>18</sup> years', 'Sparks', 'Every few billion years two brown dwarfs collide and merge into a new red dwarf that burns for trillions of years. These rare sparks are the only starlight left. Each flash here stands for many.'],
+    [18.5, 20.8, 'evap', '10<sup>19</sup> – 10<sup>20</sup> years', 'The galaxy evaporates', 'Each close encounter trades a little energy. Over a hundred relaxation times most dead stars gain enough to escape into the dark. The rest sink into the central black hole, which grows to ' + massH(M_FINAL) + '.'],
+    [20.8, Lp - 1.8, 'dark', '10<sup>21</sup> years onward', 'The long dark', 'For a very long time almost nothing happens. The escaped cinders drift apart in the cold, and the black holes wait.'],
+    [Lp - 1.8, Math.max(Lp + 1.3, 20.9), 'pd', 'τ<sub>p</sub> = ' + powH(Lp, 2) + ' years · hypothetical', 'If protons decay', 'Grand unified theories predict it. A white dwarf would then glow with ' + pdWatts(Lp) + ' at about ' + pdKelvin(Lp) + ' while it dissolves into photons, neutrinos and positrons. No proton decay has been seen: for p → e<sup>+</sup>π<sup>0</sup>, τ &gt; 2.4 × 10<sup>34</sup> years.'],
+    [Math.max(Lp + 1.3, 20.9), 66.4, 'bhera', 'Black Hole Era · 10<sup>40</sup> – 10<sup>100</sup> years', 'Only black holes', 'They are all that is left of the galaxy, and they hold almost all of its entropy. Each glows with Hawking radiation at a hundred-millionth of a kelvin or less. Space is colder still, so they slowly lose mass.'],
+    [66.4, 73, 'stellarbh', '10<sup>68</sup> – 10<sup>72</sup> years', 'The stellar black holes evaporate', 'A black hole of ten solar masses lasts about 2 × 10<sup>70</sup> years. As it shrinks it heats up, and the last of it goes in a flash of gamma rays. Each chime is one of them.'],
+    [73, 89, 'wander', '10<sup>73</sup> – 10<sup>89</sup> years', 'The wanderers', 'A hole twice as heavy lasts eight times as long. Black holes of a thousand to a few million suns, the old hearts of star clusters and dwarf galaxies, go out one by one.'],
+    [89, X_FINAL, 'lastbh', '≈ 10<sup>' + Math.round(X_FINAL - 8) + '</sup> – 10<sup>' + Math.floor(X_FINAL) + '</sup> years', 'The last black hole', 'Our galaxy’s central black hole, fed on a tenth of its stars, is now the only object in our part of the universe. Its Hawking temperature is ' + kelvinH(lg(TH_SUN / M_FINAL)) + '.'],
+    [X_FINAL, 100, 'else', 'after 10<sup>' + Math.floor(X_FINAL) + '</sup> years', 'Elsewhere', 'In the cores of the richest galaxy clusters, black holes of 10<sup>11</sup> solar masses last until about 10<sup>100</sup> years. Then they too are gone.'],
+    [100, 200, 'darkera', 'Dark Era · beyond 10<sup>100</sup> years', 'Heat death', 'A thin gas of photons, neutrinos, electrons and positrons, so spread out that each is alone inside its own cosmic horizon. Their temperature falls toward zero, while the horizon itself glows at 2 × 10<sup>−30</sup> K. As far as we know, nothing more will happen.'],
+  ];
+  let c = L[0];
+  for (const e of L) if (x >= e[0] && x < e[1]) c = e;
+  if (x >= 100) c = L[L.length - 1];
+  return { id: c[2], k: c[3], t: c[4], d: c[5] };
+}
+let capId = '';
+function updateCaption() {
+  const c = captionFor(S.x);
+  const k = cap.children[0], t = cap.children[1], d = cap.children[2];
+  if (c.id !== capId) {
+    capId = c.id; cap.classList.remove('swap'); void cap.offsetWidth; cap.classList.add('swap');
+  }
+  if (k.innerHTML !== c.k) k.innerHTML = c.k;
+  if (t.innerHTML !== c.t) t.innerHTML = c.t;
+  if (d.innerHTML !== c.d) d.innerHTML = c.d;
+}
+
+/* ------------------------------------------------------------ layout (ribbon between notes and deck) */
+const LAY = { l: 0, r: 0, t: 0, b: 0 };
+function layout() {
+  const W = window.innerWidth, H = window.innerHeight;
+  const notes = document.querySelector('.cz-notes'), deck = document.querySelector('.cz-deck');
+  const nr = notes.getBoundingClientRect(), dr = deck.getBoundingClientRect();
+  const deckOn = deck.classList.contains('cz-open') && dr.width > 0 && getComputedStyle(deck).display !== 'none';
+  const cinema = document.body.classList.contains('cz-cinema');
+  if (W > 760) {
+    const notesOn = !cinema && getComputedStyle(notes).display !== 'none';
+    const r = cinema || !deckOn ? 16 : Math.max(16, W - dr.left + 20);
+    const beside = notesOn ? 16 + nr.width + 24 : 16;
+    // the ribbon sits between the panels; on narrower screens it takes the whole bottom band and the notes move up
+    const stacked = notesOn && W - beside - r < 440;
+    const l = stacked ? 16 : beside;
+    rib.style.left = l + 'px'; rib.style.right = r + 'px';
+    rib.style.bottom = '';
+    if (stacked) { notes.style.bottom = 'calc(var(--foot-h) + env(safe-area-inset-bottom, 0px) + 136px)'; notes.style.maxHeight = 'calc(100% - var(--bar-h) - var(--foot-h) - 300px)'; }
+    else if (notes.style.bottom) { notes.style.bottom = ''; notes.style.maxHeight = ''; }
+    legend.style.right = (r) + 'px'; legend.style.bottom = (rib.getBoundingClientRect().height + 90) + 'px';
+    const hudR = document.querySelector('.cz-hud').getBoundingClientRect();
+    const capL = Math.max(hudR.right + 20, 16), capR = deckOn && !cinema ? dr.left - 16 : W - 16;
+    cap.style.left = ((capL + capR) / 2) + 'px'; cap.style.width = Math.min(560, capR - capL) + 'px';
+    LAY.l = cinema ? 0 : Math.max(0, nr.right); LAY.r = cinema || !deckOn ? W : dr.left; LAY.t = 56 + 110; LAY.b = H - 190;
+  } else {
+    document.body.classList.toggle('ll-deckopen', deckOn);
+    const foot = 52;
+    const notesH = getComputedStyle(notes).display === 'none' || cinema ? 0 : nr.height + 8;
+    const deckH = deckOn ? dr.height + 8 : 0;
+    const b = foot + 10 + Math.max(notesH, deckH);
+    rib.style.bottom = b + 'px'; rib.style.left = ''; rib.style.right = '';
+    const rr = rib.getBoundingClientRect();
+    cap.style.bottom = (H - rr.top + 14) + 'px'; cap.style.left = ''; cap.style.width = '';
+    legend.style.bottom = (H - rr.top + 110) + 'px'; legend.style.right = '12px';
+    LAY.l = 0; LAY.r = W; LAY.t = 60; LAY.b = rr.top - 110;
+  }
+}
+ch.onResize(() => { layout(); drawStaticCharts(); });
+new MutationObserver(() => requestAnimationFrame(layout)).observe(document.querySelector('.cz-notes'), { attributes: true, attributeFilter: ['class'] });
+new MutationObserver(() => requestAnimationFrame(layout)).observe(document.querySelector('.cz-deck'), { attributes: true, attributeFilter: ['class'] });
+new MutationObserver(() => requestAnimationFrame(layout)).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
+/* ------------------------------------------------------------ ribbon drawing & interaction */
+const ERA_BANDS = [[6, 14, '#e8b86a', 'Stelliferous'], [14, 40, '#8b98bb', 'Degenerate'], [40, 100, '#8d6cff', 'Black Hole'], [100, 110, '#3a3f5a', 'Dark']];
+function ribGeom() { const r = ribCanvas.getBoundingClientRect(); return { w: r.width, h: r.height, l: 10, rr: r.width - 10, left: r.left }; }
+const xToPx = (x, g) => g.l + (clamp(x, X_MIN, X_MAX) - X_MIN) / (X_MAX - X_MIN) * (g.rr - g.l);
+const pxToX = (px, g) => X_MIN + clamp((px - g.l) / (g.rr - g.l), 0, 1) * (X_MAX - X_MIN);
+let ribHover = null;
+function drawRibbon() {
+  const g = ribGeom(); const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.round(g.w * dpr), H = Math.round(g.h * dpr);
+  if (!W || !H) return;
+  if (ribCanvas.width !== W || ribCanvas.height !== H) { ribCanvas.width = W; ribCanvas.height = H; }
+  const c = ribCanvas.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, g.w, g.h);
+  const narrow = g.w < 460;
+  const yb = narrow ? 30 : 37;                       // the band
+  const mono = RIB_FONT.mono || (RIB_FONT.mono = getComputedStyle(document.documentElement).getPropertyValue('--f-mono'));
+  const era = RIB_FONT.era || (RIB_FONT.era = getComputedStyle(document.documentElement).getPropertyValue('--era').trim());
+  const cx = xToPx(S.x, g);
+  // era bands, with their names on the top row (the current era's name wins any overlap)
+  c.textBaseline = 'alphabetic'; c.textAlign = 'left'; c.font = `600 ${narrow ? 8 : 9}px ${mono}`;
+  const labs = ERA_BANDS.map(([a, b, col, name]) => { const x0 = xToPx(Math.max(a, X_MIN), g), x1 = xToPx(b, g); const t = name.toUpperCase(); return { a, b, col, x0, x1, t, w: c.measureText(t).width, cur: S.x >= a && S.x < b }; });
+  labs.forEach((L) => {
+    c.fillStyle = L.col; c.globalAlpha = 0.28; c.fillRect(L.x0 + 1, yb - 2.5, L.x1 - L.x0 - 2, 5);
+    if (S.x > L.a) { c.globalAlpha = 0.95; c.fillRect(L.x0 + 1, yb - 2.5, Math.min(L.x1, cx) - L.x0 - 1, 5); }
+    c.globalAlpha = 1;
+  });
+  const cur = labs.find((L) => L.cur) || labs[labs.length - 1];
+  const spans = [];
+  [cur].concat(labs.filter((L) => L !== cur)).forEach((L) => {
+    const lx = L === cur ? clamp(L.x0 + 2, 2, g.w - L.w - 2) : L.x0 + 2;
+    if (spans.some(([a, b]) => lx < b + 8 && lx + L.w > a - 8)) return;
+    spans.push([lx, lx + L.w]);
+    c.globalAlpha = L.cur ? 1 : 0.55; c.fillStyle = L.col; c.fillText(L.t, lx, 9); c.globalAlpha = 1;
+  });
+  // before today: the past, hatched; a white tick marks today
+  c.fillStyle = 'rgba(236,230,214,0.22)'; c.fillRect(xToPx(X_MIN, g), yb - 2.5, xToPx(X_NOW, g) - xToPx(X_MIN, g), 5);
+  c.fillStyle = 'rgba(236,230,214,0.9)'; c.fillRect(Math.round(xToPx(X_NOW, g)), yb - 5, 1.5, 10);
+  // decade ticks
+  c.strokeStyle = 'rgba(236,230,214,0.28)'; c.lineWidth = 1; c.beginPath();
+  for (let d = 10; d <= 110; d++) { const px = Math.round(xToPx(d, g)) + 0.5; const big = d % 10 === 0; c.moveTo(px, yb + 5); c.lineTo(px, yb + (big ? 10 : 7)); }
+  c.stroke();
+  c.fillStyle = 'rgba(151,157,178,0.95)'; c.font = `500 ${narrow ? 8.5 : 9.5}px ${mono}`; c.textBaseline = 'top'; c.textAlign = 'center';
+  const step = narrow ? 20 : 10;
+  for (let d = 10; d <= 110; d += step) { const px = xToPx(d, g); c.fillText('10' + FM.sup(d), Math.min(g.w - 14, Math.max(12, px)), yb + 12); }
+  // events: diamonds on a second row, labels only where there is room
+  const ev = [[X_MERGE, 'merger'], [14.0, 'last star'], [19.5, 'evaporation'], [LP, 'τₚ'], [70.3, 'stellar BHs'], [X_FINAL, 'last black hole']];
+  c.font = `500 8.5px ${mono}`; c.textBaseline = 'alphabetic';
+  let lastR = -1e9;
+  ev.forEach(([x, lab]) => {
+    const px = xToPx(x, g); const reached = S.x >= x;
+    c.fillStyle = reached ? 'rgba(236,230,214,0.9)' : 'rgba(151,157,178,0.6)';
+    c.beginPath(); c.moveTo(px, yb - 5); c.lineTo(px + 2.5, yb - 8); c.lineTo(px, yb - 11); c.lineTo(px - 2.5, yb - 8); c.closePath(); c.fill();
+    if (narrow) return;
+    const tw = c.measureText(lab).width;
+    const lx = clamp(px, tw / 2 + 2, g.w - tw / 2 - 2);
+    if (lx - tw / 2 > lastR + 8) { c.textAlign = 'center'; c.fillStyle = reached ? 'rgba(236,230,214,0.72)' : 'rgba(151,157,178,0.6)'; c.fillText(lab, lx, yb - 14); lastR = lx + tw / 2; }
+  });
+  // cursor
+  c.strokeStyle = era; c.lineWidth = 1.5; c.beginPath(); c.moveTo(cx, 12); c.lineTo(cx, yb + 10); c.stroke();
+  c.fillStyle = era; c.globalAlpha = 0.22; c.beginPath(); c.arc(cx, yb, 11, 0, 7); c.fill(); c.globalAlpha = 1;
+  c.fillStyle = '#05060c'; c.beginPath(); c.arc(cx, yb, 6.5, 0, 7); c.fill();
+  c.strokeStyle = era; c.lineWidth = 2; c.beginPath(); c.arc(cx, yb, 5.5, 0, 7); c.stroke();
+  // hover readout
+  if (ribHover != null && !ribDrag) {
+    const hx = xToPx(ribHover, g);
+    c.strokeStyle = 'rgba(236,230,214,0.4)'; c.setLineDash([2, 3]); c.beginPath(); c.moveTo(hx, yb - 16); c.lineTo(hx, yb + 4); c.stroke(); c.setLineDash([]);
+    c.font = `500 9.5px ${mono}`; const txt = '10' + FM.sup(ribHover.toFixed(1)) + ' yr · ' + eraOf(ribHover).replace(' Era', '').toLowerCase();
+    const tw = c.measureText(txt).width; const tx = clamp(hx - tw / 2, 2, g.w - tw - 2);
+    c.fillStyle = 'rgba(5,6,12,0.85)'; c.fillRect(tx - 4, yb - 30, tw + 8, 14);
+    c.fillStyle = 'rgba(236,230,214,0.95)'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(txt, tx, yb - 23);
+  }
+}
+const RIB_FONT = {};
+let ribDrag = false;
+function ribSet(e) { const g = ribGeom(); const x = pxToX(e.clientX - g.left, g); jumpTo(Math.max(X_NOW, x), false); }
+ribCanvas.addEventListener('pointerdown', (e) => { ribDrag = true; ribCanvas.setPointerCapture(e.pointerId); setPlaying(false); ribSet(e); });
+ribCanvas.addEventListener('pointermove', (e) => { const g = ribGeom(); ribHover = pxToX(e.clientX - g.left, g); if (ribDrag) ribSet(e); });
+ribCanvas.addEventListener('pointerleave', () => { ribHover = null; });
+const ribUp = () => { ribDrag = false; };
+ribCanvas.addEventListener('pointerup', ribUp); ribCanvas.addEventListener('pointercancel', ribUp);
+ribCanvas.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); setPlaying(false); jumpTo(clamp(S.x + (e.key === 'ArrowRight' ? 1 : -1) * (e.shiftKey ? 5 : 0.5), X_NOW, X_MAX), false); }
+});
+playBtn.addEventListener('click', () => setPlaying(!S.playing));
+
+/* ------------------------------------------------------------ deck charts */
+const BUD_COLS = ['#6fb3c9', '#f1c27a', '#8cb0ff', '#a07cff', '#5b5f78'];
+const BUD_NAMES = ['Gas', 'Stars', 'Remnants', 'Black holes', 'Radiation'];
+let BUD = null, ENT = null;
+function drawStaticCharts() {
+  // sample the budget and entropy along the log axis
+  const hg = HOLE_GONE; HOLE_GONE = false;
+  const n = 220; BUD = []; ENT = [];
+  for (let i = 0; i < n; i++) { const x = X_NOW + (X_MAX - X_NOW) * Math.pow(i / (n - 1), 1.0); const s = stateAt(x); BUD.push([x, s.fGas, s.fStar, s.fRemn, s.fBH, s.fGone]); ENT.push([x, s.logS]); }
+  // finer sampling in the first decades
+  const fine = []; for (let i = 0; i < 80; i++) { const x = X_NOW + 4 * i / 79; const s = stateAt(x); fine.push([x, s.fGas, s.fStar, s.fRemn, s.fBH, s.fGone]); }
+  BUD = fine.concat(BUD.filter((b) => b[0] > X_NOW + 4)).sort((a, b) => a[0] - b[0]);
+  HOLE_GONE = hg;
+}
+function chartBase(cv) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1); const w = cv.clientWidth, h = cv.clientHeight;
+  if (!w || !h) return null;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h);
+  return { c, w, h, mono: getComputedStyle(document.documentElement).getPropertyValue('--f-mono'), era: getComputedStyle(document.documentElement).getPropertyValue('--era').trim() };
+}
+function drawBudget(s) {
+  const b = chartBase(budgetC); if (!b || !BUD) return;
+  const { c, w, h, mono } = b; const pl = 6, pr = 6, pt = 6, pb = 16;
+  const X = (x) => pl + (x - X_MIN) / (X_MAX - X_MIN) * (w - pl - pr);
+  // stacked areas
+  for (let k = 0; k < 5; k++) {
+    c.beginPath();
+    BUD.forEach((d, i) => { let lo = 0; for (let j = 0; j < k; j++) lo += d[1 + j]; const y = pt + (1 - lo - d[1 + k]) * (h - pt - pb); i ? c.lineTo(X(d[0]), y) : c.moveTo(X(d[0]), y); });
+    for (let i = BUD.length - 1; i >= 0; i--) { const d = BUD[i]; let lo = 0; for (let j = 0; j < k; j++) lo += d[1 + j]; c.lineTo(X(d[0]), pt + (1 - lo) * (h - pt - pb)); }
+    c.closePath(); c.fillStyle = BUD_COLS[k]; c.globalAlpha = 0.8; c.fill();
+  }
+  c.globalAlpha = 1;
+  c.fillStyle = 'rgba(5,6,12,0.55)'; c.fillRect(X(X_MIN), pt, X(X_NOW) - X(X_MIN), h - pt - pb);
+  c.font = `500 9px ${mono}`; c.fillStyle = 'rgba(151,157,178,0.9)'; c.textAlign = 'center'; c.textBaseline = 'bottom';
+  [10, 30, 50, 70, 90, 110].forEach((d) => c.fillText('10' + FM.sup(d), clamp(X(d), 12, w - 14), h - 2));
+  const cx = X(S.x); c.strokeStyle = b.era; c.lineWidth = 1.5; c.beginPath(); c.moveTo(cx, pt - 3); c.lineTo(cx, h - pb + 2); c.stroke();
+  bleg.innerHTML = [s.fGas, s.fStar, s.fRemn, s.fBH, s.fGone].map((f, i) => `<span style="--c:${BUD_COLS[i]}">${BUD_NAMES[i]} <b>${f < 0.001 && f > 0 ? '<0.1' : (f * 100).toFixed(f < 0.1 ? 1 : 0)}%</b></span>`).join('');
+}
+function drawEntropy(s) {
+  const b = chartBase(entC); if (!b || !ENT) return;
+  const { c, w, h, mono } = b; const pl = 26, pr = 6, pt = 8, pb = 14;
+  const X = (x) => pl + (x - X_MIN) / (X_MAX - X_MIN) * (w - pl - pr);
+  const y0 = 75, y1 = 125; const Y = (v) => pt + (1 - (v - y0) / (y1 - y0)) * (h - pt - pb);
+  c.font = `500 9px ${mono}`; c.fillStyle = 'rgba(151,157,178,0.9)'; c.textAlign = 'right'; c.textBaseline = 'middle';
+  c.strokeStyle = 'rgba(236,230,214,0.08)'; c.lineWidth = 1;
+  [80, 100, 120].forEach((v) => { c.beginPath(); c.moveTo(pl, Y(v)); c.lineTo(w - pr, Y(v)); c.stroke(); c.fillText(String(v), pl - 4, Y(v)); });
+  // horizon ceiling
+  c.setLineDash([3, 3]); c.strokeStyle = 'rgba(141,108,255,0.7)'; c.beginPath(); c.moveTo(pl, Y(lg(S_DS))); c.lineTo(w - pr, Y(lg(S_DS))); c.stroke(); c.setLineDash([]);
+  c.textAlign = 'left'; c.fillStyle = 'rgba(160,124,255,0.9)'; c.textBaseline = 'top'; c.fillText('horizon limit', pl + 4, Y(lg(S_DS)) + 2);
+  c.fillStyle = 'rgba(151,157,178,0.7)'; c.textBaseline = 'bottom'; c.fillText('CMB in the Local Group', pl + 4, Y(lg(2e77)) - 1);
+  c.strokeStyle = 'rgba(151,157,178,0.35)'; c.setLineDash([1, 3]); c.beginPath(); c.moveTo(pl, Y(lg(2e77))); c.lineTo(w - pr, Y(lg(2e77))); c.stroke(); c.setLineDash([]);
+  c.beginPath(); ENT.forEach((d, i) => { i ? c.lineTo(X(d[0]), Y(d[1])) : c.moveTo(X(d[0]), Y(d[1])); });
+  c.strokeStyle = b.era; c.lineWidth = 1.6; c.stroke();
+  const cx = X(S.x), cy = Y(s.logS);
+  c.fillStyle = b.era; c.beginPath(); c.arc(cx, cy, 3, 0, 7); c.fill();
+  c.textAlign = cx > w - 70 ? 'right' : 'left'; c.textBaseline = 'bottom'; c.fillStyle = 'rgba(236,230,214,0.95)';
+  c.fillText(s.logS.toFixed(1), cx + (cx > w - 70 ? -6 : 6), cy - 3);
+  c.textAlign = 'center'; c.textBaseline = 'bottom'; c.fillStyle = 'rgba(151,157,178,0.9)';
+  [10, 30, 50, 70, 90, 110].forEach((d) => c.fillText('10' + FM.sup(d), clamp(X(d), pl + 8, w - 14), h - 1));
+}
+const MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+function drawCalendar() {
+  const b = chartBase(calC); if (!b) return;
+  const { c, w, h, mono, era } = b;
+  const pl = 4, pr = 4;
+  // row 1: linear year
+  const y1 = 14;
+  c.font = `500 9px ${mono}`; c.textBaseline = 'bottom'; c.textAlign = 'center';
+  for (let i = 0; i < 12; i++) { const x0 = pl + i / 12 * (w - pl - pr), x1 = pl + (i + 1) / 12 * (w - pl - pr); c.fillStyle = i % 2 ? 'rgba(236,230,214,0.07)' : 'rgba(236,230,214,0.12)'; c.fillRect(x0, y1, x1 - x0 - 1, 9); c.fillStyle = 'rgba(151,157,178,0.8)'; c.fillText(MONTHS[i], (x0 + x1) / 2, y1 - 1); }
+  const frac = Math.pow(10, X_NOW - S.x);
+  const nx = pl + frac * (w - pl - pr);
+  c.fillStyle = era; c.fillRect(Math.max(pl, nx - 1), y1 - 2, 2, 13);
+  c.fillStyle = era; c.globalAlpha = 0.35; c.fillRect(pl, y1, Math.max(0.5, nx - pl), 9); c.globalAlpha = 1;
+  // row 2: log axis
+  const y2 = 44; const X = (x) => pl + (x - X_MIN) / (X_MAX - X_MIN) * (w - pl - pr);
+  c.strokeStyle = 'rgba(236,230,214,0.25)'; c.beginPath(); c.moveTo(pl, y2); c.lineTo(w - pr, y2); c.stroke();
+  c.fillStyle = 'rgba(236,230,214,0.18)'; c.fillRect(X(0 + X_MIN), y2 - 3, X(X_NOW) - X(X_MIN), 6);
+  c.fillStyle = era; c.fillRect(X(X_NOW) - 1, y2 - 6, 2, 12); c.fillStyle = 'rgba(236,230,214,0.9)'; c.fillRect(X(S.x) - 1, y2 - 6, 2, 12);
+  c.textBaseline = 'top'; c.fillStyle = 'rgba(151,157,178,0.9)'; c.textAlign = 'left'; c.fillText('log axis: today', X(X_NOW) + 4, y2 + 5);
+  c.textAlign = 'right'; c.fillText('10' + FM.sup(110) + ' yr', w - pr, y2 + 5);
+  // text
+  const secs = frac * 365.25 * 86400;
+  let when;
+  if (frac >= 0.9999) when = 'at midnight on <b>31 December</b>';
+  else if (frac > 1 / 365.25) { const day = frac * 365.25; const d = new Date(Date.UTC(2001, 0, 1) + day * 86400000); when = 'on <b>' + d.getUTCDate() + ' ' + ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][d.getUTCMonth()] + '</b>'; }
+  else if (secs > 60) when = '<b>' + (secs / 60).toFixed(secs > 600 ? 0 : 1) + ' minutes</b> into 1 January';
+  else when = 'in the first <b>' + (secs >= 1e-3 ? secs.toPrecision(2) + ' s' : powH(lg(secs), 2) + ' s') + '</b> of 1 January';
+  calT.innerHTML = 'Squeeze the whole story, from the Big Bang to the ribbon’s time, into one year: everything up to today happens ' + when + '.';
+}
+
+/* ------------------------------------------------------------ sound */
+const AU = { on: false, nodes: null, lastChime: 0, chimesThisSec: 0 };
+function soundInit() {
+  const ctx = ch.sound.ensure(); if (!ctx || AU.nodes) return;
+  const master = ctx.createGain(); master.gain.value = 0; master.connect(ch.sound.out);
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1800; lp.Q.value = 0.5; lp.connect(master);
+  const harm = [0.5, 1, 2, 3, 4, 5, 6, 8];
+  const oscs = harm.map((h, i) => { const o = ctx.createOscillator(); o.type = i === 0 ? 'sine' : 'sine'; const g = ctx.createGain(); g.gain.value = 0; o.connect(g).connect(lp); o.start(); return { o, g, h }; });
+  // gentle breathing
+  const lfo = ctx.createOscillator(); lfo.frequency.value = 0.07; const lg2 = ctx.createGain(); lg2.gain.value = 0.25; lfo.connect(lg2); const breath = ctx.createGain(); breath.gain.value = 0.75; lg2.connect(breath.gain); lfo.start();
+  lp.disconnect(); lp.connect(breath).connect(master);
+  // a shared echo for chimes
+  const bus = ctx.createGain(); bus.gain.value = 0.9; const dl = ctx.createDelay(1.2); dl.delayTime.value = 0.37; const fb = ctx.createGain(); fb.gain.value = 0.38; const dlp = ctx.createBiquadFilter(); dlp.type = 'lowpass'; dlp.frequency.value = 2600;
+  bus.connect(ch.sound.out); bus.connect(dl); dl.connect(dlp).connect(fb).connect(dl); dlp.connect(ch.sound.out);
+  AU.nodes = { ctx, master, lp, oscs, bus };
+}
+function soundUpdate(x, dt) {
+  if (!AU.nodes) return;
+  const { ctx, master, lp, oscs } = AU.nodes; const now = ctx.currentTime;
+  const on = ch.sound.enabled;
+  // richness falls era by era; the pitch sinks an octave over the whole journey
+  const rich = 8 - 2 * ss(13.6, 14.4, x) - 2 * ss(39.5, 40.5, x) - 2 * ss(96, 98.5, x) - 1.5 * ss(100, 106, x);
+  const f0 = 55 * Math.pow(2, -(clamp(x, 10, 110) - 10) / 100);
+  const amp = on ? 0.16 * (1 - ss(99, 108, x)) * (S.ended ? 0 : 1) : 0;
+  master.gain.setTargetAtTime(amp, now, 0.4);
+  lp.frequency.setTargetAtTime(300 + 2200 * Math.pow(rich / 8, 2), now, 0.5);
+  oscs.forEach((q, i) => {
+    q.o.frequency.setTargetAtTime(f0 * q.h * (1 + (i % 3 - 1) * 0.0015), now, 0.3);
+    const w = clamp(rich - i + 1, 0, 1) / Math.pow(Math.max(1, q.h), 0.9);
+    q.g.gain.setTargetAtTime(w * 0.5, now, 0.6);
+  });
+  void dt;
+}
+function chime(freq, gain = 0.2, dur = 3) {
+  if (!ch.sound.enabled || !AU.nodes) return;
+  const { ctx, bus } = AU.nodes; const t = ctx.currentTime;
+  [[1, 1], [2.756, 0.5], [5.404, 0.25], [8.933, 0.12]].forEach(([r, a], i) => {
+    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = freq * r;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain * a, t + 0.006); g.gain.exponentialRampToValueAtTime(1e-4, t + dur / (1 + i * 0.7));
+    o.connect(g).connect(bus); o.start(t); o.stop(t + dur + 0.1);
+  });
+}
+function burstSound() {
+  if (!ch.sound.enabled || !AU.nodes) return;
+  const { ctx, bus } = AU.nodes; const t = ctx.currentTime;
+  const len = ctx.sampleRate * 3; const buf = ctx.createBuffer(1, len, ctx.sampleRate); const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  const src = ctx.createBufferSource(); src.buffer = buf; const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.8;
+  bp.frequency.setValueAtTime(6000, t); bp.frequency.exponentialRampToValueAtTime(180, t + 2.6);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0, t); g.gain.linearRampToValueAtTime(0.55, t + 0.02); g.gain.exponentialRampToValueAtTime(1e-4, t + 2.9);
+  src.connect(bp).connect(g).connect(bus); src.start(t);
+  const o = ctx.createOscillator(); o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(28, t + 2); const og = ctx.createGain(); og.gain.setValueAtTime(0.5, t); og.gain.exponentialRampToValueAtTime(1e-4, t + 2.5); o.connect(og).connect(bus); o.start(t); o.stop(t + 2.6);
+  [523.25, 783.99, 1046.5, 1567.98].forEach((f, i) => setTimeout(() => chime(f, 0.12, 6), 120 + i * 90));
+}
+ch.onSound((on) => { if (on) soundInit(); });
+
+/* ------------------------------------------------------------ events: BH evaporations, chimes, flash labels */
+const EVENTS = [];   // transient labels {x, y(world), text, t0}
+const BH_LIST = []; for (let i = I_BH0; i < I_BH0 + N_BH; i++) BH_LIST.push(i);
+function crossings(x0, x1) {
+  if (x1 <= x0) return;
+  let n = 0;
+  for (const i of BH_LIST) {
+    const xb = CPU.xBH[i];
+    if (xb > x0 && xb <= x1 && !(CPU.fate[i] < 0 && CPU.xF[i] < xb)) {
+      n++;
+      if (n <= 2 && performance.now() - AU.lastChime > 90) { AU.lastChime = performance.now(); chime(740 + 900 * Math.random(), 0.08, 2.4); }
+      if (EVENTS.length < 6 && Math.random() < 0.5) EVENTS.push({ i, t0: performance.now(), text: FM.sci(CPU.mRem[i], 2) + ' M☉ black hole evaporates' });
+    }
+  }
+  if (x1 - x0 < 1.5 && x1 > 14.5 && x1 < 20.5 && performance.now() - (AU.lastSpark || 0) > 2200) {
+    for (let i = I_COL0; i < I_COL0 + N_COL; i++) {
+      const xc = CPU.xMS[i];
+      if (xc > x0 && xc <= x1 && !(CPU.fate[i] < 0 && CPU.xF[i] < xc)) { AU.lastSpark = performance.now(); EVENTS.push({ i, t0: performance.now(), text: 'two brown dwarfs merge · a new star' }); chime(520, 0.03, 2.5); break; }
+    }
+  }
+  WANDER.forEach((wd, j) => { if (wd.x > x0 && wd.x <= x1) { chime(420 - j * 40, 0.16, 4); EVENTS.push({ w: j, t0: performance.now(), text: FM.sci(wd.m, 2) + ' M☉ black hole evaporates' }); S.flashT = Math.max(S.flashT, 0.35); } });
+  if (X_MERGE > x0 && X_MERGE <= x1 && x1 - x0 < 0.05) chime(196, 0.06, 5);
+  if (14.0 > x0 && 14.0 <= x1) chime(330, 0.06, 5);
+}
+
+/* ------------------------------------------------------------ control */
+function fireBurst() {
+  S.burstT = 0; S.burstPos = S.lensPx ? [S.lensPx[0], S.lensPx[1], S.lensPx[2]] : null; burstSound();
+}
+function setPlaying(p) {
+  S.playing = !!p;
+  if (S.playing) { if (S.x >= X_MAX - 0.001) restart(); else S.J = jOfX(S.x); if (S.cd >= 0 && S.cd < 1) S.J = J_CD0() + S.cd * (J_CD1() - J_CD0()); }
+  btnPlay.setLabel(S.playing ? 'Hold' : 'Play');
+  playBtn.innerHTML = S.playing ? ICON_HOLD : ICON_PLAY;
+  if (ch.paused && S.playing) ch.setPaused(false);
+}
+function jumpTo(x, play) {
+  if (Math.abs(x - S.x) > 0.05) { S.snap = 3; S.jumped = true; }
+  S.x = clamp(x, X_NOW, X_MAX); S.cd = -1; S.remL = null; S.burstT = -1;
+  S.J = jOfX(S.x);
+  if (play) setPlaying(true);
+  hideEnd();
+}
+function restart() { cam.theta = -Math.PI / 2 - 0.47; cam.phi = 1.33; cam.dist = 1; cam.setDist(1); S.lastInteract = -1e9; S.snap = 3; S.J = 0; S.x = X_NOW; S.cd = -1; S.remL = null; S.burstT = -1; S.ended = false; hideEnd(); setPlaying(true); }
+function finale() { S.snap = 3; S.J = J_CD0() - 3.2; S.x = xOfJ(S.J); S.cd = -1; S.burstT = -1; hideEnd(); setPlaying(true); }
+function showEnd() { if (!endEl.classList.contains('on')) { setTimeout(() => { chime(261.63, 0.05, 9); setTimeout(() => chime(392, 0.035, 9), 1400); }, 2500); endEl.classList.add('on'); endEl.setAttribute('aria-hidden', 'false'); document.body.classList.add('ll-ending'); } }
+function hideEnd() { endEl.classList.remove('on'); endEl.setAttribute('aria-hidden', 'true'); document.body.classList.remove('ll-ending'); S.ended = false; }
+ch.onKey('p', () => setPlaying(!S.playing), 'Play / hold the journey');
+ch.onKey('r', () => restart(), 'Replay from today');
+ch.onKey('b', () => finale(), 'The last black hole');
+ch.onKey('l', () => { S.labels = !S.labels; document.getElementById('ll-labels').checked = S.labels; }, 'Labels');
+ch.onKey('g', () => { S.ghosts = !S.ghosts; document.getElementById('ll-ghosts').checked = S.ghosts; }, 'Remnants in false colour');
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const t = e.target; if (t && t.closest && t.closest('input, select, textarea, button, canvas[role=slider], [contenteditable]')) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  e.preventDefault(); setPlaying(false); jumpTo(clamp(S.x + (e.key === 'ArrowRight' ? 1 : -1) * (e.shiftKey ? 5 : 0.5), X_NOW, X_MAX), false);
+});
+
+/* ------------------------------------------------------------ simulation stepping (transform feedback) */
+const _c0 = new Float64Array(6), _c1 = new Float64Array(6);
+const GM = GAL.map((g) => ({ H: [G * g.Mh, g.ah, G * g.Mb, g.ab], D: [G * g.Md, g.ad, g.bd, 0] }));
+function accJS(x, y, z, c, sph, out) {
+  out[0] = out[1] = out[2] = 0;
+  for (let g = 0; g < 2; g++) {
+    const H = GM[g].H, Dd = GM[g].D, n = g ? N1 : N0;
+    const rx = x - c[g * 3], ry = y - c[g * 3 + 1], rz = z - c[g * 3 + 2];
+    const r2 = rx * rx + ry * ry + rz * rz + 0.0625, rr = Math.sqrt(r2);
+    const s1 = H[0] / (rr * (rr + H[1]) * (rr + H[1])) + H[2] / (rr * (rr + H[3]) * (rr + H[3]));
+    let ax = -rx * s1, ay = -ry * s1, az = -rz * s1;
+    const zz = rx * n[0] + ry * n[1] + rz * n[2];
+    const Rx = rx - zz * n[0], Ry = ry - zz * n[1], Rz = rz - zz * n[2];
+    const zb = Math.sqrt(zz * zz + Dd[2] * Dd[2]), ab = Dd[1] + zb;
+    const DD = Rx * Rx + Ry * Ry + Rz * Rz + ab * ab + 0.0625, D3 = DD * Math.sqrt(DD);
+    const q = -Dd[0] / D3, zf = zz * ab / zb;
+    const mnx = q * (Rx + n[0] * zf), mny = q * (Ry + n[1] * zf), mnz = q * (Rz + n[2] * zf);
+    const ae = Dd[1] + Dd[2], s2 = Dd[0] / (rr * (rr + ae) * (rr + ae));
+    ax += mnx + (-rx * s2 - mnx) * sph; ay += mny + (-ry * s2 - mny) * sph; az += mnz + (-rz * s2 - mnz) * sph;
+    out[0] += ax; out[1] += ay; out[2] += az;
+  }
+  return out;
+}
+const _a = [0, 0, 0];
+function stepTracked(k, dt, iso, sph, TP, TV) {
+  const hd = 0.5 * dt;
+  const cm = [(_c1[0] + _c1[3]) / 2, (_c1[1] + _c1[4]) / 2, (_c1[2] + _c1[5]) / 2];
+  for (let i = 0; i < NT; i++) {
+    const j = i * 3;
+    let x = TP[j], y = TP[j + 1], z = TP[j + 2], vx = TV[j], vy = TV[j + 1], vz = TV[j + 2];
+    accJS(x, y, z, _c0, sph, _a); vx += hd * _a[0]; vy += hd * _a[1]; vz += hd * _a[2];
+    x += dt * vx; y += dt * vy; z += dt * vz;
+    accJS(x, y, z, _c1, sph, _a); vx += hd * _a[0]; vy += hd * _a[1]; vz += hd * _a[2];
+    if (iso > 0) {
+      const sd = (k * 0.61803) % 97, id = N - NT + i;
+      const a1 = hash1(id * 0.1373 + sd) * 6.2831853, u1 = hash1(id * 0.7117 + sd * 1.37) * 2 - 1, sq = Math.sqrt(1 - u1 * u1);
+      const axx = sq * Math.cos(a1), axy = sq * Math.sin(a1), axz = u1;
+      const dr = Math.hypot(x - cm[0], y - cm[1], z - cm[2]);
+      const th = iso * ss(70, 30, dr) * (hash1(id * 0.311 + sd * 2.1) * 2 - 1);
+      const c = Math.cos(th), s = Math.sin(th), d = axx * vx + axy * vy + axz * vz;
+      const cx = axy * vz - axz * vy, cy = axz * vx - axx * vz, cz = axx * vy - axy * vx;
+      vx = vx * c + cx * s + axx * d * (1 - c); vy = vy * c + cy * s + axy * d * (1 - c); vz = vz * c + cz * s + axz * d * (1 - c);
+    }
+    if (!(x * x + y * y + z * z < 4e7)) { x = TP[j]; y = TP[j + 1]; z = TP[j + 2]; vx = vy = vz = 0; }
+    TP[j] = x; TP[j + 1] = y; TP[j + 2] = z; TV[j] = vx; TV[j + 1] = vy; TV[j + 2] = vz;
+  }
+}
+function tfStep(sim, k, dt, iso) {
+  centres(k, _c0); centres(k + dt / DT, _c1);
+  gl.useProgram(P.tf);
+  const sph = ss(K_MERGE - 250, K_MERGE + 350, k);
+  Cosmos.gl.uniforms(gl, P.tf, {
+    uCa0: [_c0[0], _c0[1], _c0[2]], uCa1: [_c0[3], _c0[4], _c0[5]], uCb0: [_c1[0], _c1[1], _c1[2]], uCb1: [_c1[3], _c1[4], _c1[5]],
+    uH0: GM[0].H, uH1: GM[1].H, uD0: GM[0].D, uD1: GM[1].D, uN0: N0, uN1: N1, uSph: sph, uDt: dt, uIso: iso, uSeed: (k * 0.61803) % 97,
+  });
+  gl.bindVertexArray(sim.vao[sim.cur]);
+  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, sim.tfo[sim.cur]);
+  gl.beginTransformFeedback(gl.POINTS);
+  gl.drawArrays(gl.POINTS, 0, N);
+  gl.endTransformFeedback();
+  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+  gl.bindVertexArray(null);
+  sim.cur = 1 - sim.cur;
+  stepTracked(k, dt, iso, sph, sim.tp, sim.tv);
+  if (sim === MAIN) S.trkDirty = true;
+}
+function copyBuf(src, dst) { gl.bindBuffer(gl.COPY_READ_BUFFER, src); gl.bindBuffer(gl.COPY_WRITE_BUFFER, dst); gl.copyBufferSubData(gl.COPY_READ_BUFFER, gl.COPY_WRITE_BUFFER, 0, 0, N * 16); gl.bindBuffer(gl.COPY_READ_BUFFER, null); gl.bindBuffer(gl.COPY_WRITE_BUFFER, null); }
+function restore(k) { // put MAIN at step k from the initial state or a ready snapshot
+  const sn = SNAPS.find((q) => q.k === k && q.ready);
+  if (sn) { copyBuf(sn.pos, MAIN.pos[0]); copyBuf(sn.vel, MAIN.vel[0]); MAIN.tp.set(sn.tp); MAIN.tv.set(sn.tv); }
+  else { copyBuf(initPos, MAIN.pos[0]); copyBuf(initVel, MAIN.vel[0]); for (let i = 0; i < NT; i++) for (let q = 0; q < 3; q++) { MAIN.tp[i * 3 + q] = POS0[(N - NT + i) * 4 + q]; MAIN.tv[i * 3 + q] = VEL0[(N - NT + i) * 4 + q]; } k = 0; }
+  gl.bindBuffer(gl.COPY_READ_BUFFER, null); gl.bindBuffer(gl.COPY_WRITE_BUFFER, null);
+  MAIN.cur = 0; MAIN.k = k; S.tfMode = 'phys'; S.trkDirty = true;
+  if (k === 0) S.visT = 0;
+}
+function bestStart(target, from) { // latest ready snapshot not after the target (and ahead of `from`, if given)
+  let best = 0;
+  for (const q of SNAPS) if (q.ready && q.k <= target && q.k > best) best = q.k;
+  return from != null && best <= from ? -1 : best;
+}
+const ISO_K = (k) => 0.055 * ss(K_MERGE - 200, K_MERGE + 300, k);
+let bgDone = false;
+function backgroundWork() {
+  if (bgDone) return;
+  const n = small ? 24 : 40;
+  for (let i = 0; i < n && BGSIM.k < K_END; i++) {
+    tfStep(BGSIM, BGSIM.k, DT, ISO_K(BGSIM.k)); BGSIM.k++;
+    const sn = SNAPS.find((q) => q.k === BGSIM.k);
+    if (sn) { copyBuf(BGSIM.pos[BGSIM.cur], sn.pos); copyBuf(BGSIM.vel[BGSIM.cur], sn.vel); sn.tp.set(BGSIM.tp); sn.tv.set(BGSIM.tv); sn.ready = true; }
+  }
+  gl.bindBuffer(gl.COPY_READ_BUFFER, null); gl.bindBuffer(gl.COPY_WRITE_BUFFER, null);
+  if (BGSIM.k >= K_END) bgDone = true;
+}
+function simulate(dt) {
+  const tYr = Math.pow(10, S.x);
+  const target = S.x < X_WIN ? clamp(Math.floor((tYr - T0) / (DT * 1e6)), 0, K_END) : K_END;
+  const cap = small ? 120 : 200;
+  gl.enable(gl.RASTERIZER_DISCARD);
+  if (S.tfMode === 'vis' && target < K_END) restore(bestStart(target));
+  else if (S.tfMode === 'phys' && MAIN.k > target) restore(bestStart(target));
+  if (S.tfMode === 'phys') {
+    const jump = bestStart(target, MAIN.k); if (jump > 0 && jump - MAIN.k > 40) restore(jump);
+    let n = 0; while (MAIN.k < target && n < cap) { tfStep(MAIN, MAIN.k, DT, ISO_K(MAIN.k)); MAIN.k++; n++; }
+    if (MAIN.k >= K_END) S.tfMode = 'vis';
+  } else if (dt > 0) {
+    // visual churn: orbits keep turning at a watchable pace once physical time is far too fast to follow
+    const dtv = Math.min(0.9, 30 * dt);
+    tfStep(MAIN, K_END, dtv, 0.012 * (dtv / DT));
+    S.visT += dtv;
+  }
+  if (!bgDone && performance.now() - S.t0 > 1500) backgroundWork();
+  gl.disable(gl.RASTERIZER_DISCARD);
+  S.kCur = MAIN.k; S.cur = MAIN.cur;
+  S.catching = S.tfMode === 'phys' && target - MAIN.k > cap;   // still fast-forwarding: hide the stale frame
+  if (S.trkDirty) {
+    for (let i = 0; i < NT; i++) { TPF[i * 4] = MAIN.tp[i * 3]; TPF[i * 4 + 1] = MAIN.tp[i * 3 + 1]; TPF[i * 4 + 2] = MAIN.tp[i * 3 + 2]; TPF[i * 4 + 3] = POS0[(N - NT + i) * 4 + 3]; }
+    gl.bindBuffer(gl.ARRAY_BUFFER, MAIN.pos[MAIN.cur]); gl.bufferSubData(gl.ARRAY_BUFFER, (N - NT) * 16, TPF); gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    S.trkDirty = false;
+  }
+}
+/* JS mirror of the evaporation transform, for labels */
+function renderPos(i, out) {
+  const j = i - (N - NT); let p = [MAIN.tp[j * 3], MAIN.tp[j * 3 + 1], MAIN.tp[j * 3 + 2]];
+  const x = S.x, xF = CPU.xF[i], fate = CPU.fate[i], seed = CPU.seed[i];
+  if (x > 17) {
+    const rr = Math.hypot(p[0], p[1], p[2]) + 1e-3;
+    if (fate > 0) {
+      const e = ss(xF - 0.3, xF + 1.8, x);
+      let sd = [hash1(seed * 91.7) - 0.5, hash1(seed * 57.3) - 0.5, hash1(seed * 33.1) - 0.5]; sd = norm3(sd);
+      let dir = [p[0] / rr * 0.4 + sd[0] * 0.6, p[1] / rr * 0.4 + sd[1] * 0.6, p[2] / rr * 0.4 + sd[2] * 0.6]; dir = norm3(dir);
+      const Rf = (rr + 25) * (1 + 5 * e) * (1 + 0.9 * ss(21, 110, x));
+      const m = ss(0, 0.5, e);
+      p = [p[0] + (dir[0] * Rf - p[0]) * m, p[1] + (dir[1] * Rf - p[1]) * m, p[2] + (dir[2] * Rf - p[2]) * m];
+    } else { const f = ss(xF - 1.1, xF, x); const k = Math.pow(1 - f, 1.5); p = [p[0] * k, p[1] * k, p[2] * k]; }
+  }
+  out[0] = p[0]; out[1] = p[1]; out[2] = p[2]; return out;
+}
+function project(p, out) {
+  const m = camState.vp; const x = p[0], y = p[1], z = p[2];
+  const cx = m[0] * x + m[4] * y + m[8] * z + m[12], cy = m[1] * x + m[5] * y + m[9] * z + m[13], cw = m[3] * x + m[7] * y + m[11] * z + m[15];
+  if (cw <= 0.01) return null;
+  const W = overlay.clientWidth, H = overlay.clientHeight;
+  out[0] = (cx / cw * 0.5 + 0.5) * W; out[1] = (1 - (cy / cw * 0.5 + 0.5)) * H; out[2] = cw; return out;
+}
+function wanderPos(wd, t) {
+  const a = wd.th + wd.w * t; const c = Math.cos(a), s = Math.sin(a);
+  const x0 = wd.R * c, z0 = wd.R * s;
+  const cn = Math.cos(wd.node), sn = Math.sin(wd.node);
+  const y = z0 * Math.sin(wd.inc), zz = z0 * Math.cos(wd.inc);
+  return [x0 * cn - zz * sn, y, x0 * sn + zz * cn];
+}
+
+function hawkCol(h) {
+  const P = [[0, [0.50, 0.32, 1.0]], [0.35, [0.85, 0.36, 0.92]], [0.6, [1.0, 0.52, 0.32]], [0.8, [1.0, 0.88, 0.72]], [1, [0.72, 0.84, 1.0]]];
+  for (let i = 0; i < P.length - 1; i++) if (h <= P[i + 1][0]) { const t = (h - P[i][0]) / (P[i + 1][0] - P[i][0]); return [0, 1, 2].map((k) => lerp(P[i][1][k], P[i + 1][1][k], t)); }
+  return P[P.length - 1][1];
+}
+/* ------------------------------------------------------------ main loop */
+let lastRO = 0, fpsAcc = 0, fpsN = 0, fps = 60, expoSm = 1, lensSm = 0;
+const LENS = new Float32Array(32), GLOW = new Float32Array(32);
+const _p = [0, 0, 0], _s = [0, 0, 0];
+if (window.innerWidth > 760 && window.innerWidth < 1200) ch.foldNotes(true);   // leave room for the ribbon on narrow screens
+layout(); drawStaticCharts();
+setTimeout(layout, 300); setTimeout(layout, 1200);
+
+ch.loop((dt, tAcc) => {
+  S.frame++;
+  const resized = Cosmos.gl.fit(canvas, small ? 1.6 : 1.75);
+  if (resized || !RT || RT.W !== gl.drawingBufferWidth || RT.H !== gl.drawingBufferHeight) { try { makeTargets(); } catch (e) { ch.fatal('Could not create render targets on this GPU.', e); throw e; } }
+  const W = gl.drawingBufferWidth, H = gl.drawingBufferHeight;
+  const cssW = canvas.clientWidth || 1, dprE = W / cssW;
+  if (overlay.width !== Math.round(overlay.clientWidth * Math.min(2, devicePixelRatio || 1))) { overlay.width = Math.round(overlay.clientWidth * Math.min(2, devicePixelRatio || 1)); overlay.height = Math.round(overlay.clientHeight * Math.min(2, devicePixelRatio || 1)); }
+
+  /* ---- director ---- */
+  const x0 = S.x;
+  if (S.playing && dt > 0) {
+    S.J += dt * S.speed;
+    const cd0 = J_CD0(), cd1 = J_CD1();
+    if (S.J >= cd0 && S.J < cd1) { S.cd = (S.J - cd0) / (cd1 - cd0); }
+    else if (S.J >= cd1 && S.cd >= 0 && S.cd < 1) { S.cd = 1; fireBurst(); }
+    else if (S.J < cd0) S.cd = -1;
+    S.x = xOfJ(S.J);
+    if (S.J >= J_END()) { S.x = X_MAX; S.playing = false; btnPlay.setLabel('Play'); playBtn.innerHTML = ICON_PLAY; }
+  }
+  if (S.cd >= 0 && S.cd < 1) {
+    const e = 1 - Math.pow(1 - S.cd, 1.55);
+    const r0 = remLog(X_CD);
+    S.remL = lerp(r0, -7.9, e);
+  } else S.remL = null;
+  if (!S.playing && S.x < X_CD) S.cd = -1;
+  if (S.x >= X_FINAL && x0 < X_FINAL && S.cd < 0) fireBurst();
+  if (S.x >= X_FINAL && S.cd > 0 && S.cd < 1) S.cd = 1;
+  const rate = dt > 0 && !S.jumped ? Math.abs(S.x - x0) / dt : 0;
+  S.dexRate = S.jumped ? 0 : S.dexRate * 0.9 + rate * 0.1;
+  if (dt > 0 && !S.jumped) crossings(x0, S.x);
+  S.jumped = false;
+  HOLE_GONE = S.cd >= 1 || (S.burstT >= 0 && S.burstT < 9);
+  if (S.x >= X_MAX - 0.02) { if (!S.ended) { S.ended = true; showEnd(); } } else if (S.ended) hideEnd();
+
+  /* ---- simulation ---- */
+  simulate(dt);
+  S.showK += ((S.catching ? 0 : 1) - S.showK) * (S.catching ? 0.5 : 0.12);
+
+  /* ---- camera ---- */
+  const x = S.x;
+  const k = S.tfMode === 'vis' ? K_END : S.kCur;
+  const ct = camTargetFor(x, k);
+  let dcam = ct.d;
+  if (S.cd >= 0) dcam = lerp(dcam, 95, ss(0, 0.5, Math.max(0, S.cd)));
+  if (x >= X_FINAL && x < 101) dcam = lerp(95, 520, ss(X_FINAL, 100, x));
+  const snapNow = S.frame < 3 || S.snap > 0;
+  camState.dist = camState.dist && !snapNow ? camState.dist + (dcam - camState.dist) * Math.min(1, dt * 1.6) : dcam;
+  for (let i = 0; i < 3; i++) camState.tgt[i] = snapNow ? ct.tgt[i] : camState.tgt[i] + (ct.tgt[i] - camState.tgt[i]) * Math.min(1, dt * 1.8);
+  const idle = performance.now() - S.lastInteract > 6000;
+  if (S.autoCam && idle && !cam.dragging) {
+    const phiT = x < 10.2 ? 1.33 : x < X_WIN ? 1.15 : x < 14 ? 1.12 : 1.05;
+    cam.phi += (phiT - cam.phi) * Math.min(1, dt * 0.25);
+    cam.autoRotate = x < X_WIN ? 0.012 : 0.03;
+  } else cam.autoRotate = 0.01;
+  cam.update(dt);
+  const D = camState.dist * cam.dist;
+  const sp = Math.sin(cam.phi);
+  const eye = [camState.tgt[0] + D * sp * Math.sin(cam.theta), camState.tgt[1] + D * Math.cos(cam.phi), camState.tgt[2] + D * sp * Math.cos(cam.theta)];
+  camState.eye = eye;
+  const aspect = W / H;
+  const view = Cosmos.mat4.lookAt(eye, camState.tgt);
+  const proj = Cosmos.mat4.perspective(camState.fov, aspect, Math.max(0.05, D * 0.002), D * 40 + 3000);
+  // shift the projection so the target sits in the free area between the panels
+  const Wc = window.innerWidth, Hc = window.innerHeight;
+  const ox = W > 0 ? (((LAY.l + LAY.r) / 2) - Wc / 2) / (Wc / 2) : 0;
+  const oy = -((((LAY.t + LAY.b) / 2) - Hc / 2) / (Hc / 2));
+  camState.off[0] += (clamp(ox, -0.35, 0.35) - camState.off[0]) * 0.1; camState.off[1] += (clamp(oy, -0.3, 0.3) - camState.off[1]) * 0.1;
+  proj[8] -= camState.off[0]; proj[9] -= camState.off[1];
+  camState.view = view; camState.proj = proj; camState.vp = Cosmos.mat4.multiply(proj, view);
+
+  /* ---- uniforms ---- */
+  const st = stateAt(x);
+  const lum = Math.max(1e-30, st.lum);
+  const expoT = clamp(Math.pow(lum / L_NOW, -0.82), 1, 400);   // the eye can only be helped so far: after this the galaxy goes dark
+  expoSm = S.snap > 0 ? expoT : expoSm * 0.85 + expoT * 0.15;
+  const uFW = clamp(S.dexRate * 0.3, 0.0012, 3);   // flashes last ~0.3 s of wall time at any playback rate
+  const cBuf = centres(k, _cbuf);
+  const uArm = 1 - ss(K_PERI - 250, K_PERI + 400, k);
+  const tPh = (S.tfMode === 'vis' ? K_END * DT + S.visT : S.kCur * DT);
+  const ghostK = S.ghosts ? (0.02 + 0.15 * ss(10.5, 12.5, x) + 0.75 * ss(13.2, 15, x)) : 0;
+  const physK = 1;
+
+  /* ---- render: scene into HDR ---- */
+  RT.scene.bind();
+  gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.disable(gl.DEPTH_TEST);
+  // background galaxies
+  if (x < 11.3) {
+    gl.useProgram(P.bg);
+    Cosmos.gl.uniforms(gl, P.bg, { uP: proj, uV: view, uX: x, uPx: dprE * 1.3, uFade: 1 });
+    gl.bindVertexArray(bgVao); gl.drawArrays(gl.POINTS, 0, NBG); gl.bindVertexArray(null);
+  }
+  gl.useProgram(P.star);
+  Cosmos.gl.uniforms(gl, P.star, {
+    uVP: camState.vp, uEye: eye, uX: x, uLp: LP, uFW, uExpo: 0.9 * expoSm * S.showK * (HDR ? 1 : LDR_K), uGhost: ghostK * S.showK * (HDR ? 1 : LDR_K), uPx: dprE * (small ? 1.25 : 1.35), uArm, uPat: tPh * 0.0235, uYoung: YOUNG_GAIN,
+    uMergeX: X_MERGE, uTime: tAcc, uFxK: S.showK * (HDR ? 1 : LDR_K), uPhysK: physK, uDref: D, uDust: uArm * 0.6 + 0.4 * (1 - ss(K_MERGE - 300, K_MERGE + 200, k)),
+    uC0: [cBuf[0], cBuf[1], cBuf[2]], uC1: [cBuf[3], cBuf[4], cBuf[5]], uN0: N0, uN1: N1, uU0: BAS[0][0], uW0: BAS[0][1], uU1: BAS[1][0], uW1: BAS[1][1],
+  });
+  gl.bindVertexArray(rVao[S.cur]); gl.drawArrays(gl.POINTS, 0, N); gl.bindVertexArray(null);
+  gl.disable(gl.BLEND);
+
+  /* ---- bloom ---- */
+  let src = RT.scene;
+  gl.useProgram(P.down);
+  for (let i = 0; i < RT.lv.length; i++) { const t = RT.lv[i]; t.bind(); Cosmos.gl.uniforms(gl, P.down, { uT: src.tex, uTx: [1 / src.w, 1 / src.h] }); quad(); src = t; }
+  gl.useProgram(P.up);
+  let prev = RT.lv[RT.lv.length - 1];
+  for (let i = RT.lv.length - 2; i >= 0; i--) { const t = RT.up[i]; t.bind(); Cosmos.gl.uniforms(gl, P.up, { uT: prev.tex, uB: RT.lv[i].tex, uTx: [1 / prev.w, 1 / prev.h], uK: 1 }); quad(); prev = t; }
+
+  /* ---- lenses: central hole and wanderers ---- */
+  let nl = 0;
+  const lensOn = ss(14.2, 16, x);
+  lensSm = S.snap > 0 ? lensOn : lensSm + (lensOn - lensSm) * 0.1;
+  if (S.snap > 0) S.snap--;
+  const Hpx = H;
+  const addLens = (wp, mass, glowL, strength) => {
+    if (nl >= 8 || !(mass > 0)) return;
+    const q = project(wp, _s); if (!q) return;
+    const scale = clamp(420 / q[2], 0.25, 4);
+    const rs = Hpx * Math.max(0.0032, 0.0105 * Math.pow(mass / 1e8, 0.22)) * scale;
+    LENS[nl * 4] = q[0] * dprE; LENS[nl * 4 + 1] = (overlay.clientHeight - q[1]) * dprE; LENS[nl * 4 + 2] = rs; LENS[nl * 4 + 3] = strength;
+    const [r, g, b] = glowL.c; GLOW[nl * 4] = r; GLOW[nl * 4 + 1] = g; GLOW[nl * 4 + 2] = b; GLOW[nl * 4 + 3] = glowL.i;
+    nl++;
+  };
+  let mc = centralMassAt(x, S.remL);
+  if (x >= X_FINAL) mc = 0;
+  S.sparkK = 0; S.lensPx = null;
+  if (lensSm > 0.01 && mc > 0) {
+    // Hawking glow in false colour; during the countdown it heats from violet through white to blue-white
+    const inCD = S.cd >= 0 && S.cd < 1;
+    const lT = lg(TH_SUN) - lg(mc);
+    const heat = inCD ? Math.pow(S.cd, 2.4) : 0;   // false colour follows the countdown so the heating reads clearly
+    void lT;
+    const c = hawkCol(heat);
+    const inten = inCD ? 0.55 + 7 * Math.pow(heat, 2.2) : (0.35 + 0.5 * ss(40, 60, x)) * (S.ghosts ? 1 : 0.5);
+    const shrink = inCD ? (1 - 0.5 * ss(0.05, 0.93, S.cd)) * (1 - 0.92 * ss(0.93, 0.998, S.cd)) : 1;
+    const n0 = nl;
+    addLens([0, 0, 0], inCD ? M_FINAL : mc, { c, i: inten }, lensSm, 1);
+    if (nl > n0) { LENS[(nl - 1) * 4 + 2] *= shrink; S.lensPx = [LENS[(nl - 1) * 4], LENS[(nl - 1) * 4 + 1], LENS[(nl - 1) * 4 + 2]]; }
+    S.sparkK = inCD ? Math.pow(ss(0.45, 1.0, S.cd), 2) : 0;
+    S.heat = heat;
+  }
+  if (S.burstT >= 0 && S.burstT < 2.5) { S.sparkK = Math.exp(-S.burstT * 2.2); S.heat = 1; }
+  if (S.lensPx) S.lensCss = [S.lensPx[0] / dprE, overlay.clientHeight - S.lensPx[1] / dprE, S.lensPx[2] / dprE]; else S.lensCss = null;
+  WANDER.forEach((wd) => { if (x < wd.x && x > 14.5) addLens(wanderPos(wd, tAcc * 0.3 + S.visT * 0.02), wd.m, { c: [0.62, 0.48, 1.0], i: 0.45 }, lensSm * ss(14.5, 17, x)); });
+
+  /* ---- composite ---- */
+  Cosmos.gl.screen(gl);
+  gl.useProgram(P.comp);
+  S.flashT = Math.max(0, S.flashT - dt * 0.55);
+  const genT = S.ended ? Math.min(1, (S.genT = (S.genT || 0) + dt * 0.08)) : (S.genT = 0);
+  const dim = x > 100 ? lerp(1, 0.75, ss(100, 110, x)) : 1;
+  Cosmos.gl.uniforms(gl, P.comp, {
+    uScene: RT.scene.tex, uBloom: RT.up[0].tex, uRes: [W, H], uLens: LENS, uGlow: GLOW, uNL: nl, uBloomK: 0.32,
+    uFlash: Math.pow(S.flashT, 3.0) * 2.2 + (S.burstT >= 0 && S.burstT < 1 ? 2.6 * Math.exp(-S.burstT * 22) : 0), uFlashCol: [0.78, 0.82, 1.0], uGen: genT * genT, uGenPos: [W * 0.5, H * (small ? 0.78 : 0.72)],
+    uTime: tAcc, uExpoK: HDR ? 1 : 1 / LDR_K, uDim: dim,
+    uSpark: S.sparkK || 0, uSparkCol: hawkCol(S.heat || 0), uSparkPos: S.lensPx || S.burstPos || [W / 2, H / 2, 10],
+    uBurst: S.burstT >= 0 && S.burstT < 9 ? S.burstT : -1, uBurstPos: S.burstPos ? [S.burstPos[0], S.burstPos[1]] : [W / 2, H / 2],
+  });
+  if (S.burstT >= 0 && S.burstT < 9) S.burstT += dt;
+  quad();
+
+  /* ---- overlay labels ---- */
+  drawOverlay(x, tAcc, st);
+
+  /* ---- DOM (throttled) ---- */
+  fpsAcc += dt; fpsN++;
+  const now = performance.now();
+  if (now - lastRO > 120) {
+    if (fpsAcc > 0) fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0;
+    lastRO = now;
+    updateReadouts(x, st, expoSm);
+    updateCaption();
+    drawBudget(st); drawEntropy(st); drawCalendar();
+    legend.style.opacity = S.ghosts && x > 13.9 && x < 72 && !S.ended ? '1' : '0';
+  }
+  drawRibbon();
+  soundUpdate(x, dt);
+}, { always: true });
+
+function updateReadouts(x, st, expo) {
+  const tH = yearsH(x);
+  timeEl.children[0].innerHTML = 't = ' + tH;
+  timeEl.children[1].textContent = S.cd >= 0 && S.cd < 1 ? 'the last black hole is evaporating' : humanAge(x);
+  eraEl.children[0].textContent = eraOf(x);
+  eraEl.children[1].textContent = 'η = ' + x.toFixed(x < 11 ? 3 : 2);
+  ribCanvas.setAttribute('aria-valuenow', x.toFixed(2)); ribCanvas.setAttribute('aria-valuetext', yearsText(x));
+  RO.t.innerHTML = tH;
+  RO.era.textContent = eraOf(x).replace(' Era', '');
+  RO.eta.textContent = x.toFixed(3);
+  RO.stars.innerHTML = st.ms >= 1 ? '≈ ' + sciH(st.ms, 2) : '0';
+  RO.wd.innerHTML = st.wd >= 1 ? sciH(st.wd, 2) : '0';
+  RO.ns.innerHTML = st.ns >= 1 ? sciH(st.ns, 2) : '0';
+  const nbh = st.bh + (x < X_FINAL ? 1 : 0) + WANDER.filter((w) => x < w.x).length;
+  RO.bh.innerHTML = nbh >= 1 ? sciH(nbh, 2) : '0';
+  RO.cmb.innerHTML = cmbH(x) + (cmbT(x).l != null && cmbT(x).l > lg(T_DS) ? '' : ' <em>colder than the horizon itself, 2.2 × 10<sup>−30</sup> K</em>');
+  let mbig = centralMassAt(x, S.remL); if (x >= X_FINAL) mbig = 0;
+  if (!(mbig > 0)) { RO.big.textContent = 'none left'; RO.th.textContent = '—'; }
+  else { RO.big.innerHTML = mbig > 1e-12 ? massH(mbig) : sciH(mbig * MSUN_KG, 2) + ' kg'; RO.th.innerHTML = kelvinH(lg(TH_SUN) - lg(mbig)); }
+  RO.expo.innerHTML = '×' + (expo < 10 ? expo.toFixed(1) : sciH(expo, 1));
+  RO.gal.textContent = x < 11.3 ? bgFadeCount(x) + ' visible' : 'none';
+  hud.t.set(yearsText(x));
+  hud.era.set(eraOf(x));
+  hud.stars.set(st.ms >= 1 ? '≈ ' + FM.sci(st.ms, 2) : '0');
+  hud.cmb.set(cmbText(x));
+}
+
+let CAPR = null; const PLACED = [];
+function drawOverlay(x, tAcc, st) {
+  const c = octx; const dpr = overlay.width / Math.max(1, overlay.clientWidth);
+  c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, overlay.clientWidth, overlay.clientHeight);
+  if (!S.labels || document.body.classList.contains('cz-cinema')) return;
+  if (S.frame % 15 === 1) CAPR = cap.getBoundingClientRect();
+  const mono = getComputedStyle(document.documentElement).getPropertyValue('--f-mono');
+  const disp = getComputedStyle(document.documentElement).getPropertyValue('--f-display');
+  PLACED.length = 0;
+  const free = (x0, y0, x1, y1) => { if (x1 > overlay.clientWidth - 4 || y0 < (small ? 128 : 56) || PLACED.some((r) => x0 < r[2] && x1 > r[0] && y0 < r[3] && y1 > r[1])) return false; PLACED.push([x0, y0, x1, y1]); return true; };
+  c.font = `500 10.5px ${mono}`; c.textBaseline = 'middle';
+  const tag = (px, py, text, sub, col = 'rgba(236,230,214,0.85)', dx = 26, dy = -18) => {
+    c.font = `italic 500 14px ${disp}`; let tw = c.measureText(text).width;
+    if (sub) { c.font = `500 9.5px ${mono}`; tw = Math.max(tw, c.measureText(sub).width); }
+    tw += 16;
+    const Wv = overlay.clientWidth, fitsL = px - Math.abs(dx) - tw > Math.max(4, LAY.l), fitsR = px + Math.abs(dx) + tw < Math.min(Wv - 4, LAY.r);
+    if (dx < 0 && !fitsL && fitsR) dx = -dx; else if (dx > 0 && !fitsR && fitsL) dx = -dx;
+    else if (!fitsL && !fitsR) dx = dx < 0 ? -Math.max(14, px - tw - 6) : Math.max(14, Wv - 6 - tw - px);
+    const cr = CAPR; const lx0 = dx > 0 ? px + dx : px + dx - tw, lx1 = lx0 + tw, ly = py + dy;
+    if (cr && S.captions && ly > cr.top - 8 && ly < cr.bottom + 16 && lx1 > cr.left && lx0 < cr.right) dy = Math.abs(dy) + 10;
+    c.strokeStyle = 'rgba(236,230,214,0.35)'; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(px + dx * 0.25, py + dy * 0.25); c.lineTo(px + dx, py + dy); c.lineTo(px + dx + (dx > 0 ? 8 : -8), py + dy); c.stroke();
+    PLACED.push([Math.min(lx0, lx1), py + dy - 12, Math.max(lx0, lx1), py + dy + (sub ? 20 : 8)]);
+    c.textAlign = dx > 0 ? 'left' : 'right'; c.fillStyle = col; c.font = `italic 500 14px ${disp}`;
+    c.fillText(text, px + dx + (dx > 0 ? 12 : -12), py + dy - 1);
+    if (sub) { c.font = `500 9.5px ${mono}`; c.fillStyle = 'rgba(151,157,178,0.9)'; c.fillText(sub, px + dx + (dx > 0 ? 12 : -12), py + dy + 13); }
+  };
+  const k = S.tfMode === 'vis' ? K_END : S.kCur;
+  const cb = centres(k, _cbuf);
+  if (x < X_MERGE - 0.004) {
+    const a = project([cb[0], cb[1], cb[2]], _s); if (a) tag(a[0], a[1], 'Milky Way', null, undefined, -60, 70);
+    const b = project([cb[3], cb[4], cb[5]], _s); if (b) tag(b[0], b[1], 'Andromeda', FM.sci(sepAt(k), 3) + ' kpc away', undefined, 34, -26);
+  } else if (x < 14.1) {
+    const a = project([0, 0, 0], _s); if (a) tag(a[0], a[1], 'Milkomeda', x < 12 ? 'merged elliptical' : 'red dwarfs, white dwarfs', undefined, 70, -70);
+  }
+  // the Sun
+  if (trkValid && x < 19.8) {
+    const p = renderPos(I_SUN, _p); const q = project(p, _s);
+    if (q) {
+      const ph = x < CPU.xMS[I_SUN] ? 'Sun' : x < CPU.xRem[I_SUN] ? 'Sun · red giant' : x < 12 ? 'Sun · white dwarf' : x < 14.5 ? 'Sun · cooling white dwarf' : x < CPU.xF[I_SUN] - 0.2 ? 'Sun · black dwarf' : 'Sun · flung out of the galaxy';
+      const Lc = S.lensCss, near = Lc && Math.hypot(q[0] - Lc[0], q[1] - Lc[1]) < Lc[2] * 2.2 + 10;
+      if (near) {
+        // in projection the Sun sits on the hole's shadow: point to it from outside the glow
+        c.strokeStyle = 'rgba(255,233,190,0.7)'; c.lineWidth = 1; c.beginPath(); c.arc(q[0], q[1], 5, 0, 7); c.stroke();
+        tag(q[0], q[1], ph, 'seen in line with the central hole', 'rgba(255,233,190,0.92)', Lc[2] * 2.2 + 30, -(Lc[2] * 1.6 + 26));
+      } else {
+        c.strokeStyle = 'rgba(255,233,190,0.85)'; c.lineWidth = 1; c.beginPath(); c.arc(q[0], q[1], 7, 0, 7); c.stroke();
+        c.font = `500 10px ${mono}`; c.fillStyle = 'rgba(255,233,190,0.9)'; c.textAlign = 'left'; c.fillText(ph, q[0] + 11, q[1] - 9);
+      }
+    }
+  }
+  // Proxima Centauri, our nearest neighbour: a 0.12 M☉ red dwarf that will outlive the Sun by a factor of four hundred
+  if (trkValid && x > 11.3 && x < 13.6) {
+    const p = renderPos(I_PROX, _p); const q = project(p, _s);
+    if (q) {
+      const xd = CPU.xMS[I_PROX];
+      const ph = x < xd - 0.07 ? 'Proxima Centauri · red dwarf' : x < xd ? 'Proxima Centauri · blue dwarf' : 'Proxima Centauri · white dwarf';
+      const col = x < xd - 0.07 ? 'rgba(255,170,140,0.95)' : x < xd ? 'rgba(170,200,255,0.95)' : 'rgba(200,210,235,0.8)';
+      c.strokeStyle = col; c.lineWidth = 1; c.beginPath(); c.arc(q[0], q[1], 6, 0, 7); c.stroke();
+      c.font = `500 10px ${mono}`; c.fillStyle = col; c.textAlign = 'right'; c.fillText(ph, q[0] - 10, q[1] + 12);
+    }
+  }
+  // the last star
+  if (trkValid && x > CPU.xB[I_LAST] - 0.01 && x < CPU.xMS[I_LAST] + 0.02) {
+    const p = renderPos(I_LAST, _p); const q = project(p, _s);
+    if (q) tag(q[0], q[1], 'the last star to form', '0.09 M☉ red dwarf', 'rgba(255,190,160,0.95)', 40, -40);
+  }
+  // central black hole
+  if (x > 14.3 && x < X_FINAL) {
+    const q = project([0, 0, 0], _s);
+    const m = centralMassAt(x, S.remL);
+    if (q && m > 0) tag(q[0], q[1], 'central black hole', FM.sci(m, 2) + ' M☉' + (small ? '' : ' · drawn enlarged'), 'rgba(200,185,255,0.95)', -70, 64);
+  }
+  if (x > 38 && x < 90) WANDER.forEach((wd) => { if (x < wd.x) { const q = project(wanderPos(wd, tAcc * 0.3 + S.visT * 0.02), _s); if (q) { c.font = `500 9.5px ${mono}`; const t = FM.sci(wd.m, 2) + ' M☉', tw = c.measureText(t).width; if (free(q[0] + 12, q[1] - 17, q[0] + 16 + tw, q[1] - 3)) { c.fillStyle = 'rgba(180,160,255,0.75)'; c.textAlign = 'left'; c.fillText(t, q[0] + 14, q[1] - 10); } } } });
+  // transient events
+  const now = performance.now();
+  for (let i = EVENTS.length - 1; i >= 0; i--) {
+    const e = EVENTS[i]; const age = (now - e.t0) / 1000; if (age > 2.2) { EVENTS.splice(i, 1); continue; }
+    let q = null;
+    if (e.i != null && trkValid) q = project(renderPos(e.i, _p), _s);
+    else if (e.w != null) q = project(wanderPos(WANDER[e.w], tAcc * 0.3 + S.visT * 0.02), _s);
+    if (!q || q[1] < (small ? 132 : 60) || q[0] > overlay.clientWidth - 40) continue;
+    c.globalAlpha = age < 0.2 ? age / 0.2 : Math.max(0, 1 - (age - 1.4) / 0.8);
+    c.font = `500 9.5px ${mono}`; c.fillStyle = 'rgba(210,200,255,0.95)'; c.textAlign = 'left'; c.fillText(e.text, q[0] + 12, q[1] + 12);
+    c.globalAlpha = 1;
+  }
+  // distant galaxies, crossing the event horizon
+  if (x > 10.33 && x < 11.35) {
+    const n = bgFadeCount(x);
+    c.font = `500 10px ${mono}`; c.textAlign = small ? 'right' : 'left'; c.fillStyle = 'rgba(255,170,140,0.85)';
+    const tx = small ? overlay.clientWidth - 16 : LAY.l + 24, ty = small ? 104 : rib.getBoundingClientRect().top - 58;
+    c.fillText(n > 0 ? 'distant galaxies still visible: ' + n : 'no other galaxy is visible', tx, ty);
+    c.fillStyle = 'rgba(151,157,178,0.7)'; c.fillText(n > 0 ? 'redshifting behind the event horizon' : 'the Local Group is alone', tx, ty + 14);
+  }
+  // scale bar
+  const q0 = project(camState.tgt, _s);
+  if (q0) {
+    const D = q0[2]; const Hc = overlay.clientHeight; const kpcPerPx = 2 * D * Math.tan(camState.fov / 2) / Hc;
+    const nice = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000]; let L = nice[0]; for (const n of nice) if (n / kpcPerPx < 130) L = n;
+    const len = L / kpcPerPx; const rt = rib.getBoundingClientRect().top; const bx = small ? overlay.clientWidth - 16 - len : (LAY.l + LAY.r) / 2 - len / 2, by = small ? 76 : rt - 30;
+    if (x < 100) {
+      c.strokeStyle = 'rgba(236,230,214,0.45)'; c.beginPath(); c.moveTo(bx, by - 4); c.lineTo(bx, by); c.lineTo(bx + len, by); c.lineTo(bx + len, by - 4); c.stroke();
+      c.font = `500 10px ${mono}`; c.fillStyle = 'rgba(151,157,178,0.9)'; c.textAlign = 'center'; c.textAlign = small ? 'right' : 'center'; c.fillText(L + ' kpc' + (x > 18.6 && !small ? ' · escapees shown closer' : ''), small ? bx + len : bx + len / 2, by + 11);
+    }
+  }
+}
+
+/* ------------------------------------------------------------ robustness */
+canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); ch.toast('The graphics context was lost; it will be restored when the GPU is free.', 6000); }, false);
+canvas.addEventListener('webglcontextrestored', () => { location.reload(); }, false);
+document.addEventListener('visibilitychange', () => { if (AU.nodes && document.hidden) AU.nodes.master.gain.setTargetAtTime(0, AU.nodes.ctx.currentTime, 0.1); });
+
+/* ------------------------------------------------------------ debug */
+Cosmos.debug.state = () => {
+  const st = stateAt(S.x);
+  return { x: +S.x.toFixed(4), era: eraOf(S.x), J: +S.J.toFixed(2), playing: S.playing, cd: +S.cd.toFixed(3), remL: S.remL, kCur: S.kCur, tfMode: S.tfMode,
+    stars: st.ms, wd: st.wd, ns: st.ns, bh: st.bh, lumRel: st.lum / L_NOW, logS: st.logS, cmb: cmbT(S.x), bigBH: centralMassAt(S.x, S.remL),
+    fGas: st.fGas, fStar: st.fStar, fRemn: st.fRemn, fBH: st.fBH, fGone: st.fGone, xPeri: X_PERI, xMerge: X_MERGE, xFinal: X_FINAL, mFinal: M_FINAL, fps: Math.round(fps), N, hdr: !!HDR };
+};
+Cosmos.debug.jump = (x) => jumpTo(x, false);
+Cosmos.debug.budget = (x) => { const m = { mStar: tget(TB.mStar, x), mRemn: tget(TB.mRemn, x), mBH: tget(TB.mBH, x), mc: centralMass(x) }; return m; };
+Cosmos.debug.play = (p) => setPlaying(p);
+Cosmos.debug.xOfJ = (j) => xOfJ(j);
+Cosmos.debug.colliders = () => { const a = []; for (let i = I_COL0; i < I_COL0 + N_COL; i++) a.push(+CPU.xMS[i].toFixed(2)); return a.sort((p, q) => p - q); };
+Cosmos.debug.jOfX = (x) => jOfX(x);
+Cosmos.debug.J = { cd0: () => J_CD0(), cd1: () => J_CD1(), end: () => J_END() };
+console.info('[last-light] ' + N + ' particles · merger peri ' + X_PERI.toFixed(3) + ', merge ' + X_MERGE.toFixed(3) + ' · last black hole ' + FM.sci(M_FINAL, 3) + ' Msun → η ' + X_FINAL.toFixed(2));
+})();
+</script>
+</body>
+</html>

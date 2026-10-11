@@ -1,0 +1,1926 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>First Life · Cosmogenesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="cosmos.css">
+<style>
+  #fl-ui { pointer-events: none; }
+  #fl-gl { cursor: crosshair; }
+  body.fl-pipette #fl-gl { cursor: cell; }
+  body.fl-panning #fl-gl { cursor: grabbing; }
+  .fl-map { cursor: crosshair; image-rendering: pixelated; }
+  .fl-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 500 10.5px/1.3 var(--f-mono); color: var(--dust); }
+  .fl-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .fl-maphead { display: flex; justify-content: space-between; align-items: baseline; font: 500 10.5px/1.2 var(--f-mono); color: var(--faint); }
+  .fl-maphead b { color: var(--era); font-weight: 500; }
+</style>
+</head>
+<body>
+<script src="cosmos.js"></script>
+<script>
+(function () {
+'use strict';
+
+/* =====================================================================
+   Chapter 11 · First Life
+   Continuous cellular automata (Lenia, SmoothLife) computed on the GPU and
+   viewed through a dark-field microscope.
+   ===================================================================== */
+
+const NOTES = `
+<p>You are looking down a microscope at something that is not alive, and not quite dead either. Each glowing shape is a pattern in a continuous field of numbers. Every point obeys the same rule: sense your surroundings through a soft ring, grow if the average is just right, and fade if it is not.</p>
+<p>From that one rule come creatures. <em>Orbium</em> glides like a tiny jellyfish and keeps its shape for as long as you watch. When two meet, usually both dissolve. Sometimes one survives. Now and then a collision ignites a labyrinth that spreads until it fills the dish.</p>
+<p>This is a toy model of the deepest question about the young Earth, about 3.8 billion years ago: how does chemistry become something that keeps itself going, copies itself and changes? Nobody saw it happen. Patterns like these show how little machinery self-maintenance and self-copying need, and how narrow the conditions for them are.</p>
+<p>The atlas in the deck holds hundreds of tiny worlds, each with its own settings and each seeded with one Orbium. It survives only on a thin diagonal. Step off it and life either fades away or runs riot. The faint wakes behind each creature are a long exposure: they show where it has been over the last second or two.</p>
+<h4>Try this</h4>
+<ul>
+<li>Tap the slide to drop a new creature into the school. Drag to pan; scroll or pinch to zoom. On a computer, hover anywhere to see the ring that point senses and whether the rule tells it to grow or fade.</li>
+<li>Slide σ down from 0.015 to 0.013 and the school dissolves. Push it up to 0.019 and they swell into a labyrinth. Watch the bars in <em>Anatomy of the rule</em> slide off the bell as you do it.</li>
+<li>Pick <strong>Self-replicating cells</strong>: one cell becomes two, then four, and the organism count traces a real growth curve.</li>
+<li>Pick <strong>Three-channel cells</strong> or <strong>crescents</strong>: three interacting fields, each shown as its own fluorescent dye. Press <kbd>A</kbd> to see where they grow and where they decay.</li>
+</ul>`;
+const SCIENCE = `
+<h4>Lenia</h4>
+<p>The state is a field A(x, t) between 0 and 1 on a 512 × 512 grid whose edges wrap around (256 × 256 on phones). Every step, each cell looks at its neighbours through a ring-shaped kernel K and grows or shrinks:</p>
+<span class="eq">A<sup>t+Δt</sup> = clip[ A<sup>t</sup> + Δt · G(K ∗ A<sup>t</sup>), 0, 1 ],&nbsp;&nbsp; Δt = 1/T</span>
+<span class="eq">K<sub>C</sub>(ρ) = exp(4 − 1 / (ρ(1 − ρ))),&nbsp; 0 &lt; ρ &lt; 1,&nbsp;&nbsp; ρ = |x|/R,&nbsp;&nbsp; ΣK = 1</span>
+<span class="eq">G(u) = 2 exp(−(u − μ)² / 2σ²) − 1</span>
+<p>A kernel with several rings uses peaks β: K(ρ) = β<sub>⌊Bρ⌋</sub> K<sub>C</sub>(Bρ mod 1) for B rings. <em>Orbium</em> lives at R = 13 cells, T = 10, μ = 0.15, σ = 0.015, β = [1]. Here its mass ΣA is about 71 and it glides 0.62 cells per step. The convolution runs directly on the GPU: each cell sums about 530 weighted neighbours from a precomputed tap texture, with no Fourier transform.</p>
+<h4>Extended Lenia</h4>
+<p>Chan’s 2020 generalisation adds more kernels and channels. With several kernels on one channel, A grows by Δt Σ h<sub>k</sub> G<sub>k</sub>(K<sub>k</sub> ∗ A), where the weights h<sub>k</sub> sum to 1. The self-replicating cells and the primordial soup each use three kernels. The three-channel cultures run three fields at once, shown as three dyes, with six kernels: each channel feeds itself and the next one around (0→0, 1→1, 2→2, 0→1, 1→2, 2→0). Growth into a channel is the h-weighted mean of the kernels that target it. The rotator uses a two-ring kernel, β = [1, ½], μ = 0.252, σ = 0.026, and turns about 0.021 radians per step. All of these were found for this page by GPU searches: 1,440 random three-kernel rules, 1,440 random three-channel rules, and a scan of two-ring parameters. They are not species from Chan’s catalogue. His own self-replicator is called <em>Geminium</em>.</p>
+<h4>Reading the rule</h4>
+<p>The <em>Anatomy of the rule</em> chart draws the kernel K and the growth curve G. Behind the curve is a live histogram of U = K ∗ A over the living tissue, where the block-averaged A exceeds 0.03, sampled on a 4-cell grid four times a second. Green bars sit where G &gt; 0 and the tissue grows. Blue bars sit where it decays. In the Orbium school only about a third of the living tissue sits under the bell at any moment. Growth gathers at the leading edge and decay at the trailing edge, which is how a pattern with no moving parts travels (press <kbd>A</kbd> to see it). For rules with several kernels the chart shows kernel 1 only. The kernel lens reads the same grid under the cursor.</p>
+<h4>SmoothLife</h4>
+<p>Rafler’s continuous Game of Life measures the filling m of an inner disc (radius r<sub>a</sub>/3) and the filling n of the surrounding annulus (r<sub>a</sub> = 21 cells), then sets the next state with smooth thresholds:</p>
+<span class="eq">f ← s(n, m) = σ<sub>2</sub>(n, σ<sub>m</sub>(b<sub>1</sub>, d<sub>1</sub>, m), σ<sub>m</sub>(b<sub>2</sub>, d<sub>2</sub>, m))</span>
+<span class="eq">σ<sub>1</sub>(x, a) = 1 / (1 + e<sup>−4(x − a)/α</sup>),&nbsp; σ<sub>2</sub>(x, a, b) = σ<sub>1</sub>(x, a)(1 − σ<sub>1</sub>(x, b))</span>
+<p>Here σ<sub>m</sub>(x, y, m) = x(1 − σ<sub>1</sub>(m, ½)) + y σ<sub>1</sub>(m, ½), with b<sub>1</sub> = 0.278, b<sub>2</sub> = 0.365, d<sub>1</sub> = 0.267, d<sub>2</sub> = 0.445, α<sub>n</sub> = 0.028 and α<sub>m</sub> = 0.147. Time is discrete, and the glider shown was grown from a speckled soup. It travels 5.3 cells per step.</p>
+<h4>From Conway’s Life to Lenia</h4>
+<p>In Conway’s Game of Life, cells are 0 or 1, the neighbourhood is the 8 surrounding squares, and time moves in whole steps: a cell is born with exactly 3 live neighbours and survives with 2 or 3. Lenia makes all three continuous. States become real numbers, the neighbourhood becomes a smooth ring of radius R, and the time step shrinks to 1/T. Space really is continuous here: an Orbium rescaled to R = 9, 18 or 24 cells keeps living. Time is touchier. In test runs at μ = 0.15 and σ = 0.015 it survived every T from 4 to 16, but dissolved at T = 3 and below, and at T = 20 and 40. The knife edge runs through time as well as through μ and σ.</p>
+<h4>What would count as alive?</h4>
+<p>Common criteria are an individual that maintains itself, reproduces, and carries variation that natural selection can act on. Orbium maintains itself. The replicating cells also reproduce. None of these patterns carries heritable variation, so none of them can evolve. Gánti’s <em>chemoton</em> is a classic minimal model of a living thing: an autocatalytic metabolic cycle, a template polymer and a self-assembling membrane, each driving the others.</p>
+<h4>Real first life</h4>
+<p>The oldest widely accepted traces of life are stromatolites, layered mounds built by microbial mats, in rocks about 3.43 to 3.48 billion years old in the Pilbara of Western Australia. Estimates for LUCA, the last universal common ancestor of bacteria and archaea, range from about 3.5 to 4.2 billion years ago.</p>
+<h4>What is simplified</h4>
+<p>The scale is fictional: one cell is drawn as 2 µm and T steps as one second. Colours are rendering choices. Dark-field brightness follows the gradient of A. The epifluorescence false colours show A in green, dense cores in blue, growth in cyan and decay in magenta. Nothing here actually fluoresces. The wakes are a running maximum of A that decays with an e-folding time of 1.5 s (0.4 s for the fast SmoothLife gliders). The atlas runs one Orbium in each 40 × 40 tile for 320 steps over μ 0.08–0.23 and σ 0.004–0.030. A tile dissolves if its mass falls below 8 % of the seed’s and overgrows if it passes twice the seed’s; otherwise it glides if its centre of mass keeps moving, and lives in place if not. Organisms are the connected pieces of a 4 × 4-averaged copy of the field, read back from the GPU four times a second. Head-on collisions in headless test runs usually destroyed both Orbium. Crowded schools always ended empty or overgrown, so the dish re-plates itself.</p>
+<span class="cite">Gardner, M. (1970). Mathematical Games: The fantastic combinations of John Conway’s new solitaire game “life”. Scientific American 223(4), 120–123.</span>
+<span class="cite">Rafler, S. (2011). Generalization of Conway’s “Game of Life” to a continuous domain: SmoothLife. arXiv:1111.1567.</span>
+<span class="cite">Chan, B. W.-C. (2019). Lenia: Biology of artificial life. Complex Systems 28(3), 251–286.</span>
+<span class="cite">Chan, B. W.-C. (2020). Lenia and expanded universe. ALIFE 2020: The 2020 Conference on Artificial Life. MIT Press.</span>
+<span class="cite">Gánti, T. (2003). The Principles of Life. Oxford University Press.</span>
+<span class="cite">Allwood, A. C. et al. (2006). Stromatolite reef from the Early Archaean era of Australia. Nature 441, 714–718.</span>`;
+
+const ch = Cosmos.chapter({ id: 'first-life', notes: NOTES, science: SCIENCE });
+const Ut = Cosmos.util;
+const small = window.matchMedia('(max-width: 760px)').matches;
+const ERA = Ut.rgbf(ch.meta.accent);
+const TAU = Math.PI * 2;
+
+/* ================================================================ GL setup */
+const canvas = ch.canvas('fl-gl');
+const ui = ch.canvas('fl-ui');
+const g2 = ui.getContext('2d');
+const gl = Cosmos.gl.context(canvas, { alpha: false });
+if (!gl) { ch.fatal('This chapter needs WebGL2, which this browser or device does not provide.'); return; }
+canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); ch.fatal('The graphics processor reset and took the simulation with it. Reload the page to start a fresh culture.'); });
+const FLOAT_OK = gl.ext.floatRT;
+if (!FLOAT_OK && !gl.ext.halfFloatRT) { ch.fatal('This chapter needs floating-point render targets (EXT_color_buffer_float), which this GPU does not expose.'); return; }
+const F1 = FLOAT_OK ? { internal: gl.R32F, format: gl.RED, type: gl.FLOAT } : { internal: gl.R16F, format: gl.RED, type: gl.HALF_FLOAT };
+const F4 = FLOAT_OK ? { internal: gl.RGBA32F, format: gl.RGBA, type: gl.FLOAT } : { internal: gl.RGBA16F, format: gl.RGBA, type: gl.HALF_FLOAT };
+const HDR = { internal: gl.RGBA16F, format: gl.RGBA, type: gl.HALF_FLOAT };
+
+const N = small ? 256 : 512;          // simulation grid, toroidal
+const MASK = N - 1;
+const HEAD = '#version 300 es\nprecision highp float;\nprecision highp int;\nprecision highp sampler2D;\n';
+const VS = Cosmos.gl.FS_VERT;
+const drawTri = Cosmos.gl.quad(gl);
+
+function texture(w, h, fmt, data, filter) {
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D, 0, fmt.internal, w, h, 0, fmt.format, fmt.type, data || null);
+  const f = filter === 'linear' ? gl.LINEAR : gl.NEAREST;
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, f); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, f);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  t.w = w; t.h = h;
+  return t;
+}
+function target(w, h, fmt, filter) {
+  const tex = texture(w, h, fmt, null, filter);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  if (!ok) throw new Error('Framebuffer incomplete: this GPU cannot render to the floating-point textures this chapter needs.');
+  return { tex, fbo, w, h, bind() { gl.bindFramebuffer(gl.FRAMEBUFFER, fbo); gl.viewport(0, 0, w, h); }, free() { gl.deleteTexture(tex); gl.deleteFramebuffer(fbo); } };
+}
+function pingpong(w, h, fmt) {
+  const a = target(w, h, fmt), b = target(w, h, fmt);
+  const pp = { read: a, write: b, swap() { const t = pp.read; pp.read = pp.write; pp.write = t; }, clear() { for (const t of [a, b]) { t.bind(); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } } };
+  return pp;
+}
+function prog(fs) { const p = Cosmos.gl.program(gl, VS, fs); p.u = {}; for (const k in p.uniforms) p.u[k] = p.uniforms[k].loc; return p; }
+function bindTex(unit, tex, loc) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, tex); if (loc != null) gl.uniform1i(loc, unit); }
+
+/* ================================================================ species */
+// Orbium bicaudatus (Chan 2019): R=13, T=10, μ=0.15, σ=0.015, β=[1], exponential core, Gaussian growth.
+// Cell array checked in a headless CPU and GPU run: mass ≈ 71, glides 0.616 cells per step.
+const ORBIUM = [[0,0,0,0,0,0,0.1,0.14,0.1,0,0,0.03,0.03,0,0,0.3,0,0,0,0],[0,0,0,0,0,0.08,0.24,0.3,0.3,0.18,0.14,0.15,0.16,0.15,0.09,0.2,0,0,0,0],[0,0,0,0,0,0.15,0.34,0.44,0.46,0.38,0.18,0.14,0.11,0.13,0.19,0.18,0.45,0,0,0],[0,0,0,0,0.06,0.13,0.39,0.5,0.5,0.37,0.06,0,0,0,0.02,0.16,0.68,0,0,0],[0,0,0,0.11,0.17,0.17,0.33,0.4,0.38,0.28,0.14,0,0,0,0,0,0.18,0.42,0,0],[0,0,0.09,0.18,0.13,0.06,0.08,0.26,0.32,0.32,0.27,0,0,0,0,0,0,0.82,0,0],[0.27,0,0.16,0.12,0,0,0,0.25,0.38,0.44,0.45,0.34,0,0,0,0,0,0.22,0.17,0],[0,0.07,0.2,0.02,0,0,0,0.31,0.48,0.57,0.6,0.57,0,0,0,0,0,0,0.49,0],[0,0.59,0.19,0,0,0,0,0.2,0.57,0.69,0.76,0.76,0.49,0,0,0,0,0,0.36,0],[0,0.58,0.19,0,0,0,0,0,0.67,0.83,0.9,0.92,0.87,0.12,0,0,0,0,0.22,0.07],[0,0,0.46,0,0,0,0,0,0.7,0.93,1,1,1,0.61,0,0,0,0,0.18,0.11],[0,0,0.82,0,0,0,0,0,0.47,1,1,0.98,1,0.96,0.27,0,0,0,0.19,0.1],[0,0,0.46,0,0,0,0,0,0.25,1,1,0.84,0.92,0.97,0.54,0.14,0.04,0.1,0.21,0.05],[0,0,0,0.4,0,0,0,0,0.09,0.8,1,0.82,0.8,0.85,0.63,0.31,0.18,0.19,0.2,0.01],[0,0,0,0.36,0.1,0,0,0,0.05,0.54,0.86,0.79,0.74,0.72,0.6,0.39,0.28,0.24,0.13,0],[0,0,0,0.01,0.3,0.07,0,0,0.08,0.36,0.64,0.7,0.64,0.6,0.51,0.39,0.29,0.19,0.04,0],[0,0,0,0,0.1,0.24,0.14,0.1,0.15,0.29,0.45,0.53,0.52,0.46,0.4,0.31,0.21,0.08,0,0],[0,0,0,0,0,0.08,0.21,0.21,0.22,0.29,0.36,0.39,0.37,0.33,0.26,0.18,0.09,0,0,0],[0,0,0,0,0,0,0.03,0.13,0.19,0.22,0.24,0.24,0.23,0.18,0.13,0.05,0,0,0,0],[0,0,0,0,0,0,0,0,0.02,0.06,0.08,0.09,0.07,0.05,0.01,0,0,0,0,0]];
+const ORBIUM_HEADING = Math.atan2(56.9, 23.5);   // native direction of travel (x right, y down)
+
+// Three-lobed rotator for the two-ring rule β=[1, ½], μ=0.252, σ=0.026 (found by search; turns 0.021 rad per step).
+const ROTATOR = [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0.15,0.331,0.497,0.53,0,0,0,0,0,0],[0,0,0,0,0,0,0.049,0.346,0.687,0.912,1,0.908,0.931,0.859,0,0,0,0,0],[0,0,0,0,0,0.359,0.676,0.677,0.787,1,1,1,1,1,0.896,0,0,0,0],[0,0,0,0,0.541,0.849,0.508,0.28,0.323,0.598,0.57,0.382,0.84,1,1,0.116,0,0,0],[0,0,0,0.435,1,0.582,0.27,0.17,0.455,1,1,0.52,0.301,1,1,0.521,0,0,0],[0,0,0,0.724,1,0.564,0.457,0.721,1,0.504,0.467,0.832,0.328,0.746,1,0.508,0,0,0],[0,0,0.274,0.791,1,1,1,0.809,0.021,0,0.043,0.593,0.513,0.483,1,0.414,0,0,0],[0,0,0.393,0.853,1,1,1,0.617,0,0,0.015,0.48,0.492,0.44,0.921,0.378,0.071,0,0],[0,0,0.346,0.729,1,0.419,0.627,1,0.123,0.026,0.053,1,0.351,0.352,1,0.419,0.086,0,0],[0,0,0.102,0.621,1,0.191,0.036,0.157,0.757,0.467,1,0.959,0.024,0.148,1,0.494,0,0,0],[0,0,0,0.274,1,0.622,0.146,0.119,0.381,0.59,0.912,0.244,0.011,0.737,1,0.537,0,0,0],[0,0,0,0,0.253,1,1,0.697,0.755,1,1,0.8,0.864,1,1,0.517,0,0,0],[0,0,0,0,0,0.043,0.489,1,1,1,1,1,1,1,0.926,0,0,0,0],[0,0,0,0,0,0,0,0.257,0.629,0.928,1,1,1,1,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0.366,0.809,0.834,0.462,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]];
+// A self-replicating cell of the three-kernel rule 'gemini' (found by search). A lone cell divides roughly every 60–120 steps.
+const GEMINI_CELL = [[0,0,0,0.023,0,0,0.054,0.155,0,0,0,0,0,0,0,0,0,0,0],[0,0.028,0.442,0.997,1,0.736,0.941,0,0,0,0,0.822,0.491,0.991,0.526,0.034,0,0,0],[0.011,0.328,0.974,1,1,1,0.798,0,0,0,0,1,1,0.762,1,0.723,0.05,0,0],[0.076,0.529,1,1,1,1,0.229,0,0,0,0,0.701,1,1,1,0.939,0.254,0,0],[0.08,0.506,1,1,1,1,0.338,0,0,0,0,0.732,1,1,1,0.842,0.276,0.022,0],[0.049,0.418,0.919,1,1,1,0.719,0.161,0,0,0.347,0.919,1,1,1,0.721,0.229,0.018,0],[0,0.21,0.752,1,1,1,0.999,0.894,0.775,0.755,0.906,1,1,1,1,0.628,0.147,0,0],[0,0.036,0.305,0.736,0.829,0.738,0.692,0.676,0.742,0.702,0.674,0.886,1,1,0.802,0.295,0.032,0,0],[0,0,0,0.082,0.072,0,0,0,0,0,0,0.175,0.379,0.395,0.188,0.027,0,0,0]];
+// SmoothLife glider (Rafler's parameters, discrete time), harvested from a speckle soup: 8-bit, row-major.
+// It travels 5.3 cells per step along (vx, vy).
+const SL_GLIDER = { w: 47, h: 45, vx: -3.182, vy: 4.211, b64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQIFCAkIBgMBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEBAwskUYCboZR3TykQBQEAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQECAgICAgIEBg01m+D1+/z8+/nz47poHwYBAAAAAAAAAAAAAAAAAAAAAAAAAQICAwMEBAUJDxYrdN76/v/////+/v7+/ffVZxECAAAAAAAAAAAAAAAAAAAAAAECBAUGBwkNGSk5Wqfu/f/////94KOTqtLy/f70nhgCAAAAAAAAAAAAAAAAAAABAgUHCg0QGzRRaovE8/7//////FAGAgIDBxx77P74oRQBAAAAAAAAAAAAAAAAAQIFCQ4TGitSeJa01/T+//////slAAAAAAAAAAIh3P71fAoBAAAAAAAAAAAAAAACBQoRGSM5bJi0zeT1/f/////4PAAAAAAAAAAAAAEo7f7nQAMAAAAAAAAAAAAAAQQJEh4sQ3uux9vs9/3/////9k8AAAAAAAAAAAAAAAJx+/yyFAEAAAAAAAAAAAACBxEfMkt8utTj7/j9//////tqAgAAAAAAAAAAAAAAABHj/u5OBAAAAAAAAAAAAQQNHDNPdrnc6fL5/f7////+wwcAAAAAAAAAAAAAAAAAA5P9+6oOAAAAAAAAAAACCBYuTXGp3ez0+f3+//////o4AAAAAAAAAAAAAAAAAAABR/z+4SkBAAAAAAAAAAMNI0VsmNLu9fn8/v//////4QoAAAAAAAAAAAAAAAAAAAAw/P/1UwMAAAAAAAABBRQ1YY686Pb6/P7///////2mAwAAAAAAAAAAAAAAAAAAAGf///p+BQAAAAAAAAEHHkt/rtbz+vz+/v//////+moCAAAAAAAAAAAAAAAAAAAB7////JcGAAAAAAAAAQoqYp3H5vn8/v7////////2TAIAAAAAAAAAAAAAAAAAAGD+///8mAcAAAAAAAABDTd6tdnw+/7+//////////JJAgAAAAAAAAAAAAAAAAAJ8/////qBBQAAAAAAAAIPQY7H5fX9/v//////////8l0FAAAAAAAAAAAAAAAAApj+////81YDAAAAAAAAAQ9JntPs+P3+///////////1hQwBAAAAAAAAAAAAAAEx9f////7dLQMAAAAAAAABDkun3PH6/v////////////q6JwQBAAAAAAAAAAABHOH/////+qYcAwAAAAAAAAEMSKrg9Pv+/////////////OJvFgQBAAAAAAAAAzLh/v////7ochYDAQAAAAAAAQg/p+L1+/7////////////+9sddHQkEAgECBh6Q8/7/////+cdUFgQBAAAAAAAABS+c4PX8/v/////////////88s2KUDInLEqW4/z///////3sqk4XBAEAAAAAAAADHoba9fz+//////////////789+zb0NHe8Pv+///////++N2bTBUEAQEAAAAAAAEPZM3y+/7////////////////+/fz8/P7+/////////vzx0JFHEgUCAQAAAAAAAAc8tOz6/f7////////////////////////////////9+OnEhzwPBQIBAAAAAAAAAhuH4Pf9/v7//////////////////////////////vvz4Ll5LA0FAgEAAAAAAAABCUrC8fv+/v7///////////////////////////79+O7XrWEfDAYDAQAAAAAAAAACG4bg+P3+/v7////////////////////////+/fv16M6WQRoMBgMBAAAAAAAAAAEHOrPt+/7+/v7///////////////////////78+fHhvGwvFwsFAgEAAAAAAAAAAAEPXczz/P7+/v7////////////////////+/fv27NKQSycUCgUCAQAAAAAAAAAAAAMZeNj1/P7+/v7//////////////////v78+fHbpWU6IBAIAwEAAAAAAAAAAAAAAAQhhNv1/P7+/v7+//////////////7+/fry3a95TCwYCwUCAQAAAAAAAAAAAAAAAAUigdbz+/3+/v7+/v/////////+/vz479q2iV04Hw8HAwEAAAAAAAAAAAAAAAAAAAQdbcft+Pz9/v7+/v7+/v7+/fz69evYu5VpQiUTCQMBAAAAAAAAAAAAAAAAAAAAAAMTTKXc8fj7/f39/f39/fz69/Lo176Zb0coFAkEAQAAAAAAAAAAAAAAAAAAAAAAAAIJKGy03O30+Pn6+vn49vLs4dC3lGtEJhMJAwEAAAAAAAAAAAAAAAAAAAAAAAAAAAEDDy9nocba5Onr6+nk2866n3xXNh4PBwMBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBAwgQWeInqqvraWYhGpONB8RCAQBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQIGDBYiLTQ3NS4kGhEKBgMBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQIEBQUFBQQDAgEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' };
+function bytesToCells(o) {
+  const raw = atob(o.b64), out = [];
+  for (let y = 0; y < o.h; y++) { const row = []; for (let x = 0; x < o.w; x++) row.push(raw.charCodeAt(y * o.w + x) / 255); out.push(row); }
+  return out;
+}
+function patternTexture(cells) {
+  const h = cells.length, w = cells[0].length, data = new Float32Array(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const v = cells[y][x], k = (y * w + x) * 4;
+    if (Array.isArray(v)) { data[k] = v[0]; data[k + 1] = v[1] || 0; data[k + 2] = v[2] || 0; } else data[k] = v;
+  }
+  const t = texture(w, h, { internal: gl.RGBA32F, format: gl.RGBA, type: gl.FLOAT }, data);
+  t.pw = w; t.ph = h;
+  return t;
+}
+
+/* ================================================================ rules */
+// Lenia: C channels, K kernels {r: radius factor, b: ring peaks, mu, sigma, h: weight, c0: source, c1: target}.
+// SmoothLife: Rafler 2011, disc/annulus integrals and the sigmoid transition function.
+const RULES = {
+  orbium: { name: 'Lenia', type: 'lenia', R: 13, T: 10, C: 1, kernels: [{ r: 1, b: [1], mu: 0.15, sigma: 0.015, h: 1, c0: 0, c1: 0 }] },
+  colony: { name: 'Lenia', type: 'lenia', R: 13, T: 10, C: 1, kernels: [{ r: 1, b: [1], mu: 0.12, sigma: 0.02, h: 1, c0: 0, c1: 0 }] },
+  // a three-lobed rotator, found by a GPU parameter search for this page: two-ring kernel β=[1, ½]
+  rotator: { name: 'Lenia', type: 'lenia', R: 13, T: 10, C: 1, kernels: [{ r: 1, b: [1, 0.5], mu: 0.252, sigma: 0.026, h: 1, c0: 0, c1: 0 }] },
+  // extended Lenia (Chan 2020): three kernels on one channel, growth = Σ hₖ Gₖ(Kₖ * A) with Σ hₖ = 1.
+  // Both rules were found by a GPU search over 1,440 random three-kernel rules for this page.
+  // 'gemini' grows self-replicating cells; 'zoo2' self-organises into cells, rods and filaments.
+  gemini: { name: 'Lenia ×3', type: 'lenia', R: 13, T: 10, C: 1, kernels: [
+    { r: 0.32, b: [1, 0.44], mu: 0.375, sigma: 0.0391, h: 0.32 }, { r: 1, b: [1], mu: 0.128, sigma: 0.0313, h: 0.71 }, { r: 0.51, b: [1], mu: 0.354, sigma: 0.0789, h: 0.98 }] },
+  zoo2: { name: 'Lenia ×3', type: 'lenia', R: 13, T: 10, C: 1, kernels: [
+    { r: 1, b: [0.87, 1], mu: 0.135, sigma: 0.0251, h: 0.75 }, { r: 0.44, b: [1, 0.43, 0.7], mu: 0.378, sigma: 0.0924, h: 0.79 }, { r: 0.79, b: [1, 0.65], mu: 0.227, sigma: 0.0584, h: 0.6 }] },
+  // multi-channel Lenia (Chan 2020): three channels, six kernels. Each channel feeds itself and the next
+  // (0→0, 1→1, 2→2, 0→1, 1→2, 2→0). Found by a GPU search over 1,440 random rules of this shape.
+  cells3: { name: 'Lenia · 3 channels', type: 'lenia', R: 12, T: 10, C: 3, kernels: [
+    { r: 0.81, b: [1], mu: 0.131, sigma: 0.0154, h: 0.28, c0: 0, c1: 0 }, { r: 0.45, b: [1], mu: 0.173, sigma: 0.0227, h: 0.74, c0: 1, c1: 1 }, { r: 0.76, b: [1], mu: 0.129, sigma: 0.0258, h: 0.79, c0: 2, c1: 2 }, { r: 0.68, b: [1], mu: 0.2, sigma: 0.0291, h: 0.3, c0: 0, c1: 1 }, { r: 0.92, b: [1], mu: 0.177, sigma: 0.0198, h: 0.83, c0: 1, c1: 2 }, { r: 0.98, b: [1], mu: 0.081, sigma: 0.0186, h: 0.72, c0: 2, c1: 0 }] },
+  crescents3: { name: 'Lenia · 3 channels', type: 'lenia', R: 12, T: 10, C: 3, kernels: [
+    { r: 0.81, b: [1], mu: 0.332, sigma: 0.0768, h: 0.66, c0: 0, c1: 0 }, { r: 0.41, b: [1], mu: 0.104, sigma: 0.0174, h: 0.66, c0: 1, c1: 1 }, { r: 0.68, b: [1], mu: 0.348, sigma: 0.0734, h: 0.57, c0: 2, c1: 2 }, { r: 0.58, b: [1], mu: 0.301, sigma: 0.0482, h: 0.51, c0: 0, c1: 1 }, { r: 0.97, b: [1], mu: 0.122, sigma: 0.0218, h: 0.8, c0: 1, c1: 2 }, { r: 0.96, b: [1], mu: 0.265, sigma: 0.0399, h: 0.65, c0: 2, c1: 0 }] },
+  smooth: { name: 'SmoothLife', type: 'smooth', ra: 21, b1: 0.278, b2: 0.365, d1: 0.267, d2: 0.445, an: 0.028, am: 0.147, mode: 0, dt: 0.1 },
+};
+
+function kernelCore(r) { return (r > 0 && r < 1) ? Math.exp(4 - 1 / (r * (1 - r))) : 0; }
+function kernelShell(D, b) {
+  if (D >= 1) return 0;
+  const k = b.length, kr = k * D, i = Math.min(Math.floor(kr), k - 1);
+  return b[i] * kernelCore(kr - Math.floor(kr));
+}
+// Tap texture: row 0 = (dx, dy, w0, w1), row j ≥ 1 = the next four kernel weights.
+function buildTaps(rule) {
+  let rows, taps = [];
+  if (rule.type === 'lenia') {
+    const K = rule.kernels.length; rows = Math.ceil((K + 2) / 4);
+    const rmax = Math.ceil(rule.R * Math.max(...rule.kernels.map((k) => k.r)));
+    const sums = new Float64Array(K);
+    for (let dy = -rmax; dy <= rmax; dy++) for (let dx = -rmax; dx <= rmax; dx++) {
+      const d = Math.hypot(dx, dy);
+      const ws = rule.kernels.map((k) => kernelShell(d / (rule.R * k.r), k.b));
+      if (ws.some((w) => w > 1e-7)) { taps.push([dx, dy, ...ws]); ws.forEach((w, i) => (sums[i] += w)); }
+    }
+    taps.forEach((t) => { for (let i = 0; i < K; i++) t[2 + i] /= sums[i]; });
+  } else {
+    rows = 1;
+    const ra = rule.ra, ri = ra / 3, bw = 1;
+    let si = 0, so = 0;
+    const rm = Math.ceil(ra + bw);
+    for (let dy = -rm; dy <= rm; dy++) for (let dx = -rm; dx <= rm; dx++) {
+      const d = Math.hypot(dx, dy);
+      const wi = Ut.clamp((ri + bw / 2 - d) / bw, 0, 1);
+      const wo = Ut.clamp((ra + bw / 2 - d) / bw, 0, 1) * (1 - wi);
+      if (wi > 0 || wo > 0) { taps.push([dx, dy, wi, wo]); si += wi; so += wo; }
+    }
+    taps.forEach((t) => { t[2] /= si; t[3] /= so; });
+  }
+  const n = taps.length, data = new Float32Array(n * rows * 4);
+  taps.forEach((t, i) => { for (let j = 0; j < rows * 4; j++) data[((j >> 2) * n + i) * 4 + (j & 3)] = t[j] || 0; });
+  const tex = texture(n, rows, { internal: gl.RGBA32F, format: gl.RGBA, type: gl.FLOAT }, data);
+  return { tex, n, rows };
+}
+
+const SW = 'xyzw';
+function wExpr(k) { const j = k + 2; return 't' + (j >> 2) + '.' + SW[j & 3]; }
+function genLeniaFS(rule, grad) {
+  const K = rule.kernels.length, rows = Math.ceil((K + 2) / 4);
+  let s = HEAD + `uniform sampler2D uState; uniform sampler2D uTaps; uniform int uNT; uniform float uDt; uniform float uN;
+uniform float uMu[${K}]; uniform float uSig[${K}]; uniform float uH[${K}]; uniform vec4 uGrad;
+out vec4 o;
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy);
+  float U[${K}];
+  for (int k = 0; k < ${K}; k++) U[k] = 0.0;
+  for (int i = 0; i < uNT; i++) {
+    vec4 t0 = texelFetch(uTaps, ivec2(i, 0), 0);\n`;
+  for (let r = 1; r < rows; r++) s += `    vec4 t${r} = texelFetch(uTaps, ivec2(i, ${r}), 0);\n`;
+  s += `    vec4 s = texelFetch(uState, (p + ivec2(t0.xy)) & ${MASK}, 0);\n`;
+  rule.kernels.forEach((k, i) => { s += `    U[${i}] += ${wExpr(i)} * s.${SW[k.c0 || 0]};\n`; });
+  s += `  }
+  vec4 A = texelFetch(uState, p, 0);
+  vec3 H = vec3(0.0);
+  float gx = cos(6.2831853 * gl_FragCoord.x / uN), gy = cos(6.2831853 * gl_FragCoord.y / uN);\n`;
+  rule.kernels.forEach((k, i) => {
+    s += `  { float mu = uMu[${i}]${grad ? ' + uGrad.x * gx' : ''}; float sg = uSig[${i}]${grad ? ' * (1.0 + uGrad.y * gy)' : ''};
+    float d = U[${i}] - mu; H.${SW[k.c1 || 0]} += uH[${i}] * (2.0 * exp(-d * d / (2.0 * sg * sg)) - 1.0); }\n`;
+  });
+  s += `  vec3 An = clamp(A.xyz + uDt * H, 0.0, 1.0);\n`;
+  if (rule.C < 3) s += `  An.z = 0.0;\n`;
+  if (rule.C < 2) s += `  An.y = 0.0;\n`;
+  s += `  o = vec4(An, 0.0);\n}\n`;
+  return s;
+}
+function genSmoothFS() {
+  return HEAD + `uniform sampler2D uState; uniform sampler2D uTaps; uniform int uNT; uniform float uDt;
+uniform float uB1, uB2, uD1, uD2, uAN, uAM; uniform int uMode;
+out vec4 o;
+float s1(float x, float a, float al) { return 1.0 / (1.0 + exp(-(x - a) * 4.0 / al)); }
+float s2(float x, float a, float b) { return s1(x, a, uAN) * (1.0 - s1(x, b, uAN)); }
+float sm(float x, float y, float m) { float w = s1(m, 0.5, uAM); return x * (1.0 - w) + y * w; }
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy);
+  vec2 mn = vec2(0.0);
+  for (int i = 0; i < uNT; i++) {
+    vec4 t = texelFetch(uTaps, ivec2(i, 0), 0);
+    mn += t.zw * texelFetch(uState, (p + ivec2(t.xy)) & ${MASK}, 0).x;
+  }
+  float S = s2(mn.y, sm(uB1, uD1, mn.x), sm(uB2, uD2, mn.x));
+  float f = texelFetch(uState, p, 0).x;
+  float fn = uMode == 0 ? S : uMode == 1 ? f + uDt * (2.0 * S - 1.0) : f + uDt * (S - f);
+  o = vec4(clamp(fn, 0.0, 1.0), 0.0, 0.0, 0.0);
+}
+`;
+}
+
+/* stamp / brush / fill */
+const stampProg = prog(HEAD + `uniform sampler2D uState; uniform sampler2D uPat; uniform int uMode; uniform vec2 uC; uniform float uRad;
+uniform float uAng; uniform float uScale; uniform float uSeed; uniform float uN; uniform vec2 uPatSize; uniform int uCh; uniform float uAmt;
+out vec4 o;
+float hash(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
+float h3(vec2 p, float s) { return hash(p + vec2(s * 17.13, s * 3.71)); }
+vec4 pt(ivec2 i) { return (i.x >= 0 && i.y >= 0 && i.x < int(uPatSize.x) && i.y < int(uPatSize.y)) ? texelFetch(uPat, i, 0) : vec4(0.0); }
+vec4 cw(float x) { float x2 = x * x, x3 = x2 * x; return vec4(-0.5 * x3 + x2 - 0.5 * x, 1.5 * x3 - 2.5 * x2 + 1.0, -1.5 * x3 + 2.0 * x2 + 0.5 * x, 0.5 * x3 - 0.5 * x2); }
+vec4 patAt(vec2 q) {  // Catmull-Rom resampling keeps the creature sharp when rotated or rescaled
+  vec2 f = q - 0.5; vec2 i = floor(f); vec2 fr = f - i; ivec2 ii = ivec2(i);
+  vec4 wx = cw(fr.x), wy = cw(fr.y), acc = vec4(0.0);
+  for (int y = 0; y < 4; y++) {
+    vec4 row = pt(ii + ivec2(-1, y - 1)) * wx.x + pt(ii + ivec2(0, y - 1)) * wx.y + pt(ii + ivec2(1, y - 1)) * wx.z + pt(ii + ivec2(2, y - 1)) * wx.w;
+    acc += row * wy[y];
+  }
+  return clamp(acc, 0.0, 1.0);
+}
+void main(){
+  vec2 p = floor(gl_FragCoord.xy);
+  vec4 A = texelFetch(uState, ivec2(p), 0);
+  vec2 d = p + 0.5 - uC; d -= uN * floor(d / uN + 0.5);
+  if (uMode == 0) {
+    float c = cos(uAng), s = sin(uAng);
+    vec2 q = mat2(c, -s, s, c) * d / uScale + uPatSize * 0.5;
+    A.xyz = max(A.xyz, patAt(q).xyz);
+  } else if (uMode == 1) {
+    float r = length(d) / uRad;
+    if (r < 1.0) {
+      float fall = smoothstep(1.0, 0.55, r);
+      vec3 hv = vec3(h3(p, uSeed), h3(p, uSeed + 1.7), h3(p, uSeed + 3.1)) * fall;
+      if (uCh < 2) hv.y = 0.0; if (uCh < 3) hv.z = 0.0;
+      A.xyz = max(A.xyz, hv * uAmt);
+    }
+  } else if (uMode == 2) {
+    float r = length(d) / uRad;
+    A.xyz *= mix(1.0 - uAmt, 1.0, smoothstep(0.35, 1.0, r));
+  } else if (uMode == 3) {
+    A = vec4(0.0);
+  } else if (uMode == 5) {
+    // a filled disc ("splat"), as in Rafler's initial conditions
+    A.x = max(A.x, clamp(uRad + 0.5 - length(d), 0.0, 1.0) * uAmt);
+  } else if (uMode == 4) {
+    vec2 cell = floor(p / uRad);
+    float on = step(1.0 - uAmt, h3(cell, uSeed + 9.0));
+    vec3 hv = vec3(h3(p, uSeed), h3(p, uSeed + 1.7), h3(p, uSeed + 3.1)) * on;
+    if (uCh < 2) hv.y = 0.0; if (uCh < 3) hv.z = 0.0;
+    A = vec4(hv, 0.0);
+  }
+  o = vec4(A.xyz, 0.0);
+}
+`);
+
+/* ================================================================ simulation */
+const orbTex = patternTexture(ORBIUM);
+const rotTex = patternTexture(ROTATOR);
+const cellTex = patternTexture(GEMINI_CELL);
+const glideTex = patternTexture(bytesToCells(SL_GLIDER));
+const GLIDER_HEADING = Math.atan2(SL_GLIDER.vy, SL_GLIDER.vx);
+const state1 = pingpong(N, N, F1);
+let state4 = null;
+state1.clear();
+const sim = { rule: null, id: null, prog: null, taps: null, gen: 0, cache: {}, st: state1, C: 1 };
+
+function ruleKey(rule, grad) {
+  if (rule.type === 'smooth') return 'smooth';
+  return 'L' + rule.C + ':' + rule.kernels.map((k) => (k.c0 || 0) + '>' + (k.c1 || 0)).join(',') + (grad ? ':g' : '');
+}
+function setRule(id, overrides) {
+  const rule = JSON.parse(JSON.stringify(RULES[id]));
+  if (overrides) Object.assign(rule, overrides);
+  if (rule.type === 'lenia') {
+    // growth into each channel is the h-weighted mean of the kernels that target it
+    rule.kernels.forEach((k) => { k.c0 = k.c0 || 0; k.c1 = k.c1 || 0; });
+    for (let c = 0; c < 3; c++) {
+      const hs = rule.kernels.reduce((a, k) => a + (k.c1 === c ? k.h : 0), 0);
+      if (hs > 0) rule.kernels.forEach((k) => { if (k.c1 === c) k.h /= hs; });
+    }
+  }
+  const prevSt = sim.st;
+  sim.rule = rule; sim.id = id;
+  sim.C = rule.type === 'lenia' ? rule.C : 1;
+  if (sim.C > 1) { if (!state4) { state4 = pingpong(N, N, F4); state4.clear(); } sim.st = state4; } else sim.st = state1;
+  if (sim.st !== prevSt) sim.st.clear();
+  compileRule();
+  rebuildTaps();
+}
+function compileRule() {
+  const rule = sim.rule;
+  const grad = !!(rule.grad && (rule.grad[0] || rule.grad[1]));
+  const key = ruleKey(rule, grad);
+  if (!sim.cache[key]) sim.cache[key] = prog(rule.type === 'lenia' ? genLeniaFS(rule, grad) : genSmoothFS());
+  sim.prog = sim.cache[key];
+}
+function rebuildTaps() {
+  if (sim.taps) gl.deleteTexture(sim.taps.tex);
+  sim.taps = buildTaps(sim.rule);
+}
+const muArr = new Float32Array(8), sgArr = new Float32Array(8), hArr = new Float32Array(8);
+function stepSim(nSteps) {
+  if (nSteps <= 0) return;
+  const r = sim.rule, p = sim.prog, st = sim.st;
+  gl.useProgram(p);
+  bindTex(1, sim.taps.tex, p.u.uTaps);
+  gl.uniform1i(p.u.uNT, sim.taps.n);
+  if (r.type === 'lenia') {
+    const K = r.kernels.length;
+    for (let i = 0; i < K; i++) { muArr[i] = r.kernels[i].mu; sgArr[i] = r.kernels[i].sigma; hArr[i] = r.kernels[i].h; }
+    gl.uniform1fv(p.u.uMu, muArr, 0, K); gl.uniform1fv(p.u.uSig, sgArr, 0, K); gl.uniform1fv(p.u.uH, hArr, 0, K);
+    gl.uniform1f(p.u.uDt, 1 / r.T);
+    if (p.u.uGrad) gl.uniform4f(p.u.uGrad, (r.grad && r.grad[0]) || 0, (r.grad && r.grad[1]) || 0, 0, 0);
+    if (p.u.uN) gl.uniform1f(p.u.uN, N);
+  } else {
+    gl.uniform1f(p.u.uB1, r.b1); gl.uniform1f(p.u.uB2, r.b2); gl.uniform1f(p.u.uD1, r.d1); gl.uniform1f(p.u.uD2, r.d2);
+    gl.uniform1f(p.u.uAN, r.an); gl.uniform1f(p.u.uAM, r.am); gl.uniform1i(p.u.uMode, r.mode); gl.uniform1f(p.u.uDt, r.dt);
+  }
+  gl.uniform1i(p.u.uState, 0);
+  gl.activeTexture(gl.TEXTURE0);
+  for (let s = 0; s < nSteps; s++) {
+    st.write.bind();
+    gl.bindTexture(gl.TEXTURE_2D, st.read.tex);
+    drawTri();
+    st.swap();
+    sim.gen++;
+  }
+}
+function stamp(mode, o) {
+  const p = stampProg, st = sim.st;
+  gl.useProgram(p);
+  st.write.bind();
+  bindTex(0, st.read.tex, p.u.uState);
+  const pat = o.pat || orbTex;
+  bindTex(1, pat, p.u.uPat);
+  gl.uniform1i(p.u.uMode, mode);
+  gl.uniform2f(p.u.uC, o.x || 0, o.y || 0);
+  gl.uniform1f(p.u.uRad, o.rad || 10);
+  gl.uniform1f(p.u.uAng, o.ang || 0);
+  gl.uniform1f(p.u.uScale, o.scale || 1);
+  gl.uniform1f(p.u.uSeed, o.seed != null ? o.seed : Math.random() * 100);
+  gl.uniform1f(p.u.uN, N);
+  gl.uniform2f(p.u.uPatSize, pat.pw || 1, pat.ph || 1);
+  gl.uniform1i(p.u.uCh, sim.C);
+  gl.uniform1f(p.u.uAmt, o.amt != null ? o.amt : 1);
+  drawTri();
+  st.swap();
+}
+// Long exposure: a slowly fading running maximum of the field, drawn as a faint wake behind whatever moves.
+const trailPP = pingpong(N, N, F1);
+trailPP.clear();
+const trailProg = prog(HEAD + `uniform sampler2D uT; uniform sampler2D uA; uniform float uDecay; uniform int uC; out vec4 o;
+void main(){ ivec2 p = ivec2(gl_FragCoord.xy); vec4 a = texelFetch(uA, p, 0); float v = uC == 1 ? a.x : max(a.x, max(a.y, a.z));
+  o = vec4(max(texelFetch(uT, p, 0).x * uDecay, v), 0.0, 0.0, 0.0); }`);
+function updateTrail(rdt) {
+  gl.useProgram(trailProg);
+  trailPP.write.bind();
+  bindTex(0, trailPP.read.tex, trailProg.u.uT); bindTex(1, sim.st.read.tex, trailProg.u.uA);
+  // fast SmoothLife gliders would smear the whole dish, so their exposure is shorter
+  gl.uniform1f(trailProg.u.uDecay, Math.exp(-rdt / (sim.rule.type === 'smooth' ? 0.4 : 1.5)));
+  gl.uniform1i(trailProg.u.uC, sim.C);
+  drawTri();
+  trailPP.swap();
+}
+const creatureScale = () =>(sim.rule.type === 'lenia' ? sim.rule.R / 13 : 1);
+function placeOrbium(x, y, dir) { stamp(0, { x, y, ang: dir - ORBIUM_HEADING, scale: creatureScale(), pat: orbTex }); }
+function placeRotator(x, y, ang) { stamp(0, { x, y, ang: ang || 0, scale: creatureScale(), pat: rotTex }); }
+function placeCell(x, y, ang) { stamp(0, { x, y, ang: ang || 0, scale: creatureScale(), pat: cellTex }); }
+function placeGlider(x, y, dir) { stamp(0, { x, y, ang: dir - GLIDER_HEADING, scale: 1, pat: glideTex }); }
+function placeBlob(x, y, rad, amt) { stamp(1, { x, y, rad: rad || (sim.rule.type === 'lenia' ? sim.rule.R * 1.3 : sim.rule.ra * 1.2), amt: amt != null ? amt : 1 }); }
+function clearAll() { stamp(3, {}); }
+function splat(x, y, rad, amt) { stamp(5, { x, y, rad, amt: amt != null ? amt : 1 }); }
+function soup(density, patch) { stamp(4, { rad: patch || 24, amt: density != null ? density : 0.35 }); }
+const wrapD = (d) => d - N * Math.round(d / N);
+const wrapP = (x) => ((x % N) + N) % N;
+
+/* ================================================================ view + render */
+const view = { cx: N * 0.5, cy: N * 0.5, scale: small ? 2.2 : 2.9, tscale: null, vx: 0, vy: 0, follow: null };
+const eye = { x: 0, y: 0, r: 100, dpr: 1, css: { x: 0, y: 0, r: 100 } };
+const skip = {};
+const opts = { stain: 0, activity: false, annotate: true, bloom: 1, fringe: 1, renew: true, tempo: small ? 26 : 32, trails: true, lens: true };
+
+const sceneProg = prog(HEAD + `uniform sampler2D uCur; uniform sampler2D uPrev; uniform vec2 uRes; uniform vec2 uCenter; uniform float uScale;
+uniform vec2 uEye; uniform float uEyeR; uniform int uStain; uniform float uAct; uniform float uActK; uniform vec3 uEra; uniform float uTime; uniform int uC;
+uniform sampler2D uTrail; uniform float uTrailK;
+out vec4 o;
+vec4 tex(sampler2D t, ivec2 q) { return texelFetch(t, q & ${MASK}, 0); }
+vec4 bilin(sampler2D t, vec2 w) {
+  vec2 f = w - 0.5; vec2 i = floor(f); vec2 fr = f - i; ivec2 ii = ivec2(i);
+  return mix(mix(tex(t, ii), tex(t, ii + ivec2(1, 0)), fr.x), mix(tex(t, ii + ivec2(0, 1)), tex(t, ii + ivec2(1, 1)), fr.x), fr.y);
+}
+vec4 cw(float x) { float x2 = x * x, x3 = x2 * x; return vec4(-0.5 * x3 + x2 - 0.5 * x, 1.5 * x3 - 2.5 * x2 + 1.0, -1.5 * x3 + 2.0 * x2 + 0.5 * x, 0.5 * x3 - 0.5 * x2); }
+vec4 bicub(sampler2D t, vec2 w) {
+  vec2 f = w - 0.5; vec2 i = floor(f); vec2 fr = f - i; ivec2 ii = ivec2(i);
+  vec4 wx = cw(fr.x), wy = cw(fr.y), acc = vec4(0.0);
+  for (int y = 0; y < 4; y++) {
+    vec4 row = tex(t, ii + ivec2(-1, y - 1)) * wx.x + tex(t, ii + ivec2(0, y - 1)) * wx.y + tex(t, ii + ivec2(1, y - 1)) * wx.z + tex(t, ii + ivec2(2, y - 1)) * wx.w;
+    acc += row * wy[y];
+  }
+  return acc;
+}
+float hash(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
+float vnoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
+vec3 bio(float v) {
+  v = clamp(v, 0.0, 1.0);
+  vec3 c = mix(vec3(0.003, 0.008, 0.010), vec3(0.010, 0.085, 0.060), smoothstep(0.0, 0.14, v));
+  c = mix(c, uEra * 0.62, smoothstep(0.10, 0.42, v));
+  c = mix(c, mix(uEra, vec3(0.97, 0.93, 0.62), 0.3), smoothstep(0.40, 0.8, v));
+  c = mix(c, vec3(1.0, 0.9, 0.62), smoothstep(0.86, 1.0, v) * 0.6);
+  return c;
+}
+float dens(vec4 a) { return uC == 1 ? a.x : max(a.x, max(a.y, a.z)); }
+float tot(vec4 a) { return uC == 1 ? a.x : a.x + a.y + a.z; }
+void main(){
+  vec2 px = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
+  vec2 w = uCenter + (px - uEye) / uScale;
+  bool fine = uScale > 2.4;
+  vec4 A = fine ? clamp(bicub(uCur, w), 0.0, 1.0) : bilin(uCur, w);
+  vec4 Ab = fine ? bilin(uCur, w) : A;
+  vec4 P = bilin(uPrev, w);
+  float act = (tot(Ab) - tot(P)) * uActK;
+  float v = dens(A);
+  // long-exposure wake: where something bright was a moment ago and is no longer
+  float wake = uTrailK > 0.0 ? clamp(bilin(uTrail, w).x - v * 1.15, 0.0, 1.0) * uTrailK : 0.0;
+  // the medium: faint scattered light, slowly drifting
+  float haze = vnoise(w * 0.03 + uTime * 0.015) * 0.6 + vnoise(w * 0.09 - uTime * 0.02) * 0.4;
+  vec3 medium = vec3(0.005, 0.014, 0.017) * (0.45 + haze);
+  vec3 col;
+  if (uStain == 0) {
+    // dark field: light scattered by gradients of refractive index, so edges and ridges glow
+    float gx = tot(bilin(uCur, w + vec2(0.8, 0.0))) - tot(bilin(uCur, w - vec2(0.8, 0.0)));
+    float gy = tot(bilin(uCur, w + vec2(0.0, 0.8))) - tot(bilin(uCur, w - vec2(0.0, 0.8)));
+    float edge = length(vec2(gx, gy)) / 1.6;
+    vec3 tint = uC == 1 ? bio(v) : (bio(A.x) + bio(A.y) * vec3(1.0, 0.45, 0.7) + bio(A.z) * vec3(0.45, 0.75, 1.0)) * 0.6;
+    vec3 rim = mix(uEra, vec3(1.0, 0.94, 0.72), smoothstep(0.3, 0.9, v));
+    // faint iso-density contours read like membranes and organelles
+    float lv = v * 6.0, fw = max(fwidth(lv), 1e-4);
+    float iso = (1.0 - smoothstep(0.0, 1.3 * fw, abs(fract(lv) - 0.5) * 2.0 * 0.5)) * smoothstep(0.03, 0.12, v) * clamp(0.9 / (fw * 5.0), 0.0, 1.0);
+    float e = smoothstep(0.015, 0.3, edge);
+    col = medium + tint * (0.16 + 0.62 * smoothstep(0.08, 0.95, v)) + rim * e * e * 1.25 + rim * iso * 0.24;
+    col += (uEra * 0.5 + vec3(0.04, 0.10, 0.16)) * pow(wake, 1.35) * 0.36;
+  } else if (uStain == 1) {
+    // epifluorescence composite: GFP for living tissue, a nuclear stain for dense cores,
+    // cyan where tissue is growing and magenta (propidium iodide) where it is dying
+    float gx = tot(bilin(uCur, w + vec2(0.8, 0.0))) - tot(bilin(uCur, w - vec2(0.8, 0.0)));
+    float gy = tot(bilin(uCur, w + vec2(0.0, 0.8))) - tot(bilin(uCur, w - vec2(0.0, 0.8)));
+    float edge = smoothstep(0.02, 0.3, length(vec2(gx, gy)) / 1.6);
+    vec3 gfp = vec3(0.16, 1.0, 0.36), nuc = vec3(0.35, 0.55, 1.0), cyan = vec3(0.0, 0.85, 1.0), pi = vec3(1.0, 0.12, 0.55);
+    if (uC == 1) {
+      col = gfp * (0.55 * sqrt(max(v, 0.0)) * smoothstep(0.01, 0.12, v) + 0.55 * edge * edge);
+      col += nuc * smoothstep(0.62, 0.95, v) * 0.75;
+      col += cyan * clamp(act, 0.0, 1.0) * 0.9 + pi * clamp(-act, 0.0, 1.0) * 0.9;
+    } else {
+      // one dye per channel: GFP, mCherry and a DAPI-like blue
+      vec3 mch = vec3(1.0, 0.16, 0.28), dapi = vec3(0.28, 0.42, 1.0);
+      col = gfp * pow(A.x, 0.8) * 1.05 + mch * pow(A.y, 0.8) * 1.0 + dapi * pow(A.z, 0.8) * 1.1 + gfp * edge * edge * 0.35;
+    }
+    col += medium * 0.4 + vec3(0.05, 0.32, 0.20) * pow(wake, 1.4) * 0.3;
+  } else {
+    // differential interference contrast (Nomarski): relief from the sheared gradient of optical path
+    vec2 sh = vec2(0.7071, -0.7071) * 1.1;
+    float g = tot(bilin(uCur, w + sh)) - tot(bilin(uCur, w - sh));
+    float base = 0.085 + haze * 0.012;
+    col = vec3(base) * vec3(0.96, 1.0, 1.04) + g * vec3(0.50, 0.52, 0.46) + tot(A) * vec3(0.012, 0.02, 0.008);
+    col = max(col + wake * 0.025, 0.0);
+  }
+  if (uAct > 0.0 && uStain == 1) {
+    // in fluorescence the overlay mutes the dyes and brightens the growth and decay channels
+    float a = clamp(act, -1.0, 1.0);
+    col = col * mix(1.0, 0.35, uAct) + uAct * (vec3(0.0, 0.85, 1.0) * max(a, 0.0) + vec3(1.0, 0.12, 0.55) * max(-a, 0.0)) * 1.4;
+  } else if (uAct > 0.0) {
+    float a = clamp(act, -1.0, 1.0);
+    vec3 warm = vec3(1.0, 0.50, 0.14), cool = vec3(0.20, 0.52, 1.0);
+    col = col * mix(1.0, 0.4, uAct) + uAct * (warm * max(a, 0.0) + cool * max(-a, 0.0)) * 1.5;
+  }
+  o = vec4(col, 1.0);
+}
+`);
+const downProg = prog(HEAD + `uniform sampler2D uSrc; uniform vec2 uTexel; in vec2 vUv; out vec4 o;
+void main(){ vec2 h = uTexel; vec4 s = texture(uSrc, vUv) * 4.0;
+  s += texture(uSrc, vUv - h) + texture(uSrc, vUv + h) + texture(uSrc, vUv + vec2(h.x, -h.y)) + texture(uSrc, vUv + vec2(-h.x, h.y));
+  o = s / 8.0; }`);
+const upProg = prog(HEAD + `uniform sampler2D uSrc; uniform vec2 uTexel; in vec2 vUv; out vec4 o;
+void main(){ vec2 h = uTexel; vec4 s = texture(uSrc, vUv + vec2(-h.x * 2.0, 0.0));
+  s += texture(uSrc, vUv + vec2(-h.x, h.y)) * 2.0; s += texture(uSrc, vUv + vec2(0.0, h.y * 2.0));
+  s += texture(uSrc, vUv + vec2(h.x, h.y)) * 2.0; s += texture(uSrc, vUv + vec2(h.x * 2.0, 0.0));
+  s += texture(uSrc, vUv + vec2(h.x, -h.y)) * 2.0; s += texture(uSrc, vUv + vec2(0.0, -h.y * 2.0));
+  s += texture(uSrc, vUv + vec2(-h.x, -h.y)) * 2.0; o = s / 12.0; }`);
+const compProg = prog(HEAD + `uniform sampler2D uScene; uniform sampler2D uBloom; uniform vec2 uRes; uniform vec2 uEye; uniform float uEyeR;
+uniform float uTime; uniform float uFringe; uniform float uBloomK; uniform float uDefocus; in vec2 vUv; out vec4 o;
+float hash(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
+void main(){
+  vec2 px = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
+  vec2 d = (px - uEye) / uEyeR; float r = length(d);
+  vec2 dir = d / max(r, 1e-4);
+  // lateral chromatic aberration grows towards the edge of the field
+  float ca = uFringe * (0.05 + 1.6 * r * r * r) * (1.0 - smoothstep(1.0, 1.25, r));
+  vec2 off = vec2(dir.x, -dir.y) * ca / uRes;
+  vec3 c = vec3(texture(uScene, vUv + off).r, texture(uScene, vUv).g, texture(uScene, vUv - off).b);
+  vec3 b = texture(uBloom, vUv).rgb;
+  vec3 col = mix(c, b * 1.15, uDefocus) + b * uBloomK;
+  float inside = 1.0 - smoothstep(0.988, 1.0, r);
+  vec3 outside = (b * 0.5 + c * 0.04) * vec3(0.75, 0.9, 1.0) * 0.2 * (1.0 - smoothstep(1.0, 1.6, r));
+  col *= 1.0 - 0.34 * smoothstep(0.6, 1.0, r);
+  col += exp(-pow((r - 0.994) / 0.005, 2.0)) * vec3(0.07, 0.10, 0.09);
+  col = mix(outside, col, inside);
+  col = vec3(1.0) - exp(-col * 1.15);
+  col += (hash(px + fract(uTime * 7.1) * 91.0) - 0.5) * 0.016;
+  o = vec4(max(col, 0.0), 1.0);
+}`);
+
+let scene = null, blooms = [];
+const fitCanvas = () => Cosmos.gl.fit(canvas, small ? 2 : 1.75);
+function allocScreen() {
+  // the field has no detail finer than about a CSS pixel, so the scene renders at ≤ 1.25× CSS resolution
+  const dpr = canvas.width / Math.max(1, canvas.clientWidth);
+  const rs = Math.min(1, 1.25 / dpr);
+  const W = Math.max(1, Math.round(canvas.width * rs)), H = Math.max(1, Math.round(canvas.height * rs));
+  if (scene) { scene.free(); blooms.forEach((b) => b.free()); }
+  scene = target(W, H, HDR, 'linear');
+  scene.rs = W / canvas.width;
+  blooms = [];
+  let w = W, h = H;
+  for (let i = 0; i < 5; i++) { w = Math.max(1, w >> 1); h = Math.max(1, h >> 1); blooms.push(target(w, h, HDR, 'linear')); }
+}
+function layoutEye() {
+  const cw = canvas.clientWidth || 1, chh = canvas.clientHeight || 1, dpr = canvas.width / cw;
+  let r, cx, cy;
+  if (small) { r = Math.min(chh * 0.32, cw * 0.66); cx = cw / 2; cy = chh * 0.47; }
+  else { r = Math.min((chh - 112) * 0.56, cw * 0.36); cx = cw / 2; cy = chh / 2 + 2; }
+  eye.x = cx * dpr; eye.y = cy * dpr; eye.r = r * dpr; eye.dpr = dpr; eye.css = { x: cx, y: cy, r };
+  const dp = Math.min(2, window.devicePixelRatio || 1);
+  ui.width = Math.round(cw * dp); ui.height = Math.round(chh * dp); ui.dp = dp;
+  clampView();
+}
+function minScale() { return (2 * eye.css.r) / (0.92 * N); }
+function clampView() { view.scale = Ut.clamp(view.scale, minScale(), 26); }
+
+let time = 0;
+function render() {
+  const W = canvas.width, H = canvas.height, st = sim.st, rs = scene.rs;
+  scene.bind();
+  gl.useProgram(sceneProg);
+  const u = sceneProg.u;
+  bindTex(0, st.read.tex, u.uCur); bindTex(1, st.write.tex, u.uPrev);
+  gl.uniform2f(u.uRes, scene.w, scene.h);
+  gl.uniform2f(u.uCenter, view.cx, view.cy);
+  gl.uniform1f(u.uScale, view.scale * eye.dpr * rs);
+  gl.uniform2f(u.uEye, eye.x * rs, eye.y * rs);
+  gl.uniform1f(u.uEyeR, eye.r * rs);
+  gl.uniform1i(u.uStain, opts.stain);
+  gl.uniform1f(u.uAct, actMix);
+  const dt = sim.rule.type === 'lenia' ? 1 / sim.rule.T : 0.25;
+  gl.uniform1f(u.uActK, 0.9 / dt);
+  gl.uniform3fv(u.uEra, ERA);
+  gl.uniform1f(u.uTime, time);
+  gl.uniform1i(u.uC, sim.C);
+  bindTex(2, trailPP.read.tex, u.uTrail);
+  gl.uniform1f(u.uTrailK, trailMix * (sim.rule.type === 'smooth' ? 0.55 : 1));
+  drawTri();
+  let src = scene;
+  gl.useProgram(downProg);
+  for (let i = 0; i < blooms.length; i++) {
+    const dst = blooms[i]; dst.bind();
+    bindTex(0, src.tex, downProg.u.uSrc);
+    gl.uniform2f(downProg.u.uTexel, 0.5 / src.w, 0.5 / src.h);
+    drawTri(); src = dst;
+  }
+  gl.useProgram(upProg);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  for (let i = blooms.length - 1; i > 0; i--) {
+    blooms[i - 1].bind();
+    bindTex(0, blooms[i].tex, upProg.u.uSrc);
+    gl.uniform2f(upProg.u.uTexel, 0.5 / blooms[i].w, 0.5 / blooms[i].h);
+    drawTri();
+  }
+  gl.disable(gl.BLEND);
+  Cosmos.gl.screen(gl);
+  gl.useProgram(compProg);
+  const c = compProg.u;
+  bindTex(0, scene.tex, c.uScene); bindTex(1, blooms[0].tex, c.uBloom);
+  gl.uniform2f(c.uRes, W, H); gl.uniform2f(c.uEye, eye.x, eye.y); gl.uniform1f(c.uEyeR, eye.r);
+  gl.uniform1f(c.uTime, time); gl.uniform1f(c.uFringe, opts.fringe * eye.dpr * 1.6); gl.uniform1f(c.uBloomK, 0.2 * opts.bloom); gl.uniform1f(c.uDefocus, Ut.smoothstep(0, 1, defocus));
+  drawTri();
+}
+let actMix = 0, defocus = 0, trailMix = 1;
+
+/* ================================================================ analysis (async readback) */
+const M = N / 4;
+// Per 4×4 block: mean density, the neighbourhood sums U₀ = K₀∗A (kernel 0) and U₁ (kernel 1, or SmoothLife's
+// annulus n) at the block centre, and the mean dA. U feeds the rule-anatomy chart and the kernel lens.
+const anaProg = prog(HEAD + `uniform sampler2D uCur; uniform sampler2D uPrev; uniform sampler2D uTaps; uniform int uNT; uniform int uC; out vec4 o;
+void main(){ ivec2 b = ivec2(gl_FragCoord.xy) * 4; float s = 0.0, ac = 0.0;
+  for (int y = 0; y < 4; y++) for (int x = 0; x < 4; x++) {
+    vec4 a = texelFetch(uCur, b + ivec2(x, y), 0), p = texelFetch(uPrev, b + ivec2(x, y), 0);
+    float v = uC == 1 ? a.x : a.x + a.y + a.z, pv = uC == 1 ? p.x : p.x + p.y + p.z;
+    s += v; ac += v - pv;
+  }
+  vec2 U = vec2(0.0);
+  for (int i = 0; i < uNT; i++) { vec4 t = texelFetch(uTaps, ivec2(i, 0), 0); U += t.zw * texelFetch(uCur, (b + ivec2(2) + ivec2(t.xy)) & ${MASK}, 0).x; }
+  o = vec4(s / 16.0, U.y, ac / 16.0, U.x); }`);
+const ANA_FMT = FLOAT_OK ? { internal: gl.RGBA32F, format: gl.RGBA, type: gl.FLOAT } : { internal: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE };
+const anaT = target(M, M, ANA_FMT);
+const anaBuf = FLOAT_OK ? new Float32Array(M * M * 4) : new Uint8Array(M * M * 4);
+const anaPBO = gl.createBuffer();
+gl.bindBuffer(gl.PIXEL_PACK_BUFFER, anaPBO); gl.bufferData(gl.PIXEL_PACK_BUFFER, anaBuf.byteLength, gl.STREAM_COPY); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+const dbgCnt = { w: 0, r: 0, forced: 0 };
+let anaSync = null, anaGen = 0, anaTime = 0, anaFrameWait = 0;
+function requestAnalysis() {
+  const st = sim.st;
+  anaT.bind();
+  gl.useProgram(anaProg);
+  bindTex(0, st.read.tex, anaProg.u.uCur); bindTex(1, st.write.tex, anaProg.u.uPrev); bindTex(2, sim.taps.tex, anaProg.u.uTaps);
+  gl.uniform1i(anaProg.u.uNT, sim.taps.n);
+  gl.uniform1i(anaProg.u.uC, sim.C);
+  drawTri();
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, anaPBO);
+  gl.readPixels(0, 0, M, M, gl.RGBA, FLOAT_OK ? gl.FLOAT : gl.UNSIGNED_BYTE, 0);
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  anaSync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+  anaGen = sim.gen; anaFrameWait = 0; dbgCnt.w++;
+}
+function pollAnalysis() {
+  if (!anaSync) return false;
+  const done = gl.getSyncParameter(anaSync, gl.SYNC_STATUS) === gl.SIGNALED;
+  if (!done && ++anaFrameWait < 30) return false;
+  const s = done ? 0 : gl.TIMEOUT_EXPIRED;
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, anaPBO);
+  gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, anaBuf); dbgCnt.r++; if (s === gl.TIMEOUT_EXPIRED) dbgCnt.forced++;
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+  gl.deleteSync(anaSync); anaSync = null;
+  analyze(anaBuf, anaGen);
+  return true;
+}
+
+// connected components on the M×M block grid (torus), then tracking across readbacks
+const lab = new Int32Array(M * M), stk = new Int32Array(M * M * 2), ux = new Int16Array(M * M), uy = new Int16Array(M * M);
+const stats = { mass: 0, organisms: 0, speed: 0, cover: 0, blobs: [], big: 0 };
+let tracks = [], nextId = 1, lastAnaGen = -1;
+const events = [];
+const scaleVal = (buf, k) => (FLOAT_OK ? buf[k] : buf[k] / 255);
+function analyze(buf, gen) {
+  const th = 0.045;
+  lab.fill(0);
+  let mass = 0, covered = 0;
+  const comps = [];
+  for (let i = 0; i < M * M; i++) { const v = scaleVal(buf, i * 4); mass += v * 16; if (v > th) covered++; }
+  let n = 0;
+  for (let i = 0; i < M * M; i++) {
+    if (lab[i] || scaleVal(buf, i * 4) <= th) continue;
+    n++;
+    let sp = 0; stk[sp++] = i; lab[i] = n; ux[i] = i % M; uy[i] = (i / M) | 0;
+    let m = 0, sx = 0, sy = 0, cnt = 0, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, act = 0;
+    while (sp) {
+      const q = stk[--sp];
+      const v = scaleVal(buf, q * 4), X = ux[q], Y = uy[q];
+      m += v; sx += v * X; sy += v * Y; cnt++; act += FLOAT_OK ? buf[q * 4 + 2] : 0;
+      if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y;
+      const qx = q % M, qy = (q / M) | 0;
+      for (let d = 0; d < 4; d++) {
+        const dx = d === 0 ? 1 : d === 1 ? -1 : 0, dy = d === 2 ? 1 : d === 3 ? -1 : 0;
+        const nx = (qx + dx + M) % M, ny = (qy + dy + M) % M, k = ny * M + nx;
+        if (!lab[k] && scaleVal(buf, k * 4) > th) { lab[k] = n; ux[k] = X + dx; uy[k] = Y + dy; stk[sp++] = k; }
+      }
+    }
+    const cx = wrapP((sx / m + 0.5) * 4), cy = wrapP((sy / m + 0.5) * 4);
+    comps.push({ x: cx, y: cy, mass: m * 16, cells: cnt * 16, ext: Math.max(x1 - x0 + 1, y1 - y0 + 1) * 4, act: act * 16 });
+  }
+  stats.mass = mass;
+  stats.cover = covered / (M * M);
+  const minMass = sim.rule.type === 'lenia' ? 14 * Math.pow(sim.rule.R / 13, 2) : 20;
+  const orgs = comps.filter((c) => c.mass > minMass && c.ext < N * 0.4);
+  stats.big = comps.filter((c) => c.ext >= N * 0.4).length;
+  stats.organisms = orgs.length;
+  track(orgs, gen);
+  anatomyCollect(buf);
+  drawAnatomy();
+}
+function tdist(ax, ay, bx, by) { return Math.hypot(wrapD(ax - bx), wrapD(ay - by)); }
+// Tracking with hysteresis: a track must be missing for two readbacks before its fate is decided,
+// and a new organism must persist for a second before it counts as a division.
+function track(orgs, gen) {
+  const dS = lastAnaGen < 0 ? 0 : Math.max(0, gen - lastAnaGen);
+  lastAnaGen = gen;
+  // spatial buckets keep matching cheap when a soup holds thousands of fragments
+  const BS = 32, NB = N / BS, buckets = new Array(NB * NB);
+  for (let i = 0; i < buckets.length; i++) buckets[i] = null;
+  orgs.forEach((c, ci) => { const k = Math.floor(c.y / BS) % NB * NB + Math.floor(c.x / BS) % NB; (buckets[k] || (buckets[k] = [])).push(ci); });
+  const pairs = [];
+  tracks.forEach((t, ti) => {
+    const el = gen - t.seen, px = wrapP(t.x + t.vx * el), py = wrapP(t.y + t.vy * el);
+    const reach = Math.min(NB >> 1, 1 + Math.ceil((Math.hypot(t.vx, t.vy) * el + 40) / BS));
+    const bx = Math.floor(px / BS), by = Math.floor(py / BS);
+    for (let dy = -reach; dy <= reach; dy++) for (let dx = -reach; dx <= reach; dx++) {
+      const list = buckets[((by + dy) % NB + NB) % NB * NB + ((bx + dx) % NB + NB) % NB];
+      if (!list) continue;
+      for (const ci of list) { const c = orgs[ci]; const d = tdist(px, py, c.x, c.y); const lim = 8 + Math.sqrt(c.cells) * 0.6 + Math.hypot(t.vx, t.vy) * el * 0.5; if (d < lim) pairs.push([d, ti, ci]); }
+    }
+  });
+  pairs.sort((a, b) => a[0] - b[0]);
+  const tMatch = new Int32Array(tracks.length).fill(-1), cMatch = new Int32Array(orgs.length).fill(-1);
+  for (const [, ti, ci] of pairs) { if (tMatch[ti] >= 0 || cMatch[ci] >= 0) continue; tMatch[ti] = ci; cMatch[ci] = ti; }
+  const next = [];
+  tracks.forEach((t, ti) => {
+    const ci = tMatch[ti];
+    if (ci >= 0) {
+      const c = orgs[ci];
+      const el = gen - t.seen;
+      if (el > 0) {
+        const vx = wrapD(c.x - t.x) / el, vy = wrapD(c.y - t.y) / el;
+        const k = t.age < 2 ? 1 : 0.35;
+        t.vx += (vx - t.vx) * k; t.vy += (vy - t.vy) * k;
+      }
+      t.x = c.x; t.y = c.y; t.mass = c.mass; t.ext = c.ext; t.cells = c.cells; t.age++; t.miss = 0; t.seen = gen;
+      t.trail.push([c.x, c.y]); if (t.trail.length > 16) t.trail.shift();
+      next.push(t);
+      if (t.parent && t.age === 4 && !t.announced) { t.announced = true; addEvent('division', t.x, t.y); }
+    } else if (dS > 0) {
+      t.miss++;
+      if (t.miss < 2) { next.push(t); return; }
+      const el = gen - t.seen; t.x = wrapP(t.x + t.vx * el * 0.5); t.y = wrapP(t.y + t.vy * el * 0.5);
+      if (t.age < 3) return;
+      // fate: swallowed by a neighbour, or dissolved
+      let host = null, best = 1e9;
+      orgs.forEach((c) => { const d = tdist(t.x, t.y, c.x, c.y); if (d < best) { best = d; host = c; } });
+      if (host && best < 6 + Math.sqrt(host.cells) * 0.75) addEvent('fusion', host.x, host.y);
+      else addEvent('lysis', t.x, t.y);
+    } else next.push(t);
+  });
+  const tb = new Array(NB * NB);
+  for (let i = 0; i < tb.length; i++) tb[i] = null;
+  next.forEach((t) => { if (t.age < 2) return; const k = Math.floor(wrapP(t.y) / BS) % NB * NB + Math.floor(wrapP(t.x) / BS) % NB; (tb[k] || (tb[k] = [])).push(t); });
+  orgs.forEach((c, ci) => {
+    if (cMatch[ci] >= 0) return;
+    let parent = null, best = 1e9;
+    const bx = Math.floor(c.x / BS), by = Math.floor(c.y / BS);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const list = tb[((by + dy) % NB + NB) % NB * NB + ((bx + dx) % NB + NB) % NB];
+      if (list) for (const t of list) { const d = tdist(t.x, t.y, c.x, c.y); if (d < best) { best = d; parent = t; } }
+    }
+    const nt = { id: nextId++, x: c.x, y: c.y, vx: 0, vy: 0, mass: c.mass, ext: c.ext, cells: c.cells, age: 0, miss: 0, seen: gen, trail: [[c.x, c.y]], born: gen,
+      parent: parent && dS > 0 && best < 14 + Math.sqrt(c.cells + parent.cells) * 0.9 ? parent.id : 0 };
+    next.push(nt);
+  });
+  tracks = next;
+  const moving = tracks.filter((t) => t.age >= 3 && t.miss === 0);
+  stats.speed = moving.length ? moving.reduce((a, t) => a + Math.hypot(t.vx, t.vy), 0) / moving.length : 0;
+}
+const EVENT_TEXT = { lysis: 'lysis', fusion: 'fusion', division: 'division', seeded: 'inoculated' };
+let lastEvent = null;
+function addEvent(kind, x, y) {
+  for (const o of events) if (o.kind === kind && time - o.t < 1.6 && tdist(o.x, o.y, x, y) < 36) return;
+  // two organisms travelling side by side can flicker between one component and two: that is neither birth nor fusion
+  const flip = kind === 'division' ? 'fusion' : kind === 'fusion' ? 'division' : null;
+  if (flip) for (const o of events) if (o.kind === flip && time - o.t < 4 && tdist(o.x, o.y, x, y) < 48) return;
+  const e = { kind, x: wrapP(x), y: wrapP(y), t: time, gen: sim.gen };
+  events.push(e); if (events.length > 40) events.shift();
+  lastEvent = e;
+  sound.event(kind);
+}
+
+/* ================================================================ knife-edge map */
+// Many tiny Lenia worlds in one texture: each S×S tile is its own torus with its own (μ, σ),
+// seeded with one Orbium. After a few hundred steps each tile is classified.
+const MAP = {
+  NX: small ? 22 : 30, NY: small ? 14 : 20, S: 40,
+  mu: [0.08, 0.23], sg: [0.004, 0.03],
+  steps: 320, gen: 0, state: 'idle', R: 13, T: 10, cls: null, tex: null, taps: null, stats: null,
+  BR: small ? 2 : 4, band: 0,
+};
+MAP.W = MAP.NX * MAP.S; MAP.H = MAP.NY * MAP.S; MAP.nb = MAP.NY / MAP.BR;
+const mapStepProg = prog(HEAD + `uniform sampler2D uS; uniform sampler2D uT; uniform int uNT; uniform float uDt; uniform vec4 uRange; uniform ivec2 uNXY; out vec4 o;
+void main(){ ivec2 p = ivec2(gl_FragCoord.xy); ivec2 tile = p / ${MAP.S}; ivec2 org = tile * ${MAP.S}; ivec2 lp = p - org;
+  float U = 0.0;
+  for (int i = 0; i < uNT; i++) { vec4 t = texelFetch(uT, ivec2(i, 0), 0); ivec2 q = lp + ivec2(t.xy); q += ${MAP.S} * (ivec2(lessThan(q, ivec2(0))) - ivec2(greaterThanEqual(q, ivec2(${MAP.S})))); U += t.z * texelFetch(uS, org + q, 0).x; }
+  vec2 f = (vec2(tile) + 0.5) / vec2(uNXY);
+  float mu = mix(uRange.x, uRange.y, f.x), sg = mix(uRange.z, uRange.w, f.y);
+  float d = U - mu; float g = 2.0 * exp(-d * d / (2.0 * sg * sg)) - 1.0;
+  o = vec4(clamp(texelFetch(uS, p, 0).x + uDt * g, 0.0, 1.0), 0.0, 0.0, 0.0); }`);
+const mapSeedProg = prog(HEAD + `uniform sampler2D uP; uniform vec2 uPS; uniform float uAng; uniform float uScale; out vec4 o;
+vec4 pt(ivec2 i) { return (i.x >= 0 && i.y >= 0 && i.x < int(uPS.x) && i.y < int(uPS.y)) ? texelFetch(uP, i, 0) : vec4(0.0); }
+void main(){ ivec2 p = ivec2(gl_FragCoord.xy); vec2 lp = vec2(p % ${MAP.S}) + 0.5 - ${MAP.S / 2}.0;
+  float c = cos(uAng), s = sin(uAng); vec2 q = mat2(c, -s, s, c) * lp / uScale + uPS * 0.5 - 0.5;
+  vec2 i = floor(q); vec2 fr = q - i; ivec2 ii = ivec2(i);
+  vec4 v = mix(mix(pt(ii), pt(ii + ivec2(1, 0)), fr.x), mix(pt(ii + ivec2(0, 1)), pt(ii + ivec2(1, 1)), fr.x), fr.y);
+  o = vec4(v.x, 0.0, 0.0, 0.0); }`);
+const mapStatProg = prog(HEAD + `uniform sampler2D uS; out vec4 o;
+void main(){ ivec2 tile = ivec2(gl_FragCoord.xy); ivec2 org = tile * ${MAP.S}; float m = 0.0, cx = 0.0, sx = 0.0, cy = 0.0, sy = 0.0, mx = 0.0; float k = 6.2831853 / ${MAP.S}.0;
+  for (int y = 0; y < ${MAP.S}; y++) for (int x = 0; x < ${MAP.S}; x++) { float a = texelFetch(uS, org + ivec2(x, y), 0).x; m += a; mx = max(mx, a);
+    cx += a * cos(k * float(x)); sx += a * sin(k * float(x)); cy += a * cos(k * float(y)); sy += a * sin(k * float(y)); }
+  o = vec4(m, atan(sx, cx) / k, atan(sy, cy) / k, mx); }`);
+// mosaic for the deck canvas: 1 output pixel per 4×4 cells, max-pooled, 8-bit
+const mapViewProg = prog(HEAD + `uniform sampler2D uS; out vec4 o;
+void main(){ ivec2 b = ivec2(gl_FragCoord.xy) * 4; float mx = 0.0;
+  for (int y = 0; y < 4; y++) for (int x = 0; x < 4; x++) mx = max(mx, texelFetch(uS, b + ivec2(x, y), 0).x);
+  o = vec4(mx, mx, mx, 1.0); }`);
+let mapPP = null, mapStatT = null, mapViewT = null, mapStatBuf = null, mapViewBuf = null, mapHist = [];
+function mapAlloc() {
+  if (mapPP) return;
+  mapPP = pingpong(MAP.W, MAP.H, F1);
+  mapStatT = target(MAP.NX, MAP.NY, { internal: gl.RGBA32F, format: gl.RGBA, type: gl.FLOAT });
+  mapViewT = target(MAP.W / 4, MAP.H / 4, { internal: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE });
+  mapStatBuf = new Float32Array(MAP.NX * MAP.NY * 4);
+  mapViewBuf = new Uint8Array((MAP.W / 4) * (MAP.H / 4) * 4);
+}
+function mapStart(R, T) {
+  if (!FLOAT_OK) { MAP.state = 'unsupported'; return; }
+  mapAlloc();
+  MAP.R = R; MAP.T = T;
+  if (MAP.taps) gl.deleteTexture(MAP.taps.tex);
+  MAP.taps = buildTaps({ type: 'lenia', R, kernels: [{ r: 1, b: [1] }] });
+  mapPP.read.bind();
+  gl.useProgram(mapSeedProg);
+  bindTex(0, orbTex, mapSeedProg.u.uP);
+  gl.uniform2f(mapSeedProg.u.uPS, orbTex.pw, orbTex.ph);
+  gl.uniform1f(mapSeedProg.u.uAng, 0);
+  gl.uniform1f(mapSeedProg.u.uScale, R / 13);
+  drawTri();
+  MAP.gen = 0; MAP.band = 0; MAP.state = 'running'; MAP.cls = null; mapHist = [];
+  mapSample();
+}
+// One band of tile rows at a time: render the band into the scratch target, then blit it back,
+// so the full atlas advances a step every few frames without stalling the main simulation.
+function mapStepBands(nBands) {
+  gl.useProgram(mapStepProg);
+  const u = mapStepProg.u;
+  bindTex(1, MAP.taps.tex, u.uT); gl.uniform1i(u.uNT, MAP.taps.n);
+  gl.uniform1f(u.uDt, 1 / MAP.T);
+  gl.uniform4f(u.uRange, MAP.mu[0], MAP.mu[1], MAP.sg[0], MAP.sg[1]);
+  gl.uniform2i(u.uNXY, MAP.NX, MAP.NY);
+  bindTex(0, mapPP.read.tex, u.uS);
+  const bh = MAP.BR * MAP.S;
+  let done = false;
+  for (let i = 0; i < nBands; i++) {
+    const y0 = MAP.band * bh;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, mapPP.write.fbo);
+    gl.viewport(0, y0, MAP.W, bh);
+    drawTri();
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, mapPP.write.fbo);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, mapPP.read.fbo);
+    gl.blitFramebuffer(0, y0, MAP.W, y0 + bh, 0, y0, MAP.W, y0 + bh, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+    MAP.band++;
+    if (MAP.band >= MAP.nb) { MAP.band = 0; MAP.gen++; done = true; break; }
+  }
+  return done;
+}
+function mapSample() {
+  mapStatT.bind();
+  gl.useProgram(mapStatProg);
+  bindTex(0, mapPP.read.tex, mapStatProg.u.uS);
+  drawTri();
+  gl.readPixels(0, 0, MAP.NX, MAP.NY, gl.RGBA, gl.FLOAT, mapStatBuf);
+  mapHist.push(mapStatBuf.slice());
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+let mapViewSync = null, mapViewPBO = null;
+function mapReadView() {
+  if (mapViewSync) return;
+  if (!mapViewPBO) { mapViewPBO = gl.createBuffer(); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, mapViewPBO); gl.bufferData(gl.PIXEL_PACK_BUFFER, mapViewBuf.byteLength, gl.STREAM_COPY); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null); }
+  mapViewT.bind();
+  gl.useProgram(mapViewProg);
+  bindTex(0, mapPP.read.tex, mapViewProg.u.uS);
+  drawTri();
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, mapViewPBO);
+  gl.readPixels(0, 0, MAP.W / 4, MAP.H / 4, gl.RGBA, gl.UNSIGNED_BYTE, 0);
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  mapViewSync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+}
+function mapPollView(force) {
+  if (!mapViewSync) return;
+  if (!force && gl.getSyncParameter(mapViewSync, gl.SYNC_STATUS) !== gl.SIGNALED) return;
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, mapViewPBO); gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, mapViewBuf); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+  gl.deleteSync(mapViewSync); mapViewSync = null;
+  drawMap();
+}
+// classes: 0 dissolves, 1 glides, 2 lives (stationary or pulsing), 3 overgrows
+function mapClassify() {
+  const { NX, NY, S } = MAP, n = NX * NY, cls = new Uint8Array(n), last = mapHist[mapHist.length - 1], first = mapHist[0];
+  for (let i = 0; i < n; i++) {
+    const k = i * 4, m0 = first[k], m = last[k];
+    if (m < 0.08 * m0) { cls[i] = 0; continue; }
+    // more than twice the seed's mass is no longer one creature: the tile is filling with growth
+    if (m > 2 * m0 || m > 0.3 * S * S) { cls[i] = 3; continue; }
+    let disp = 0, cnt = 0;
+    for (let h = Math.max(1, mapHist.length - 4); h < mapHist.length; h++) {
+      const dx = mapHist[h][k + 1] - mapHist[h - 1][k + 1], dy = mapHist[h][k + 2] - mapHist[h - 1][k + 2];
+      disp += Math.hypot(dx - S * Math.round(dx / S), dy - S * Math.round(dy / S)); cnt++;
+    }
+    cls[i] = disp / Math.max(1, cnt) > 1.5 ? 1 : 2;
+  }
+  MAP.cls = cls;
+}
+const MAP_EVERY = 40;
+function mapTick() {
+  mapPollView(false);
+  if (MAP.state !== 'running') return;
+  const stepped = mapStepBands(frameMs > 17.4 ? 1 : 2);
+  if (!stepped) return;
+  if (MAP.gen % MAP_EVERY === 0) mapSample();
+  if (MAP.gen % 6 === 0) { mapReadView(); mapHead.innerHTML = `<span>Growing ${MAP.NX * MAP.NY} worlds · step ${MAP.gen} of ${MAP.steps}</span><b></b>`; }
+  if (MAP.gen >= MAP.steps) {
+    mapClassify(); MAP.state = 'done'; mapReadView();
+    const alive = MAP.cls.reduce((a, c) => a + (c === 1 ? 1 : 0), 0);
+    mapHead.innerHTML = `<span>Orbium seeded in ${MAP.NX * MAP.NY} worlds</span><b>${(100 * alive / (MAP.NX * MAP.NY)).toFixed(1)}% glide</b>`;
+    if (time < 40) ch.toast('Knife-edge atlas complete: Orbium glides in only a thin diagonal of parameter space.', 4200);
+  }
+}
+
+/* ================================================================ sound */
+const sound = {
+  ctx: null, drone: null, filt: null, gain: null,
+  start() {
+    const ctx = ch.sound.ensure(); if (!ctx) return;
+    this.ctx = ctx;
+    if (!this.gain) {
+      this.gain = ctx.createGain(); this.gain.gain.value = 0;
+      this.filt = ctx.createBiquadFilter(); this.filt.type = 'lowpass'; this.filt.frequency.value = 400; this.filt.Q.value = 3;
+      this.filt.connect(this.gain).connect(ch.sound.out);
+      this.oscs = [55, 82.5, 110.3, 164.8].map((f, i) => { const o = ctx.createOscillator(); o.type = i % 2 ? 'triangle' : 'sine'; o.frequency.value = f; const g = ctx.createGain(); g.gain.value = 0.25 / (i + 1); o.connect(g).connect(this.filt); o.start(); return o; });
+    }
+    this.gain.gain.setTargetAtTime(0.18, ctx.currentTime, 0.8);
+  },
+  stop() { if (this.gain) this.gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.3); },
+  update() {
+    if (!ch.sound.enabled || !this.filt) return;
+    const a = Ut.clamp(stats.mass / (N * N * 0.05), 0, 1);
+    this.filt.frequency.setTargetAtTime(220 + 1400 * a + 300 * Ut.clamp(stats.speed * 2, 0, 1), this.ctx.currentTime, 0.4);
+  },
+  event(kind) {
+    if (!ch.sound.enabled || !this.ctx) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const scale = kind === 'lysis' ? [196, 146.8] : kind === 'division' ? [659.3, 987.8] : kind === 'fusion' ? [293.7, 440] : [523.3, 784];
+    scale.forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = f * (1 + (Math.random() - 0.5) * 0.004);
+      g.gain.setValueAtTime(0, t + i * 0.07); g.gain.linearRampToValueAtTime(0.09, t + i * 0.07 + 0.01); g.gain.exponentialRampToValueAtTime(0.0005, t + i * 0.07 + 1.6);
+      o.connect(g).connect(ch.sound.out); o.start(t + i * 0.07); o.stop(t + i * 0.07 + 1.7);
+    });
+  },
+};
+ch.onSound((on) => { if (on) sound.start(); else sound.stop(); });
+
+/* ================================================================ presets */
+const PRESETS = {
+  field: { label: 'Orbium school · collisions', rule: 'orbium', tempo: 32, zoom: 2.9, setup: setupField },
+  gemini: { label: 'Self-replicating cells', rule: 'gemini', tempo: 40, full: 24, zoom: 3.4, setup: () => { placeCell(view.cx, view.cy, Math.random() * TAU); } },
+  rotators: { label: 'Rotators', rule: 'rotator', tempo: 36, zoom: 4.4, setup: setupRotators },
+  soup: { label: 'Primordial soup · many forms', rule: 'zoo2', tempo: 36, zoom: 2.6, over: 0.8, setup: () => soup(0.3, 26) },
+  swarm: { label: 'Crescent swarm', rule: 'gemini', tempo: 36, zoom: 2.4, over: 0.8, setup: () => soup(0.3, 26) },
+  colony: { label: 'Over the edge · spreading colony', rule: 'colony', tempo: 32, zoom: 2.2, over: 0.5, setup: () => { placeOrbium(view.cx, view.cy, 0.4); } },
+  cells3: { label: 'Three-channel cells', rule: 'cells3', tempo: 30, zoom: 3.1, stain: 1, full: 30, over: 0.6, setup: () => placeBlob(view.cx, view.cy, 40) },
+  crescents3: { label: 'Three-channel crescents', rule: 'crescents3', tempo: 30, zoom: 2.8, stain: 1, setup: () => { placeBlob(view.cx - 60, view.cy, 40); placeBlob(view.cx + 70, view.cy + 40, 40); } },
+  smooth: { label: 'SmoothLife gliders', rule: 'smooth', tempo: 9, zoom: 1.7, setup: setupSmooth },
+};
+function setupRotators() {
+  const rng = Ut.rng(5), pts = [];
+  const n = small ? 6 : 14;
+  let tries = 0;
+  while (pts.length < n && tries++ < 3000) {
+    const x = view.cx + (rng() - 0.5) * N * (small ? 0.7 : 0.62), y = view.cy + (rng() - 0.5) * N * (small ? 0.7 : 0.62);
+    if (pts.some((p) => tdist(p[0], p[1], x, y) < 46)) continue;
+    pts.push([x, y]); placeRotator(wrapP(x), wrapP(y), rng() * TAU);
+  }
+}
+function setupSmooth() {
+  const rng = Ut.rng(9), n = small ? 4 : 8, pts = [];
+  let tries = 0;
+  while (pts.length < n && tries++ < 3000) {
+    const x = rng() * N, y = rng() * N;
+    if (pts.some((p) => tdist(p[0], p[1], x, y) < 90)) continue;
+    pts.push([x, y]); placeGlider(x, y, rng() < 0.7 ? 0.6 + (rng() - 0.5) * 1.4 : rng() * TAU);
+  }
+}
+let preset = 'field', autoStain = false;
+// narration: a caption when a slide is plated, and captions triggered by what actually happens on it
+const STORY = {
+  field: { open: 'A school of Orbium. Each keeps its shape only because every point obeys the same rule.' },
+  gemini: { open: 'One cell. Watch it divide.', when: [[() => stats.organisms >= 8, 'Doubling and doubling again, like bacteria in a flask.'], [() => stats.organisms >= (small ? 60 : 160), 'Growth slows as the dish fills. Space is the food here.']] },
+  rotators: { open: 'Three-lobed rotators. Each spins in place, one turn every 300 steps.' },
+  soup: { open: 'Random noise under three kernels. Within seconds it sorts itself into cocci, rods and filaments.' },
+  swarm: { open: 'A soup of self-replicating cells: they swim, collide and divide.' },
+  colony: { open: 'One Orbium, just past the knife edge (μ = 0.12, σ = 0.02). It no longer glides. It spreads.' },
+  cells3: { open: 'Three fields, three dyes. Membrane, interior and granules are just three numbers at each point.', when: [[() => stats.organisms >= 3, 'The blob has budded into separate cells.']] },
+  crescents3: { open: 'Three-channel crescents: they swim, split and fuse.' },
+  smooth: { open: 'SmoothLife: Conway’s Game of Life made continuous. Each glider crosses its own width in about ten steps.' },
+};
+let storyIdx = 0;
+function encounter(x, y, dA, oy, sep) {
+  // two Orbium on a collision course along +x, offset laterally by oy, the second turned by dA from head-on
+  placeOrbium(x - sep, y, 0);
+  placeOrbium(x + sep, y + oy, Math.PI + dA);
+}
+// The staged encounters: geometries measured in headless runs (see science notes).
+// Hero pair: turned 0.1 rad from head-on, offset 9 cells laterally, one Orbium survives.
+// Second pair: offset 3 cells, both dissolve.
+const HERO = small ? { sep: 88, dA: 0.1, oy: 9 } : { sep: 130, dA: 0.1, oy: 9 };
+const PAIR2 = { sep: 175, dA: 0.1, oy: 3, dx: 30, dy: 95 };
+function segDist(px, py, ax, ay, bx, by) {
+  const dx = wrapD(px - ax), dy = wrapD(py - ay), vx = bx - ax, vy = by - ay;
+  const t = Ut.clamp((dx * vx + dy * vy) / (vx * vx + vy * vy), 0, 1);
+  return Math.hypot(dx - vx * t, dy - vy * t);
+}
+function setupField(seed) {
+  const rng = Ut.rng(seed || 20);
+  const cx = view.cx, cy = view.cy;
+  const corridors = [];
+  encounter(cx, cy, HERO.dA, HERO.oy, HERO.sep);
+  corridors.push([cx - HERO.sep - 20, cy, cx + HERO.sep + 20, cy + HERO.oy]);
+  if (!small) {
+    encounter(cx + PAIR2.dx, cy + PAIR2.dy, PAIR2.dA, PAIR2.oy, PAIR2.sep);
+    corridors.push([cx + PAIR2.dx - PAIR2.sep - 20, cy + PAIR2.dy, cx + PAIR2.dx + PAIR2.sep + 20, cy + PAIR2.dy + PAIR2.oy]);
+  }
+  // a loose school drifting up and to the right, plus a few strays, kept clear of the staged encounters
+  const pts = [];
+  const n = small ? 5 : 20, head = -0.5;
+  let tries = 0;
+  while (pts.length < n && tries++ < 8000) {
+    const x = rng() * N, y = rng() * N;
+    if (pts.some((q) => tdist(q[0], q[1], x, y) < 52)) continue;
+    if (corridors.some((c) => segDist(x, y, ...c) < 44)) continue;
+    if (tdist(x, y, cx, cy) < (small ? 70 : 120)) continue;
+    const dir = rng() < 0.75 ? head + (rng() - 0.5) * 0.9 : rng() * TAU;
+    // do not aim anything straight into the hero's path during the opening
+    const fx = x + Math.cos(dir) * 180, fy = y + Math.sin(dir) * 180;
+    if (corridors.some((c) => segDist(fx, fy, ...c) < 30 || segDist((x + fx) / 2, (y + fy) / 2, ...c) < 30)) continue;
+    pts.push([x, y]);
+    placeOrbium(x, y, dir);
+  }
+}
+
+/* the opening: follow one Orbium, pull back to reveal the school, watch the collision */
+const intro = { on: false, k: 0, contact: 0, P: [0, 0], A0: [0, 0], verdict: false };
+const captions = [];
+function caption(text, dur) {
+  const busy = captions.some((c) => time >= c.t && time - c.t < c.dur - 0.4);
+  captions.push({ text, t: time + (busy ? 0.45 : 0), dur: dur || 4.2 }); if (captions.length > 3) captions.shift();
+}
+function startIntro() {
+  const cx = view.cx, cy = view.cy;
+  intro.on = true; intro.verdict = false;
+  intro.A0 = [cx - HERO.sep, cy]; intro.P = [cx, cy + HERO.oy / 2];
+  intro.contact = (2 * HERO.sep - 22) / (2 * 0.616);
+  intro.z0 = small ? 5.2 : 7.5; intro.z1 = view.tscale || view.scale;
+  view.tscale = null; view.scale = intro.z0;
+  view.cx = intro.A0[0]; view.cy = intro.A0[1];
+  intro.stage = 0;
+}
+function updateIntro() {
+  const k = sim.gen;
+  const hx = intro.A0[0] + 0.616 * k, hy = intro.A0[1];
+  const w = Ut.smoothstep(intro.contact * 0.25, intro.contact * 0.95, k);
+  view.cx = Ut.lerp(hx, intro.P[0], w); view.cy = Ut.lerp(hy, intro.P[1], w);
+  view.scale = Ut.lerp(intro.z0, intro.z1, Ut.smoothstep(intro.contact * 0.15, intro.contact * 0.8, k));
+  if (intro.stage === 0 && k > 6) { intro.stage = 1; caption('One Orbium. No genes, no membrane: one rule, applied everywhere at once.', 4.4); }
+  if (intro.stage === 1 && k > intro.contact * 0.5) { intro.stage = 2; caption('Pull back, and there is a whole school of them.', 3.4); }
+  if (intro.stage === 2 && k > intro.contact * 0.83) {
+    intro.stage = 3; caption('Two are on a collision course.', 2.6);
+    // remember the two protagonists, so strays drifting in later are not mistaken for survivors
+    intro.ids = tracks.filter((t) => !t.miss && t.age > 1).sort((a, b) => tdist(a.x, a.y, intro.P[0], intro.P[1]) - tdist(b.x, b.y, intro.P[0], intro.P[1])).slice(0, 2).map((t) => t.id);
+  }
+  if (intro.stage === 3 && k > intro.contact + 95 && anaGen > intro.contact + 90) {
+    intro.stage = 4;
+    const ids = intro.ids || [];
+    let alive = tracks.filter((t) => ids.includes(t.id) && !t.miss && tdist(t.x, t.y, intro.P[0], intro.P[1]) < 140).length;
+    if (!ids.length) alive = tracks.filter((t) => !t.miss && t.age > 1 && tdist(t.x, t.y, intro.P[0], intro.P[1]) < 60).length;
+    caption(alive === 1 ? 'One survives the collision. The other is gone.' : alive === 0 ? 'Neither survives.' : 'Both survive, knocked onto new paths.', 4);
+  }
+  if (intro.stage === 4 && k > intro.contact + 230) { intro.stage = 5; caption('Nudge μ or σ in the deck and watch how little it takes to end them all.', 4.6); intro.on = false; }
+}
+function cancelIntro() { if (intro.on) { intro.on = false; captions.length = 0; } }
+function applyPreset(id, quiet) {
+  cancelIntro();
+  preset = id;
+  const p = PRESETS[id];
+  setRule(p.rule);
+  clearAll(); trailPP.clear();
+  sim.gen = 0; tracks = []; events.length = 0; lastAnaGen = -1; lastEvent = null;
+  p.setup();
+  opts.tempo = p.tempo; sTempo.set(p.tempo);
+  if (p.stain != null) { opts.stain = p.stain; selStain.set(String(p.stain)); autoStain = true; }
+  else if (autoStain) { opts.stain = 0; selStain.set('0'); autoStain = false; }
+  view.tscale = small ? p.zoom * 0.8 : p.zoom;
+  fullT = 0; storyIdx = 0;
+  defocus = 1;
+  if (!quiet && STORY[id]) caption(STORY[id].open, 4.6);
+  syncRuleUI();
+  chart.clear();
+  renewT = 0;
+  if (!quiet) ch.toast(p.label);
+}
+
+/* ================================================================ controls */
+const gSpec = ch.ui.group('Specimen');
+const selPreset = gSpec.select({ id: 'fl-preset', label: 'Culture', options: Object.entries(PRESETS).map(([value, p]) => ({ value, label: p.label })), value: 'field', onChange: (v) => applyPreset(v) });
+gSpec.buttons([
+  { label: 'Place Orbium', kind: 'primary', onClick: () => {
+    cancelIntro();
+    const x = wrapP(view.cx - 40 / view.scale * 0), y = view.cy;
+    if (sim.rule.type === 'lenia' && sim.rule.C === 1) stamp(0, { x, y, ang: Math.random() * TAU, scale: sim.rule.R / 13, pat: orbTex });
+    else stamp(0, { x, y, ang: Math.random() * TAU, scale: 1, pat: orbTex });
+    addEvent('seeded', x, y);
+    if (!(sim.id === 'orbium' || sim.id === 'colony')) ch.toast('An Orbium dropped into a world with different laws. Watch what becomes of it.', 3600);
+  } },
+  { label: 'Random soup', onClick: () => {
+    cancelIntro(); clearAll(); trailPP.clear(); tracks = [];
+    if (sim.rule.type === 'smooth') { const n = small ? 26 : 100; for (let i = 0; i < n; i++) splat(Math.random() * N, Math.random() * N, 5 + Math.random() * 10); }
+    else soup(0.32, sim.rule.R * 2);
+  } },
+  { label: 'Clear', kind: 'danger', onClick: () => { clearAll(); trailPP.clear(); tracks = []; } },
+]);
+gSpec.buttons([{ label: 'Replay the opening', title: 'Follow one Orbium, pull back, watch the collision (I)', onClick: () => { applyPreset('field', true); selPreset.set('field'); startIntro(); } }]);
+const tapMode = gSpec.select({ id: 'fl-tap', label: 'Tap the slide to add', options: [{ value: 'creature', label: 'A creature of this rule' }, { value: 'blob', label: 'A random blob' }], value: 'creature' });
+const pip = gSpec.toggle({ id: 'fl-pipette', label: 'Pipette (drag to erase)', value: false, onChange: (v) => document.body.classList.toggle('fl-pipette', v) });
+
+const gMap = ch.ui.group('Knife edge · μ–σ atlas');
+const mapHead = gMap.html(ch.h('div', { class: 'fl-maphead', html: '<span>Growing a world per tile…</span><b></b>' }));
+const mapCanvas = gMap.canvas(small ? 150 : 196);
+mapCanvas.classList.add('fl-map');
+gMap.html(ch.h('div', { class: 'fl-legend', html: '<span><i style="background:#86e36a"></i>glides</span><span><i style="background:#50c4a4"></i>lives, stays put</span><span><i style="background:#e8c46a"></i>overgrows</span><span><i style="background:#1c2230;border:1px solid #3a4458"></i>dissolves</span>' }));
+gMap.note('Each tile is its own tiny world with its own μ (across) and σ (up), seeded with one Orbium and run on the GPU. Tap a tile to use its μ and σ.');
+gMap.buttons([{ label: 'Re-map at current R, T', onClick: () => { if (sim.rule.type === 'lenia') { mapStart(sim.rule.R, sim.rule.T); mapHead.innerHTML = '<span>Growing a world per tile…</span><b></b>'; } } }]);
+
+/* ---------------- anatomy of the rule: the kernel, the growth map, and where the living field sits on it */
+const gAnat = ch.ui.group('Anatomy of the rule');
+const anatCanvas = gAnat.canvas(small ? 124 : 132);
+const anatNote = gAnat.note('');
+const anat = { hist: new Float32Array(64), grow: 0, tissue: 0, pts: new Float32Array(1200), np: 0, kimg: null, kkey: '', simg: null, skey: '', uMax: 0.4 };
+const KCOL = [[0.53, 0.89, 0.42], [0.91, 0.77, 0.42], [0.45, 0.75, 1.0]];
+function growthG(u, mu, sg) { const d = u - mu; return 2 * Math.exp(-d * d / (2 * sg * sg)) - 1; }
+function slS(r, n, m) {
+  const s1 = (x, a, al) => 1 / (1 + Math.exp(-(x - a) * 4 / al));
+  const w = s1(m, 0.5, r.am), lo = r.b1 * (1 - w) + r.d1 * w, hi = r.b2 * (1 - w) + r.d2 * w;
+  return s1(n, lo, r.an) * (1 - s1(n, hi, r.an));
+}
+function kernelImage(rule) {
+  const key = JSON.stringify(rule.type === 'lenia' ? rule.kernels.map((k) => [k.r, k.b, k.c0]) : [rule.ra]);
+  if (anat.kkey === key && anat.kimg) return anat.kimg;
+  const S = 72, c = document.createElement('canvas'); c.width = c.height = S;
+  const cx = c.getContext('2d'), img = cx.createImageData(S, S), d = img.data;
+  const rmax = rule.type === 'lenia' ? Math.max(...rule.kernels.map((k) => k.r)) : 1;
+  for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+    const x = (i + 0.5) / S * 2 - 1, y = (j + 0.5) / S * 2 - 1, D = Math.hypot(x, y) * rmax;
+    let r = 0, g = 0, b = 0;
+    if (rule.type === 'lenia') {
+      rule.kernels.forEach((k, ki) => { const w = kernelShell(D / k.r, k.b), col = KCOL[(rule.C > 1 ? k.c0 : ki) % 3]; const a = rule.kernels.length > 3 ? 0.55 : 0.85; r += w * col[0] * a; g += w * col[1] * a; b += w * col[2] * a; });
+    } else {
+      const inner = D < 1 / 3 ? 0.35 : 0, outer = D >= 1 / 3 && D < 1 ? 0.75 : 0;
+      r = inner * 0.91 + outer * 0.53; g = inner * 0.77 + outer * 0.89; b = inner * 0.42 + outer * 0.42;
+    }
+    const k = (j * S + i) * 4;
+    d[k] = Math.min(255, Math.pow(r, 0.8) * 255); d[k + 1] = Math.min(255, Math.pow(g, 0.8) * 255); d[k + 2] = Math.min(255, Math.pow(b, 0.8) * 255); d[k + 3] = 255;
+  }
+  cx.putImageData(img, 0, 0);
+  anat.kimg = c; anat.kkey = key;
+  return c;
+}
+function smoothImage(rule) {
+  const key = [rule.b1, rule.b2, rule.d1, rule.d2, rule.an, rule.am].join(',');
+  if (anat.skey === key && anat.simg) return anat.simg;
+  const W = 96, H = 64, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const cx = c.getContext('2d'), img = cx.createImageData(W, H), d = img.data;
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const n = (i + 0.5) / W * 0.7, m = 1 - (j + 0.5) / H, v = slS(rule, n, m), k = (j * W + i) * 4;
+    d[k] = 8 + v * 0.5 * 255 * ERA[0]; d[k + 1] = 12 + v * 0.62 * 255 * ERA[1]; d[k + 2] = 16 + v * 0.45 * 255 * ERA[2]; d[k + 3] = 255;
+  }
+  cx.putImageData(img, 0, 0);
+  anat.simg = c; anat.skey = key;
+  return c;
+}
+// Collect the live distribution of U (or of (n, m) for SmoothLife) over living tissue from the analysis readback.
+function anatomyCollect(buf) {
+  const r = sim.rule, L = r.type === 'lenia';
+  anat.hist.fill(0); anat.grow = 0; anat.tissue = 0; anat.np = 0;
+  if (L) { const k = r.kernels[0]; anat.uMax = Math.min(1, Math.max(0.3, k.mu * 2.2 + 3 * k.sigma)); }
+  const NB = anat.hist.length, stride = Math.max(1, Math.floor((M * M) / 4000));
+  for (let i = 0; i < M * M; i++) {
+    const a = scaleVal(buf, i * 4);
+    if (a < 0.03) continue;
+    anat.tissue++;
+    const u0 = scaleVal(buf, i * 4 + 3);
+    if (L) {
+      const k = r.kernels[0];
+      anat.hist[Math.min(NB - 1, Math.floor((u0 / anat.uMax) * NB))] += 1;
+      if (growthG(u0, k.mu, k.sigma) > 0) anat.grow++;
+    } else if (i % stride === 0 && anat.np < 600) {
+      anat.pts[anat.np * 2] = scaleVal(buf, i * 4 + 1); anat.pts[anat.np * 2 + 1] = u0; anat.np++;
+    }
+  }
+}
+function drawAnatomy() {
+  const c = anatCanvas, dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.round(c.clientWidth * dpr), H = Math.round(c.clientHeight * dpr);
+  if (!W || !H || !sim.rule) return;
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  const x = c.getContext('2d'), r = sim.rule, L = r.type === 'lenia';
+  const cs = drawOverlay.cs || (drawOverlay.cs = getComputedStyle(document.documentElement));
+  const mono = cs.getPropertyValue('--f-mono'), disp = cs.getPropertyValue('--f-display');
+  x.clearRect(0, 0, W, H);
+  const pad = 8 * dpr, ks = H - pad * 2 - 14 * dpr;
+  // kernel
+  x.imageSmoothingEnabled = true;
+  x.save(); x.beginPath(); x.arc(pad + ks / 2, pad + ks / 2, ks / 2, 0, TAU); x.clip();
+  x.drawImage(kernelImage(r), pad, pad, ks, ks); x.restore();
+  x.strokeStyle = 'rgba(236,230,214,0.18)'; x.lineWidth = 1;
+  x.beginPath(); x.arc(pad + ks / 2, pad + ks / 2, ks / 2, 0, TAU); x.stroke();
+  x.font = `500 ${9 * dpr}px ${mono}`; x.fillStyle = 'rgba(236,230,214,0.5)'; x.textAlign = 'center'; x.textBaseline = 'top';
+  x.fillText(L ? `K${r.kernels.length > 1 ? ' ×' + r.kernels.length : ''} · R ${r.R}` : `disc + ring · rₐ ${r.ra}`, pad + ks / 2, pad + ks + 4 * dpr);
+  // growth map
+  const x0 = pad * 2 + ks + 12 * dpr, x1 = W - pad, y0 = pad + 2 * dpr, y1 = H - pad - 14 * dpr, pw = x1 - x0, ph = y1 - y0;
+  if (L) {
+    const k = r.kernels[0], uM = anat.uMax, NB = anat.hist.length;
+    const toX = (u) => x0 + (u / uM) * pw, toY = (g) => y0 + (1 - (g + 1) / 2) * ph;
+    let hmax = 1; for (let i = 0; i < NB; i++) hmax = Math.max(hmax, anat.hist[i]);
+    for (let i = 0; i < NB; i++) {
+      if (!anat.hist[i]) continue;
+      const u = (i + 0.5) / NB * uM, hgt = Math.pow(anat.hist[i] / hmax, 0.6) * ph * 0.92;
+      x.fillStyle = growthG(u, k.mu, k.sigma) > 0 ? 'rgba(134,227,106,0.55)' : 'rgba(96,150,255,0.42)';
+      x.fillRect(x0 + (i / NB) * pw + 0.5, y1 - hgt, pw / NB - 1, hgt);
+    }
+    x.strokeStyle = 'rgba(236,230,214,0.14)'; x.setLineDash([2 * dpr, 3 * dpr]);
+    x.beginPath(); x.moveTo(x0, toY(0)); x.lineTo(x1, toY(0)); x.stroke();
+    x.beginPath(); x.moveTo(toX(k.mu), y0); x.lineTo(toX(k.mu), y1); x.stroke(); x.setLineDash([]);
+    x.strokeStyle = ch.meta.accent; x.lineWidth = 1.4 * dpr; x.beginPath();
+    for (let i = 0; i <= 240; i++) { const u = (i / 240) * uM, px = toX(u), py = toY(growthG(u, k.mu, k.sigma)); if (i) x.lineTo(px, py); else x.moveTo(px, py); }
+    x.stroke();
+    x.font = `500 ${9 * dpr}px ${mono}`; x.fillStyle = 'rgba(236,230,214,0.45)'; x.textBaseline = 'top';
+    x.textAlign = 'left'; x.fillText('0', x0, y1 + 3 * dpr);
+    x.textAlign = 'right'; x.fillText(uM.toFixed(2), x1, y1 + 3 * dpr);
+    x.textAlign = 'center'; x.fillText('U = K ∗ A', (x0 + x1) / 2, y1 + 3 * dpr);
+    x.textAlign = 'left'; x.textBaseline = 'middle'; x.fillText('+1', x0 + 2 * dpr, toY(0.92)); x.fillText('−1', x0 + 2 * dpr, toY(-0.9));
+    x.fillStyle = 'rgba(236,230,214,0.8)'; x.font = `italic 500 ${11 * dpr}px ${disp}`;
+    x.textAlign = toX(k.mu) > x0 + pw * 0.6 ? 'right' : 'left';
+    x.fillText('G(U)', toX(k.mu) + (x.textAlign === 'left' ? 1 : -1) * (Math.max(4, (k.sigma / uM) * pw * 2) + 4 * dpr), toY(0.75));
+    const g = anat.tissue ? Math.round((100 * anat.grow) / anat.tissue) : 0;
+    anatNote.innerHTML = anat.tissue ? `Bars: where the living tissue sits on the growth curve${r.kernels.length > 1 ? ' (kernel 1)' : ''}. <b style="color:#86e36a;font-weight:500">${g}%</b> of it is growing, <b style="color:#7aa6ff;font-weight:500">${100 - g}%</b> decaying. Life balances on the narrow bell.` : 'The dish is empty. Every U is 0, where G = −1: nothing can grow from nothing.';
+  } else {
+    x.drawImage(smoothImage(r), x0, y0, pw, ph);
+    x.fillStyle = 'rgba(245,240,220,0.55)';
+    for (let i = 0; i < anat.np; i++) { const n = anat.pts[i * 2], m = anat.pts[i * 2 + 1]; x.fillRect(x0 + (n / 0.7) * pw - dpr, y0 + (1 - m) * ph - dpr, 2 * dpr, 2 * dpr); }
+    x.strokeStyle = 'rgba(236,230,214,0.18)'; x.lineWidth = 1; x.strokeRect(x0 - 0.5, y0 - 0.5, pw + 1, ph + 1);
+    x.font = `500 ${9 * dpr}px ${mono}`; x.fillStyle = 'rgba(236,230,214,0.45)'; x.textBaseline = 'top';
+    x.textAlign = 'center'; x.fillText('ring filling n', (x0 + x1) / 2, y1 + 3 * dpr);
+    x.textAlign = 'left'; x.fillText('0', x0, y1 + 3 * dpr); x.textAlign = 'right'; x.fillText('0.7', x1, y1 + 3 * dpr);
+    x.save(); x.translate(x0 - 4 * dpr, (y0 + y1) / 2); x.rotate(-Math.PI / 2); x.textAlign = 'center'; x.textBaseline = 'bottom'; x.fillText('disc m', 0, 0); x.restore();
+    anatNote.innerHTML = 'Bright: where s(n, m) = 1 and a point is alive next step. Dots: every living point of the dish right now. Birth needs a ring filled between b₁ and b₂; survival between d₁ and d₂.';
+  }
+}
+
+const gRule = ch.ui.group('Rule · Lenia');
+const k0 = () => sim.rule.kernels[0];
+const sMu = gRule.slider({ id: 'fl-mu', label: 'Growth centre μ', min: 0.05, max: 0.4, step: 0.001, value: 0.15, digits: 3, onInput: (v) => { if (sim.rule.type === 'lenia') { k0().mu = v; drawMap(); drawAnatomy(); } } });
+const sSig = gRule.slider({ id: 'fl-sigma', label: 'Growth width σ', min: 0.003, max: 0.08, step: 0.0005, value: 0.015, digits: 4, onInput: (v) => { if (sim.rule.type === 'lenia') { k0().sigma = v; drawMap(); drawAnatomy(); } } });
+const sT = gRule.slider({ id: 'fl-T', label: 'Time resolution T', min: 1, max: 40, step: 1, value: 10, digits: 0, format: (v) => 'T = ' + v + ' · dt = ' + (1 / v).toFixed(3), onInput: (v) => { if (sim.rule.type === 'lenia') sim.rule.T = v; } });
+const sR = gRule.slider({ id: 'fl-R', label: 'Kernel radius R', min: 6, max: 24, step: 1, value: 13, digits: 0, format: (v) => v + ' cells', hint: 'Existing creatures keep their size; Place Orbium draws one scaled to the new R.', onChange: (v) => { if (sim.rule.type === 'lenia') { sim.rule.R = v; rebuildTaps(); drawAnatomy(); } } });
+const ruleNote = gRule.note('Life lives on a knife edge: nudge μ or σ by a few thousandths and every Orbium dissolves or overgrows the dish.');
+
+const gSmooth = ch.ui.group('Rule · SmoothLife');
+const sB1 = gSmooth.slider({ id: 'fl-b1', label: 'Birth interval b₁', min: 0.2, max: 0.35, step: 0.001, value: 0.278, digits: 3, onInput: (v) => { if (sim.rule.type === 'smooth') { sim.rule.b1 = v; drawAnatomy(); } } });
+const sB2 = gSmooth.slider({ id: 'fl-b2', label: 'Birth interval b₂', min: 0.3, max: 0.45, step: 0.001, value: 0.365, digits: 3, onInput: (v) => { if (sim.rule.type === 'smooth') { sim.rule.b2 = v; drawAnatomy(); } } });
+const sD1 = gSmooth.slider({ id: 'fl-d1', label: 'Survival interval d₁', min: 0.2, max: 0.4, step: 0.001, value: 0.267, digits: 3, onInput: (v) => { if (sim.rule.type === 'smooth') { sim.rule.d1 = v; drawAnatomy(); } } });
+const sD2 = gSmooth.slider({ id: 'fl-d2', label: 'Survival interval d₂', min: 0.35, max: 0.6, step: 0.001, value: 0.445, digits: 3, onInput: (v) => { if (sim.rule.type === 'smooth') { sim.rule.d2 = v; drawAnatomy(); } } });
+
+const gScope = ch.ui.group('Microscope');
+const selStain = gScope.select({ id: 'fl-stain', label: 'Illumination', options: [{ value: '0', label: 'Dark field (bioluminescent)' }, { value: '1', label: 'Epifluorescence (false colour)' }, { value: '2', label: 'DIC / Nomarski relief' }], value: '0', onChange: (v) => { opts.stain = +v; } });
+const tAct = gScope.toggle({ id: 'fl-act', label: 'Activity overlay dA/dt', value: false, hint: 'Warm where the field is growing, cool where it is decaying.', onChange: (v) => { opts.activity = v; } });
+const tTrail = gScope.toggle({ id: 'fl-trails', label: 'Long exposure (wakes)', value: true, hint: 'A slowly fading record of where the field was bright, like a time exposure on film.', onChange: (v) => { opts.trails = v; } });
+gScope.toggle({ id: 'fl-ann', label: 'Tracking annotations', value: true, onChange: (v) => { opts.annotate = v; } });
+gScope.toggle({ id: 'fl-lens', label: 'Kernel lens under the cursor', value: true, hint: 'Shows the ring each point senses and what the rule does with it.', onChange: (v) => { opts.lens = v; } });
+const tFollow = gScope.toggle({ id: 'fl-follow', label: 'Follow the organism nearest the centre', value: false, hint: 'The stage moves with it, like a tracking microscope.', onChange: (v) => { view.follow = v ? -1 : null; if (v) cancelIntro(); } });
+gScope.toggle({ id: 'fl-renew', label: 'Re-plate when the dish dies or overgrows', value: true, onChange: (v) => { opts.renew = v; } });
+const sTempo = gScope.slider({ id: 'fl-tempo', label: 'Tempo', min: 2, max: 90, step: 1, value: opts.tempo, digits: 0, format: (v) => v + ' steps/s', onInput: (v) => { opts.tempo = v; } });
+
+const gRead = ch.ui.group('Culture readouts');
+const ro = gRead.readouts([{ id: 'mass', label: 'Total mass Σ A' }, { id: 'orgs', label: 'Organisms' }, { id: 'speed', label: 'Mean speed' }, { id: 'gen', label: 'Generation' }]);
+const chart = gRead.chart({ height: 84, series: [{ label: 'organisms' }, { label: 'mass ÷ 100', color: '#e8c46a' }], yMin: 0, maxPoints: 200, yFormat: (v) => v.toFixed(0) });
+gRead.note('Scale is fictional: one cell is drawn as 2 µm and T steps as one second.');
+
+function syncRuleUI() {
+  const L = sim.rule.type === 'lenia';
+  gRule.el.style.display = L ? '' : 'none';
+  gSmooth.el.style.display = L ? 'none' : '';
+  if (L) {
+    sMu.set(k0().mu); sSig.set(k0().sigma); sT.set(sim.rule.T); sR.set(sim.rule.R);
+    const K = sim.rule.kernels.length;
+    ruleNote.textContent = K > 1 ? `This rule has ${K} kernels${sim.rule.C > 1 ? ' across ' + sim.rule.C + ' channels' : ''}. μ and σ tune the first; even that is enough to tip it over.` : 'Life lives on a knife edge: nudge μ or σ by a few thousandths and every Orbium dissolves or overgrows the dish.';
+  }
+  else { sB1.set(sim.rule.b1); sB2.set(sim.rule.b2); sD1.set(sim.rule.d1); sD2.set(sim.rule.d2); }
+  hudRule.set(ruleLabel());
+  drawMap();
+  anat.tissue = 0; anat.np = 0; anat.hist.fill(0);
+  drawAnatomy();
+}
+function ruleLabel() {
+  const r = sim.rule;
+  if (r.type === 'smooth') return `SmoothLife · rₐ ${r.ra}`;
+  const K = r.kernels.length;
+  return 'Lenia' + (K > 1 ? ` · ${K} kernels` : '') + (r.C > 1 ? ` · ${r.C} channels` : '') + ` · R ${r.R} · T ${r.T}`;
+}
+
+/* ---------------- map canvas drawing + picking */
+const mapCtx = mapCanvas.getContext('2d');
+let mapImg = null;
+function drawMap() {
+  const c = mapCanvas, dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.round(c.clientWidth * dpr), H = Math.round(c.clientHeight * dpr);
+  if (!W || !H) return;
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  const x = mapCtx;
+  x.clearRect(0, 0, W, H);
+  const pad = { l: 38 * dpr, r: 8 * dpr, t: 6 * dpr, b: 18 * dpr };
+  const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+  const { NX, NY } = MAP, tw = pw / NX, th = ph / NY;
+  // live mosaic: every tile is a tiny world; once classified, each is tinted by its fate
+  if (mapViewBuf && MAP.state !== 'idle' && MAP.state !== 'unsupported') {
+    const vw = MAP.W / 4, vh = MAP.H / 4, ts = MAP.S / 4, cls = MAP.cls;
+    const CC = [[70, 82, 104], [134, 227, 106], [80, 196, 164], [232, 196, 106]];
+    if (!mapImg || mapImg.width !== vw) mapImg = new ImageData(vw, vh);
+    const d = mapImg.data;
+    for (let yy = 0; yy < vh; yy++) for (let xx = 0; xx < vw; xx++) {
+      const dst = ((vh - 1 - yy) * vw + xx) * 4, v = mapViewBuf[(yy * vw + xx) * 4] / 255;
+      if (cls) {
+        const k = cls[((yy / ts) | 0) * NX + ((xx / ts) | 0)], c = CC[k], bg = k === 0 ? 0.1 : 0.16, vv = Math.pow(v, 0.75);
+        d[dst] = Math.min(255, 10 + c[0] * (bg + vv)); d[dst + 1] = Math.min(255, 12 + c[1] * (bg + vv)); d[dst + 2] = Math.min(255, 16 + c[2] * (bg + vv)); d[dst + 3] = 255;
+      } else {
+        d[dst] = Math.min(255, 12 + v * 200); d[dst + 1] = Math.min(255, 16 + v * 240); d[dst + 2] = Math.min(255, 20 + v * 130); d[dst + 3] = 255;
+      }
+    }
+    const off = drawMap.off || (drawMap.off = document.createElement('canvas'));
+    off.width = vw; off.height = vh; off.getContext('2d').putImageData(mapImg, 0, 0);
+    x.imageSmoothingEnabled = true;
+    x.drawImage(off, pad.l, pad.t, pw, ph);
+    // tile gutters, so the atlas reads as hundreds of separate worlds
+    x.fillStyle = 'rgba(5,6,12,0.55)';
+    for (let i = 1; i < NX; i++) x.fillRect(Math.round(pad.l + i * tw) - Math.max(1, dpr * 0.5) / 2, pad.t, Math.max(1, dpr * 0.5), ph);
+    for (let j = 1; j < NY; j++) x.fillRect(pad.l, Math.round(pad.t + j * th) - Math.max(1, dpr * 0.5) / 2, pw, Math.max(1, dpr * 0.5));
+  }
+  // axes
+  const cs = getComputedStyle(document.documentElement);
+  x.strokeStyle = 'rgba(236,230,214,0.18)'; x.lineWidth = 1;
+  x.strokeRect(pad.l - 0.5, pad.t - 0.5, pw + 1, ph + 1);
+  x.fillStyle = cs.getPropertyValue('--faint') || '#5e6479';
+  x.font = `${9.5 * dpr}px ${cs.getPropertyValue('--f-mono')}`;
+  x.textBaseline = 'top';
+  [MAP.mu[0], (MAP.mu[0] + MAP.mu[1]) / 2, MAP.mu[1]].forEach((v, i) => { x.textAlign = i === 0 ? 'left' : i === 2 ? 'right' : 'center'; x.fillText((i === 1 ? 'μ ' : '') + v.toFixed(3), pad.l + (i / 2) * pw, pad.t + ph + 4 * dpr); });
+  x.textAlign = 'right'; x.textBaseline = 'middle';
+  [MAP.sg[0], (MAP.sg[0] + MAP.sg[1]) / 2, MAP.sg[1]].forEach((v, i) => x.fillText(v.toFixed(3), pad.l - 4 * dpr, pad.t + ph - (i / 2) * ph));
+  x.textAlign = 'left'; x.fillText('σ', 2 * dpr, pad.t + ph * 0.25);
+  // Orbium's canonical point and the current rule
+  const toX = (mu) => pad.l + ((mu - MAP.mu[0]) / (MAP.mu[1] - MAP.mu[0])) * pw;
+  const toY = (sg) => pad.t + ph - ((sg - MAP.sg[0]) / (MAP.sg[1] - MAP.sg[0])) * ph;
+  x.strokeStyle = 'rgba(236,230,214,0.55)'; x.setLineDash([2 * dpr, 2 * dpr]);
+  x.beginPath(); x.arc(toX(0.15), toY(0.015), 5 * dpr, 0, TAU); x.stroke(); x.setLineDash([]);
+  if (sim.rule && sim.rule.type === 'lenia' && sim.rule.C === 1 && sim.rule.kernels.length === 1) {
+    const X = toX(k0().mu), Y = toY(k0().sigma);
+    if (X >= pad.l - 2 && X <= pad.l + pw + 2 && Y >= pad.t - 2 && Y <= pad.t + ph + 2) {
+      x.strokeStyle = cs.getPropertyValue('--star') || '#fff'; x.lineWidth = 1.2 * dpr;
+      x.beginPath(); x.moveTo(X - 7 * dpr, Y); x.lineTo(X - 2.5 * dpr, Y); x.moveTo(X + 2.5 * dpr, Y); x.lineTo(X + 7 * dpr, Y);
+      x.moveTo(X, Y - 7 * dpr); x.lineTo(X, Y - 2.5 * dpr); x.moveTo(X, Y + 2.5 * dpr); x.lineTo(X, Y + 7 * dpr); x.stroke();
+    }
+  }
+  drawMap.geo = { pad, pw, ph, dpr };
+}
+mapCanvas.addEventListener('pointerdown', (e) => {
+  const g = drawMap.geo; if (!g) return;
+  const r = mapCanvas.getBoundingClientRect();
+  const X = (e.clientX - r.left) * g.dpr, Y = (e.clientY - r.top) * g.dpr;
+  const fx = (X - g.pad.l) / g.pw, fy = 1 - (Y - g.pad.t) / g.ph;
+  if (fx < 0 || fx > 1 || fy < 0 || fy > 1) return;
+  const i = Math.min(MAP.NX - 1, Math.floor(fx * MAP.NX)), j = Math.min(MAP.NY - 1, Math.floor(fy * MAP.NY));
+  const mu = MAP.mu[0] + ((i + 0.5) / MAP.NX) * (MAP.mu[1] - MAP.mu[0]);
+  const sg = MAP.sg[0] + ((j + 0.5) / MAP.NY) * (MAP.sg[1] - MAP.sg[0]);
+  if (!(sim.rule.type === 'lenia' && sim.rule.C === 1 && sim.rule.kernels.length === 1 && preset === 'field')) { applyPreset('field', true); selPreset.set('field'); }
+  k0().mu = +mu.toFixed(4); k0().sigma = +sg.toFixed(4);
+  sMu.set(k0().mu); sSig.set(k0().sigma);
+  const cls = MAP.cls ? MAP.cls[j * MAP.NX + i] : -1;
+  ch.toast(`μ = ${mu.toFixed(3)}, σ = ${sg.toFixed(4)}` + (cls === 1 ? ' · Orbium glides here' : cls === 3 ? ' · life overgrows here' : cls === 0 ? ' · Orbium dissolves here' : cls === 2 ? ' · life persists but stops moving' : ''));
+  drawMap();
+});
+
+/* ================================================================ HUD */
+const hudRule = ch.hud.add('Rule', '');
+const hudT = ch.hud.add('Time', '');
+const hudOrg = ch.hud.add('Organisms', '');
+const hudEv = ch.hud.add('Last event', '—');
+
+/* ================================================================ pointer: pan, zoom, seed, erase */
+const ptrs = new Map();
+let gesture = null;
+const toWorld = (clientX, clientY) => {
+  const r = canvas.getBoundingClientRect();
+  return [view.cx + (clientX - r.left - eye.css.x) / view.scale, view.cy + (clientY - r.top - eye.css.y) / view.scale];
+};
+canvas.addEventListener('pointerdown', (e) => {
+  cancelIntro();
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* synthetic or already released pointer */ }
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (ptrs.size === 2) {
+    const [a, b] = [...ptrs.values()];
+    gesture = { type: 'pinch', d: Math.hypot(a[0] - b[0], a[1] - b[1]), mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2 };
+    return;
+  }
+  const panBtn = e.button === 1 || e.button === 2 || e.shiftKey;
+  gesture = { type: pip.value && !panBtn ? 'erase' : 'pending', x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, t0: performance.now() };
+  if (gesture.type === 'erase') { const [wx, wy] = toWorld(e.clientX, e.clientY); erase(wx, wy); }
+  // touch and hold: the kernel lens, since a finger cannot hover
+  if (e.pointerType !== 'mouse' && gesture.type === 'pending') {
+    const g = gesture;
+    clearTimeout(hover.timer);
+    hover.timer = setTimeout(() => { if (gesture === g && g.type === 'pending' && ptrs.size === 1) { g.type = 'probe'; hover.hold = true; hover.x = g.lx; hover.y = g.ly; } }, 380);
+  }
+});
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+const hover = { on: false, hold: false, until: 0, timer: 0, x: 0, y: 0 };
+canvas.addEventListener('pointerleave', () => { hover.on = false; });
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerType === 'mouse') { hover.on = true; hover.x = e.clientX; hover.y = e.clientY; }
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (!gesture) return;
+  if (gesture.type === 'pinch' && ptrs.size >= 2) {
+    const [a, b] = [...ptrs.values()];
+    const d = Math.hypot(a[0] - b[0], a[1] - b[1]), mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+    const [wx, wy] = toWorld(mx, my);
+    view.tscale = null; view.scale *= d / gesture.d; clampView();
+    const r = canvas.getBoundingClientRect();
+    view.cx = wx - (mx - r.left - eye.css.x) / view.scale; view.cy = wy - (my - r.top - eye.css.y) / view.scale;
+    view.cx -= (mx - gesture.mx) / view.scale; view.cy -= (my - gesture.my) / view.scale;
+    gesture.d = d; gesture.mx = mx; gesture.my = my;
+    return;
+  }
+  if (gesture.type === 'erase') { const [wx, wy] = toWorld(e.clientX, e.clientY); erase(wx, wy); return; }
+  if (gesture.type === 'probe') { hover.x = e.clientX; hover.y = e.clientY; return; }
+  if (gesture.type === 'pending') { gesture.lx = e.clientX; gesture.ly = e.clientY; }
+  if (gesture.type === 'pending' && Math.hypot(e.clientX - gesture.x0, e.clientY - gesture.y0) > 6) { gesture.type = 'pan'; gesture.lx = gesture.x0; gesture.ly = gesture.y0; clearTimeout(hover.timer); document.body.classList.add('fl-panning'); if (view.follow != null) tFollow.set(false, true); }
+  if (gesture.type === 'pan') {
+    const dx = e.clientX - gesture.lx, dy = e.clientY - gesture.ly;
+    view.cx -= dx / view.scale; view.cy -= dy / view.scale;
+    view.vx = -dx / view.scale; view.vy = -dy / view.scale;
+    gesture.lx = e.clientX; gesture.ly = e.clientY;
+  }
+});
+const endPtr = (e) => {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.delete(e.pointerId);
+  clearTimeout(hover.timer);
+  if (gesture && gesture.type === 'probe') { hover.hold = false; hover.until = time + 1.8; }
+  if (gesture && gesture.type === 'pending' && e.type === 'pointerup') {
+    const [wx, wy] = toWorld(e.clientX, e.clientY);
+    seedAt(wx, wy);
+  }
+  if (gesture && gesture.type === 'pan') { /* keep inertia */ } else { view.vx = 0; view.vy = 0; }
+  if (!ptrs.size) { gesture = null; document.body.classList.remove('fl-panning'); }
+  else if (gesture && gesture.type === 'pinch') gesture = null;
+};
+canvas.addEventListener('pointerup', endPtr);
+canvas.addEventListener('pointercancel', endPtr);
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  cancelIntro();
+  const [wx, wy] = toWorld(e.clientX, e.clientY);
+  view.tscale = null; view.scale *= Math.exp(-e.deltaY * 0.0015); clampView();
+  const r = canvas.getBoundingClientRect();
+  view.cx = wx - (e.clientX - r.left - eye.css.x) / view.scale; view.cy = wy - (e.clientY - r.top - eye.css.y) / view.scale;
+}, { passive: false });
+function erase(x, y) { const rad = sim.rule.type === 'lenia' ? sim.rule.R * 1.1 : 18; stamp(2, { x: wrapP(x), y: wrapP(y), rad, amt: 0.6 }); }
+function seedAt(x, y) {
+  x = wrapP(x); y = wrapP(y);
+  if (pip.value) { erase(x, y); return; }
+  if (tapMode.value === 'blob' || !creatureFor()) placeBlob(x, y);
+  else creatureFor()(x, y);
+  addEvent('seeded', x, y);
+}
+function creatureFor() {
+  const id = sim.id, r = sim.rule;
+  const aim = (x, y) => (Math.hypot(wrapD(view.cy - y), wrapD(view.cx - x)) > 30 ? Math.atan2(wrapD(view.cy - y), wrapD(view.cx - x)) : Math.random() * TAU);
+  if (id === 'orbium' || id === 'colony' || (r.type === 'lenia' && r.kernels.length === 1 && r.kernels[0].b.length === 1)) return (x, y) => placeOrbium(x, y, aim(x, y));
+  if (id === 'rotator') return (x, y) => placeRotator(x, y, Math.random() * TAU);
+  if (id === 'gemini') return (x, y) => placeCell(x, y, Math.random() * TAU);
+  if (id === 'smooth') return (x, y) => placeGlider(x, y, aim(x, y));
+  return null;
+}
+
+ch.onKey('o', () => { placeOrbium(view.cx, view.cy, Math.random() * TAU); addEvent('seeded', view.cx, view.cy); }, 'Place an Orbium at the centre');
+ch.onKey('r', () => applyPreset(preset), 'Re-plate the current culture');
+ch.onKey('i', () => { applyPreset('field', true); selPreset.set('field'); startIntro(); }, 'Replay the opening');
+ch.onKey('a', () => { tAct.set(!tAct.value, true); }, 'Activity overlay (dA/dt)');
+ch.onKey('s', () => { const v = (opts.stain + 1) % 3; opts.stain = v; selStain.set(String(v)); }, 'Cycle illumination');
+
+/* ================================================================ overlay (2D) */
+function fmtUm(um) { return um >= 1000 ? (um / 1000).toFixed(um % 1000 ? 1 : 0) + ' mm' : um + ' µm'; }
+const UM_PER_CELL = 2;
+function drawOverlay() {
+  const dp = ui.dp || 1, W = ui.width, H = ui.height;
+  const x = g2;
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.clearRect(0, 0, W, H);
+  x.setTransform(dp, 0, 0, dp, 0, 0);
+  const { x: ex, y: ey, r: er } = eye.css;
+  const cs = drawOverlay.cs || (drawOverlay.cs = getComputedStyle(document.documentElement));
+  const mono = cs.getPropertyValue('--f-mono');
+  // goniometer ring
+  x.strokeStyle = 'rgba(236,230,214,0.16)'; x.lineWidth = 1;
+  x.beginPath(); x.arc(ex, ey, er + 7, 0, TAU); x.stroke();
+  for (let a = 0; a < 360; a += 5) {
+    const t = (a - 90) * Math.PI / 180, long = a % 30 === 0;
+    const r0 = er + 7, r1 = er + (long ? 15 : 11);
+    x.strokeStyle = long ? 'rgba(236,230,214,0.32)' : 'rgba(236,230,214,0.14)';
+    x.beginPath(); x.moveTo(ex + Math.cos(t) * r0, ey + Math.sin(t) * r0); x.lineTo(ex + Math.cos(t) * r1, ey + Math.sin(t) * r1); x.stroke();
+  }
+  x.font = `500 9px ${mono}`; x.fillStyle = 'rgba(236,230,214,0.36)'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  for (let a = 0; a < 360; a += 30) { if (small && a === 0) continue; const t = (a - 90) * Math.PI / 180; x.fillText(String(a).padStart(3, '0'), ex + Math.cos(t) * (er + 25), ey + Math.sin(t) * (er + 25)); }
+  // scale bar (fictional scale)
+  const pxPerUm = view.scale / UM_PER_CELL;
+  const nice = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
+  let um = nice[0]; for (const n of nice) { if (n * pxPerUm <= er * 0.42) um = n; }
+  const bw = um * pxPerUm, bx = ex - bw / 2, by = ey + er * 0.84;
+  x.strokeStyle = 'rgba(236,230,214,0.8)'; x.lineWidth = 1.5;
+  x.beginPath(); x.moveTo(bx, by); x.lineTo(bx + bw, by); x.moveTo(bx, by - 4); x.lineTo(bx, by + 4); x.moveTo(bx + bw, by - 4); x.lineTo(bx + bw, by + 4); x.stroke();
+  x.lineJoin = 'round'; x.strokeStyle = 'rgba(3,5,9,0.6)'; x.lineWidth = 2.4;
+  x.font = `500 10px ${mono}`; x.fillStyle = 'rgba(236,230,214,0.85)'; x.textBaseline = 'bottom';
+  x.strokeText(fmtUm(um), ex, by - 6); x.fillText(fmtUm(um), ex, by - 6);
+  x.font = `500 8.5px ${mono}`; x.fillStyle = 'rgba(236,230,214,0.4)'; x.textBaseline = 'top';
+  x.fillText('FICTIONAL SCALE', ex, by + 7);
+  // objective label
+  const mag = Math.round(view.scale * 14);
+  x.font = `500 9.5px ${mono}`; x.fillStyle = 'rgba(236,230,214,0.5)'; x.textBaseline = 'middle';
+  const stainName = ['DARK FIELD', 'EPIFLUORESCENCE', 'DIC'][opts.stain];
+  const objTxt = `×${mag} · ${stainName}${actMix > 0.5 ? ' · dA/dt' : ''}${trailMix > 0.5 && !small ? (sim.rule.type === 'smooth' ? ' · EXPOSURE 0.4 s' : ' · EXPOSURE 1.5 s') : ''}`;
+  x.strokeText(objTxt, ex, ey - er * 0.9); x.fillText(objTxt, ex, ey - er * 0.9); x.lineWidth = 1;
+  // captions: italic, centred in the upper field; a new caption waits for the previous one to fade
+  const placed = [[ex - 90, ey - er * 0.9 - 10, ex + 90, ey - er * 0.9 + 10], [ex - 70, ey + er * 0.84 - 22, ex + 70, ey + er * 0.84 + 20]];
+  const capY = ey - er * (small ? 0.6 : 0.68), capW = er * (small ? 1.3 : 1.45);
+  for (let ci = 0; ci < captions.length; ci++) {
+    const c = captions[ci], nx = captions[ci + 1];
+    const age = time - c.t; if (age < 0 || age > c.dur) continue;
+    let a = Math.min(1, age / 0.6, (c.dur - age) / 0.8);
+    if (nx) a *= Ut.clamp((nx.t - time) / 0.4, 0, 1);
+    if (a <= 0) continue;
+    x.font = `italic 400 ${small ? 15 : 19}px ${cs.getPropertyValue('--f-display')}`; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillStyle = `rgba(236,230,214,${0.92 * a})`;
+    x.shadowColor = 'rgba(0,0,0,0.9)'; x.shadowBlur = 12;
+    const nl = wrapText(x, c.text, ex, capY, capW, small ? 19 : 24);
+    x.shadowBlur = 0;
+    const hh = nl * (small ? 19 : 24) / 2 + 8;
+    placed.push([ex - capW / 2 - 10, capY - hh, ex + capW / 2 + 10, capY + hh]);
+  }
+  const lb = drawLens(x, mono, cs);
+  if (lb) placed.push(lb);
+  if (!opts.annotate) return;
+  // tracks, labels, events
+  x.save();
+  x.beginPath(); x.arc(ex, ey, er - 1, 0, TAU); x.clip();
+  const toS = (wx, wy) => [ex + wrapD(wx - view.cx) * view.scale, ey + wrapD(wy - view.cy) * view.scale];
+  const spd = (t) => Math.hypot(t.vx, t.vy);
+  const T = sim.rule.type === 'lenia' ? sim.rule.T : 4;
+  const halo = (text, px, py) => { x.strokeText(text, px, py); x.fillText(text, px, py); };
+  x.lineJoin = 'round';
+  // events first, so that labels make room for them: expanding hairline rings with a label
+  const evs = [];
+  for (let ei = events.length - 1; ei >= 0 && evs.length < 5; ei--) {
+    const e = events[ei];
+    const age = time - e.t; if (age > 3.2) continue;
+    const [sx, sy] = toS(e.x, e.y);
+    const rr = 14 + age * 26;
+    let ly = sy - rr - 3;
+    const clash = () => evs.some((o) => Math.abs(o.sx - sx) < 70 && Math.abs(o.ly - ly) < 12) || placed.some((b) => !(sx + 34 < b[0] || sx - 34 > b[2] || ly < b[1] || ly - 13 > b[3]));
+    for (let tries = 0; tries < 5 && clash(); tries++) ly -= 13;
+    evs.push({ e, sx, sy, a: 1 - age / 3.2, rr, ly });
+    placed.push([sx - 34, ly - 13, sx + 34, ly]);
+  }
+  // label budget: prefer organisms near the centre of the field, keep the choice stable between frames
+  const vis = [];
+  for (const t of tracks) {
+    if (t.age < 2 || t.miss) continue;
+    const [sx, sy] = toS(t.x, t.y);
+    const rr = Math.max(10, Math.sqrt(t.cells) * 0.62 * view.scale);
+    const d = Math.hypot(sx - ex, sy - ey);
+    if (d > er + rr) continue;
+    vis.push({ t, sx, sy, rr, d });
+  }
+  const dense = vis.length > 24, scrW = canvas.clientWidth || 1e4, scrH = (canvas.clientHeight || 1e4) - (small ? 10 : 58);
+  const budget = small ? (dense ? 3 : 5) : dense ? 6 : 9;
+  vis.sort((a, b) => (a.d + (a.t.labeled ? -60 : 0)) - (b.d + (b.t.labeled ? -60 : 0)));
+  // bodies are obstacles too, so a label never sits on top of another organism
+  const bodies = vis.slice(0, 60).map((o) => [o.sx - o.rr * 0.8, o.sy - o.rr * 0.8, o.sx + o.rr * 0.8, o.sy + o.rr * 0.8, o.t.id]);
+  const hit = (bx, own) => placed.some((b) => !(bx[2] < b[0] || bx[0] > b[2] || bx[3] < b[1] || bx[1] > b[3])) || bodies.some((b) => b[4] !== own && !(bx[2] < b[0] || bx[0] > b[2] || bx[3] < b[1] || bx[1] > b[3]));
+  let nLab = 0;
+  for (const o of vis) {
+    const { t, sx, sy, rr } = o;
+    // trail
+    if (!dense && t.trail.length > 2) {
+      x.beginPath();
+      let p0 = null;
+      for (let i = 0; i < t.trail.length; i++) {
+        const [qx, qy] = toS(t.trail[i][0], t.trail[i][1]);
+        if (!p0 || Math.hypot(qx - p0[0], qy - p0[1]) > 80) x.moveTo(qx, qy); else x.lineTo(qx, qy);
+        p0 = [qx, qy];
+      }
+      x.strokeStyle = 'rgba(236,230,214,0.22)'; x.setLineDash([1.5, 3.5]); x.lineWidth = 1; x.stroke(); x.setLineDash([]);
+    }
+    // try the upper right, then the upper left, then the lower right of the organism
+    let side = 0, box = null, lx = 0, ly = 0;
+    if (nLab < budget) {
+      for (const sd of [1, -1, 2]) {
+        const dx = sd === -1 ? -1 : 1, dy = sd === 2 ? 1 : -1;
+        const ax = sx + dx * (rr * 0.72 + 6), ay = sy + dy * (rr * 0.72 + 6);
+        const bx = dx > 0 ? [ax, ay - 14, ax + 112, ay + 14] : [ax - 112, ay - 14, ax, ay + 14];
+        const far = Math.max(Math.hypot(bx[0] - ex, ay - ey), Math.hypot(bx[2] - ex, ay - ey));
+        if (far < er - 6 && bx[0] > 4 && bx[2] < scrW - 4 && bx[1] > 6 && bx[3] < scrH && !hit(bx, t.id)) { side = dx; box = bx; lx = ax; ly = ay; break; }
+      }
+    }
+    const free = !!box;
+    t.labeled = free;
+    if (dense && !free) continue;
+    // reticle arcs
+    x.strokeStyle = free ? 'rgba(236,230,214,0.42)' : 'rgba(236,230,214,0.18)'; x.lineWidth = 1;
+    for (let q = 0; q < 4; q++) { x.beginPath(); x.arc(sx, sy, rr, q * Math.PI / 2 + 0.25, q * Math.PI / 2 + Math.PI / 2 - 0.25); x.stroke(); }
+    if (!free) continue;
+    placed.push(box); nLab++;
+    const um = spd(t) * T * UM_PER_CELL;
+    const dy = ly > sy ? 1 : -1;
+    x.strokeStyle = 'rgba(236,230,214,0.42)';
+    x.beginPath(); x.moveTo(sx + side * rr * 0.72, sy + dy * rr * 0.72); x.lineTo(lx, ly); x.lineTo(lx + side * 6, ly); x.stroke();
+    x.strokeStyle = 'rgba(3,5,9,0.62)'; x.lineWidth = 2.4;
+    x.textAlign = side > 0 ? 'left' : 'right';
+    const tx = lx + side * 9;
+    x.font = `italic 500 12px ${cs.getPropertyValue('--f-display')}`; x.fillStyle = 'rgba(236,230,214,0.92)'; x.textBaseline = 'bottom';
+    halo(speciesName(t) + (view.follow === t.id ? '  · followed' : ''), tx, ly + 1);
+    x.font = `500 9px ${mono}`; x.fillStyle = 'rgba(236,230,214,0.6)'; x.textBaseline = 'top';
+    halo(`#${String(t.id).padStart(2, '0')} · ${sim.id === 'rotator' && um < 2 ? 'turning in place' : um < 0.4 ? 'stationary' : um.toFixed(1) + ' µm/s'}`, tx, ly + 2);
+    x.lineWidth = 1;
+  }
+  for (const { e, sx, sy, a, rr, ly } of evs) {
+    const col = e.kind === 'lysis' ? `rgba(255,120,110,${a * 0.8})` : e.kind === 'division' ? `rgba(134,227,106,${a * 0.9})` : e.kind === 'fusion' ? `rgba(232,196,106,${a * 0.85})` : `rgba(160,200,255,${a * 0.7})`;
+    x.strokeStyle = col; x.lineWidth = 1;
+    x.beginPath(); x.arc(sx, sy, rr, 0, TAU); x.stroke();
+    x.font = `500 9.5px ${mono}`; x.textAlign = 'center'; x.textBaseline = 'bottom';
+    x.strokeStyle = `rgba(3,5,9,${0.6 * a})`; x.lineWidth = 2.4; x.fillStyle = col;
+    halo(EVENT_TEXT[e.kind].toUpperCase(), sx, ly);
+    x.lineWidth = 1;
+  }
+  x.restore();
+}
+// The kernel lens: the ring a point senses, and what the growth rule makes of it (desktop hover).
+function sampleAna(ch4, wx, wy) {
+  const fx = (wx - 2.5) / 4, fy = (wy - 2.5) / 4, ix = Math.floor(fx), iy = Math.floor(fy), tx = fx - ix, ty = fy - iy;
+  const at = (i, j) => scaleVal(anaBuf, ((((j % M) + M) % M) * M + (((i % M) + M) % M)) * 4 + ch4);
+  return (at(ix, iy) * (1 - tx) + at(ix + 1, iy) * tx) * (1 - ty) + (at(ix, iy + 1) * (1 - tx) + at(ix + 1, iy + 1) * tx) * ty;
+}
+function drawLens(x, mono, cs) {
+  if (!opts.lens || !(hover.on || hover.hold || time < hover.until) || (gesture && gesture.type !== 'pending' && gesture.type !== 'probe')) return null;
+  const r = canvas.getBoundingClientRect();
+  const hx = hover.x - r.left, hy = hover.y - r.top, { x: ex, y: ey, r: er } = eye.css;
+  if (Math.hypot(hx - ex, hy - ey) > er - 4) return null;
+  const [wx, wy] = toWorld(hover.x, hover.y);
+  const L = sim.rule.type === 'lenia', rule = sim.rule;
+  const era = ERA.map((v) => Math.round(v * 255)).join(',');
+  x.save();
+  x.beginPath(); x.arc(ex, ey, er - 1, 0, TAU); x.clip();
+  let Rpx;
+  if (L) {
+    rule.kernels.forEach((k, ki) => {
+      if (rule.kernels.length > 3 && ki > 2) return;
+      const Rk = rule.R * k.r * view.scale, B = k.b.length, col = KCOL[(rule.C > 1 ? k.c0 : ki) % 3].map((v) => Math.round(v * 255)).join(',');
+      k.b.forEach((beta, i) => {
+        x.strokeStyle = `rgba(${col},${0.2 * beta})`; x.lineWidth = Math.max(2, (Rk / B) * 0.42);
+        x.beginPath(); x.arc(hx, hy, ((i + 0.5) / B) * Rk, 0, TAU); x.stroke();
+      });
+      x.strokeStyle = `rgba(${col},0.6)`; x.lineWidth = 1; x.setLineDash([2, 3]);
+      x.beginPath(); x.arc(hx, hy, Rk, 0, TAU); x.stroke(); x.setLineDash([]);
+    });
+    Rpx = rule.R * Math.max(...rule.kernels.map((k) => k.r)) * view.scale;
+  } else {
+    Rpx = rule.ra * view.scale;
+    x.fillStyle = 'rgba(232,196,106,0.06)'; x.beginPath(); x.arc(hx, hy, Rpx / 3, 0, TAU); x.fill();
+    x.strokeStyle = `rgba(${era},0.10)`; x.lineWidth = Rpx * 0.62; x.beginPath(); x.arc(hx, hy, Rpx * 0.665, 0, TAU); x.stroke();
+    x.strokeStyle = `rgba(${era},0.45)`; x.lineWidth = 1; x.setLineDash([2, 4]);
+    x.beginPath(); x.arc(hx, hy, Rpx, 0, TAU); x.stroke(); x.beginPath(); x.arc(hx, hy, Rpx / 3, 0, TAU); x.stroke(); x.setLineDash([]);
+  }
+  x.strokeStyle = 'rgba(236,230,214,0.7)'; x.lineWidth = 1;
+  x.beginPath(); x.moveTo(hx - 6, hy); x.lineTo(hx - 2, hy); x.moveTo(hx + 2, hy); x.lineTo(hx + 6, hy); x.moveTo(hx, hy - 6); x.lineTo(hx, hy - 2); x.moveTo(hx, hy + 2); x.lineTo(hx, hy + 6); x.stroke();
+  // readout
+  const A = sampleAna(0, wx, wy), U0 = sampleAna(3, wx, wy), U1 = sampleAna(1, wx, wy);
+  let l1, l2, grow;
+  if (L) {
+    const k = rule.kernels[0], g = growthG(U0, k.mu, k.sigma);
+    grow = g;
+    l1 = `A ${A.toFixed(2)}   U ${U0.toFixed(3)}   G ${g >= 0 ? '+' : '−'}${Math.abs(g).toFixed(2)}`;
+    l2 = g > 0.05 ? 'the neighbourhood is just right: grows' : g < -0.05 ? (U0 < k.mu ? 'too empty around here: fades' : 'too crowded around here: fades') : 'balanced on the edge';
+  } else {
+    const sv = slS(rule, U1, U0);
+    grow = sv * 2 - 1;
+    l1 = `m ${U0.toFixed(2)}   n ${U1.toFixed(2)}   s ${sv.toFixed(2)}`;
+    l2 = sv > 0.5 ? (U0 > 0.5 ? 'inside a body, ring right: survives' : 'ring filled just right: born') : 'wrong filling: dead next step';
+  }
+  const vw = canvas.clientWidth || 1e4;
+  x.font = `500 9.5px ${mono}`;
+  const tw = Math.max(x.measureText(l1).width, x.measureText(l2).width) + 4;
+  const lo = Math.max(ex - er + 10, 6), hi = Math.min(ex + er - 10, vw - 6);
+  // beside the ring if there is room; otherwise above it (where a finger does not cover it)
+  let mode = hover.hold || time < hover.until ? 'up' : hx + Rpx * 0.72 + 12 + tw < hi ? 'right' : hx - Rpx * 0.72 - 12 - tw > lo ? 'left' : 'up';
+  let tx, ty;
+  if (mode === 'right') { tx = hx + Rpx * 0.72 + 12; ty = hy - Rpx * 0.72 - 4; }
+  else if (mode === 'left') { tx = hx - Rpx * 0.72 - 12; ty = hy - Rpx * 0.72 - 4; }
+  else { tx = Ut.clamp(hx - tw / 2, lo, hi - tw); ty = hy - Rpx - 26; }
+  const right = mode !== 'left';
+  x.strokeStyle = 'rgba(236,230,214,0.35)';
+  if (mode !== 'up') { x.beginPath(); x.moveTo(hx + (right ? 1 : -1) * Rpx * 0.707, hy - Rpx * 0.707); x.lineTo(tx, ty); x.stroke(); }
+  x.textAlign = right ? 'left' : 'right'; x.lineJoin = 'round'; x.strokeStyle = 'rgba(3,5,9,0.7)'; x.lineWidth = 2.6;
+  x.font = `italic 500 12px ${cs.getPropertyValue('--f-display')}`; x.fillStyle = 'rgba(236,230,214,0.92)'; x.textBaseline = 'bottom';
+  const t0 = 'what this point feels';
+  x.strokeText(t0, tx, ty - 14); x.fillText(t0, tx, ty - 14);
+  x.font = `500 9.5px ${mono}`; x.textBaseline = 'bottom';
+  x.fillStyle = 'rgba(236,230,214,0.75)'; x.strokeText(l1, tx, ty - 1); x.fillText(l1, tx, ty - 1);
+  x.fillStyle = grow > 0.05 ? 'rgba(134,227,106,0.95)' : grow < -0.05 ? 'rgba(122,166,255,0.95)' : 'rgba(232,196,106,0.95)';
+  x.textBaseline = 'top'; x.strokeText(l2, tx, ty + 2); x.fillText(l2, tx, ty + 2);
+  x.lineWidth = 1;
+  x.restore();
+  return right ? [Math.min(hx - Rpx, tx), ty - 30, Math.max(tx + tw, hx + Rpx), hy + Rpx] : [tx - tw, ty - 30, hx + Rpx, hy + Rpx];
+}
+function wrapText(x, text, cx, cy, maxW, lh) {
+  const words = text.split(' '), lines = [];
+  let line = '';
+  for (const w of words) { const t = line ? line + ' ' + w : w; if (x.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t; }
+  if (line) lines.push(line);
+  lines.forEach((l, i) => x.fillText(l, cx, cy + (i - (lines.length - 1) / 2) * lh));
+  return lines.length;
+}
+function speciesName(t) {
+  const r = sim.rule, id = sim.id;
+  const v = Math.hypot(t.vx, t.vy), moving = v > 0.02;
+  const elong = t.ext > 2.4 * Math.sqrt(t.cells);
+  if (r.type === 'smooth') return moving ? 'glider' : 'ring';
+  if (id === 'rotator') return t.mass > 160 ? 'aggregate' : 'rotator';
+  if (id === 'gemini') return t.mass > 115 ? 'dividing cell' : moving ? 'crescent' : 'cell';
+  if (id === 'zoo2') return elong ? 'filament' : t.mass > 110 ? 'rod' : 'coccus';
+  if (id === 'colony') return 'colony';
+  if (id === 'cells3') return t.mass > 900 ? 'tissue' : 'cell';
+  if (id === 'crescents3') return moving ? 'crescent' : 'cyst';
+  const ref = 71 * Math.pow(r.R / 13, 2);
+  if (t.mass > ref * 0.7 && t.mass < ref * 1.35 && moving) return 'Orbium';
+  if (t.mass > ref * 2.2) return moving ? 'aggregate' : 'mat';
+  return moving ? 'glider' : 'spore';
+}
+
+/* ================================================================ main loop */
+let stepAcc = 0, anaClock = 0, chartClock = 0, renewT = 0, fullT = 0, frameMs = 16, lastNow = performance.now();
+function tick(dt) {
+  const now = performance.now();
+  const rdt = Math.min(0.1, (now - lastNow) / 1000);
+  frameMs += (now - lastNow - frameMs) * 0.05; lastNow = now;
+  if (fitCanvas()) { allocScreen(); layoutEye(); }
+  time += dt;
+  // view inertia & follow
+  if (!gesture) { view.cx += view.vx; view.cy += view.vy; view.vx *= 0.9; view.vy *= 0.9; }
+  if (view.follow != null && !intro.on) {
+    let t = tracks.find((q) => q.id === view.follow && !q.miss);
+    if (!t) {
+      let best = 1e9;
+      for (const q of tracks) { if (q.miss || q.age < 2) continue; const d = tdist(q.x, q.y, view.cx, view.cy); if (d < best) { best = d; t = q; } }
+      view.follow = t ? t.id : -1;
+    }
+    if (t) {
+      const el = sim.gen - t.seen, tx = t.x + t.vx * el, ty = t.y + t.vy * el;
+      const k = Math.min(1, rdt * 3);
+      view.cx += wrapD(tx - view.cx) * k; view.cy += wrapD(ty - view.cy) * k;
+    }
+  }
+  view.cx = wrapP(view.cx); view.cy = wrapP(view.cy);
+  if (view.tscale) { view.scale += (view.tscale - view.scale) * Math.min(1, rdt * 2.5); clampView(); if (Math.abs(view.tscale - view.scale) < 0.002) view.tscale = null; }
+  actMix += ((opts.activity ? 1 : 0) - actMix) * Math.min(1, rdt * 6);
+  trailMix += ((opts.trails ? 1 : 0) - trailMix) * Math.min(1, rdt * 4);
+  defocus = Math.max(0, defocus - rdt * 1.4);
+  // simulation
+  if (!ch.paused && !document.hidden) {
+    stepAcc += dt * opts.tempo;
+    let n = Math.floor(stepAcc); stepAcc -= n;
+    n = Math.min(n, 6);
+    sim.busy = n > 1;
+    if (!skip.sim) stepSim(n);
+    if (n > 0 && trailMix > 0.01) updateTrail(rdt);
+    if (time > 1.2 && !skip.map) mapTick();
+  }
+  if (intro.on) updateIntro();
+  // analysis every ~0.25 s
+  anaClock += rdt;
+  pollAnalysis();
+  if (anaClock > 0.25 && !anaSync) { anaClock = 0; requestAnalysis(); }
+  if (!skip.render) render();
+  if (!skip.overlay) drawOverlay();
+  // readouts
+  chartClock += rdt;
+  if (chartClock > 0.5) {
+    chartClock = 0;
+    const T = sim.rule.type === 'lenia' ? sim.rule.T : 4;
+    ro.mass.set(Cosmos.fmt.num(stats.mass, 0));
+    ro.orgs.set(stats.big ? stats.organisms + ' + mat' : String(stats.organisms));
+    ro.speed.set((stats.speed * T * UM_PER_CELL).toFixed(1) + ' µm/s');
+    ro.gen.set(Cosmos.fmt.num(sim.gen));
+    hudOrg.set(stats.organisms + (stats.big ? ' + overgrowth' : ''));
+    hudT.set((sim.gen / T).toFixed(1) + ' s  ·  gen ' + Cosmos.fmt.num(sim.gen));
+    if (lastEvent) hudEv.set(EVENT_TEXT[lastEvent.kind] + ' · ' + ((time - lastEvent.t) < 60 ? Math.round(time - lastEvent.t) + ' s ago' : 'earlier'));
+    if (!ch.paused) chart.push([stats.organisms, stats.mass / 100]);
+    sound.update();
+    const st = STORY[preset];
+    if (st && st.when && storyIdx < st.when.length && !intro.on && st.when[storyIdx][0]()) { caption(st.when[storyIdx][1], 4.4); storyIdx++; }
+    // re-plate a dead or overgrown dish
+    const dead = stats.mass < 2, over = stats.cover > (PRESETS[preset].over || 0.4);
+    const P = PRESETS[preset];
+    if (P.full && stats.organisms > (small ? 90 : 260)) fullT += 0.5; else fullT = 0;
+    if (opts.renew && !ch.paused && P.full && fullT > P.full) { ch.toast('The dish is full. Plating a single cell again.'); applyPreset(preset, true); }
+    else if (opts.renew && !ch.paused && (dead || over)) { renewT += 0.5; if (renewT > (over ? 8 : 3)) { ch.toast(over ? 'The culture overgrew the dish. Plating a fresh slide.' : 'Everything dissolved. Plating a fresh slide.'); applyPreset(preset, true); } } else renewT = 0;
+  }
+}
+
+/* ================================================================ init */
+fitCanvas();
+allocScreen();
+layoutEye();
+applyPreset('field', true);
+startIntro();
+setTimeout(() => { drawMap(); }, 50);
+mapStart(13, 10);
+ch.onResize(() => { if (fitCanvas()) allocScreen(); layoutEye(); drawMap(); });
+ch.loop((dt) => tick(dt), { always: true });
+
+/* ================================================================ debug */
+Cosmos.debug.state = () => ({
+  gen: sim.gen, N, rule: sim.id, preset, mu: sim.rule.kernels ? k0().mu : null, sigma: sim.rule.kernels ? k0().sigma : null,
+  T: sim.rule.T, R: sim.rule.R, mass: +stats.mass.toFixed(1), organisms: stats.organisms, speedCellsPerStep: +stats.speed.toFixed(3),
+  cover: +stats.cover.toFixed(3), map: MAP.state + ' ' + MAP.gen, frameMs: +frameMs.toFixed(1), tracks: tracks.length, events: events.length,
+});
+const readBuf = new Float32Array(N * N * 4);
+Cosmos.debug.lab = {
+  N, skip, dbgCnt, captions: () => captions.map((c) => c.text), sim, setRule, stamp, stepSim, placeOrbium, placeBlob, placeRotator, placeGlider, placeCell, clearAll, splat, soup, applyPreset, view, MAP, encounter, opts, patTex: patternTexture,
+  extract(x, y, rad, th) {
+    const b = this.read(); const out = [];
+    for (let j = -rad; j <= rad; j++) { const row = []; for (let i = -rad; i <= rad; i++) { const v = b[(wrapP(Math.round(y) + j) * N + wrapP(Math.round(x) + i)) * 4]; row.push(v < (th || 0.01) ? 0 : +v.toFixed(3)); } out.push(row); }
+    // trim empty border
+    const nz = (r) => r.some((v) => v > 0);
+    while (out.length && !nz(out[0])) out.shift(); while (out.length && !nz(out[out.length - 1])) out.pop();
+    let l = 0, r = out[0] ? out[0].length - 1 : 0; while (l < r && out.every((row) => !row[l])) l++; while (r > l && out.every((row) => !row[r])) r--;
+    return out.map((row) => row.slice(Math.max(0, l - 1), r + 2));
+  },
+  tracks: () => tracks.map((t) => ({ id: t.id, x: +t.x.toFixed(1), y: +t.y.toFixed(1), m: +t.mass.toFixed(1), v: +Math.hypot(t.vx, t.vy).toFixed(3), age: t.age })),
+  read() { gl.bindFramebuffer(gl.FRAMEBUFFER, sim.st.read.fbo); gl.readPixels(0, 0, N, N, gl.RGBA, gl.FLOAT, readBuf); gl.bindFramebuffer(gl.FRAMEBUFFER, null); return readBuf; },
+  stats() { const b = this.read(); let m = 0, sx = 0, sy = 0, cx = 0, cy = 0; for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const a = b[(y * N + x) * 4]; m += a; sx += a * Math.cos(TAU * x / N); sy += a * Math.sin(TAU * x / N); cx += a * Math.cos(TAU * y / N); cy += a * Math.sin(TAU * y / N); } return { m: +m.toFixed(2), x: +wrapP(Math.atan2(sy, sx) / TAU * N).toFixed(2), y: +wrapP(Math.atan2(cy, cx) / TAU * N).toFixed(2) }; },
+};
+})();
+</script>
+</body>
+</html>

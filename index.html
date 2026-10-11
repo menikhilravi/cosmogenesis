@@ -1,0 +1,2013 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cosmogenesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: a scrolling planetarium plate. A live sky, then one vertical logarithmic time rule with all 22
+   chapters pinned to their moment on it, then the instruments (models, controls) and a quiet colophon. */
+:root {
+  --void: #05060c;
+  --void-2: #0a0c16;
+  --void-3: #0f1220;
+  --star: #ece6d6;
+  --star-2: #cfc9bb;
+  --dust: #979db2;
+  --faint: #5e6479;
+  --line: rgba(236, 230, 214, .12);
+  --line-strong: rgba(236, 230, 214, .26);
+  --first: #cdb8ff;   /* chapter 01 accent: the Big Bang */
+  --last: #ffe9c7;    /* chapter 22 accent: you */
+  --f-display: "Bodoni Moda", "Bodoni 72", Didot, "Times New Roman", serif;
+  --f-ui: "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --gutter: clamp(16px, 4vw, 56px);
+  --maxw: 1360px;
+  --ease: cubic-bezier(.2, .7, .1, 1);
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { background: #05060c; color: #ece6d6; -webkit-text-size-adjust: 100%; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+body {
+  margin: 0; background: var(--void); color: var(--star);
+  font: 400 16px/1.55 var(--f-ui); -webkit-font-smoothing: antialiased; overflow-x: clip;
+}
+a { color: inherit; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+::selection { background: var(--first); color: var(--void); }
+:focus-visible { outline: 2px solid var(--star); outline-offset: 3px; border-radius: 2px; }
+.wrap { width: 100%; max-width: var(--maxw); margin-inline: auto; padding-inline: var(--gutter); }
+.mono { font-family: var(--f-mono); }
+sup { font-size: .46em; line-height: 0; vertical-align: .95em; letter-spacing: .02em; }
+/* superscripts inside small mono labels: legible, tight, not floating */
+.tk sup, .ev-t sup, .era sup, .seg-range sup, .hv-s sup, .clock-t sup, .hm sup, .cal sup, .mv sup, .mw sup, .cal-after sup {
+  font-size: .8em; vertical-align: .42em; letter-spacing: -.01em; line-height: 0;
+}
+
+/* ------------------------------------------------------------------ hero */
+.hero {
+  position: relative; overflow: hidden; isolation: isolate; background: var(--void);
+  min-height: clamp(600px, 86vh, 980px);
+  display: grid; grid-template-rows: auto 1fr auto auto;
+}
+.hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: -3; }
+.hero::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 38%; z-index: -1; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(5, 6, 12, 0), rgba(5, 6, 12, .66) 58%, #05060c);
+}
+.hero.nogl {
+  background:
+    radial-gradient(46% 30% at 64% 44%, rgba(255, 246, 230, .20), rgba(205, 184, 255, .12) 30%, rgba(127, 168, 255, .06) 60%, rgba(5, 6, 12, 0) 80%),
+    #05060c;
+}
+.topbar {
+  display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-block: 22px;
+  font: 500 11px/1 var(--f-mono); color: var(--dust);
+}
+.topbar .span { letter-spacing: .04em; color: var(--dust); }
+.topbar nav { display: flex; gap: 26px; }
+.topbar nav a { text-decoration: none; letter-spacing: .16em; text-transform: uppercase; color: var(--dust); padding: 6px 0; text-shadow: 0 0 8px #05060c, 0 0 16px #05060c; }
+.topbar nav a:hover { color: var(--star); }
+.hero-copy { align-self: end; padding-block: 0 26px; position: relative; }
+.wordmark {
+  margin: 0 0 0 -.04em; font: italic 500 clamp(62px, 12.4vw, 204px)/.92 var(--f-display);
+  letter-spacing: -.028em; color: var(--star); text-shadow: 0 2px 50px rgba(5, 6, 12, .6);
+}
+.tagline { text-wrap: balance; margin: clamp(14px, 2vw, 28px) 0 0; font: 400 clamp(17px, 1.65vw, 22px)/1.45 var(--f-ui); color: var(--star-2); max-width: 44ch; }
+.ctas { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 30px; margin-top: 30px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 12px; padding: 16px 22px 16px 24px; border-radius: 2px;
+  background: var(--star); color: var(--void); text-decoration: none; font: 600 15.5px/1 var(--f-ui);
+  box-shadow: 0 0 0 1px rgba(236, 230, 214, .0), 0 10px 40px -14px rgba(205, 184, 255, .0);
+  transition: background .25s, box-shadow .35s var(--ease);
+}
+.btn .mono { font-weight: 500; font-size: 14px; letter-spacing: -.01em; }
+.btn .arr { transition: transform .3s var(--ease); }
+.btn:hover { background: #fffaf0; box-shadow: 0 0 0 1px rgba(205, 184, 255, .7), 0 12px 44px -10px rgba(205, 184, 255, .6); }
+.btn:hover .arr { transform: translateX(4px); }
+.btn:focus-visible { outline-color: var(--first); outline-offset: 4px; }
+.lnk {
+  color: var(--star); text-decoration: none; font: 500 15.5px/1 var(--f-ui);
+  padding: 8px 0 6px; border-bottom: 1px solid var(--line-strong); transition: border-color .25s;
+}
+.lnk:hover { border-color: var(--star); }
+.hero-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; padding-block: 8px 24px; }
+.legend { margin: 0; max-width: 52ch; font: 400 11.5px/1.6 var(--f-mono); color: var(--dust); }
+.legend b { font-weight: 500; }
+.ribbon { position: relative; display: flex; align-items: center; flex: none; }
+.ribbon::before { content: ""; position: absolute; left: 6px; right: 6px; top: 50%; height: 1px; background: var(--line-strong); }
+.ribbon a { position: relative; width: 16px; height: 30px; display: grid; place-items: center; text-decoration: none; }
+.ribbon a i { display: block; width: 5px; height: 5px; border-radius: 50%; background: var(--c); transition: transform .2s var(--ease); }
+.ribbon a:hover i, .ribbon a:focus-visible i { transform: scale(1.9); }
+.ribbon a span {
+  position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); white-space: nowrap; pointer-events: none;
+  font: 500 11px/1 var(--f-mono); color: var(--star); background: #0b0e1a; border: 1px solid var(--line);
+  padding: 6px 8px; border-radius: 3px; opacity: 0; transition: opacity .15s;
+}
+.ribbon a:nth-child(-n+4) span { left: 0; transform: none; }
+.ribbon a:nth-last-child(-n+6) span { left: auto; right: 0; transform: none; }
+.ribbon a:hover span, .ribbon a:focus-visible span { opacity: 1; }
+.ribbon-ends { display: flex; align-items: center; gap: 10px; font: 500 10.5px/1 var(--f-mono); color: var(--faint); }
+
+/* annotation marks on the sky */
+.hm { position: absolute; left: 0; top: 0; z-index: -2; pointer-events: none; white-space: nowrap; font: 500 11px/1 var(--f-mono); }
+.hm::before { content: ""; position: absolute; left: -4.5px; top: -4.5px; width: 9px; height: 9px; border: 1px solid rgba(236, 230, 214, .75); border-radius: 50%; }
+.hm i { position: absolute; left: 0; bottom: 9px; width: 30px; height: 50px; border-left: 1px solid rgba(236, 230, 214, .38); border-top: 1px solid rgba(236, 230, 214, .38); }
+.hm span { position: absolute; left: 34px; bottom: 59px; transform: translateY(50%); color: var(--c); padding: 5px 7px; border-radius: 2px; background: rgba(5, 6, 12, .62); }
+.hm { transition: opacity .8s; }
+.hero.bang .hm { opacity: 0; }
+.hm.off { opacity: 0; }
+.hm small { display: block; margin-top: 5px; font-size: 10px; color: var(--dust); }
+.hero.nogl .hm { display: none; }
+
+/* ------------------------------------------------------------ sections */
+.sec { padding-block: clamp(72px, 9vw, 132px) 0; }
+#timeline { padding-top: clamp(20px, 3vw, 40px); }
+.sec-head { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 28px clamp(32px, 5vw, 80px); align-items: end; }
+.kicker { margin: 0 0 16px; font: 500 11px/1.3 var(--f-mono); letter-spacing: .16em; text-transform: uppercase; color: var(--dust); }
+h2 { margin: 0; font: italic 500 clamp(40px, 5.4vw, 76px)/1 var(--f-display); letter-spacing: -.018em; text-wrap: balance; }
+h2 sup { margin-left: .08em; font-size: .5em; font-weight: 600; font-variation-settings: "opsz" 6; letter-spacing: .01em; }
+.btn sup, .topbar sup { font-size: .74em; vertical-align: .62em; letter-spacing: 0; }
+.lede { margin: 20px 0 0; max-width: 60ch; font: 400 clamp(16px, 1.3vw, 18px)/1.62 var(--f-ui); color: var(--dust); }
+.lede strong { color: var(--star-2); font-weight: 500; }
+
+/* legend for the axis */
+.key { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; font: 400 13.5px/1.4 var(--f-ui); color: var(--dust); }
+.key li { display: grid; grid-template-columns: 38px minmax(0, 1fr); align-items: center; gap: 12px; }
+.key svg { width: 38px; height: 22px; overflow: visible; }
+.key b { color: var(--star-2); font-weight: 500; }
+
+/* ------------------------------------------------------------- timeline */
+.tl { position: relative; margin-top: clamp(56px, 7vw, 96px); }
+.tl:not(.laid) { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 48px 32px; }
+.tl.laid .card, .tl.laid .seg, .tl.laid .ev { position: absolute; }
+.tl:not(.laid) .seg { grid-column: 1 / -1; }
+.tl:not(.laid) .ev, .tl:not(.laid) .tl-svg, .tl:not(.laid) .tl-labels { display: none; }
+.tl-svg { position: absolute; left: 0; top: 0; width: 100%; overflow: visible; pointer-events: none; }
+.tl-labels { position: absolute; inset: 0; pointer-events: none; }
+
+.tl-svg .ax { stroke: rgba(236, 230, 214, .32); stroke-width: 1; fill: none; }
+.tl-svg .axd { stroke-dasharray: 1 4; stroke-linecap: round; stroke-width: 1.4; }
+.tl-svg .tkm { stroke: rgba(236, 230, 214, .16); stroke-width: 1; }
+.tl-svg .tkM { stroke: rgba(236, 230, 214, .42); stroke-width: 1; }
+.tl-svg .con { fill: none; stroke-width: 1; opacity: .5; transition: opacity .3s, stroke-width .3s; }
+.tl-svg .thr { stroke-width: 1.5; stroke-linecap: round; opacity: .66; transition: opacity .3s; }
+.tl-svg .thd { opacity: .9; }
+.tl-svg .pin { stroke: #05060c; stroke-width: 2; transform-box: fill-box; transform-origin: center; transition: transform .3s var(--ease); }
+.tl-svg .evm { fill: #05060c; stroke: rgba(236, 230, 214, .5); stroke-width: 1; }
+.tl-svg .evl { fill: none; stroke: rgba(236, 230, 214, .26); stroke-width: 1; stroke-dasharray: 1 3; }
+.tl-svg .chip circle { fill: #05060c; stroke: rgba(236, 230, 214, .4); stroke-width: 1; }
+.tl-svg .chip text { fill: #ece6d6; font: 500 9.5px var(--f-mono); letter-spacing: .04em; text-anchor: middle; dominant-baseline: central; }
+.tl-svg .now { fill: #ece6d6; }
+.tl-svg .nowr { fill: none; stroke: rgba(236, 230, 214, .35); stroke-width: 1; }
+.tl.hov .con:not(.hot), .tl.hov .thr:not(.hot) { opacity: .14; }
+.tl-svg .con.hot { opacity: 1; stroke-width: 1.6; }
+.tl-svg .thr.hot { opacity: 1; }
+.tl-svg .pin.hot { transform: scale(1.55); }
+
+.tk {
+  position: absolute; top: 0; transform: translateY(-50%); white-space: nowrap; padding: 3px 6px;
+  font: 400 10.5px/1 var(--f-mono); color: var(--faint); background: var(--void); letter-spacing: .01em;
+}
+.tk.pl { color: var(--c); font-weight: 500; }
+.tk.nowl { color: var(--star); font-weight: 500; }
+.tl.phone .tk { font-size: 9.5px; padding: 2px 3px; }
+
+.seg-title { margin: 0; font: italic 500 clamp(28px, 3vw, 42px)/1.04 var(--f-display); letter-spacing: -.012em; text-wrap: balance; }
+.seg-unit { margin: 10px 0 0; font: 500 10.5px/1.45 var(--f-mono); letter-spacing: .15em; text-transform: uppercase; color: var(--dust); }
+.seg-range { margin: 6px 0 0; font: 400 12px/1.4 var(--f-mono); color: var(--faint); }
+.tl.center .seg { display: grid; grid-template-columns: var(--c1) 72px minmax(0, 1fr); }
+.tl.center .seg-title { grid-column: 1; grid-row: 1; text-align: right; }
+.tl.center .seg-unit { grid-column: 1; grid-row: 2; text-align: right; }
+.tl.center .seg-range { grid-column: 3; grid-row: 1; align-self: center; margin: 0; }
+
+.ev { pointer-events: none; font: italic 400 15.5px/1.34 var(--f-display); color: #b9b3a6; }
+.ev-t { display: block; font: 500 10.5px/16px var(--f-mono); font-style: normal; color: var(--faint); letter-spacing: .01em; }
+.ev.l { text-align: right; }
+.tl.phone .ev { font-size: 14.5px; }
+
+/* chapter plates */
+.card { display: block; color: var(--star); text-decoration: none; scroll-margin-top: 90px; transition: transform .45s var(--ease); }
+.card .stamp { display: flex; gap: 12px; align-items: baseline; font: 500 11.5px/18px var(--f-mono); letter-spacing: .01em; }
+.card .num { color: var(--dust); flex: none; }
+.card .era { color: var(--c); min-width: 0; }
+.card .body { margin-top: 10px; }
+.thumb {
+  position: relative; aspect-ratio: 16 / 10; max-width: 100%; overflow: hidden; border-radius: 3px; background: #080a13;
+  box-shadow: 0 0 0 1px var(--line); transition: box-shadow .45s var(--ease);
+}
+.thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity .7s, transform 1.2s var(--ease); }
+.card.has-img .thumb img { opacity: 1; }
+.ph {
+  position: absolute; inset: 0; display: flex; align-items: flex-end; padding: 0 0 6% 6%;
+  background:
+    radial-gradient(circle at var(--px) var(--py), rgba(var(--crgb), .42) 0, rgba(var(--crgb), .13) 12%, rgba(var(--crgb), 0) 42%),
+    radial-gradient(circle at var(--px) var(--py), rgba(var(--crgb), 0) 0 var(--r1), rgba(var(--crgb), .26) calc(var(--r1) + .15%), rgba(var(--crgb), 0) calc(var(--r1) + .7%)),
+    radial-gradient(circle at var(--px) var(--py), rgba(var(--crgb), 0) 0 var(--r2), rgba(var(--crgb), .14) calc(var(--r2) + .15%), rgba(var(--crgb), 0) calc(var(--r2) + .7%)),
+    radial-gradient(circle, rgba(236, 230, 214, .2) 0 .7px, rgba(236, 230, 214, 0) 1.2px) var(--sx) var(--sy) / 53px 41px,
+    radial-gradient(circle, rgba(236, 230, 214, .12) 0 .6px, rgba(236, 230, 214, 0) 1.1px) var(--sy) var(--sx) / 31px 47px,
+    linear-gradient(160deg, #0b0d18, #06070d);
+}
+.ph b { font: italic 400 clamp(46px, 4.6vw, 68px)/.8 var(--f-display); color: rgba(var(--crgb), .75); letter-spacing: -.02em; }
+.card .title { margin: 16px 0 8px; font: italic 500 clamp(25px, 2.1vw, 31px)/1.08 var(--f-display); letter-spacing: -.01em; text-wrap: balance; transition: color .3s; }
+.card .blurb { margin: 0; font: 400 15px/1.55 var(--f-ui); color: var(--dust); max-width: 58ch; }
+.card .model { margin: 12px 0 0; font: 400 11.5px/1.5 var(--f-mono); color: var(--star-2); }
+.card .model .k { color: var(--faint); letter-spacing: .14em; text-transform: uppercase; font-size: 9.5px; margin-right: 10px; }
+.card.wide .body { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 24px; align-items: start; }
+.card.wide .title { margin-top: 0; }
+.card:hover, .card:focus-visible { transform: translateY(-3px); }
+.card:hover .thumb, .card:focus-visible .thumb {
+  box-shadow: 0 0 0 1px rgba(var(--crgb), .75), 0 22px 60px -22px rgba(var(--crgb), .7), 0 0 90px -30px rgba(var(--crgb), .55);
+}
+.card:hover .title, .card:focus-visible .title { color: var(--c); }
+.card:hover .thumb img, .card:focus-visible .thumb img { transform: scale(1.08) translate(-1.6%, -1.2%); transition: opacity .7s, transform 9s linear; }
+.card:focus-visible { outline: 2px solid var(--c); outline-offset: 10px; border-radius: 4px; }
+
+/* ------------------------------------------------------ under the hood */
+.mgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px clamp(24px, 3vw, 48px); margin-top: clamp(40px, 5vw, 64px); }
+.mcol h3 {
+  margin: 0; padding-bottom: 12px; border-bottom: 1px solid var(--line-strong); display: flex; justify-content: space-between; gap: 12px;
+  font: 500 10.5px/1.2 var(--f-mono); letter-spacing: .16em; text-transform: uppercase; color: var(--dust);
+}
+.mcol h3 span { color: var(--faint); letter-spacing: .06em; }
+.mcol ol { list-style: none; margin: 0; padding: 0; }
+.mcol a {
+  position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 0 10px; padding: 16px 10px 17px 0;
+  border-bottom: 1px solid var(--line); text-decoration: none; transition: background .3s;
+}
+.mcol a:hover, .mcol a:focus-visible { background: linear-gradient(to right, rgba(var(--crgb), .085), rgba(var(--crgb), 0) 80%); }
+.mcol a:focus-visible { outline: 2px solid var(--c); outline-offset: 2px; }
+.mn { grid-row: span 3; font: 500 12px/1.45 var(--f-mono); color: var(--c); padding-left: 2px; }
+.mm { font: 400 12.5px/1.45 var(--f-mono); color: var(--star); transition: color .25s; }
+.me {
+  display: block; margin: 10px 0 9px; padding: 3px 0 3px 12px; border-left: 1px solid rgba(var(--crgb), .55);
+  font: italic 400 16.5px/1.5 var(--f-display); color: #ddd7c8; text-wrap: balance; overflow-wrap: break-word;
+  transition: border-color .3s, color .3s;
+}
+.me { font-variation-settings: "opsz" 11; font-size: 17px; }
+.me .op { font: 400 1.12em/1 var(--f-ui); font-style: normal; margin: 0 .2em; color: var(--star-2); vertical-align: -.02em; }
+.me .nu { font-style: normal; }
+.me sub .op, .me sup .op { margin: 0 .06em; }
+.me sub, .me sup { font-size: .66em; line-height: 0; }
+.me sup { vertical-align: .6em; }
+.me sub { vertical-align: -.28em; }
+.mt { font: italic 400 15px/1.3 var(--f-display); color: var(--dust); }
+.mt::after { content: " →"; font-style: normal; font-family: var(--f-ui); opacity: 0; transition: opacity .25s, margin .3s var(--ease); margin-left: 0; }
+.mcol a:hover .mm, .mcol a:focus-visible .mm { color: var(--c); }
+.mcol a:hover .me, .mcol a:focus-visible .me { border-color: var(--c); color: var(--star); }
+.mcol a:hover .mt::after, .mcol a:focus-visible .mt::after { opacity: 1; margin-left: 4px; }
+.mfoot { margin: 34px 0 0; max-width: 64ch; font: 400 14px/1.6 var(--f-ui); color: var(--faint); }
+
+/* ------------------------------------------- the cosmic clock (scroll) */
+.clock {
+  position: fixed; z-index: 40; top: 0; left: 0; right: 0; pointer-events: none; visibility: hidden;
+  background: rgba(6, 7, 13, .86); border-bottom: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2); backdrop-filter: blur(12px) saturate(1.2);
+  transform: translateY(-101%); transition: transform .4s var(--ease), visibility 0s .4s;
+}
+.clock.on { transform: none; pointer-events: auto; visibility: visible; transition: transform .4s var(--ease), visibility 0s; }
+.clock-in { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 24px; height: 52px; }
+.clock-home { justify-self: start; font: italic 500 21px/1 var(--f-display); letter-spacing: -.01em; color: var(--star); text-decoration: none; }
+.clock-read { display: flex; align-items: center; gap: 12px; min-width: 0; white-space: nowrap; }
+.clock-k {
+  flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid var(--line-strong); font: 500 8.5px/1 var(--f-mono); color: var(--star-2); letter-spacing: .02em;
+}
+.clock-t { font: 500 13.5px/1 var(--f-mono); color: var(--star); font-variant-numeric: tabular-nums; min-width: 17ch; }
+.clock-s { font: italic 400 16px/1 var(--f-display); color: var(--dust); overflow: hidden; text-overflow: ellipsis; }
+.clock-map { justify-self: end; position: relative; width: min(100%, 320px); height: 24px; }
+.clock-map::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line-strong); }
+.clock-map a { position: absolute; top: 50%; width: 12px; height: 22px; margin: -11px 0 0 -6px; display: grid; place-items: center; }
+.clock-map a i { width: 5px; height: 5px; border-radius: 50%; background: var(--c); transition: transform .25s var(--ease), box-shadow .25s; }
+.clock-map a:hover i, .clock-map a.at i { transform: scale(1.8); box-shadow: 0 0 10px var(--c); }
+.clock-map b { position: absolute; top: 50%; width: 1px; height: 9px; margin-top: -4.5px; background: rgba(236, 230, 214, .35); }
+.clock-pos { position: absolute; top: 1px; bottom: 1px; width: 1px; margin-left: -.5px; background: var(--star); box-shadow: 0 0 8px rgba(236, 230, 214, .8); left: 0; }
+.cursor { position: fixed; z-index: 4; left: 0; top: 50%; width: 0; height: 0; pointer-events: none; opacity: 0; transition: opacity .35s; }
+.cursor.on { opacity: 1; }
+.cursor i {
+  position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%;
+  border: 1px solid rgba(236, 230, 214, .9); box-shadow: 0 0 0 3px rgba(5, 6, 12, .75), 0 0 22px 2px rgba(236, 230, 214, .35);
+}
+.cursor::before { content: ""; position: absolute; left: -15px; width: 30px; top: -.5px; height: 1px; background: rgba(236, 230, 214, .55); }
+
+/* hover read-out on the hero sky */
+.hv {
+  position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity .2s;
+  min-width: 190px; max-width: 280px; padding: 10px 13px 11px; border-radius: 3px;
+  background: rgba(5, 6, 12, .8); border: 1px solid rgba(var(--crgb, 236, 230, 214), .5);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.hv.on { opacity: 1; }
+.hv-s { display: block; font: 500 10.5px/1.35 var(--f-mono); color: var(--c, #ece6d6); }
+.hv-t { display: block; margin: 6px 0 5px; font: italic 500 22px/1.08 var(--f-display); color: var(--star); }
+.hv-m { display: block; font: 400 10.5px/1.45 var(--f-mono); color: var(--dust); }
+.hv-go { display: block; margin-top: 9px; font: 500 9.5px/1 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+.hero.pick { cursor: pointer; }
+.hover-only, .touch-only, .lg-short { display: none; }
+@media (hover: hover) and (pointer: fine) { .hover-only { display: inline; } }
+@media (hover: none), (pointer: coarse) { .touch-only { display: inline; } }
+
+.tl-lit { position: absolute; left: 0; top: 0; width: 2px; height: 0; margin-left: -1px; pointer-events: none; background-repeat: no-repeat; opacity: .95; }
+.tl:not(.laid) .tl-lit { display: none; }
+
+/* ------------------------------------------------- one year (calendar) */
+.cal { margin-top: clamp(48px, 6vw, 80px); }
+.cal-strip { display: grid; grid-template-columns: 200px minmax(0, 1fr); column-gap: 36px; }
+.cal-head { align-self: start; }
+.cal-head b { display: block; font: italic 500 25px/1.08 var(--f-display); letter-spacing: -.01em; color: var(--star); }
+.cal-head span { display: block; margin-top: 7px; font: 400 11px/1.5 var(--f-mono); color: var(--faint); }
+.cal-head em { display: block; margin-top: 3px; font: 500 11px/1.5 var(--f-mono); font-style: normal; color: var(--star-2); }
+.cal-track { position: relative; }
+.cal-track > * { position: absolute; }
+.cal-line { left: 0; right: 0; height: 1px; background: rgba(236, 230, 214, .38); }
+.cal-tick { width: 1px; background: rgba(236, 230, 214, .3); }
+.cal-tl { transform: translateX(-50%); white-space: nowrap; font: 400 10.5px/1 var(--f-mono); color: var(--faint); }
+.cal-tl.l0 { transform: none; }
+.cal-tl.r0 { transform: translateX(-100%); }
+.cal-zoom { border: 1px solid rgba(236, 230, 214, .55); background: rgba(236, 230, 214, .06); border-radius: 1px; }
+.cal-span { height: 3px; margin-top: -1px; background: var(--star); box-shadow: 0 0 10px rgba(236, 230, 214, .7); border-radius: 2px; }
+.cal-lens { overflow: visible; }
+.cal-lens .lf { fill: url(#lensg); }
+.cal-lens .ll { stroke: rgba(236, 230, 214, .34); stroke-width: 1; fill: none; vector-effect: non-scaling-stroke; }
+.cal-brk { height: 7px; border: 1px solid rgba(236, 230, 214, .34); border-bottom: 0; }
+.cal-dot {
+  width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: var(--c); z-index: 2;
+  box-shadow: 0 0 0 2px #05060c, 0 0 12px var(--c); text-decoration: none; transition: transform .25s var(--ease);
+}
+.cal-dot:hover, .cal-dot:focus-visible { transform: scale(1.5); }
+.cal-ev { width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: #05060c; border: 1px solid rgba(236, 230, 214, .7); z-index: 2; }
+.cal-lead { width: 1px; background: rgba(236, 230, 214, .22); }
+.cal-lead.ch { background: linear-gradient(to bottom, rgba(var(--crgb), .15), rgba(var(--crgb), .6)); }
+.cal-lab { white-space: nowrap; padding: 0 0 0 8px; }
+.cal-lab.r { padding: 0 8px 0 0; text-align: right; }
+.cal-lab.m { padding: 0 4px; }
+.cal-lab .d { display: block; font: 500 10.5px/15px var(--f-mono); color: var(--dust); }
+.cal-lab .d a { color: var(--c); text-decoration: none; margin-left: 6px; }
+.cal-lab .d a:hover { text-decoration: underline; }
+.cal-lab .x { display: block; font: italic 400 15px/19px var(--f-display); color: #cfc9bb; }
+.cal-lab.now .x { color: var(--star); font-weight: 500; }
+.cal-after { margin: 30px 0 0 236px; max-width: 70ch; font: 400 15.5px/1.62 var(--f-ui); color: var(--dust); }
+.cal-after strong { color: var(--star-2); font-weight: 500; }
+.cal-after .c21 { color: #7c86ff; text-decoration: none; border-bottom: 1px solid rgba(124, 134, 255, .4); }
+@media (max-width: 900px) {
+  .cal-strip { grid-template-columns: minmax(0, 1fr); }
+  .cal-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 4px; }
+  .cal-head b { font-size: 21px; }
+  .cal-head span, .cal-head em { margin-top: 0; }
+  .cal-after { margin-left: 0; }
+}
+@media (max-width: 560px) {
+  .cal-lab .x { font-size: 13.5px; line-height: 17px; }
+  .cal-lab .d { font-size: 10px; }
+  .cal-tl { font-size: 9.5px; }
+}
+
+/* ---------------------------------------------- meanwhile (live counters) */
+.mwgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-top: clamp(40px, 5vw, 64px); border-top: 1px solid var(--line-strong); }
+.mw {
+  position: relative; display: flex; flex-direction: column; min-width: 0; padding: 22px 22px 24px 0; text-decoration: none; color: var(--star);
+  border-bottom: 1px solid var(--line); transition: background .35s;
+}
+.mw + .mw { padding-left: 22px; border-left: 1px solid var(--line); }
+.mw:nth-child(4n + 1) { padding-left: 0; border-left: 0; }
+.mw:hover, .mw:focus-visible { background: linear-gradient(to bottom, rgba(var(--crgb), .09), rgba(var(--crgb), 0) 85%); }
+.mw:focus-visible { outline: 2px solid var(--c); outline-offset: -2px; }
+.mw-c { font: 500 10.5px/1.3 var(--f-mono); letter-spacing: .02em; color: var(--c); }
+.mw-c span { color: var(--faint); margin-right: 8px; }
+.mw-n {
+  margin: 16px 0 2px; font: 500 clamp(20px, 1.9vw, 27px)/1.1 var(--f-mono); letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums; color: var(--star); white-space: nowrap; overflow: hidden; text-overflow: clip;
+}
+.mw-n .l2 { font-size: .84em; }
+.mw-n .l3 { font-size: .72em; }
+.mw-n small { font-size: .5em; letter-spacing: 0; color: var(--dust); margin-left: .4em; }
+.mw-l { margin: 8px 0 0; font: 400 14.5px/1.45 var(--f-ui); color: var(--dust); }
+.mw-l b { color: var(--star-2); font-weight: 500; }
+.mw-f { margin-top: auto; padding-top: 14px; font: 400 10.5px/1.5 var(--f-mono); color: var(--faint); }
+.mw:hover .mw-n, .mw:focus-visible .mw-n { color: var(--c); }
+.elapsed { color: var(--star-2); font-variant-numeric: tabular-nums; }
+@media (max-width: 1100px) {
+  .mwgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mw:nth-child(4n + 1) { padding-left: 22px; border-left: 1px solid var(--line); }
+  .mw:nth-child(2n + 1) { padding-left: 0; border-left: 0; }
+}
+@media (max-width: 560px) {
+  .mwgrid { grid-template-columns: minmax(0, 1fr); }
+  .mw, .mw + .mw, .mw:nth-child(4n + 1) { padding-left: 0; border-left: 0; padding-right: 0; }
+  .mw-n { font-size: 25px; margin-top: 10px; }
+}
+
+/* ------------------------------------------------------- how to explore */
+.ex { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 40px clamp(32px, 5vw, 80px); margin-top: clamp(40px, 5vw, 64px); align-items: start; }
+.keys { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; }
+.keys div { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.keys dt { flex: none; display: flex; gap: 5px; min-width: 76px; }
+.keys dd { margin: 0; color: var(--dust); font-size: 15px; min-width: 0; }
+kbd {
+  display: inline-grid; place-items: center; min-width: 32px; height: 30px; padding: 0 9px; border-radius: 5px;
+  border: 1px solid var(--line-strong); border-bottom-width: 2px; background: #0b0e1a;
+  font: 500 12px/1 var(--f-mono); color: var(--star);
+}
+.notes { display: grid; gap: 18px; }
+.notes p { margin: 0; font: 400 16px/1.55 var(--f-ui); color: var(--dust); padding-left: 18px; border-left: 1px solid var(--line-strong); }
+.notes p strong { color: var(--star); font-weight: 500; }
+.notes kbd { height: 24px; min-width: 24px; font-size: 11px; padding: 0 6px; vertical-align: 1px; }
+
+/* ------------------------------------------------------------ colophon */
+.colophon { margin-top: clamp(80px, 10vw, 140px); }
+.colophon .in {
+  border-top: 1px solid var(--line); padding-block: 36px 48px;
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px 40px;
+  font: 400 13.5px/1.6 var(--f-ui); color: var(--faint);
+}
+.colophon p { margin: 0; }
+.colophon a { color: var(--dust); text-decoration: none; border-bottom: 1px solid var(--line); }
+
+/* -------------------------------------------------------------- phones */
+@media (max-width: 980px) {
+  .sec-head, .ex { grid-template-columns: minmax(0, 1fr); }
+  .mgrid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .hero { min-height: max(620px, 84svh); }
+  .topbar nav { display: none; }
+  .legend { max-width: none; font-size: 11px; }
+  .lg-long { display: none; }
+  .lg-short { display: inline; }
+  .hero-foot { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 14px; }
+  .ctas { gap: 18px 24px; margin-top: 26px; }
+  .tagline { margin-top: 14px; }
+  .keys { grid-template-columns: minmax(0, 1fr); }
+  .clock-home, .clock-map { display: none; }
+  .clock-in { grid-template-columns: minmax(0, 1fr); height: 44px; }
+  .clock-t { min-width: 0; font-size: 12.5px; }
+  .clock-s { font-size: 15px; }
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .clock-home { display: none; }
+  .clock-in { grid-template-columns: auto minmax(0, 1fr); }
+  .clock-map { width: min(100%, 280px); }
+}
+@media (max-width: 400px) {
+  .btn { padding: 15px 18px; font-size: 15px; }
+  .ribbon a { width: 14px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .wordmark { animation: rise 1.6s var(--ease) both; }
+  .tagline, .ctas { animation: rise2 1.6s .15s var(--ease) both; }
+  @keyframes rise { from { opacity: .3; transform: translateY(16px); letter-spacing: .005em; } to { opacity: 1; transform: none; letter-spacing: -.028em; } }
+  @keyframes rise2 { from { opacity: .45; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card, .thumb, .thumb img, .btn, .btn .arr, .tl-svg *, .clock, .cursor, .hv, .clock-map i, .cal-dot, .mw, .mw-n { transition: none !important; }
+  .card:hover, .card:focus-visible { transform: none; }
+  .card:hover .thumb img, .card:focus-visible .thumb img { transform: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="hero bang" id="top">
+  <canvas id="sky" aria-hidden="true"></canvas>
+  <div class="hm" id="mark-c" aria-hidden="true" style="--c:#cdb8ff"><i></i><span>t = 10<sup>−36</sup> s<small>the Big Bang</small></span></div>
+  <div class="hm" id="mark-r" aria-hidden="true" style="--c:#ffe9c7"><i></i><span>t = 13.8 Gyr<small>today, the dashed ring</small></span></div>
+  <div class="hv" id="hv" aria-hidden="true"><span class="hv-s"></span><b class="hv-t"></b><span class="hv-m"></span><span class="hv-go"></span></div>
+
+  <div class="topbar wrap">
+    <span class="span">t = 10<sup>−36</sup> s → 10<sup>100</sup> yr</span>
+    <nav aria-label="Sections">
+      <a href="#timeline">Timeline</a>
+      <a href="#year">One year</a>
+      <a href="#models">Models</a>
+      <a href="#explore">How to explore</a>
+    </nav>
+  </div>
+
+  <div></div>
+
+  <div class="hero-copy wrap">
+    <h1 class="wordmark">Cosmogenesis</h1>
+    <p class="tagline">13.8 billion years. 22 live simulations. One browser tab.</p>
+    <div class="ctas">
+      <a class="btn" href="ch01-inflation.html">Begin at <span class="mono">t = 10<sup>−36</sup> s</span> <span class="arr" aria-hidden="true">→</span></a>
+      <a class="lnk" href="#timeline">Jump to a chapter ↓</a>
+    </div>
+  </div>
+
+  <div class="hero-foot wrap">
+    <p class="legend"><span class="lg-long">The sky above is the whole journey. Each point drifts from the Big Bang at the centre to today at the rim, taking on the colour of each chapter it passes. </span><span class="lg-short">Centre: the Big Bang. Rim: today. </span><span class="hover-only">Point at a ring to see which chapter it is.</span><span class="touch-only">Tap a ring to see which chapter it is.</span></p>
+    <div class="ribbon-ends"><span>01</span><nav class="ribbon" id="ribbon" aria-label="All chapters"></nav><span>22</span></div>
+  </div>
+</header>
+
+<div class="clock" id="clock" aria-hidden="true">
+  <div class="wrap clock-in">
+    <a class="clock-home" href="#top" tabindex="-1">Cosmogenesis</a>
+    <div class="clock-read">
+      <span class="clock-k" id="clock-k">I</span>
+      <span class="clock-t" id="clock-t">t ≈ 10⁻³⁶ s</span>
+      <span class="clock-s" id="clock-s">The first 380,000 years</span>
+    </div>
+    <div class="clock-map" id="clock-map"><i class="clock-pos" id="clock-pos"></i></div>
+  </div>
+</div>
+<div class="cursor" id="cursor" aria-hidden="true"><i></i></div>
+
+<main>
+  <section class="sec" id="timeline" aria-labelledby="tl-h">
+    <div class="wrap">
+      <div class="sec-head">
+        <div>
+          <p class="kicker">The timeline · 22 chapters on one clock</p>
+          <h2 id="tl-h">From 10<sup>−36</sup> seconds to 10<sup>100</sup> years</h2>
+          <p class="lede">Each chapter is pinned to its moment on a logarithmic clock, where every tick lasts ten times longer than the one before. Life and everything after it crowd into the last sliver of time, so the axis changes scale five times: at first light, at the birth of the Sun, at the first cells, at the present moment, and again for the far future.</p>
+        </div>
+        <ul class="key" aria-label="How to read the axis">
+          <li><svg viewBox="0 0 38 22" aria-hidden="true"><line x1="0" y1="11" x2="38" y2="11" stroke="rgba(236,230,214,.3)"/><circle cx="19" cy="11" r="4" fill="#ffd37a" stroke="#05060c" stroke-width="2"/></svg><span><b>Pin.</b> The chapter’s moment on the axis, joined to its plate.</span></li>
+          <li><svg viewBox="0 0 38 22" aria-hidden="true"><line x1="6" y1="11" x2="36" y2="11" stroke="#7fa8ff" stroke-width="1.5" stroke-linecap="round"/><circle cx="6" cy="11" r="2.5" fill="#7fa8ff"/></svg><span><b>Thread.</b> How long it lasts. Many run all the way to now.</span></li>
+          <li><svg viewBox="0 0 38 22" aria-hidden="true"><line x1="19" y1="11" x2="38" y2="11" stroke="rgba(236,230,214,.3)" stroke-dasharray="1 3"/><circle cx="16" cy="11" r="2.6" fill="#05060c" stroke="rgba(236,230,214,.6)"/></svg><span><b>Event.</b> Something else that happened then.</span></li>
+          <li><svg viewBox="0 0 38 22" aria-hidden="true"><circle cx="19" cy="11" r="10" fill="#05060c" stroke="rgba(236,230,214,.4)"/><text x="19" y="11.5" fill="#ece6d6" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle" dominant-baseline="central">II</text></svg><span><b>Scale.</b> The axis zooms in or changes unit here.</span></li>
+        </ul>
+      </div>
+      <div class="tl" id="tl">
+        <svg class="tl-svg" id="tl-svg" aria-hidden="true"></svg>
+        <div class="tl-labels" id="tl-labels" aria-hidden="true"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="year" aria-labelledby="yr-h">
+    <div class="wrap">
+      <div class="sec-head">
+        <div>
+          <p class="kicker">The same story on an ordinary clock</p>
+          <h2 id="yr-h">All of it in one year</h2>
+        </div>
+        <p class="lede">Squeeze 13.8 billion years into a single calendar year. The Big Bang is the first instant of 1&nbsp;January and now is midnight on 31&nbsp;December, so each second of that year stands for <strong>about 438 years</strong>. Each strip below magnifies the end of the one above it. This is why the timeline above needs a logarithmic clock.</p>
+      </div>
+      <div class="cal" id="cal"></div>
+      <p class="cal-after" id="cal-after"></p>
+    </div>
+  </section>
+
+  <section class="sec" id="meanwhile" aria-labelledby="mw-h">
+    <div class="wrap">
+      <div class="sec-head">
+        <div>
+          <p class="kicker">Since you opened this page · <span class="elapsed" id="elapsed">0 s</span></p>
+          <h2 id="mw-h">Meanwhile</h2>
+        </div>
+        <p class="lede">The universe did not wait while you read. These counters started when the page loaded. Each one runs at a real, measured rate, and each belongs to a chapter.</p>
+      </div>
+      <div class="mwgrid" id="mwgrid"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="models" aria-labelledby="md-h">
+    <div class="wrap">
+      <div class="sec-head">
+        <div>
+          <p class="kicker">22 models, running live</p>
+          <h2 id="md-h">Under the hood</h2>
+        </div>
+        <p class="lede">Every chapter is a working model of its subject, computed in this tab as you watch. These are the engines, from quantum fluctuations to a heartbeat, each with one of the equations it solves.</p>
+      </div>
+      <div class="mgrid" id="mgrid"></div>
+      <p class="mfoot">Each chapter’s Science tab has the full model: the equations, the parameter values with units, what is scaled down for the screen, and the papers it comes from.</p>
+    </div>
+  </section>
+
+  <section class="sec" id="explore" aria-labelledby="ex-h">
+    <div class="wrap">
+      <p class="kicker">Inside every chapter</p>
+      <h2 id="ex-h">How to explore</h2>
+      <div class="ex">
+        <dl class="keys">
+          <div><dt><kbd>Space</kbd></dt><dd>Pause or play the simulation</dd></div>
+          <div><dt><kbd>H</kbd></dt><dd>Hide the interface</dd></div>
+          <div><dt><kbd>N</kbd></dt><dd>Open or fold the field notes</dd></div>
+          <div><dt><kbd>C</kbd></dt><dd>Show the controls</dd></div>
+          <div><dt><kbd>M</kbd></dt><dd>Sound on or off</dd></div>
+          <div><dt><kbd>F</kbd></dt><dd>Fullscreen</dd></div>
+          <div><dt><kbd>[</kbd><kbd>]</kbd></dt><dd>Previous or next chapter</dd></div>
+          <div><dt><kbd>?</kbd></dt><dd>All shortcuts</dd></div>
+        </dl>
+        <div class="notes">
+          <p><strong>Best on a laptop with a GPU.</strong> Works on phones.</p>
+          <p><strong>Sound is off until you turn it on.</strong> Some chapters turn their simulation into sound.</p>
+          <p>Every chapter has two sets of notes: the story of what you are watching, and the science behind it, with equations and sources.</p>
+          <p>Drag, click and scroll inside the simulations. Most of them respond to touch.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="colophon">
+  <div class="wrap">
+    <div class="in">
+      <p>Built overnight by Claude (Opus 5.5) on 29 September 2026, for Nikhil.</p>
+      <p>Every simulation runs locally in your browser. Nothing is sent anywhere.</p>
+    </div>
+  </div>
+</footer>
+
+<script src="cosmos.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ------------------------------------------------------------ registry */
+  const CH = (window.Cosmos && Array.isArray(window.Cosmos.CHAPTERS)) ? window.Cosmos.CHAPTERS : [];
+  const byId = {};
+  CH.forEach((c) => { byId[c.id] = c; });
+
+  const MODELS = {
+    'inflation': 'Slow-roll inflaton · Gaussian random field',
+    'nucleosynthesis': 'BBN reaction network · stiff ODE solver',
+    'first-light': 'Saha equation · CMB acoustic peaks',
+    'cosmic-web': 'Particle-mesh N-body · 262,144 particles',
+    'galaxies': 'Restricted N-body (Toomre & Toomre)',
+    'stars': 'Stellar evolution tracks · HR diagram',
+    'black-hole': 'Schwarzschild geodesics · GPU ray tracing',
+    'worlds': 'Planetesimal N-body · Kepler orbits',
+    'earth': 'Rayleigh + Mie scattering · plate motion',
+    'primordial-soup': 'Particle Life · non-reciprocal forces',
+    'first-life': 'Lenia continuous cellular automata',
+    'dna': 'Central dogma · Langevin folding',
+    'morphogenesis': 'Gray–Scott reaction–diffusion',
+    'evolution': 'Neuroevolution ecosystem',
+    'murmuration': 'Topological flocking (7 neighbours)',
+    'heart': 'Aliev–Panfilov tissue · pseudo-ECG',
+    'neurons': 'Hodgkin–Huxley · Izhikevich network',
+    'immune': 'Target-cell viral dynamics · clonal selection',
+    'learning-machine': 'Backprop MLP · Fourier features',
+    'civilization': 'Logistic growth · Zipf’s law',
+    'last-light': 'Five ages · Hawking evaporation',
+    'you': 'Stardust accounting',
+  };
+
+  // One governing equation per chapter, as written in that chapter's Science tab.
+  const EQS = {
+    'inflation': 'd²φ/dt² + 3H dφ/dt + V′(φ) = 0',
+    'nucleosynthesis': 'dY<sub>i</sub>/dt = Σ λ<sub>jk</sub>Y<sub>j</sub>Y<sub>k</sub> − Σ λ<sub>ik</sub>Y<sub>i</sub>Y<sub>k</sub>, &nbsp;λ = ρ<sub>b</sub>N<sub>A</sub>⟨σv⟩',
+    'first-light': 'x<sub>e</sub>² / (1 − x<sub>e</sub>) = (1/n<sub>H</sub>)(m<sub>e</sub>kT / 2πħ²)<sup>3/2</sup> e<sup>−13.6 eV/kT</sup>',
+    'cosmic-web': '∇²Φ = 4πG a² ρ̄ δ, &nbsp;dp/da = −∇φ / (a² E)',
+    'galaxies': 'd²<b>x</b>/dt² = −Σ<sub>g</sub> ∇Φ<sub>g</sub>(<b>x</b> − <b>X</b><sub>g</sub>(t))',
+    'stars': 'L = 4πR²σT<sub>eff</sub><sup>4</sup>, &nbsp;t<sub>MS</sub> ≈ 10<sup>10</sup> yr (M/M<sub>☉</sub>)<sup>−2.5</sup>',
+    'black-hole': 'd²u/dφ² + u = 3Mu², &nbsp;u = 1/r',
+    'worlds': 'd²<b>r</b><sub>i</sub>/dt² = −GM<sub>⋆</sub><b>r</b><sub>i</sub>/r<sub>i</sub>³ + Σ<sub>j≠i</sub> Gm<sub>j</sub><b>r</b><sub>ij</sub>/r<sub>ij</sub>³',
+    'earth': 'β<sub>R</sub>(λ) ∝ λ<sup>−4</sup>, &nbsp;P<sub>R</sub>(θ) = (3/16π)(1 + cos²θ)',
+    'primordial-soup': '<b>F</b><sub>i</sub> = k r<sub>max</sub> Σ<sub>j</sub> f(r<sub>ij</sub>/r<sub>max</sub>; a<sub>s(i)s(j)</sub>) <b>r</b><sub>ij</sub>/r<sub>ij</sub>',
+    'first-life': 'A<sup>t+Δt</sup> = clip[A<sup>t</sup> + Δt · G(K ∗ A<sup>t</sup>), 0, 1]',
+    'dna': 'm d<b>v</b>/dt = −∇E − γm<b>v</b> + √(2γmk<sub>B</sub>T) <b>ξ</b>(t)',
+    'morphogenesis': '∂v/∂t = D<sub>v</sub>∇²v + uv² − (F + k)v',
+    'evolution': 'w ← w + σε, &nbsp;ε ∼ 𝒩(0, 1), &nbsp;σ = 0.3, &nbsp;p = 7%',
+    'murmuration': 'alignment ∝ ⟨<b>u</b>⟩<sub>𝒩<sub>i</sub></sub> − <b>u</b><sub>i</sub>, &nbsp;|𝒩<sub>i</sub>| = 7 nearest birds',
+    'heart': '∂u/∂t = ∇·(D∇u) − ku(u − a)(u − 1) − uv',
+    'neurons': 'C<sub>m</sub> dV/dt = I − g<sub>Na</sub>m³h(V − E<sub>Na</sub>) − g<sub>K</sub>n⁴(V − E<sub>K</sub>) − g<sub>L</sub>(V − E<sub>L</sub>)',
+    'immune': 'dT/dt = −βTV, &nbsp;dI/dt = βTV − δI, &nbsp;dV/dt = pI − cV',
+    'learning-machine': 'γ(<b>x</b>) = [sin 2πB<b>x</b>, cos 2πB<b>x</b>], &nbsp;δ<sub>l</sub> = (W<sub>l+1</sub><sup>T</sup>δ<sub>l+1</sub>) ⊙ φ′(z<sub>l</sub>)',
+    'civilization': 'dP/dt = rP(1 − P/K), &nbsp;size ∝ rank<sup>−1</sup>',
+    'last-light': 'T<sub>H</sub> = ħc³ / 8πGMk<sub>B</sub> ≈ 6.2 × 10<sup>−8</sup> K (M<sub>☉</sub>/M)',
+    'you': 'N<sub>atoms</sub> ≈ 7 × 10<sup>27</sup>; &nbsp;62% are H, whose nuclei date from t &lt; 1 s',
+  };
+
+  const SUPS = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+  const sup = (n) => String(n).split('').map((ch) => SUPS[ch] || ch).join('');
+  // unicode superscript runs (10⁻³⁶) become real <sup> markup, which sets far better in the mono labels
+  const SUPR = { '⁻': '−', '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9' };
+  const supify = (str) => String(str).replace(/[⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (m) => '<sup>' + m.split('').map((ch) => SUPR[ch]).join('') + '</sup>');
+  // equations: operators in a sturdier upright face, numerals upright (as in printed maths), letters stay italic
+  const eqfmt = (h) => { let depth = 0; return h.split(/(<[^>]+>|&[a-z#0-9]+;)/i).map((part) => {
+    if (!part || part[0] === '<') return part;
+    if (part[0] === '&') return part === '&lt;' ? '<i class="op">&lt;</i>' : part;
+    // no line breaks inside brackets: an equation may only wrap between its top-level terms
+    part = part.replace(/[([⟨{)\]⟩} ]/g, (ch) => { if ('([⟨{'.indexOf(ch) >= 0) depth++; else if (')]⟩}'.indexOf(ch) >= 0) depth = Math.max(0, depth - 1); else if (depth > 0) return '\u00a0'; return ch; });
+    return part.replace(/\d+(?:\.\d+)?%?/g, (n) => '\u0001' + n + '\u0002')
+      .replace(/[=−+∝≈×⊙∼←]/g, (ch) => '<i class="op">' + ch + '</i>')
+      .replace(/\u0001/g, '<span class="nu">').replace(/\u0002/g, '</span>');
+  }).join(''); };
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  const rgbOf = (hex) => { const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map((x) => x + x).join('') : h, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
+  const L10 = Math.log10;
+
+  /* -------------------------------------------------------------- ribbon */
+  const ribbon = document.getElementById('ribbon');
+  ribbon.innerHTML = CH.map((c) => '<a href="#ch-' + pad2(c.n) + '" style="--c:' + c.accent + '"><i></i><span>' + pad2(c.n) + ' · ' + esc(c.title) + '</span></a>').join('');
+
+  /* ------------------------------------------------------- model index */
+  const GROUPS = [['The cosmos', 1, 7], ['Earth and life', 8, 14], ['Now, and after', 15, 22]];
+  document.getElementById('mgrid').innerHTML = GROUPS.map(([name, a, b]) => {
+    const rows = CH.filter((c) => c.n >= a && c.n <= b).map((c) =>
+      '<li><a href="' + c.file + '" style="--c:' + c.accent + ';--crgb:' + rgbOf(c.accent).join(',') + '">' +
+      '<span class="mn">' + pad2(c.n) + '</span><span class="mm">' + esc(MODELS[c.id] || '') + '</span>' +
+      (EQS[c.id] ? '<span class="me">' + eqfmt(EQS[c.id]) + '</span>' : '') + '<span class="mt">' + esc(c.title) + '</span></a></li>').join('');
+    return '<div class="mcol"><h3>' + name + '<span>' + pad2(a) + '–' + pad2(b) + '</span></h3><ol>' + rows + '</ol></div>';
+  }).join('');
+
+  /* ============================================================ timeline */
+  // Five stacked scales. v is the plotted value (grows downward); pins: [id, v, axis label, thread end].
+  const SEGS = [
+    { key: 'I', title: 'The first 380,000 years', unit: 'Seconds after the Big Bang', range: '10⁻⁴³ s → 1.2 × 10¹³ s',
+      v0: -43.7, v1: 13.5, steps: [1, 2, 3, 4, 6, 8, 12],
+      fmt: (k, sh) => (sh ? '10' + sup(k) : k === 0 ? '1 s' : '10' + sup(k) + ' s'),
+      pins: [['inflation', -36, '10⁻³⁶ s', -32], ['nucleosynthesis', 0, '1 s', L10(1200)], ['first-light', L10(1.2e13), '1.2 × 10¹³ s']],
+      events: [
+        [L10(5.4e-44), '5.4 × 10⁻⁴⁴ s', 'Planck time. The earliest moment physics can describe.'],
+        [-32, '10⁻³² s', 'Inflation ends. Its energy becomes hot matter and light.'],
+        [-12, '≈ 10⁻¹² s', 'The electroweak force splits into electromagnetism and the weak force.'],
+        [L10(2e-5), '≈ 2 × 10⁻⁵ s', 'Quarks bind into protons and neutrons.'],
+        [L10(1.6e12), '≈ 50,000 yr', 'Matter begins to outweigh light.'],
+      ] },
+    { key: 'II', title: 'The next nine billion years', unit: 'Years after the Big Bang', range: '3.8 × 10⁵ yr → 9.2 × 10⁹ yr',
+      v0: 5.5, v1: 10.0, steps: [1],
+      fmt: (k, sh) => (sh ? '10' + sup(k) : '10' + sup(k) + ' yr'),
+      pins: [['cosmic-web', 8, '10⁸ yr', 'now'], ['stars', 8, '', 'now'], ['black-hole', 8.1, ''], ['galaxies', 9, '10⁹ yr', 'now']],
+      events: [
+        [6.0, '≈ 1 Myr', 'The dark ages. No stars yet, only cooling hydrogen and helium.'],
+        [L10(1.5e7), '≈ 15 Myr', 'The afterglow of the Big Bang cools to room temperature.'],
+        [L10(1e9), '≈ 1 Gyr', 'Starlight has stripped the electrons from the gas between galaxies.'],
+        [L10(3.3e9), '≈ 3.3 Gyr', 'Cosmic noon. Star formation peaks.'],
+        [L10(7.7e9), '≈ 7.7 Gyr', 'The expansion of space starts to accelerate.'],
+      ] },
+    { key: 'III', title: 'The young Earth', unit: 'Billions of years ago, on a linear scale', range: '4.6 → 3.8 × 10⁹ yr ago',
+      v0: -4.66, v1: -3.72, du: 0.1, steps: [1, 2, 5],
+      fmt: (v, sh) => (-v).toFixed(1) + (sh ? '' : ' Gyr ago'),
+      pins: [['worlds', -4.6, '4.6 Gyr ago'], ['earth', -4.5, '4.5 Gyr ago', 'now'], ['primordial-soup', -4.0, '4.0 Gyr ago'], ['first-life', -3.8, '3.8 Gyr ago'], ['dna', -3.8, '', 'now']],
+      events: [
+        [-4.51, '≈ 4.5 Gyr ago', 'A planet the size of Mars hits Earth. The debris becomes the Moon.'],
+        [-4.4, '4.4 Gyr ago', 'The oldest crystals we have found form in cooling rock.'],
+      ] },
+    { key: 'IV', title: 'Life, and everything since', unit: 'Years ago', range: '3.8 × 10⁹ yr ago → today', stretch: 2.1,
+      v0: -9.62, v1: 0.2, steps: [1, 2],
+      fmt: (k, sh) => { const e = -k; return sh ? '10' + sup(e) : e === 0 ? '1 yr ago' : '10' + sup(e) + ' yr ago'; },
+      pins: [['morphogenesis', -L10(6e8), '6 × 10⁸ yr ago', 'now'], ['evolution', -L10(5.41e8), ''],
+        ['civilization', -L10(12000), '12,000 yr ago', 'now'], ['learning-machine', -L10(83), '1943', 'now']],
+      events: [
+        [-L10(2.4e9), '2.4 Gyr ago', 'Microbes fill the air with oxygen.'],
+        [-L10(7.2e8), '720 Myr ago', 'Ice sheets reach the equator.'],
+        [-L10(6.6e7), '66 Myr ago', 'An asteroid ends the age of dinosaurs.'],
+        [-L10(6e6), '≈ 6 Myr ago', 'The lines leading to humans and to chimpanzees split.'],
+        [-L10(3.3e6), '3.3 Myr ago', 'The oldest stone tools yet found.'],
+        [-L10(3e5), '300,000 yr ago', 'Our species appears.'],
+        [-L10(5.2e3), '5,200 yr ago', 'Writing is invented in Mesopotamia.'],
+        [-L10(57), '1969', 'People walk on the Moon.'],
+      ] },
+    { key: 'V', title: 'Now, inside you', unit: 'The clock stops here. This scale measures size.', range: 't = 4.35 × 10¹⁷ s · 1 km → 1 nm',
+      v0: -3.45, v1: 9.2, steps: [3],
+      fmt: (k) => ({ '-3': '1 km', '0': '1 m', '3': '1 mm', '6': '1 µm', '9': '1 nm' })[k] || '10' + sup(-k) + ' m',
+      pins: [['murmuration', -3, 'a flock ≈ 1 km'], ['you', -L10(1.7), 'you ≈ 1.7 m'], ['heart', -L10(0.12), 'a heart ≈ 12 cm'], ['neurons', 5, 'a neuron ≈ 10 µm'], ['immune', 7, 'a virus ≈ 100 nm']],
+      events: [
+        [-L10(7e-5), '70 µm', 'The width of a human hair.'],
+        [-L10(2e-9), '2 nm', 'The width of the DNA double helix.'],
+      ] },
+    { key: 'VI', title: 'The far future', unit: 'Years from now', range: '10⁹ yr → 10¹⁰⁰ yr',
+      v0: 9.2, v1: 100.8, steps: [10, 20],
+      fmt: (k, sh) => (sh ? '10' + sup(k) : '10' + sup(k) + ' yr'),
+      pins: [['last-light', 14, '10¹⁴ yr', 100]],
+      events: [
+        [L10(5e9), '≈ 5 × 10⁹ yr', 'The Sun begins to swell into a red giant.'],
+        [40, '≈ 10⁴⁰ yr', 'Protons may decay, if they decay at all.'],
+        [67, '≈ 10⁶⁷ yr', 'Black holes the mass of the Sun evaporate.'],
+        [100, '≈ 10¹⁰⁰ yr', 'The largest black holes evaporate. The universe goes dark.'],
+      ] },
+  ];
+
+  const tl = document.getElementById('tl');
+  const svg = document.getElementById('tl-svg');
+  const lit = document.createElement('div');
+  lit.className = 'tl-lit';
+  lit.setAttribute('aria-hidden', 'true');
+  tl.insertBefore(lit, tl.firstChild);
+  const labels = document.getElementById('tl-labels');
+  const cards = [];
+
+  function makeCard(c) {
+    const a = document.createElement('a');
+    a.className = 'card';
+    a.href = c.file;
+    a.id = 'ch-' + pad2(c.n);
+    a.style.setProperty('--c', c.accent);
+    a.style.setProperty('--crgb', rgbOf(c.accent).join(','));
+    const h = (i) => ((Math.sin(c.n * 12.9898 + i * 78.233) * 43758.5453) % 1 + 1) % 1;
+    a.style.setProperty('--px', (48 + h(1) * 40).toFixed(1) + '%');
+    a.style.setProperty('--py', (22 + h(2) * 50).toFixed(1) + '%');
+    a.style.setProperty('--r1', (18 + h(3) * 16).toFixed(1) + '%');
+    a.style.setProperty('--r2', (36 + h(4) * 22).toFixed(1) + '%');
+    a.style.setProperty('--sx', Math.round(h(5) * 50) + 'px');
+    a.style.setProperty('--sy', Math.round(h(6) * 40) + 'px');
+    a.innerHTML =
+      '<div class="stamp"><span class="num">' + pad2(c.n) + '</span><span class="era">' + supify(esc(c.era)) + '</span></div>' +
+      '<div class="body"><div class="thumb"><div class="ph" aria-hidden="true"><b>' + pad2(c.n) + '</b></div></div>' +
+      '<div class="txt"><h4 class="title">' + esc(c.title) + '</h4><p class="blurb">' + esc(c.blurb) + '</p>' +
+      '<p class="model"><span class="k">Model</span>' + esc(MODELS[c.id] || '') + '</p></div></div>';
+    const img = document.createElement('img');
+    img.alt = '';
+    img.width = 720; img.height = 450;
+    img.loading = 'lazy'; img.decoding = 'async';
+    img.addEventListener('load', () => a.classList.add('has-img'));
+    img.addEventListener('error', () => img.remove());
+    img.src = 'thumbs/ch' + pad2(c.n) + '.jpg';
+    a.querySelector('.thumb').appendChild(img);
+    return a;
+  }
+
+  SEGS.forEach((S) => {
+    S.el = document.createElement('div');
+    S.el.className = 'seg';
+    S.el.innerHTML = '<h3 class="seg-title">' + S.title + '</h3><p class="seg-unit">' + S.unit + '</p><p class="seg-range">' + supify(S.range) + '</p>';
+    tl.appendChild(S.el);
+    S.cards = S.pins.map(([id, v, pl, to]) => {
+      const c = byId[id];
+      if (!c) return null;
+      return { c, v, pl, to, S, el: makeCard(c) };
+    }).filter(Boolean).sort((a, b) => a.v - b.v || a.c.n - b.c.n);
+    S.cards.forEach((k) => { tl.appendChild(k.el); cards.push(k); });
+    S.evs = S.events.map(([v, t, txt]) => {
+      const el = document.createElement('div');
+      el.className = 'ev';
+      el.innerHTML = '<span class="ev-t">' + supify(t) + '</span>' + txt;
+      tl.appendChild(el);
+      return { v, el };
+    });
+  });
+
+  // hover: light up the chapter's pin, connector and thread
+  cards.forEach((k) => {
+    const cls = 'n' + pad2(k.c.n);
+    const on = () => { tl.classList.add('hov'); svg.querySelectorAll('.' + cls).forEach((e) => e.classList.add('hot')); };
+    const off = () => { tl.classList.remove('hov'); svg.querySelectorAll('.hot').forEach((e) => e.classList.remove('hot')); };
+    k.el.addEventListener('pointerenter', on); k.el.addEventListener('pointerleave', off);
+    k.el.addEventListener('focus', on); k.el.addEventListener('blur', off);
+  });
+
+  function geometry(W) {
+    const center = W >= 1000, phone = W < 560;
+    const G = { W, center, phone };
+    if (center) {
+      const L = 178, R = 106;
+      G.ax = Math.round((W + L - R) / 2);
+      G.cw = Math.floor((W - L - R) / 2);
+      G.lx = G.ax - L - G.cw;
+      G.rx = G.ax + R;
+      G.lblR = G.ax - 16;
+      G.bendL = G.ax - 134; G.bendR = G.ax + 60; G.laneStep = 5; G.maxLane = 6;
+      G.thr0 = 9; G.thrStep = 5;
+      G.gap = 52; G.stagger = 70; G.sMin = 8; G.segGap = 110; G.evGap = 30; G.evSlack = 170;
+      G.ew = Math.min(G.cw, 300);
+    } else {
+      G.lblW = phone ? 30 : 70;
+      G.ax = G.lblW + 8;
+      G.thr0 = 6; G.thrStep = phone ? 2.5 : 4;
+      G.bendR = G.ax + (phone ? 28 : 46); G.laneStep = phone ? 3 : 4; G.maxLane = phone ? 3 : 4;
+      G.cx = G.ax + (phone ? 42 : 68);
+      G.cw = W - G.cx;
+      G.lblR = G.ax - 8;
+      G.gap = phone ? 48 : 52; G.sMin = phone ? 6 : 7; G.segGap = phone ? 84 : 100; G.evGap = 28; G.evSlack = 200;
+      G.ew = Math.min(G.cw, 380);
+    }
+    return G;
+  }
+
+  let lastW = 0, LAY = null;
+  function layout() {
+    const W = Math.round(tl.clientWidth);
+    if (!W) return;
+    lastW = W;
+    const G = geometry(W);
+    const { center, phone } = G;
+    tl.classList.add('laid');
+    tl.classList.toggle('center', center);
+    tl.classList.toggle('phone', phone);
+
+    // widths first, then one read pass
+    cards.forEach((k) => { k.el.style.width = G.cw + 'px'; k.el.classList.toggle('wide', G.cw >= 600); });
+    SEGS.forEach((S) => {
+      if (center) { S.el.style.width = W + 'px'; S.el.style.setProperty('--c1', (G.ax - 36) + 'px'); }
+      else S.el.style.width = G.cw + 'px';
+      S.evs.forEach((e) => { e.el.style.width = G.ew + 'px'; e.el.hidden = false; });
+    });
+    cards.forEach((k) => { k.h = k.el.offsetHeight; const st = k.el.firstElementChild; k.aOff = st.offsetTop + 9; });
+    SEGS.forEach((S) => {
+      S.hh = S.el.offsetHeight;
+      const t = S.el.firstElementChild;
+      S.tMid = t.offsetTop + Math.min(t.offsetHeight, parseFloat(getComputedStyle(t).fontSize) * 1.04) / 2;
+      S.evs.forEach((e) => { e.h = e.el.offsetHeight; });
+    });
+
+    const pins = [], chips = [], ticks = [], tlabels = [], plabels = [], evMarks = [];
+    let y = 0, nowY = 0, ivY = 0, vY = 0, axisEnd = 0;
+
+    SEGS.forEach((S) => {
+      if (S.key === 'V') nowY = y - G.segGap * 0.45;
+      const hx = center ? 0 : G.cx;
+      S.el.style.left = hx + 'px'; S.el.style.top = y + 'px';
+      const chipY = y + S.tMid;
+      chips.push({ y: chipY, t: S.key });
+      if (S.key === 'V') ivY = chipY;
+      if (S.key === 'VI') vY = chipY;
+
+      const axTop = y + S.hh + 34;
+      const ks = S.cards;
+      const span = S.v1 - S.v0;
+      let stack = 0;
+      ks.forEach((k) => { stack += k.h + G.gap; });
+      if (center) stack = stack / 2 + G.stagger;
+      let s = clamp(stack * 0.9 / span * (S.stretch || 1), G.sMin, 2000);
+      if (ks.length && ks[0].v - S.v0 > 0.5) s = Math.max(G.sMin, Math.min(s, (center ? 440 : 400) / (ks[0].v - S.v0)));
+      let y0 = axTop;
+      if (ks.length) y0 = Math.max(y0, axTop + ks[0].aOff - (ks[0].v - S.v0) * s);
+      S.evs.forEach((e) => { y0 = Math.max(y0, axTop + 10 - (e.v - S.v0) * s); });
+      const Y = (v) => y0 + (v - S.v0) * s;
+      S.Y = Y;
+      S.top = y; S.axTop = axTop; S.y0 = y0; S.s = s;
+
+      // plates and events share the columns: placed in time order, each as close to its moment as the space allows
+      const items = ks.map((k) => ({ k, v: k.v, card: true })).concat(S.evs.map((e) => ({ e, v: e.v, card: false })));
+      items.sort((p, q) => p.v - q.v || (q.card - p.card));
+      const lastB = { L: axTop - G.gap, R: axTop - G.gap };
+      let prevTop = -1e9, prevSide = 'R', maxB = axTop;
+      const lastCard = { L: false, R: false };
+      items.forEach((it) => {
+        const py = Y(it.v);
+        if (it.card) {
+          const k = it.k;
+          k.py = py;
+          const target = py - k.aOff;
+          let side = 'R', top;
+          if (center) {
+            const cand = (sd) => Math.max(target, lastB[sd] + G.gap, prevTop + G.stagger);
+            const cl = cand('L'), cr = cand('R');
+            side = Math.abs(cl - cr) < 1 ? (prevSide === 'L' ? 'R' : 'L') : cl < cr ? 'L' : 'R';
+            top = side === 'L' ? cl : cr;
+          } else top = Math.max(target, lastB.R + G.gap);
+          k.side = side; k.y = top; k.ay = top + k.aOff;
+          k.x = center ? (side === 'L' ? G.lx : G.rx) : G.cx;
+          lastB[side] = top + k.h; prevTop = top; prevSide = side; lastCard[side] = true;
+          maxB = Math.max(maxB, top + k.h);
+          k.el.style.left = k.x + 'px'; k.el.style.top = top + 'px';
+          pins.push(k);
+        } else {
+          const e = it.e;
+          const target = py - 8;
+          const cand = (sd) => Math.max(target, lastB[sd] + (lastCard[sd] ? G.gap : G.evGap));
+          let sd = 'R';
+          if (center) sd = cand('L') < cand('R') - 1 ? 'L' : 'R';
+          const top = cand(sd);
+          if (top - target > G.evSlack) { e.el.hidden = true; return; }
+          let x;
+          if (!center) x = G.cx;
+          else if (sd === 'R') x = G.rx;
+          else x = G.lx + G.cw - G.ew;
+          e.el.classList.toggle('l', sd === 'L');
+          e.el.style.left = x + 'px'; e.el.style.top = top + 'px';
+          lastB[sd] = top + e.h; lastCard[sd] = false;
+          maxB = Math.max(maxB, top + e.h);
+          evMarks.push({ y: py, ty: top + 8, side: sd, x2: sd === 'R' ? x - 10 : x + G.ew + 10 });
+        }
+      });
+
+      // decade ticks, labelled at a readable interval
+      const minSep = phone ? 22 : 28;
+      let step = S.steps[S.steps.length - 1];
+      for (const st of S.steps) { if (st * s * (S.du || 1) >= minSep) { step = st; break; } }
+      const du = S.du || 1;
+      for (let k = Math.ceil(S.v0 / du - 1e-9); k <= Math.floor(S.v1 / du + 1e-9); k++) {
+        const v = k * du, ty = Y(v);
+        if (ty < axTop - 4) continue;
+        const major = k % step === 0;
+        if (s * du >= 3.5 || major) ticks.push({ y: ty, major });
+        if (major) tlabels.push({ y: ty, text: S.fmt(du === 1 ? k : v, phone) });
+      }
+      ks.forEach((k) => { if (k.pl && !phone) plabels.push({ y: k.py, text: k.pl, c: k.c.accent }); });
+
+      const axEnd = Y(S.v1);
+      axisEnd = axEnd;
+      y = Math.max(axEnd, maxB) + G.segGap;
+    });
+    const H = Math.ceil(y);
+    tl.style.height = H + 'px';
+    SEGS.forEach((S) => { S.yEnd = S.Y(S.v1); });
+    LAY = { G, H, nowY, axisEnd, yTop: chips[0].y };
+
+    // connector lanes, so spines of different chapters never sit on top of each other
+    const lanes = { L: [], R: [] };
+    pins.slice().sort((a, b) => a.py - b.py || a.ay - b.ay).forEach((k) => {
+      if (Math.abs(k.ay - k.py) < 1.5) { k.lane = -1; return; }
+      const lo = Math.min(k.py, k.ay), hi = Math.max(k.py, k.ay), L = lanes[k.side];
+      let li = L.findIndex((end) => end < lo - 4);
+      if (li < 0) { li = L.length; L.push(hi); } else L[li] = hi;
+      k.lane = Math.min(li, G.maxLane);
+    });
+
+    // threads: duration of each chapter, stacked in lanes beside the axis
+    const threads = [];
+    pins.forEach((k) => {
+      if (k.to == null) return;
+      const y1 = k.to === 'now' ? nowY : k.S.Y(k.to);
+      threads.push({ k, y0: k.py, y1 });
+    });
+    threads.sort((a, b) => a.y0 - b.y0);
+    const tLanes = [];
+    threads.forEach((t) => {
+      let li = tLanes.findIndex((end) => end < t.y0 - 6);
+      if (li < 0) { li = tLanes.length; tLanes.push(t.y1); } else tLanes[li] = t.y1;
+      t.x = G.ax + G.thr0 + li * G.thrStep;
+    });
+
+    // ---- draw
+    const ax = G.ax;
+    const r1 = (n) => Math.round(n * 10) / 10;
+    let o = '<defs><linearGradient id="axfade" gradientUnits="userSpaceOnUse" x1="0" y1="' + r1(axisEnd - 40) + '" x2="0" y2="' + r1(axisEnd + 120) + '">' +
+      '<stop offset="0" stop-color="#ece6d6" stop-opacity=".32"/><stop offset="1" stop-color="#ece6d6" stop-opacity="0"/></linearGradient></defs>';
+    const yTop = chips[0].y;
+    o += '<path class="ax" d="M' + ax + ' ' + r1(yTop) + 'V' + r1(ivY) + 'M' + ax + ' ' + r1(vY) + 'V' + r1(axisEnd - 40) + '"/>';
+    o += '<path class="ax axd" d="M' + ax + ' ' + r1(ivY) + 'V' + r1(vY) + '"/>';
+    o += '<path d="M' + ax + ' ' + r1(axisEnd - 40) + 'V' + r1(axisEnd + 120) + '" stroke="url(#axfade)" stroke-width="1"/>';
+    let dm = '', dM = '';
+    ticks.forEach((t) => { if (t.major) dM += 'M' + (ax - 6) + ' ' + r1(t.y) + 'H' + (ax + 6); else dm += 'M' + (ax - 3) + ' ' + r1(t.y) + 'H' + (ax + 3); });
+    o += '<path class="tkm" d="' + dm + '"/><path class="tkM" d="' + dM + '"/>';
+
+    threads.forEach((t) => {
+      const cls = 'n' + pad2(t.k.c.n);
+      o += '<line class="thr ' + cls + '" x1="' + t.x + '" y1="' + r1(t.y0) + '" x2="' + t.x + '" y2="' + r1(t.y1) + '" stroke="' + t.k.c.accent + '"/>';
+      o += '<circle class="thr thd ' + cls + '" cx="' + t.x + '" cy="' + r1(t.y0) + '" r="2.2" fill="' + t.k.c.accent + '"/>';
+    });
+
+    evMarks.forEach((e) => {
+      const sg = e.side === 'R' ? 1 : -1, x1 = ax + sg * 5;
+      if (Math.abs(e.ty - e.y) < 2) o += '<path class="evl" d="M' + x1 + ' ' + r1(e.y) + 'H' + r1(e.x2) + '"/>';
+      else {
+        const bx = e.side === 'R' ? (center ? G.bendR + (G.maxLane + 1) * G.laneStep : G.cx - 12) : G.bendL - (G.maxLane + 1) * G.laneStep;
+        o += '<path class="evl" d="M' + x1 + ' ' + r1(e.y) + 'H' + bx + 'V' + r1(e.ty) + 'H' + r1(e.x2) + '"/>';
+      }
+    });
+
+    pins.forEach((k) => {
+      const sg = k.side === 'L' ? -1 : 1;
+      const x0 = ax + sg * 4, yA = r1(k.py);
+      const x1 = k.side === 'L' ? G.lx + G.cw + 8 : (center ? G.rx : G.cx) - 8;
+      const y1 = r1(k.ay);
+      let d;
+      if (k.lane < 0) d = 'M' + x0 + ' ' + yA + 'H' + x1;
+      else {
+        const bx = k.side === 'L' ? G.bendL - k.lane * G.laneStep : G.bendR + k.lane * G.laneStep;
+        const dy = y1 - yA, r = Math.min(9, Math.abs(dy) / 2), sy = Math.sign(dy);
+        d = 'M' + x0 + ' ' + yA + 'H' + (bx - sg * r) + 'Q' + bx + ' ' + yA + ' ' + bx + ' ' + r1(yA + sy * r) +
+          'V' + r1(y1 - sy * r) + 'Q' + bx + ' ' + y1 + ' ' + (bx + sg * r) + ' ' + y1 + 'H' + x1;
+      }
+      o += '<path class="con n' + pad2(k.c.n) + '" d="' + d + '" stroke="' + k.c.accent + '"/>';
+      o += '<circle class="end" cx="' + x1 + '" cy="' + y1 + '" r="2" fill="' + k.c.accent + '"/>';
+    });
+    evMarks.forEach((e) => { o += '<circle class="evm" cx="' + ax + '" cy="' + r1(e.y) + '" r="2.6"/>'; });
+    pins.forEach((k) => { o += '<circle class="pin n' + pad2(k.c.n) + '" cx="' + ax + '" cy="' + r1(k.py) + '" r="4" fill="' + k.c.accent + '"/>'; });
+
+    o += '<circle class="nowr" cx="' + ax + '" cy="' + r1(nowY) + '" r="9"/><circle class="now" cx="' + ax + '" cy="' + r1(nowY) + '" r="4.5"/>';
+    chips.forEach((c) => {
+      const rr = phone ? 10 : 12;
+      o += '<g class="chip"><circle cx="' + ax + '" cy="' + r1(c.y) + '" r="' + rr + '"/><text x="' + ax + '" y="' + r1(c.y + 0.5) + '">' + c.t + '</text></g>';
+    });
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('width', W);
+    svg.setAttribute('height', H);
+    svg.innerHTML = o;
+
+    // ---- labels: pins first, then the now marker, then decade ticks where there is room
+    const taken = [];
+    const fits = (y, h) => !taken.some((t) => Math.abs(t - y) < h);
+    chips.forEach((c) => taken.push(c.y));
+    evMarks.forEach((e) => { if (e.side === 'L') taken.push(e.y); });
+    let lh = '';
+    const right = W - G.lblR;
+    const put = (y, text, cls, style) => { lh += '<span class="tk ' + cls + '" style="top:' + r1(y) + 'px;right:' + right + 'px' + (style || '') + '">' + supify(text) + '</span>'; taken.push(y); };
+    plabels.forEach((p) => { if (center && fits(p.y, 15)) put(p.y, p.text, 'pl', ';--c:' + p.c); });
+    put(nowY, phone ? 'now' : center ? 'now · 4.35 × 10¹⁷ s' : 'now', 'nowl');
+    tlabels.forEach((t) => { if (fits(t.y, phone ? 15 : 20)) put(t.y, t.text, ''); });
+    labels.innerHTML = lh;
+
+    // the lit axis: a coloured copy of the rule that grows down to the reading point as you scroll
+    const lTop = yTop, lLen = Math.max(1, axisEnd - yTop);
+    const stops = pins.slice().sort((a, b) => a.py - b.py).map((k) => k.c.accent + ' ' + r1(k.py - lTop) + 'px');
+    lit.style.left = ax + 'px';
+    lit.style.top = r1(lTop) + 'px';
+    lit.style.backgroundImage = 'linear-gradient(to bottom, ' + (CH[0] ? CH[0].accent : '#cdb8ff') + ' 0px, ' + stops.join(', ') + ')';
+    lit.style.backgroundSize = '100% ' + r1(lLen) + 'px';
+    // solid, then dotted through "now, inside you" (the clock has stopped), then solid again
+    const a0 = r1(ivY - lTop), b0 = r1(vY - lTop);
+    const mi = 'linear-gradient(#000, #000), repeating-linear-gradient(to bottom, #000 0 1.6px, transparent 1.6px 5px), linear-gradient(#000, #000)';
+    const ms = '100% ' + a0 + 'px, 100% ' + r1(b0 - a0) + 'px, 100% ' + r1(lLen - b0) + 'px';
+    const mp = '0 0, 0 ' + a0 + 'px, 0 ' + b0 + 'px';
+    lit.style.webkitMaskImage = lit.style.maskImage = mi;
+    lit.style.webkitMaskSize = lit.style.maskSize = ms;
+    lit.style.webkitMaskPosition = lit.style.maskPosition = mp;
+    lit.style.webkitMaskRepeat = lit.style.maskRepeat = 'no-repeat';
+    LAY.litTop = lTop; LAY.litLen = lLen;
+    buildMap();
+    clockUpdate();
+  }
+
+  /* ------------------------------------------------ the cosmic clock */
+  // While the timeline scrolls, a slim bar reads the time at the middle of the screen off the axis, and a ring rides the axis there.
+  const clock = document.getElementById('clock');
+  const clockK = document.getElementById('clock-k'), clockT = document.getElementById('clock-t'), clockS = document.getElementById('clock-s');
+  const clockMap = document.getElementById('clock-map'), clockPos = document.getElementById('clock-pos');
+  const cursor = document.getElementById('cursor');
+  const THIS_YEAR = 2026;
+  const sig = (x, d) => Number(x.toPrecision(d));
+  const sci = (x, d) => {
+    let e = Math.floor(L10(x)), m = sig(x / Math.pow(10, e), d || 2);
+    if (m >= 10) { m = sig(m / 10, d || 2); e += 1; }
+    return (m === 1 ? '' : m + ' × ') + '10' + sup(e);
+  };
+  const grp = (x) => Math.round(x).toLocaleString('en-US');
+  function yrs(y) {            // a span of years, compact
+    if (y >= 1e12) return sci(y, 2) + ' yr';
+    if (y >= 1e9) return sig(y / 1e9, 3) + ' Gyr';
+    if (y >= 1e6) return sig(y / 1e6, y >= 1e8 ? 3 : 2) + ' Myr';
+    if (y >= 1e4) return grp(sig(y, 2)) + ' yr';
+    return grp(sig(y, 2)) + ' yr';
+  }
+  function secs(x) {
+    if (x < 1) return sci(x, 2) + ' s';
+    if (x < 60) return sig(x, 2) + ' s';
+    if (x < 3600) return sig(x / 60, 2) + ' min';
+    if (x < 86400) return sig(x / 3600, 2) + ' h';
+    if (x < 3.156e7) return sig(x / 86400, 2) + ' days';
+    return yrs(x / 3.156e7);
+  }
+  function size(m) {
+    if (m >= 1000) return sig(m / 1000, 2) + ' km';
+    if (m >= 1) return sig(m, 2) + ' m';
+    if (m >= 0.01) return sig(m * 100, 2) + ' cm';
+    if (m >= 1e-3) return sig(m * 1e3, 2) + ' mm';
+    if (m >= 1e-6) return sig(m * 1e6, 2) + ' µm';
+    return sig(m * 1e9, 2) + ' nm';
+  }
+  const READ = {
+    I: (v) => 't ≈ ' + secs(Math.pow(10, v)),
+    II: (v) => 't ≈ ' + yrs(Math.pow(10, v)),
+    III: (v) => (-v).toFixed(2) + ' Gyr ago',
+    IV: (v) => {
+      const a = Math.pow(10, -v);
+      if (a < 1) return 'this year';
+      if (a < 2500) return grp(sig(a, 2)) + ' yr ago · ' + (THIS_YEAR - Math.round(sig(a, 2)) > 0 ? (THIS_YEAR - Math.round(sig(a, 2))) + ' CE' : '');
+      return yrs(a) + ' ago';
+    },
+    V: (v) => 'now · scale ≈ ' + size(Math.pow(10, -v)),
+    VI: (v) => '+ ' + yrs(Math.pow(10, v)) + ' from now',
+  };
+  let mapDots = [];
+  function buildMap() {
+    if (!LAY) return;
+    const H = LAY.H;
+    let h = '<i class="clock-pos" id="clock-pos"></i>';
+    SEGS.forEach((S, i) => { if (i) h += '<b style="left:' + (S.top / H * 100).toFixed(2) + '%"></b>'; });
+    cards.slice().sort((a, b) => a.py - b.py).forEach((k) => {
+      h += '<a href="#ch-' + pad2(k.c.n) + '" tabindex="-1" title="' + pad2(k.c.n) + ' · ' + esc(k.c.title) + '" data-n="' + k.c.n + '" style="--c:' + k.c.accent + ';left:' + (k.py / H * 100).toFixed(2) + '%"><i></i></a>';
+    });
+    clockMap.innerHTML = h;
+    mapDots = Array.prototype.slice.call(clockMap.querySelectorAll('a'));
+  }
+  let clockOn = false, cursorOn = false, lastRead = '', lastAt = -1;
+  function clockUpdate() {
+    if (!LAY || !tl.classList.contains('laid')) { if (clockOn) { clock.classList.remove('on'); clockOn = false; } return; }
+    const r = tl.getBoundingClientRect();
+    const mid = window.innerHeight * 0.5;
+    const cy = mid - r.top;
+    const on = cy > LAY.yTop - 40 && cy < LAY.H - 60;
+    if (on !== clockOn) { clock.classList.toggle('on', on); clockOn = on; }
+    let seg = SEGS[0];
+    for (const S of SEGS) if (cy >= S.top - 20) seg = S;
+    let text, onAxis = false;
+    if (cy < seg.axTop) text = seg.key === 'V' ? 'now · t = 4.35 × 10¹⁷ s' : READ[seg.key](seg.v0);
+    else {
+      const v = clamp(seg.v0 + (cy - seg.y0) / seg.s, seg.v0, seg.v1);
+      text = READ[seg.key](v);
+      onAxis = cy <= seg.yEnd + 2;
+    }
+    if (text !== lastRead) {
+      lastRead = text;
+      clockT.innerHTML = supify(esc(text));
+      clockK.textContent = seg.key;
+      clockS.textContent = seg.title.replace(/<[^>]+>/g, '');
+    }
+    const cOn = onAxis && on;
+    if (cOn !== cursorOn) { cursor.classList.toggle('on', cOn); cursorOn = cOn; }
+    if (cOn) cursor.style.transform = 'translateX(' + Math.round(r.left + LAY.G.ax) + 'px)';
+    if (LAY.litLen) lit.style.height = clamp(cy - LAY.litTop, 0, LAY.litLen).toFixed(1) + 'px';
+    const pos = document.getElementById('clock-pos');
+    if (pos) pos.style.left = (clamp(cy / LAY.H, 0, 1) * 100).toFixed(2) + '%';
+    let at = -1;
+    for (const k of cards) { if (cy >= k.y - 20 && cy <= k.y + k.h + 20) { at = k.c.n; break; } }
+    if (at !== lastAt) {
+      lastAt = at;
+      mapDots.forEach((d) => d.classList.toggle('at', +d.dataset.n === at));
+    }
+  }
+  let crq = 0;
+  window.addEventListener('scroll', () => { if (!crq) crq = requestAnimationFrame(() => { crq = 0; clockUpdate(); }); }, { passive: true });
+  window.addEventListener('resize', () => { if (!crq) crq = requestAnimationFrame(() => { crq = 0; clockUpdate(); }); });
+
+  function safeLayout() {
+    try { layout(); }
+    catch (err) {
+      tl.classList.remove('laid', 'center', 'phone');
+      tl.style.height = '';
+      cards.forEach((k) => { k.el.style.left = k.el.style.top = k.el.style.width = ''; });
+      SEGS.forEach((S) => { S.el.style.left = S.el.style.top = S.el.style.width = ''; });
+      console.info('timeline: using the simple list layout', err && err.message);
+    }
+  }
+  safeLayout();
+  let rq = 0;
+  const relayout = () => { cancelAnimationFrame(rq); rq = requestAnimationFrame(safeLayout); };
+  if ('ResizeObserver' in window) new ResizeObserver(() => { if (Math.round(tl.clientWidth) !== lastW) relayout(); }).observe(tl);
+  else window.addEventListener('resize', relayout);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
+  window.addEventListener('load', relayout);
+  if (/^#ch-\d\d$/.test(location.hash)) {
+    window.addEventListener('load', () => { const el = document.querySelector(location.hash); if (el) el.scrollIntoView(); });
+  }
+
+  /* ============================================================ one year */
+  // The same history on a linear clock: 13.8 Gyr squeezed into one calendar year, shown as a cascade of strips, each
+  // magnifying the last stretch of the one above, joined by lens lines.
+  const AGE = 13.8e9, YS = 365 * 86400, DAY = 86400;          // one calendar second ≈ 437.6 real years
+  const calAt = (ago) => YS * (1 - ago / AGE);
+  const MD = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function dm(s) { let d = Math.floor(Math.min(Math.max(s, 0), YS - 1) / DAY), m = 0; while (m < 11 && d >= MD[m]) { d -= MD[m]; m++; } return [d + 1, m]; }
+  const fDay = (s) => { const [d, m] = dm(s); return d + ' ' + MN[m]; };
+  const fDays = (a, b) => { const [d1, m1] = dm(a), [d2, m2] = dm(b); return d1 === d2 && m1 === m2 ? d1 + ' ' + MN[m1] : m1 === m2 ? d1 + '–' + d2 + ' ' + MN[m1] : fDay(a) + ' – ' + fDay(b); };
+  const hms = (s, withSec) => {
+    if (s >= YS - 1e-6) return withSec ? '24:00:00' : '24:00';
+    const r = ((s % DAY) + DAY) % DAY;
+    return pad2(Math.floor(r / 3600)) + ':' + pad2(Math.floor(r % 3600 / 60)) + (withSec ? ':' + pad2(Math.floor(r % 60)) : '');
+  };
+  const fHM = (s) => hms(s, false), fHMS = (s) => hms(s, true);
+  const fBefore = (s) => { const b = YS - s; return b < 1e-6 ? 'midnight' : '−' + b.toFixed(2) + ' s'; };
+  const words = (y) => y >= 1e9 ? sig(y / 1e9, 3) + ' billion years' : y >= 1e6 ? sig(y / 1e6, 3) + ' million years' : grp(sig(y, 3)) + ' years';
+
+  const CAL = [
+    { name: 'The year', sub: '1 January → 31 December', span: 'all 13.8 billion years', s0: 0, s1: YS, fmt: fDay, range: fDays,
+      ticks: (() => { const t = [0]; let d = 0; MD.forEach((n) => { d += n; t.push(d * DAY); }); return t; })(),
+      tl: (phone) => { const o = []; let d = 0; MD.forEach((n, m) => { o.push({ s: (d + n / 2) * DAY, t: phone ? MN[m][0] : MN[m] }); d += n; }); return o; },
+      zoom: YS - 31 * DAY,
+      marks: [
+        { ids: ['inflation', 'nucleosynthesis', 'first-light'], ago: AGE, x: 'The Big Bang. First light at ' + fHM(calAt(AGE - 3.8e5)) },
+        { ids: ['cosmic-web', 'stars', 'black-hole'], ago: AGE - 1e8, x: 'The first stars' },
+        { ids: ['galaxies'], ago: AGE - 1e9, x: 'Galaxies grow and merge' },
+        { ids: ['worlds', 'earth'], ago: 4.6e9, ago2: 4.5e9, x: 'The Sun, its planets, the Earth' },
+        { ids: ['primordial-soup', 'first-life', 'dna'], ago: 4.0e9, ago2: 3.8e9, x: 'Life begins' },
+        { ago: 2.4e9, x: 'Oxygen enters the air' },
+        { ids: ['morphogenesis', 'evolution'], ago: 6e8, ago2: 5.41e8, x: 'The first large animals' },
+      ] },
+    { name: 'December', sub: '1 December → midnight', s0: YS - 31 * DAY, s1: YS, fmt: fDay,
+      ticks: Array.from({ length: 32 }, (_, i) => YS - (31 - i) * DAY),
+      tl: (phone) => (phone ? [1, 10, 20, 31] : [1, 5, 10, 15, 20, 25, 31]).map((d) => ({ s: YS - (32 - d) * DAY + DAY / 2, t: d === 1 ? '1 Dec' : String(d) })),
+      zoom: YS - DAY,
+      marks: [
+        { ids: ['morphogenesis'], ago: 6e8, x: 'Bodies take shape' },
+        { ids: ['evolution'], ago: 5.41e8, x: 'The Cambrian explosion' },
+        { ago: 2.3e8, x: 'The first dinosaurs' },
+        { ago: 6.6e7, x: 'An asteroid ends them' },
+      ] },
+    { name: '31 December', sub: 'the last day', s0: YS - DAY, s1: YS, fmt: fHM,
+      ticks: Array.from({ length: 25 }, (_, i) => YS - DAY + i * 3600),
+      tl: (phone) => (phone ? [0, 6, 12, 18, 24] : [0, 3, 6, 9, 12, 15, 18, 21, 24]).map((h) => ({ s: YS - DAY + h * 3600, t: pad2(h) + ':00' })),
+      zoom: YS - 60,
+      marks: [
+        { ago: 6e6, x: 'Our line splits from the chimpanzees’' },
+        { ago: 3.3e6, x: 'The first stone tools' },
+        { ago: 3e5, x: 'Our species appears' },
+      ] },
+    { name: 'The last minute', sub: '23:59:00 → midnight', s0: YS - 60, s1: YS, fmt: fHMS,
+      ticks: Array.from({ length: 61 }, (_, i) => YS - 60 + i),
+      tl: (phone) => (phone ? [0, 20, 40, 60] : [0, 10, 20, 30, 40, 50, 60]).map((k) => ({ s: YS - 60 + k, t: k === 0 ? '23:59:00' : k === 60 ? '24:00' : ':' + pad2(k) })),
+      zoom: YS - 1,
+      marks: [
+        { ids: ['civilization'], ago: 1.2e4, x: 'Farms and the first villages' },
+        { ago: 5.2e3, x: 'Writing' },
+        { ago: 2026, x: 'The year 1 CE' },
+      ] },
+    { name: 'The last second', sub: '23:59:59 → midnight', s0: YS - 1, s1: YS, fmt: fBefore,
+      ticks: Array.from({ length: 21 }, (_, i) => YS - 1 + i * 0.05),
+      tl: (phone) => (phone ? [0, 0.5, 1] : [0, 0.2, 0.4, 0.6, 0.8, 1]).map((k) => ({ s: YS - 1 + k, t: k === 1 ? '0' : '−' + (1 - k).toFixed(1) + ' s' })),
+      marks: [
+        { ago: 339, x: 'Newton’s laws of motion (1687)' },
+        { ago: 167, x: 'Darwin’s Origin of Species (1859)' },
+        { ids: ['learning-machine'], ago: 83, x: 'The first artificial neuron (1943)' },
+        { ago: 73, life: true, x: 'A whole human life, 73 years' },
+        { ago: 57, x: 'People walk on the Moon (1969)' },
+        { ids: ['murmuration', 'heart', 'neurons', 'immune', 'you'], ago: 0, now: true, x: 'Now. You are here.' },
+      ] },
+  ];
+  CAL.forEach((S, i) => {
+    const s0 = S.s0, s1 = S.s1;
+    S.span = S.span || 'the last ' + words(AGE * (s1 - s0) / YS);
+    S.el = document.createElement('div');
+    S.el.className = 'cal-strip';
+    S.el.innerHTML = '<div class="cal-head"><b>' + S.name + '</b><span>' + S.sub + '</span><em>' + S.span + '</em></div><div class="cal-track"></div>';
+    S.track = S.el.lastElementChild;
+    S.marks.forEach((M) => {
+      M.s = calAt(M.ago);
+      M.cs = (M.ids || []).map((id) => byId[id]).filter(Boolean);
+      const date = S.range && M.ago2 ? S.range(M.s, calAt(M.ago2)) : S.fmt(M.s);
+      const links = M.cs.map((c) => '<a href="' + c.file + '" style="--c:' + c.accent + '" title="' + pad2(c.n) + ' · ' + esc(c.title) + '">' + pad2(c.n) + '</a>').join('');
+      M.lab = document.createElement('div');
+      M.lab.className = 'cal-lab' + (M.now ? ' now' : '');
+      M.lab.innerHTML = '<span class="d">' + date + links + '</span><span class="x">' + M.x + '</span>';
+      M.lead = document.createElement('i');
+      M.lead.className = 'cal-lead' + (M.cs.length ? ' ch' : '');
+      if (M.cs.length) {
+        M.dot = document.createElement('a');
+        M.dot.className = 'cal-dot';
+        M.dot.href = M.cs[0].file;
+        M.dot.setAttribute('aria-label', M.cs.map((c) => pad2(c.n) + ' ' + c.title).join(', ') + ' · ' + date);
+        M.dot.title = M.cs.map((c) => pad2(c.n) + ' · ' + c.title).join('\n');
+        M.dot.style.setProperty('--c', M.cs[0].accent);
+        if (M.cs.length > 1) {
+          const n = M.cs.length;
+          M.dot.style.background = 'conic-gradient(' + M.cs.map((c, j) => c.accent + ' ' + (j / n * 100).toFixed(1) + '% ' + ((j + 1) / n * 100).toFixed(1) + '%').join(', ') + ')';
+        }
+      } else {
+        M.dot = document.createElement('i');
+        M.dot.className = 'cal-ev';
+      }
+      if (M.life) { M.bar = document.createElement('i'); M.bar.className = 'cal-span'; }
+    });
+    document.getElementById('cal').appendChild(S.el);
+  });
+  (function calAfter() {
+    const sun = fDay(YS * 5e9 / AGE), stars = grp(sig(1e14 / AGE, 2)), bh = sci(1e100 / AGE, 1);
+    const c21 = byId['last-light'];
+    document.getElementById('cal-after').innerHTML =
+      'Run the calendar on past midnight and <strong>the Sun swells into a red giant around ' + sun + '</strong> of the following year. ' +
+      (c21 ? '<a class="c21" href="' + c21.file + '">' + esc(c21.title) + '</a>' : 'The far future') +
+      ' goes much further: the last stars fade after about <strong>' + stars + ' more calendar years</strong>, and the last black hole evaporates after <strong>' + supify(bh) + '</strong> of them.';
+  })();
+
+  let calW = 0;
+  function calLayout() {
+    const W = Math.round(CAL[0].track.clientWidth);
+    if (!W) return;
+    calW = W;
+    const phone = W < 560;
+    const rowH = phone ? 38 : 42, lensH = phone ? 40 : 56, brk = 7;
+    CAL.forEach((S, si) => {
+      const tr = S.track, span = S.s1 - S.s0;
+      const X = (s) => clamp((s - S.s0) / span, 0, 1) * W;
+      tr.innerHTML = '';
+      // labels first, so they can be measured
+      S.marks.forEach((M) => { tr.appendChild(M.lab); M.lab.style.left = '0px'; M.lab.style.top = '0px'; M.lab.classList.remove('r', 'm'); });
+      S.marks.forEach((M) => { M.w = M.lab.offsetWidth; M.h = M.lab.offsetHeight; M.x = X(M.s); });
+      // Rows of labels above the track. Each label hangs from a leader at its moment; a label whose box covers another
+      // label's moment must sit above it, so no leader ever crosses a label. Each label may hang from its left edge, its
+      // right edge, or be slid sideways just clear of a neighbour's leader; a small search finds the fewest rows.
+      const ms = S.marks, n = ms.length;
+      const cands = ms.map((M, i) => {
+        const o = [];
+        const push = (x0) => {
+          x0 = Math.round(clamp(x0, 0, Math.max(0, W - M.w)));
+          if (x0 > M.x + 0.5 || x0 + M.w < M.x - 0.5) return;
+          const kind = Math.abs(x0 - M.x) < 1.5 ? 0 : Math.abs(x0 + M.w - M.x) < 1.5 ? 1 : 3;
+          if (!o.some((c) => Math.abs(c.x0 - x0) < 2)) o.push({ x0, kind });
+        };
+        push(M.x); push(M.x - M.w);
+        ms.forEach((N, j) => { if (j !== i) { push(N.x + 8); push(N.x - 8 - M.w); } });
+        o.sort((a, b) => a.kind - b.kind || Math.abs(a.x0 + (a.kind === 1 ? M.w : 0) - M.x) - Math.abs(b.x0 + (b.kind === 1 ? M.w : 0) - M.x));
+        return o.slice(0, 4);
+      });
+      const pick = new Array(n).fill(0);
+      const bx0 = new Array(n), bx1 = new Array(n), memo = new Array(n), state = new Array(n);
+      const covers = (a, b) => ms[b].x >= bx0[a] - 1 && ms[b].x <= bx1[a] + 1;
+      let cyc = false;
+      const depth = (a) => {                                           // longest chain of labels that must sit below a
+        if (state[a] === 2) return memo[a];
+        if (state[a] === 1) { cyc = true; return 0; }
+        state[a] = 1;
+        let d = 0;
+        for (let b = 0; b < n && !cyc; b++) if (b !== a && covers(a, b)) d = Math.max(d, depth(b) + 1);
+        state[a] = 2; memo[a] = d;
+        return d;
+      };
+      let best = null;
+      const solve = () => {
+        let cost = 0;
+        for (let i = 0; i < n; i++) { const c = cands[i][pick[i]]; bx0[i] = c.x0; bx1[i] = c.x0 + ms[i].w; cost += c.kind; state[i] = 0; }
+        cyc = false;
+        let top = 0;
+        for (let i = 0; i < n && !cyc; i++) top = Math.max(top, depth(i));
+        if (cyc) return;
+        let clash = 0;
+        for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) if (memo[a] === memo[b] && bx0[a] < bx1[b] + 14 && bx1[a] > bx0[b] - 14) clash++;
+        const score = (top + clash) * 1000 + cost;
+        if (!best || score < best.score) best = { score, pick: pick.slice() };
+      };
+      (function rec(i) {
+        if (i === n) { solve(); return; }
+        for (let k = 0; k < cands[i].length; k++) { pick[i] = k; rec(i + 1); }
+      })(0);
+      if (best) {
+        // settle the winner: rows from the chain rule, then lift any label that still shares a row with an overlapping one
+        for (let i = 0; i < n; i++) { const c = cands[i][best.pick[i]]; bx0[i] = c.x0; bx1[i] = c.x0 + ms[i].w; }
+        const row = new Array(n).fill(0);
+        let changed = true, it = 0;
+        while (changed && it++ < 4 * n) {
+          changed = false;
+          for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) {
+            if (a === b) continue;
+            if (covers(a, b)) { if (row[a] <= row[b]) { row[a] = row[b] + 1; changed = true; } continue; }
+            if (!covers(b, a) && ms[a].x > ms[b].x && row[a] === row[b] && bx0[a] < bx1[b] + 14 && bx1[a] > bx0[b] - 14) { row[a] = row[b] + 1; changed = true; }
+          }
+        }
+        best.row = row;
+      }
+      const placed = [];
+      ms.forEach((M, i) => {
+        const c = best ? cands[i][best.pick[i]] : cands[i][0];
+        M.x0 = c ? c.x0 : clamp(M.x, 0, W - M.w);
+        M.kind = c ? c.kind : 3;
+        M.row = best ? best.row[i] : i;
+        placed.push({ row: M.row });
+      });
+      const rows = placed.reduce((m, p) => Math.max(m, p.row + 1), 1);
+      const top0 = si ? brk + 16 : 4;
+      const yT = top0 + rows * rowH + 10;                               // the track line
+      let h = '';
+      const frag = document.createDocumentFragment();
+      const add = (cls, css) => { const e = document.createElement('i'); e.className = cls; e.style.cssText = css; frag.appendChild(e); return e; };
+      if (si) add('cal-brk', 'left:0;top:0;width:' + W + 'px');
+      add('cal-line', 'top:' + yT + 'px');
+      S.ticks.forEach((s) => { const x = X(s); add('cal-tick', 'left:' + x.toFixed(1) + 'px;top:' + yT + 'px;height:5px'); });
+      const tls = S.tl(phone);
+      const zx = S.zoom != null ? X(S.zoom) : W + 1;
+      tls.forEach((t, k) => {
+        const x = X(t.s);
+        if (W - zx < 40 && x > zx - 30 && k === tls.length - 1) return;
+        const e = add('cal-tl' + (x < 14 ? ' l0' : x > W - 14 ? ' r0' : ''), 'left:' + x.toFixed(1) + 'px;top:' + (yT + 11) + 'px');
+        e.textContent = t.t;
+      });
+      if (S.zoom != null) {
+        let x0 = X(S.zoom);
+        if (W - x0 < 4) x0 = W - 4;
+        add('cal-zoom', 'left:' + (x0 - 1).toFixed(1) + 'px;top:' + (yT - 8) + 'px;width:' + (W - x0 + 2).toFixed(1) + 'px;height:' + 34 + 'px');
+        const ly = yT + 26, id = 'lensg' + si;
+        const sv = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        sv.setAttribute('class', 'cal-lens');
+        sv.setAttribute('width', W); sv.setAttribute('height', lensH);
+        sv.setAttribute('viewBox', '0 0 ' + W + ' ' + lensH);
+        sv.setAttribute('aria-hidden', 'true');
+        sv.style.cssText = 'left:0;top:' + ly + 'px';
+        sv.innerHTML = '<defs><linearGradient id="' + id + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ece6d6" stop-opacity=".13"/><stop offset="1" stop-color="#ece6d6" stop-opacity=".02"/></linearGradient></defs>' +
+          '<path d="M' + x0.toFixed(1) + ' 0L' + W + ' 0L' + W + ' ' + lensH + 'L0 ' + lensH + 'Z" fill="url(#' + id + ')"/>' +
+          '<path class="ll" d="M' + x0.toFixed(1) + ' 0L0 ' + lensH + 'M' + W + ' 0L' + W + ' ' + lensH + '"/>';
+        frag.appendChild(sv);
+        tr.style.height = (ly + lensH) + 'px';
+      } else tr.style.height = (yT + 30) + 'px';
+      S.marks.forEach((M) => {
+        const ly = yT - 12 - M.row * rowH - M.h;
+        M.lab.classList.toggle('r', M.kind === 1);
+        M.lab.classList.toggle('m', M.kind === 3);
+        M.lab.style.left = M.x0.toFixed(1) + 'px';
+        M.lab.style.top = ly.toFixed(1) + 'px';
+        const lt = M.kind === 3 ? ly + M.h + 1 : ly + 3;                 // slid labels hang from their underside
+        M.lead.style.cssText = 'left:' + (M.x - 0.5).toFixed(1) + 'px;top:' + lt.toFixed(1) + 'px;height:' + Math.max(0, yT - lt).toFixed(1) + 'px' +
+          (M.cs.length ? ';--crgb:' + rgbOf(M.cs[0].accent).join(',') : '');
+        if (M.life) {
+          M.bar.style.cssText = 'left:' + M.x.toFixed(1) + 'px;top:' + yT + 'px;width:' + (W - M.x).toFixed(1) + 'px';
+          frag.appendChild(M.bar);
+        }
+        frag.appendChild(M.lead);
+        M.dot.style.left = M.x.toFixed(1) + 'px';
+        M.dot.style.top = (yT + 0.5) + 'px';
+        frag.appendChild(M.dot);
+      });
+      tr.appendChild(frag);
+    });
+  }
+  function safeCal() { try { calLayout(); } catch (err) { console.info('calendar: layout failed', err && err.message); } }
+  safeCal();
+  if ('ResizeObserver' in window) new ResizeObserver(() => { if (Math.round(CAL[0].track.clientWidth) !== calW) requestAnimationFrame(safeCal); }).observe(document.getElementById('cal'));
+  else window.addEventListener('resize', () => requestAnimationFrame(safeCal));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(safeCal);
+
+  /* =========================================================== meanwhile */
+  // Live counters since the page opened. Every rate is a measured value; each tile opens its chapter.
+  (function meanwhile() {
+    const grid = document.getElementById('mwgrid'), elapsedEl = document.getElementById('elapsed');
+    if (!grid) return;
+    const MILES = [[384400, 'the Moon'], [1.496e8, 'the Sun'], [9.68e8, 'Jupiter at its farthest'], [1.66e9, 'Saturn at its farthest'], [4.69e9, 'Neptune at its farthest']];
+    const TILES = [
+      { id: 'first-light', rate: 299792.458, l: '<b>kilometres</b> covered by the light that left your screen when the page opened.',
+        live: (t, v) => { let m = null; MILES.forEach((p) => { if (v > p[0]) m = p[1]; }); return m ? 'It is now farther away than <b>' + m + '</b>.' : 'It passes the Moon after 1.3 s.'; },
+        f: 'c = 299,792.458 km/s' },
+      { id: 'cosmic-web', rate: 67.4, l: '<b>kilometres</b> added to every megaparsec of space by the expansion of the universe.', f: 'H₀ = 67.4 km/s per Mpc (Planck 2018)' },
+      { id: 'stars', rate: 5.98e8, l: '<b>tonnes</b> of hydrogen the Sun has fused into helium. About 0.7% of that mass left as sunlight.', f: 'L☉ = 3.828 × 10²⁶ W = 0.007 ṁc²' },
+      { id: 'earth', rate: 29.78, l: '<b>kilometres</b> the Earth has carried you along its orbit around the Sun.', f: '29.78 km/s, one lap a year' },
+      { id: 'heart', rate: 1.2, int: true, l: '<b>beats</b> of a resting human heart, at 72 a minute.', f: '72 bpm, a 1.2 Hz sinus rhythm' },
+      { id: 'immune', rate: 3.8e6, int: true, l: '<b>cells</b> your body has replaced, most of them blood cells.', f: '≈ 330 billion a day (Sender & Milo 2021)' },
+      { id: 'civilization', rate: 4.2, int: true, l: '<b>babies</b> born around the world.', f: '≈ 132 million a year (UN, 2024)' },
+      { id: 'you', rate: 369.82, l: '<b>kilometres</b> you have moved through the afterglow of the Big Bang, the cosmic microwave background.', f: '369.8 km/s relative to the CMB (Planck 2018)' },
+    ];
+    const fmtN = (v, int) => {
+      if (v >= 1e13) return supify(sci(v, 4));
+      if (int || v >= 1000) return grp(Math.floor(v));
+      return v.toFixed(v >= 100 ? 1 : 2);
+    };
+    grid.innerHTML = TILES.map((T) => {
+      const c = byId[T.id];
+      if (!c) return '';
+      return '<a class="mw" href="' + c.file + '" style="--c:' + c.accent + ';--crgb:' + rgbOf(c.accent).join(',') + '">' +
+        '<span class="mw-c"><span>' + pad2(c.n) + '</span>' + esc(c.title) + '</span>' +
+        '<span class="mw-n"><span class="v">0</span></span>' +
+        '<span class="mw-l">' + T.l + (T.live ? ' <span class="lv">' + T.live(0, 0) + '</span>' : '') + '</span>' +
+        '<span class="mw-f">' + supify(T.f) + '</span></a>';
+    }).join('');
+    const vEls = Array.prototype.map.call(grid.querySelectorAll('.mw'), (a) => a.querySelector('.v'));
+    const lEls = Array.prototype.map.call(grid.querySelectorAll('.mw'), (a) => a.querySelector('.lv'));
+    const TT = TILES.filter((T) => byId[T.id]);
+    const t0 = performance.now();
+    const lastLv = [];
+    const since = (t) => (t < 60 ? Math.floor(t) + ' s' : t < 3600 ? Math.floor(t / 60) + ' min ' + Math.floor(t % 60) + ' s' : Math.floor(t / 3600) + ' h ' + Math.floor(t % 3600 / 60) + ' min');
+    const reduceM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let lastTxt = '';
+    function tick(now) {
+      const t = Math.max(0, (now - t0) / 1000);
+      const e = since(t);
+      if (e !== lastTxt) { lastTxt = e; elapsedEl.textContent = e; }
+      if (!vis) return;
+      TT.forEach((T, i) => {
+        const v = T.rate * t;
+        const h = fmtN(v, T.int);
+        vEls[i].innerHTML = h;
+        const len = h.length > 20 ? 0 : h.length;                   // sci notation carries markup; it is short anyway
+        const cls = len > 16 ? 'l3' : len > 13 ? 'l2' : '';
+        if (vEls[i].className !== 'v ' + cls) vEls[i].className = 'v ' + cls;
+        if (T.live && lEls[i]) { const s = T.live(t, v); if (s !== lastLv[i]) { lastLv[i] = s; lEls[i].innerHTML = s; } }
+      });
+    }
+    let vis = true, raf = 0, lastF = 0;
+    function loop(now) {
+      raf = requestAnimationFrame(loop);
+      if (now - lastF < (reduceM ? 1000 : 70)) return;
+      lastF = now;
+      tick(now);
+    }
+    tick(performance.now());
+    const run = () => { cancelAnimationFrame(raf); if (!document.hidden) raf = requestAnimationFrame(loop); };
+    if ('IntersectionObserver' in window) {
+      vis = false;
+      new IntersectionObserver((es) => { vis = es[es.length - 1].isIntersecting; if (vis) tick(performance.now()); }, { rootMargin: '200px 0px' }).observe(grid);
+    }
+    document.addEventListener('visibilitychange', run);
+    run();
+  })();
+
+  /* ============================================================ the sky */
+  (function sky() {
+    const hero = document.getElementById('top');
+    const cv = document.getElementById('sky');
+    const markC = document.getElementById('mark-c'), markR = document.getElementById('mark-r');
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let gl = null;
+    try { gl = cv.getContext('webgl2', { antialias: false, alpha: false, depth: false, stencil: false, powerPreference: 'high-performance' }); } catch (e) { gl = null; }
+    if (!gl || !CH.length) { hero.classList.add('nogl'); hero.classList.remove('bang'); return; }
+
+    const small = matchMedia('(max-width: 760px)').matches;
+    const N = small ? 64000 : 100000;
+
+    const HEAD = `#version 300 es
+precision highp float;
+uniform float uT, uD, uSpin, uWind, uHovI, uHovA, uBang;
+uniform vec2 uC, uK;
+uniform mat3 uRot;
+uniform vec3 uPal[22];
+vec3 pal(float p) {
+  p = clamp(p, 0.0, 20.999);
+  int i = int(p);
+  float f = p - float(i);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(uPal[i], uPal[i + 1], f);
+}
+`;
+    const VS = HEAD + `
+layout(location=0) in vec4 aA;
+layout(location=1) in vec4 aB;
+uniform float uDpr, uFlow, uGain, uSize;
+out vec3 vCol;
+out float vA;
+void main() {
+  float type = aB.w;
+  if (type > 2.5) {
+    float tw = 0.62 + 0.38 * sin(uT * (0.4 + 1.6 * aA.z) + aA.w * 6.2832);
+    gl_Position = vec4(aA.xy, 0.0, 1.0);
+    gl_PointSize = aB.y * uDpr * uSize;
+    vCol = mix(vec3(0.70, 0.76, 1.0), vec3(1.0, 0.90, 0.76), aA.z);
+    vA = aB.z * tw * uGain;
+    return;
+  }
+  float u, r, th, y;
+  if (type > 1.5) {
+    u = aA.x * 0.05;
+    r = 0.006 + abs(aA.z) * 0.045;
+    th = aA.y * 6.2832 + uT * 0.02 / (r + 0.02);
+    y = aB.x * 0.02;
+  } else {
+    u = fract(aA.x + uT * uFlow);
+    r = 0.03 + 0.97 * pow(u, 0.8);
+    r *= 1.0 + (aA.w - 0.5) * 0.05;
+    if (type < 0.5) {
+      th = aA.y * 3.14159265 + uWind * log(r) + aA.z * (0.07 + 0.34 * u);
+    } else {
+      th = aA.y * 6.2832 + uWind * log(r);
+      r *= 1.0 + 0.06 * aA.z;
+    }
+    y = aB.x * (0.005 + 0.03 * exp(-r * 5.0));
+  }
+  th -= uT * uSpin;
+  float nb = 1.0 - uBang;
+  th += nb * nb * 2.4 * (0.4 + u);
+  r *= uBang; y *= uBang;
+  vec3 q = uRot * vec3(r * cos(th), y, r * sin(th));
+  float persp = uD / (uD + q.z);
+  gl_Position = vec4(uC + q.xy * persp * uK, 0.0, 1.0);
+  gl_PointSize = max(aB.y * uDpr * persp * uSize, 1.0);
+  vec3 col = pal(u * 21.0 + (aA.w - 0.5) * 2.6);
+  col = mix(col, vec3(dot(col, vec3(0.3, 0.5, 0.2))) * vec3(1.02, 0.99, 0.95), 0.22);
+  col = mix(vec3(1.0, 0.97, 0.93), col, smoothstep(0.0, 0.16, u));
+  float fade = smoothstep(0.0, 0.03, u) * (1.0 - smoothstep(0.84, 1.0, u));
+  if (type > 1.5) fade = 1.0;
+  float hd = (u * 21.0 - uHovI) * 1.5;
+  float hov = type > 1.5 ? 0.0 : uHovA * exp(-hd * hd);
+  vCol = mix(col, uPal[int(clamp(uHovI, 0.0, 21.0))], hov * 0.6);
+  vA = aB.z * fade * uGain * (1.0 + 2.4 * hov) * (1.0 - 0.35 * uHovA * (1.0 - hov)) * (1.0 + 1.6 * nb);
+}`;
+    const FS = `#version 300 es
+precision mediump float;
+in vec3 vCol;
+in float vA;
+out vec4 o;
+void main() {
+  vec2 d = gl_PointCoord * 2.0 - 1.0;
+  float r2 = dot(d, d);
+  if (r2 > 1.0) discard;
+  float a = vA * exp(-r2 * 4.0);
+  o = vec4(vCol * a, 1.0);
+}`;
+    const BG_VS = `#version 300 es
+void main() { vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2)); gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0); }`;
+    // the diffuse light of the disc: each pixel is traced onto the tilted plane, then lit by the same arm law as the particles
+    const BG_FS = HEAD + `
+uniform vec2 uRes;
+uniform float uArm, uRing, uFl;
+out vec4 o;
+float h(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+void main() {
+  vec2 ndc = gl_FragCoord.xy / uRes * 2.0 - 1.0;
+  vec2 s = (ndc - uC) / uK;
+  vec3 cam = vec3(0.0, 0.0, -uD);
+  vec3 dir = vec3(s, uD);
+  vec3 n = uRot[1];
+  float dn = dot(n, dir);
+  vec3 c = vec3(0.0196, 0.0235, 0.047);
+  float lam = abs(dn) > 1e-5 ? -dot(n, cam) / dn : -1.0;
+  if (lam > 0.0) {
+    vec3 p0 = transpose(uRot) * (cam + lam * dir);
+    if (uFl < 1.0) {
+      // the opening: a flash at the centre and a shell of light racing out through the plane of the disc
+      float r0 = length(p0.xz);
+      float e = 1.0 - uFl;
+      float R = 1.2 * (1.0 - pow(e, 2.4));
+      float w = 0.01 + 0.03 * uFl;
+      float d = (r0 - R) / w;
+      float sh = exp(-d * d) * e * e;
+      float wake = (r0 < R ? exp(-(R - r0) * 7.0) : 0.0) * e * e * e;    // a faint glow trailing inside the front
+      vec3 shc = mix(vec3(1.0, 0.97, 0.92), uPal[0], smoothstep(0.02, 0.35, uFl));
+      c += shc * (sh * 0.75 + wake * 0.08);
+      c += vec3(1.0, 0.96, 0.9) * exp(-r0 * r0 * 60.0 / (0.03 + uFl)) * e * e * 1.4;
+    }
+    vec3 p = p0 / max(uBang, 0.012);
+    float r = length(p.xz);
+    float th = atan(p.z, p.x);
+    float u = pow(clamp((r - 0.03) / 0.97, 0.0, 1.0), 1.25);
+    float phi = th - uWind * log(max(r, 0.02)) + uT * uSpin;
+    float m = mod(phi, 3.14159265);
+    float da = 1.5707963 - abs(m - 1.5707963);
+    float sm = m < 1.5707963 ? m : m - 3.14159265;
+    float w = 0.07 + 0.34 * u;
+    float arm = exp(-0.5 * da * da / (w * w * 1.6));
+    float dust = exp(-0.5 * pow((sm + 0.9 * w) / (0.32 * w), 2.0));
+    float fade = smoothstep(0.0, 0.05, u) * (1.0 - smoothstep(0.78, 1.02, u));
+    vec3 pc = pal(u * 21.0);
+    pc = mix(pc, vec3(dot(pc, vec3(0.3, 0.5, 0.2))), 0.2);
+    float lum = (arm * uArm * (1.0 - 0.55 * dust) + 0.035 * exp(-r * 2.2)) * fade;
+    c += pc * lum;
+    c += vec3(0.78, 0.70, 1.0) * 0.12 * exp(-r * r * 28.0);
+    c += vec3(1.0, 0.95, 0.88) * 0.34 * exp(-r * r * 260.0);
+    float fw = max(fwidth(r), 1e-5);
+    float ring = 1.0 - smoothstep(0.0, 1.3 * fw, abs(r - uRing));
+    float dash = step(0.45, fract((th + uT * uSpin * 0.0) * 30.0));
+    c += vec3(1.0, 0.93, 0.80) * 0.26 * ring * dash;
+    if (uHovA > 0.001) {
+      float rh = 0.03 + 0.97 * pow(clamp(uHovI / 21.0, 0.0, 1.0), 0.8);
+      vec3 hc = uPal[int(clamp(uHovI, 0.0, 21.0))];
+      float dr = (r - rh) / 0.022;
+      float thin = 1.0 - smoothstep(0.0, 1.4 * fw, abs(r - rh));
+      c += hc * uHovA * (0.13 * exp(-dr * dr) + 0.55 * thin);
+    }
+  }
+  vec2 v = gl_FragCoord.xy / uRes - 0.5;
+  c *= 1.0 - 0.35 * dot(v, v);
+  c += (h(gl_FragCoord.xy) - 0.5) / 255.0;
+  o = vec4(c, 1.0);
+}`;
+
+    function compile(vs, fs) {
+      const p = gl.createProgram();
+      [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]].forEach(([type, src]) => {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, src); gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+        gl.attachShader(p, s);
+      });
+      gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+      return p;
+    }
+    let prog, bg;
+    try { prog = compile(VS, FS); bg = compile(BG_VS, BG_FS); }
+    catch (err) { console.info('sky: WebGL2 shaders unavailable', err && err.message); hero.classList.add('nogl'); hero.classList.remove('bang'); return; }
+    const uni = (p, names) => { const o = {}; names.forEach((n) => { o[n] = gl.getUniformLocation(p, n); }); return o; };
+    const COMMON = ['uT', 'uD', 'uSpin', 'uWind', 'uC', 'uK', 'uRot', 'uPal', 'uHovI', 'uHovA', 'uBang'];
+    const uP = uni(prog, COMMON.concat(['uDpr', 'uFlow', 'uGain', 'uSize']));
+    const uB = uni(bg, COMMON.concat(['uRes', 'uArm', 'uRing', 'uFl']));
+
+    // particles: background stars, bulge, diffuse disc, arms
+    let seed = 20260929 >>> 0;
+    const rnd = () => { seed = (seed + 0x6d2b79f5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const gauss = () => { let a = 0; while (a === 0) a = rnd(); return Math.sqrt(-2 * Math.log(a)) * Math.cos(6.2831853 * rnd()); };
+    const data = new Float32Array(N * 8);
+    const nStar = Math.floor(N * 0.03), nBulge = Math.floor(N * 0.05), nDisc = Math.floor(N * 0.25);
+    const armStart = nStar + nBulge + nDisc;
+    for (let i = 0; i < N; i++) {
+      const o = i * 8;
+      if (i < nStar) {
+        data[o] = rnd() * 2 - 1; data[o + 1] = rnd() * 2 - 1; data[o + 2] = rnd(); data[o + 3] = rnd();
+        data[o + 4] = 0; data[o + 5] = 0.8 + Math.pow(rnd(), 6) * 2.4; data[o + 6] = 0.16 + rnd() * 0.5; data[o + 7] = 3;
+      } else if (i < nStar + nBulge) {
+        data[o] = rnd(); data[o + 1] = rnd(); data[o + 2] = gauss(); data[o + 3] = rnd();
+        data[o + 4] = gauss(); data[o + 5] = 0.9 + rnd() * 1.6; data[o + 6] = 0.10 + rnd() * 0.25; data[o + 7] = 2;
+      } else if (i < armStart) {
+        data[o] = rnd(); data[o + 1] = rnd(); data[o + 2] = gauss(); data[o + 3] = rnd();
+        data[o + 4] = gauss(); data[o + 5] = 0.9 + Math.pow(rnd(), 4) * 2.0; data[o + 6] = 0.12 + rnd() * 0.3; data[o + 7] = 1;
+      } else {
+        data[o] = rnd(); data[o + 1] = rnd() < 0.5 ? 0 : 1; data[o + 2] = gauss(); data[o + 3] = rnd();
+        data[o + 4] = gauss(); data[o + 5] = 1.0 + Math.pow(rnd(), 5) * 3.2; data[o + 6] = 0.22 + rnd() * 0.6; data[o + 7] = 0;
+      }
+    }
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 32, 0);
+    gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 32, 16);
+    gl.bindVertexArray(null);
+    const bgVao = gl.createVertexArray();
+
+    // palette in time order from the centre outward; the far future (21) fades at the very edge
+    const order = CH.filter((c) => c.id !== 'last-light').concat(CH.filter((c) => c.id === 'last-light'));
+    const pal = new Float32Array(66);
+    order.slice(0, 22).forEach((c, i) => { const [r, g, b] = rgbOf(c.accent); pal[i * 3] = r / 255; pal[i * 3 + 1] = g / 255; pal[i * 3 + 2] = b / 255; });
+
+    const D = 3.4, WIND = 2.6, SPIN = 0.016, FLOW = 1 / 210;
+    const S = { W: 1, H: 1, dpr: 1, cx: 0, cy: 0, R: 1, tilt: 1.0, yaw: 0, tiltOff: 0 };
+    const rot = new Float32Array(9);
+    let tx = 0, ty = 0;
+    function setRot(tilt, yaw) {
+      const ct = Math.cos(tilt), st = Math.sin(tilt), cy = Math.cos(yaw), sy = Math.sin(yaw);
+      rot[0] = cy; rot[1] = 0; rot[2] = -sy;
+      rot[3] = -sy * st; rot[4] = ct; rot[5] = -cy * st;
+      rot[6] = sy * ct; rot[7] = st; rot[8] = cy * ct;
+    }
+    function project(x, z) {
+      setRot(S.tilt + S.tiltOff, S.yaw);
+      const qx = rot[0] * x + rot[6] * z, qy = rot[1] * x + rot[7] * z, qz = rot[2] * x + rot[8] * z;
+      const p = D / (D + qz);
+      return [S.cx + qx * p * S.R, S.cy - qy * p * S.R];
+    }
+    function geom() {
+      const W = hero.clientWidth, H = hero.clientHeight;
+      S.W = W; S.H = H; S.dpr = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width = Math.max(1, Math.round(W * S.dpr)); cv.height = Math.max(1, Math.round(H * S.dpr));
+      if (W < 700) { S.cx = W * 0.5; S.cy = H * 0.3; S.R = Math.min(W * 0.66, H * 0.5); S.tilt = 0.9; }
+      else { S.cx = W * 0.64; S.cy = H * 0.42; S.R = Math.min(W * 0.46, H * 1.0); S.tilt = 0.98; }
+      markC.style.transform = 'translate(' + Math.round(S.cx) + 'px,' + Math.round(S.cy) + 'px)';
+      placeRim(true);
+    }
+    // "today" is drawn as a faint dashed ring at u = 0.9; its label sits on the first stretch of ring clear of the text
+    const RING_U = 0.9, RING_R = 0.03 + 0.97 * Math.pow(RING_U, 0.8);
+    let ringPhi = null, rimX = -1, rimY = -1;
+    function placeRim(search) {
+      const W = S.W, H = S.H;
+      if (search) {
+        ringPhi = null;
+        let best = -1e9;
+        for (let i = 0; i < 240; i++) {
+          const ph = i / 240 * Math.PI * 2;
+          const [px, py] = project(RING_R * Math.cos(ph), RING_R * Math.sin(ph));
+          if (!(px > 24 && px < W - 210 && py > (W < 700 ? 150 : 110) && py < H * (W < 700 ? 0.5 : 0.45) && Math.hypot(px - S.cx, py - S.cy) > 170)) continue;
+          const score = -px - Math.abs(py - S.cy) * 0.5;
+          if (score > best) { best = score; ringPhi = ph; }
+        }
+      }
+      markR.classList.toggle('off', ringPhi === null);
+      if (ringPhi === null) return;
+      const [px, py] = project(RING_R * Math.cos(ringPhi), RING_R * Math.sin(ringPhi));
+      const x = Math.round(px), y = Math.round(py);
+      if (search || x !== rimX || y !== rimY) { rimX = x; rimY = y; markR.style.transform = 'translate(' + x + 'px,' + y + 'px)'; }
+    }
+
+    let T = 40, last = 0, raf = 0, running = false, visible = true;
+    let hovI = -1, hovA = 0, hovTarget = 0;
+    // the opening: everything starts in one point and unwinds into the spiral (skipped for reduced motion)
+    let bang = reduce ? 1 : 0.012, bang0 = 0, flash = reduce ? 1 : 0;
+    const BANG_MS = 2600, FLASH_MS = 3400;
+    if (reduce) hero.classList.remove('bang');
+    function common(u) {
+      gl.uniform1f(u.uT, T);
+      gl.uniform1f(u.uD, D);
+      gl.uniform1f(u.uSpin, SPIN);
+      gl.uniform1f(u.uWind, WIND);
+      gl.uniform2f(u.uC, S.cx / S.W * 2 - 1, 1 - S.cy / S.H * 2);
+      gl.uniform2f(u.uK, S.R * 2 / S.W, S.R * 2 / S.H);
+      gl.uniformMatrix3fv(u.uRot, false, rot);
+      gl.uniform3fv(u.uPal, pal);
+      gl.uniform1f(u.uHovI, hovI < 0 ? 0 : hovI);
+      gl.uniform1f(u.uHovA, hovI < 0 ? 0 : hovA);
+      gl.uniform1f(u.uBang, bang);
+    }
+    function draw() {
+      setRot(S.tilt + S.tiltOff, S.yaw);
+      gl.viewport(0, 0, cv.width, cv.height);
+      gl.disable(gl.BLEND);
+      gl.useProgram(bg);
+      common(uB);
+      gl.uniform2f(uB.uRes, cv.width, cv.height);
+      gl.uniform1f(uB.uArm, S.W < 700 ? 0.2 : 0.17);
+      gl.uniform1f(uB.uRing, RING_R);
+      gl.uniform1f(uB.uFl, flash);
+      gl.bindVertexArray(bgVao);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE);
+      gl.useProgram(prog);
+      common(uP);
+      gl.uniform1f(uP.uDpr, S.dpr);
+      gl.uniform1f(uP.uFlow, FLOW);
+      gl.bindVertexArray(vao);
+      // soft halo from a subset of arm stars, then every star crisp
+      gl.uniform1f(uP.uSize, 7.0);
+      gl.uniform1f(uP.uGain, 0.03);
+      gl.drawArrays(gl.POINTS, armStart, Math.min(9000, N - armStart));
+      gl.uniform1f(uP.uSize, 1.0);
+      gl.uniform1f(uP.uGain, S.W < 700 ? 1.25 : 1.1);
+      gl.drawArrays(gl.POINTS, 0, N);
+      gl.bindVertexArray(null);
+    }
+    function frame(now) {
+      raf = requestAnimationFrame(frame);
+      const dt = Math.min(0.05, (now - last) / 1000 || 0);
+      last = now;
+      T += dt;
+      S.yaw += (tx - S.yaw) * 0.035;
+      S.tiltOff += (ty - S.tiltOff) * 0.035;
+      hovA += (hovTarget - hovA) * Math.min(1, dt * 9);
+      if (bang < 1 || flash < 1) {
+        if (!bang0) bang0 = now;
+        const b = Math.min(1, (now - bang0) / BANG_MS);
+        bang = 0.012 + 0.988 * (1 - Math.pow(1 - b, 3.4));
+        if (b >= 1 && hero.classList.contains('bang')) { bang = 1; hero.classList.remove('bang'); }
+        flash = Math.min(1, (now - bang0) / FLASH_MS);
+      }
+      if (ringPhi !== null) placeRim(false);
+      draw();
+    }
+    function start() { if (running || reduce) return; running = true; last = performance.now(); raf = requestAnimationFrame(frame); }
+    function stop() { running = false; cancelAnimationFrame(raf); }
+    const update = () => { if (visible && !document.hidden) start(); else stop(); };
+
+    geom();
+    draw();
+    if ('ResizeObserver' in window) new ResizeObserver(() => { geom(); if (!running) draw(); }).observe(hero);
+    else window.addEventListener('resize', () => { geom(); if (!running) draw(); });
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver((es) => { visible = es[es.length - 1].isIntersecting; update(); }).observe(hero);
+    }
+    document.addEventListener('visibilitychange', update);
+    if (!reduce) {
+      window.addEventListener('pointermove', (e) => {
+        if (e.pointerType !== 'mouse' || !running) return;
+        tx = (e.clientX / window.innerWidth - 0.5) * 0.14;
+        ty = (e.clientY / window.innerHeight - 0.5) * 0.07;
+      }, { passive: true });
+    }
+    // point at the disc: find the ring under the cursor on the tilted plane, light it, and name its chapter
+    const hv = document.getElementById('hv');
+    const hvS = hv.querySelector('.hv-s'), hvT = hv.querySelector('.hv-t'), hvM = hv.querySelector('.hv-m'), hvGo = hv.querySelector('.hv-go');
+    const AV = window.COSMOS_AVAILABLE;
+    const ready = (c) => !AV || AV.indexOf(c.file) >= 0;
+    let shownI = -1, shownTouch = false, lastPtr = 'mouse';
+    function ringAt(x, y) {
+      const sx = ((x / S.W * 2 - 1) - (S.cx / S.W * 2 - 1)) / (S.R * 2 / S.W);
+      const sy = ((1 - y / S.H * 2) - (1 - S.cy / S.H * 2)) / (S.R * 2 / S.H);
+      setRot(S.tilt + S.tiltOff, S.yaw);
+      const dn = rot[3] * sx + rot[4] * sy + rot[5] * D;
+      if (Math.abs(dn) < 1e-5) return -1;
+      const lam = rot[5] * D / dn;
+      if (!(lam > 0)) return -1;
+      const wx = lam * sx, wy = lam * sy, wz = -D + lam * D;
+      const px = rot[0] * wx + rot[1] * wy + rot[2] * wz;
+      const pz = rot[6] * wx + rot[7] * wy + rot[8] * wz;
+      const r = Math.hypot(px, pz);
+      if (r < 0.025 || r > 0.93) return -1;
+      const u = Math.pow(clamp((r - 0.03) / 0.97, 0, 1), 1.25);
+      return clamp(Math.round(u * 21), 0, 21);
+    }
+    function showHv(i, x, y, touch) {
+      const c = order[i];
+      if (i !== shownI || !!touch !== shownTouch) {
+        shownI = i; shownTouch = !!touch;
+        hv.style.setProperty('--c', c.accent);
+        hv.style.setProperty('--crgb', rgbOf(c.accent).join(','));
+        hvS.innerHTML = pad2(c.n) + ' · ' + supify(esc(c.era));
+        hvT.textContent = c.title;
+        hvM.textContent = MODELS[c.id] || '';
+        hvGo.textContent = ready(c) ? (touch ? 'Tap the ring again to open' : 'Click to open') : 'Still being built';
+      }
+      const w = hv.offsetWidth || 220, h = hv.offsetHeight || 110;
+      let lx = x + 22, ly = y + 18;
+      if (lx + w > S.W - 12) lx = x - 22 - w;
+      if (ly + h > S.H - 12) ly = y - 18 - h;
+      lx = clamp(lx, 12, Math.max(12, S.W - w - 12));
+      ly = clamp(ly, 12, Math.max(12, S.H - h - 12));
+      hv.style.transform = 'translate(' + Math.round(lx) + 'px,' + Math.round(ly) + 'px)';
+      hv.classList.add('on');
+    }
+    function clearHv() { hovTarget = 0; hv.classList.remove('on'); hero.classList.remove('pick'); if (!running) { hovI = -1; draw(); } }
+    hero.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      if (e.target.closest('a, button, .ctas, .ribbon-ends')) { clearHv(); return; }
+      const rect = hero.getBoundingClientRect();
+      const x = e.clientX - rect.left, y = e.clientY - rect.top;
+      const i = bang < 1 ? -1 : ringAt(x, y);
+      if (i < 0) { clearHv(); return; }
+      if (i !== hovI) { hovI = i; if (running) hovA = Math.min(hovA, 0.35); }
+      hovTarget = 1;
+      if (!running) { hovA = 1; draw(); }
+      hero.classList.toggle('pick', ready(order[i]));
+      showHv(i, x, y);
+    });
+    hero.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') clearHv(); });
+    hero.addEventListener('pointerdown', (e) => { lastPtr = e.pointerType || 'mouse'; }, { passive: true });
+    hero.addEventListener('click', (e) => {
+      if (e.target.closest('a, button, .ctas, .ribbon-ends')) return;
+      if (lastPtr !== 'mouse') {
+        // touch and pen: the first tap names the ring, a second tap on the same ring opens its chapter
+        const rect = hero.getBoundingClientRect();
+        const x = e.clientX - rect.left, y = e.clientY - rect.top;
+        const i = bang < 1 ? -1 : ringAt(x, y);
+        if (i < 0) { hovI = -1; clearHv(); return; }
+        if (i === hovI && hovTarget === 1 && hv.classList.contains('on')) {
+          if (ready(order[i])) location.href = order[i].file;
+          return;
+        }
+        if (i !== hovI) { hovI = i; if (running) hovA = Math.min(hovA, 0.35); }
+        hovTarget = 1;
+        if (!running) { hovA = 1; draw(); }
+        showHv(i, x, y, true);
+        return;
+      }
+      if (hovTarget !== 1 || hovI < 0) return;
+      const c = order[hovI];
+      if (ready(c)) location.href = c.file;
+    });
+
+    cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); stop(); hero.classList.add('nogl'); });
+    update();
+    window.__hub = { running: () => running, particles: N, rim: () => !markR.classList.contains('off') };
+  })();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,2364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Island Universes · Cosmogenesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="cosmos.css">
+<style>
+  .gx-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .gx-label {
+    position: absolute; left: 0; top: 0; white-space: nowrap; pointer-events: none;
+    font: italic 500 14px/1.1 var(--f-display); color: var(--star); opacity: 0;
+    transition: opacity .6s var(--ease); text-shadow: 0 1px 10px rgba(0,0,0,.9);
+    padding-left: 34px;
+  }
+  .gx-label::before { content: ""; position: absolute; left: 0; top: 9px; width: 28px; height: 1px; background: linear-gradient(to right, rgba(179,199,255,0), var(--era)); opacity: .7; }
+  .gx-label small { display: block; margin-top: 3px; font: 500 9.5px/1.2 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--dust); font-style: normal; }
+  .gx-scale {
+    position: absolute; left: 50%; bottom: calc(var(--foot-h) + env(safe-area-inset-bottom, 0px) + 18px); transform: translateX(-50%);
+    display: grid; justify-items: center; gap: 5px; pointer-events: none; transition: opacity .5s var(--ease);
+    font: 500 10px/1 var(--f-mono); letter-spacing: .1em; color: var(--dust); text-shadow: 0 1px 8px rgba(0,0,0,.9);
+  }
+  .gx-scale i { display: block; height: 7px; border: 1px solid var(--line-strong); border-top: 0; }
+  .gx-scale b { font-weight: 500; color: var(--star); }
+  body.cz-cinema .gx-scale, body.cz-cinema .gx-label { opacity: 0 !important; }
+  .gx-presets .cz-btns { display: grid; grid-template-columns: 1fr 1fr; }
+  .gx-presets .cz-btn { padding: 8px 8px; }
+  .gx-caption { font: italic 400 13.5px/1.45 var(--f-display); color: #d9d4c6; min-height: 3.9em; }
+  .gx-caption b { font: 600 9.5px/1 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--era); font-style: normal; display: block; margin-bottom: 5px; }
+  .gx-reverse.on { background: var(--era); color: var(--era-ink); border-color: var(--era); }
+  .gx-rev-badge {
+    position: absolute; left: 50%; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 14px); transform: translateX(-50%);
+    font: 600 10.5px/1 var(--f-mono); letter-spacing: .22em; text-transform: uppercase; color: var(--era);
+    padding: 7px 14px; border: 1px solid rgba(179,199,255,.4); border-radius: 999px; background: rgba(5,6,12,.55);
+    opacity: 0; transition: opacity .4s var(--ease); pointer-events: none;
+  }
+  .gx-rev-badge.on { opacity: 1; }
+  @media (max-width: 760px) { .gx-rev-badge { top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 112px); } }
+  .gx-tracks { position: absolute; inset: 0; width: 100%; height: 100%; transition: opacity .5s var(--ease); }
+  body.cz-cinema .gx-tracks { opacity: 0; }
+  .gx-brush {
+    position: absolute; left: 0; top: 0; width: 56px; height: 56px; border-radius: 50%; pointer-events: none; opacity: 0;
+    border: 1px solid rgba(90, 255, 214, .75); box-shadow: 0 0 18px rgba(60, 255, 200, .18) inset; transition: opacity .25s var(--ease);
+  }
+  .gx-brush.on { opacity: .9; } .gx-brush.down { background: rgba(60, 255, 200, .08); }
+  .gx-painting canvas { cursor: crosshair; }
+  .gx-sub { font-size: 11.5px; color: var(--faint); line-height: 1.4; }
+  .cz-notes-body table.gx-t { border-collapse: collapse; font: 400 12px/1.45 var(--f-mono); margin: .4em 0 .9em; width: 100%; }
+  .cz-notes-body table.gx-t td { padding: 3px 6px 3px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .cz-notes-body table.gx-t td:last-child { text-align: right; color: var(--star); white-space: nowrap; }
+</style>
+</head>
+<body>
+<script src="cosmos.js"></script>
+<script>
+(function () {
+'use strict';
+const U = Cosmos.util, FMT = Cosmos.fmt;
+const SMALL = window.matchMedia('(max-width: 760px)').matches;
+
+/* =====================================================================================
+   FIELD NOTES
+   ===================================================================================== */
+const NP_TXT = SMALL ? '65,536' : '262,144';
+const NOTES = `
+<p>Two spiral galaxies, each a disk of about a hundred billion suns, are falling into each other. Every point of light here stands for roughly ${SMALL ? 'five million' : 'a million'} stars. The gold is old starlight, the blue-white is young stars, and the pink knots are hydrogen clouds lit up by the stars being born inside them. Dark threads are dust.</p>
+<p>Watch the first close pass. Nothing crashes. Stars are so small and so far apart that the two disks sweep straight through each other. What changes everything is <em>tides</em>. The near side of each galaxy is pulled harder than the far side, so long arcs of stars and gas are peeled off and flung out as tails more than a hundred thousand light-years long.</p>
+<p>Friction with the invisible dark matter then drains the orbit. The galaxies swing back, pass again and settle into one glowing ball of old stars. Where their gas clouds collide, bursts of new stars flare up. Our Milky Way will do this with Andromeda.</p>
+<h4>Try this</h4>
+<ul>
+<li>Let the Antennae run until the tails are long, then press <strong>Reverse time</strong> (<kbd>R</kbd>). The tail stars turn teal and all ${NP_TXT} stars retrace their paths, exactly. When the two spirals come back whole, the teal stars sit in their outer rims. That is where tails come from.</li>
+<li>Turn on <strong>Paint with the dye</strong> (<kbd>T</kbd>, or Shift-drag) and stain a patch of a disk before the first pass. Then follow your stars.</li>
+<li>In <strong>Custom</strong>, tick <em>Disk 1 retrograde</em>. Its tail almost vanishes. Long tails need a disk that spins the same way as the orbit.</li>
+<li>In <strong>Milkomeda</strong>, set the camera to <em>From the Sun</em> and watch Andromeda swell in our own night sky over four billion years.</li>
+</ul>
+<p class="gx-sub">Drag to orbit, pinch or scroll to zoom. Drag along the history chart to scrub time. Keys: <kbd>V</kbd> camera, <kbd>D</kbd> dark matter, <kbd>O</kbd> orbit tracks, <kbd>,</kbd> <kbd>.</kbd> step 50 Myr, <kbd>1</kbd>–<kbd>6</kbd> encounters.</p>`;
+
+const SCIENCE = `
+<h4>Gravity, restricted</h4>
+<p>Every star obeys Newton, pulled by every galaxy:</p>
+<span class="eq">d²<b>x</b>/dt² = −Σ<sub>g</sub> ∇Φ<sub>g</sub>(<b>x</b> − <b>X</b><sub>g</sub>(t))</span>
+<p>This is the <em>restricted</em> N-body method of Toomre &amp; Toomre (1972), upgraded. Each galaxy is a rigid analytic potential centred on <b>X</b><sub>g</sub>. The centres move as a small N-body system, each feeling the others' full potentials, and the ${NP_TXT} stars and gas clouds are massless test particles. What it leaves out: particles do not pull on each other, so disks cannot grow their own bars or spirals, halos do not deform, and gas does not dissipate energy. A real merger scrambles its disks into an elliptical galaxy by violent relaxation; the remnant here is only an approximation.</p>
+<h4>The potentials</h4>
+<p>Dark halo: Navarro–Frenk–White, truncated at r<sub>t</sub> (or logarithmic, or none, in Custom):</p>
+<span class="eq">ρ = ρ<sub>s</sub> / [(r/r<sub>s</sub>)(1 + r/r<sub>s</sub>)²], &nbsp; M(&lt;r) = M<sub>h</sub> m(r/r<sub>s</sub>)/m(r<sub>t</sub>/r<sub>s</sub>), &nbsp; m(x) = ln(1+x) − x/(1+x)</span>
+<p>Bulge (Hernquist 1990) and disk (Miyamoto &amp; Nagai 1975):</p>
+<span class="eq">Φ<sub>b</sub> = −GM<sub>b</sub>/(r + a<sub>b</sub>), &nbsp; Φ<sub>d</sub> = −GM<sub>d</sub> / √(R² + (a + √(z² + b²))²)</span>
+<p>A Milky-Way-like galaxy has M<sub>h</sub> = 10¹² M<sub>☉</sub> (r<sub>s</sub> = 20 kpc, r<sub>t</sub> = 200 kpc), M<sub>b</sub> = 10¹⁰ M<sub>☉</sub> (a<sub>b</sub> = 0.6 kpc) and M<sub>d</sub> = 5 × 10¹⁰ M<sub>☉</sub> (a = 3 kpc, b = 0.3 kpc). Its rotation curve is flat near 210 km/s, like ours (see the chart in Readouts). Stars start in an exponential disk (R<sub>d</sub> = 2.8 kpc) on near-circular orbits at v<sub>c</sub>(R) from the potential, with a velocity dispersion falling with radius, the epicyclic ratio and an asymmetric-drift correction. The bulge gets isotropic velocities from the Jeans equation. Because test particles cannot make spiral arms, isolated disks carry a weak two-armed spiral potential (4% of the radial force, pitch 16°, corotation at 10 kpc, after Lin &amp; Shu 1964 and Cox &amp; Gómez 2002) so the gas has arms to crowd into. The M51 flyby switches it off: those arms come from the tide alone.</p>
+<h4>Integrator</h4>
+<p>Leapfrog, Δt = 0.5 Myr, on the GPU. Positions and velocities are 32-bit integers on a grid of 2⁻²¹ kpc (about 100 AU), so the scheme is time-reversible to the last bit (Levesque &amp; Verlet 1993):</p>
+<span class="eq">x<sub>n+1</sub> − 2x<sub>n</sub> + x<sub>n−1</sub> = round[a(x<sub>n</sub>, t<sub>n</sub>) Δt²]</span>
+<p>Reverse time swaps x<sub>n+1</sub> and x<sub>n</sub>, and the same rule marches every particle back. The galaxy centres are replayed from a recorded history, so even the friction, which is irreversible, cannot spoil it. Tested: after 1 Gyr forward and back, all ${NP_TXT} particles are exactly where they started. Forces are softened over 0.12 kpc so the cuspy centres stay well resolved by the step.</p>
+<h4>Tides and friction</h4>
+<p>A galaxy of mass M at distance r stretches a disk of size d with a tidal acceleration of about 2GMd/r³. In a fast pass at speed v and impact parameter b, a star is kicked by about Δv ≈ 2GMd/(b²v) relative to its own centre (Spitzer 1958). Stars on the near side that orbit the same way as the companion (a prograde pass) stay in step with the tide longest, and become the tails. The centres slow down by Chandrasekhar's dynamical friction, the drag of the wake raised in the other halo:</p>
+<span class="eq">d<b>v</b>/dt = −4πG²Mρ lnΛ / v² · [erf(X) − (2X/√π) e<sup>−X²</sup>] <b>v̂</b>, &nbsp; X = v/(√2σ)</span>
+<p>with lnΛ = 1.3 ln(1 + M<sub>host</sub>/M<sub>sat</sub>) (after Boylan-Kolchin et al. 2008) and ρ smoothed over the satellite's own scale radius. A smaller galaxy also loses the halo outside its Jacobi radius r<sub>J</sub> = r [M<sub>s</sub>(&lt;r<sub>J</sub>)/3M<sub>h</sub>(&lt;r)]<sup>1/3</sup> over about one orbit.</p>
+<h4>Where tails come from</h4>
+<p>The tidal acceleration grows with distance from a galaxy's centre (≈ 2GMR/r³), while the disk's own grip, v<sub>c</sub>²/R, weakens outward. So the tide wins first in the outer disk, beyond about two scale lengths, and wins most for stars on the side facing the companion (the bridge) and the side opposite (the tail). The tracer dye makes this visible. It is a label written into a spare bit of each particle's record, never read by the integrator, so dyeing costs nothing in accuracy. Dye a tail, reverse time, and its stars land back in the outer rim of their own disk.</p>
+<h4>Timescales</h4>
+<p>Crossing a 30 kpc galaxy at 300 km/s takes about 100 Myr. In this model the Antennae make their first pericentre at 13 kpc, swing out to 58 kpc and merge about 1 Gyr later. A satellite sinks by friction in t ≈ (1.17/lnΛ) r²v<sub>c</sub>/GM (Binney &amp; Tremaine 2008): for 10¹⁰ M<sub>☉</sub> at 50 kpc in a 220 km/s halo with lnΛ = 3 that is about 5 Gyr.</p>
+<h4>Why stars almost never collide</h4>
+<table class="gx-t">
+<tr><td>Radius of the Sun</td><td>6.96 × 10⁸ m = 2.3 × 10⁻⁸ pc</td></tr>
+<tr><td>Cross-section for contact, π(2R<sub>☉</sub>)²</td><td>6.4 × 10⁻¹⁵ pc²</td></tr>
+<tr><td>Gravitational focusing at 300 km/s, 1 + (618 km/s ÷ v)²</td><td>× 5.2</td></tr>
+<tr><td>Stars per pc² seen through a disk (≈ 100 M<sub>☉</sub>/pc², mean mass 0.5 M<sub>☉</sub>)</td><td>≈ 200</td></tr>
+<tr><td>Chance that one star hits another crossing a whole disk</td><td>≈ 7 × 10⁻¹²</td></tr>
+</table>
+<p>Even for 10¹¹ stars that is fewer than one collision per passage. Gas is different: clouds are huge, so they do collide, shock and form stars.</p>
+<h4>Star formation, gas and dust (the colours)</h4>
+<p>Each galaxy's gas is binned on its own 64³ grid every frame. The star-formation rate follows a Schmidt law, ρ̇<sub>*</sub> ∝ ρ<sup>1.5</sup>, above a threshold density; it is boosted where gas is compressed above its 150 Myr running mean, and by a collision term ∝ n<sub>other</sub> × v<sub>rel</sub> where two galaxies' gas interpenetrates, in the spirit of Barnes (2004). Hα (pink) fades over 15 Myr and young-star blue over 60 Myr, as massive stars die. Dust follows the gas: each star is dimmed and reddened (A ∝ roughly 1/λ) by the part of the gas column in front of it, and young stars keep some birth-cloud dust of their own (Charlot &amp; Fall 2000). This is a visual model of star formation, not hydrodynamics.</p>
+<h4>Dark matter contours</h4>
+<p>The overlay (<kbd>D</kbd>) draws lines of equal projected halo density, every 0.25 dex from about 0.3 to 100 M<sub>☉</sub>/pc², using the closed-form projection of the NFW profile (Wright &amp; Brainerd 2000), summed over all halos. The <em>From the Sun</em> camera rides a test star 8.2 kpc from the Galactic centre on a circular orbit, integrated in the same potentials.</p>
+<h4>What is scaled for the screen</h4>
+<p>Each star particle stands for about ${SMALL ? '2.4 × 10⁶' : '6 × 10⁵'} M<sub>☉</sub>. Particles are drawn with a smoothing kernel that widens where stars are sparse, and the image is stretched with an asinh curve (Lupton et al. 2004) so faint tails and bright cores share one plate. The dwarf in Satellite shredding is drawn 9× brighter than its true mass-to-light ratio, or its stream would be invisible. Playback runs at 60–300 Myr per second, with an adaptive time-lapse while galaxies are far apart. Milkomeda uses the measured distance of 770 kpc, a radial approach of 110 km/s and a tangential 57 km/s (van der Marel et al. 2019), M31's disk orientation on the sky, M<sub>MW</sub> = 1.06 × 10¹² and M<sub>M31</sub> = 1.6 × 10¹² M<sub>☉</sub>; this model makes first passage at 4.2 Gyr (about 100 kpc apart) and merges at 6.4 Gyr. The real outcome is uncertain: with the Large Magellanic Cloud, M33 and the error on the tangential velocity, a merger within 10 Gyr is roughly a coin toss (Sawala et al. 2025).</p>
+<span class="cite">Toomre, A. &amp; Toomre, J. (1972). Galactic bridges and tails. ApJ 178, 623.</span>
+<span class="cite">Hernquist, L. (1990). An analytical model for spherical galaxies and bulges. ApJ 356, 359.</span>
+<span class="cite">Barnes, J. E. &amp; Hernquist, L. (1992). Dynamics of interacting galaxies. ARA&amp;A 30, 705.</span>
+<span class="cite">Cox, T. J. &amp; Loeb, A. (2008). The collision between the Milky Way and Andromeda. MNRAS 386, 461.</span>
+<span class="cite">van der Marel, R. P. et al. (2019). First Gaia dynamics of the Andromeda system: DR2 proper motions, orbits, and rotation of M31 and M33. ApJ 872, 24.</span>
+<span class="cite">Also: Miyamoto &amp; Nagai (1975) PASJ 27, 533 · Lin &amp; Shu (1964) ApJ 140, 646 · Cox &amp; Gómez (2002) ApJS 142, 261 · Spitzer (1958) ApJ 127, 17 · Binney &amp; Tremaine (2008) Galactic Dynamics, 2nd ed. · Navarro, Frenk &amp; White (1996) ApJ 462, 563 · Chandrasekhar (1943) ApJ 97, 255 · Levesque &amp; Verlet (1993) J. Stat. Phys. 72, 519 · Boylan-Kolchin, Ma &amp; Quataert (2008) MNRAS 383, 93 · Barnes (2004) MNRAS 350, 798 · Charlot &amp; Fall (2000) ApJ 539, 718 · Wright &amp; Brainerd (2000) ApJ 534, 34 · Lupton et al. (2004) PASP 116, 133 · Sawala et al. (2025) Nature Astronomy.</span>`;
+
+const ch = Cosmos.chapter({ id: 'galaxies', notes: NOTES, science: SCIENCE });
+
+/* =====================================================================================
+   PHYSICS CORE (units: kpc, Myr, 10¹⁰ M☉)
+   ===================================================================================== */
+const G = 0.044985;          // kpc³ Myr⁻² (10¹⁰ M☉)⁻¹
+const KMS = 977.792;          // km/s per kpc/Myr
+const DT = 0.5;               // Myr per leapfrog step
+const RAD = Math.PI / 180;
+const SCALE = 2097152;        // integer units per kpc (2^21)
+const EPS = 0.12;             // force softening, kpc
+const MAXG = 4;
+function mnfw(x) { return x < 0.02 ? x * x * (0.5 - x * (2 / 3 - 0.75 * x)) : Math.log1p(x) - x / (1 + x); }
+function erf(x) { const t = 1 / (1 + 0.3275911 * x); return 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); }
+const V3 = {
+  dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  norm: (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; },
+};
+function basisFromNormal(n, hint) {
+  n = V3.norm(n); hint = hint || [1, 0, 0];
+  let d = V3.dot(hint, n); let e1 = [hint[0] - d * n[0], hint[1] - d * n[1], hint[2] - d * n[2]];
+  if (Math.hypot(e1[0], e1[1], e1[2]) < 1e-6) { hint = Math.abs(n[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]; d = V3.dot(hint, n); e1 = [hint[0] - d * n[0], hint[1] - d * n[1], hint[2] - d * n[2]]; }
+  e1 = V3.norm(e1); const e2 = V3.cross(n, e1);
+  return [e1[0], e1[1], e1[2], e2[0], e2[1], e2[2], n[0], n[1], n[2]];   // column-major, disk frame → world
+}
+
+class Galaxy {
+  constructor(o) {
+    Object.assign(this, {
+      halo: 'nfw', Mh: 100, rs: 20, rt: 200, v0: 0.18, rc: 5, Mb: 1, ab: 0.6, Md: 5, ad: 3, bd: 0.3,
+      Rd: 2.8, Rmax: 16, z0: 0.3, gRd: 4.5, gRmax: 24, gz0: 0.1, gasFrac: 0.3, sig0: 0.08, gsig: 0.007,
+      spiral: 0.04, pitch: 16, name: 'Galaxy', sub: '', dsph: false, lumBoost: 1, share: null, clumps: 0.25,
+    }, o);
+    this.R = this.R || [1, 0, 0, 0, 1, 0, 0, 0, 1];
+    this.pos = this.pos || [0, 0, 0]; this.vel = this.vel || [0, 0, 0];
+    this.rt0 = this.rt; this.setup();
+  }
+  setup() {
+    if (this.halo === 'nfw') { this.mc = mnfw(this.rt0 / this.rs); this.hx = G * this.Mh / this.mc; }
+    else if (this.halo === 'log') this.hx = this.v0 * this.v0;
+    else this.hx = 0;
+    this.coreR = this.halo === 'nfw' ? 0.5 * this.rs : this.halo === 'log' ? this.rc : 2 * this.ab;
+    this.rtMin = this.dsph ? 4 * this.ab : Math.max(2 * this.ad, 3 * this.ab);
+    this.setRt(this.rt0);
+  }
+  setRt(rt) { this.rt = rt; this.Mhalo = this.haloEnc(rt); this.Mtot = this.Mhalo + this.Md + this.Mb; }
+  haloEnc(r) {
+    const x = Math.min(r, this.rt);
+    if (this.halo === 'nfw') return this.Mh * mnfw(x / this.rs) / this.mc;
+    if (this.halo === 'log') return this.v0 * this.v0 * x * x * x / (G * (x * x + this.rc * this.rc));
+    return 0;
+  }
+  enc(r) { const s = this.ad + this.bd; return this.haloEnc(r) + this.Mb * r * r / ((r + this.ab) * (r + this.ab)) + this.Md * r * r * r / Math.pow(r * r + s * s, 1.5); }
+  rhoHalo(r) {
+    if (r > this.rt) return 0;
+    if (this.halo === 'nfw') { const x = r / this.rs; return this.Mh / (4 * Math.PI * this.rs ** 3 * this.mc) / (x * (1 + x) * (1 + x)); }
+    if (this.halo === 'log') { const r2 = r * r, c2 = this.rc * this.rc; return this.v0 * this.v0 * (3 * c2 + r2) / (4 * Math.PI * G * (r2 + c2) * (r2 + c2)); }
+    return 0;
+  }
+  /** GPU halo uniform for a given truncation radius: vec4 + potential constant */
+  haloU(rt) {
+    if (this.halo === 'nfw') { const GM = G * this.Mh * mnfw(rt / this.rs) / this.mc; return [this.hx, this.rs, rt, GM, -GM / rt + this.hx * Math.log1p(rt / this.rs) / rt]; }
+    if (this.halo === 'log') { const GM = this.hx * rt * rt * rt / (rt * rt + this.rc * this.rc); return [this.hx, -this.rc, rt, GM, 0]; }
+    return [0, 0, 1, 0, 0];
+  }
+  accLocal(qx, qy, qz, out) {
+    const r2 = qx * qx + qy * qy + qz * qz + EPS * EPS, r = Math.sqrt(r2), ir3 = 1 / (r2 * r);
+    let f = 0;
+    if (this.halo === 'nfw') f = r < this.rt ? this.hx * mnfw(r / this.rs) * ir3 : G * this.Mhalo * ir3;
+    else if (this.halo === 'log') f = r < this.rt ? this.hx / (r2 + this.rc * this.rc) : G * this.Mhalo * ir3;
+    const rb = r + this.ab; f += G * this.Mb / (r * rb * rb);
+    const zeta = Math.sqrt(qz * qz + this.bd * this.bd), az = this.ad + zeta, dd = qx * qx + qy * qy + az * az;
+    const k = G * this.Md / (dd * Math.sqrt(dd));
+    out[0] = -f * qx - qx * k; out[1] = -f * qy - qy * k; out[2] = -f * qz - qz * k * az / zeta;
+    return out;
+  }
+  potLocal(qx, qy, qz) {
+    const r = Math.sqrt(qx * qx + qy * qy + qz * qz + EPS * EPS); let p = 0;
+    if (this.halo === 'nfw') { const u = this.haloU(this.rt); p = r < this.rt ? -this.hx * Math.log1p(r / this.rs) / r + u[4] : -G * this.Mhalo / r; }
+    else if (this.halo === 'log') { const c2 = this.rc * this.rc; p = r < this.rt ? 0.5 * this.hx * Math.log((r * r + c2) / (this.rt * this.rt + c2)) - G * this.Mhalo / this.rt : -G * this.Mhalo / r; }
+    p -= G * this.Mb / (r + this.ab);
+    const zeta = Math.sqrt(qz * qz + this.bd * this.bd), az = this.ad + zeta;
+    return p - G * this.Md / Math.sqrt(qx * qx + qy * qy + az * az);
+  }
+  toLocal(r) { const R = this.R; return [R[0] * r[0] + R[1] * r[1] + R[2] * r[2], R[3] * r[0] + R[4] * r[1] + R[5] * r[2], R[6] * r[0] + R[7] * r[1] + R[8] * r[2]]; }
+  toWorld(q) { const R = this.R; return [R[0] * q[0] + R[3] * q[1] + R[6] * q[2], R[1] * q[0] + R[4] * q[1] + R[7] * q[2], R[2] * q[0] + R[5] * q[1] + R[8] * q[2]]; }
+  accWorld(r, out) { const q = this.toLocal(r); const a = this.accLocal(q[0], q[1], q[2], [0, 0, 0]); const w = this.toWorld(a); out[0] += w[0]; out[1] += w[1]; out[2] += w[2]; }
+  vc(R) { const a = this.accLocal(R, 0, 0, [0, 0, 0]); return Math.sqrt(Math.max(0, -a[0] * R)); }
+  vcParts(R) {
+    const vh = Math.sqrt(G * this.haloEnc(R) / R), vb = Math.sqrt(G * this.Mb * R / ((R + this.ab) ** 2));
+    const s = this.ad + this.bd, vd = Math.sqrt(G * this.Md * R * R / Math.pow(R * R + s * s, 1.5));
+    return [vh, vb, vd];
+  }
+}
+
+// ---- galaxy centres: test-point response to the other galaxies + Chandrasekhar friction + tidal stripping
+const Phys = { lnL: 1.3, strip: true };
+function accCentres(gals, X, V, out, noDF) {
+  const n = gals.length;
+  for (let i = 0; i < n; i++) out[i][0] = out[i][1] = out[i][2] = 0;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j) gals[j].accWorld([X[i][0] - X[j][0], X[i][1] - X[j][1], X[i][2] - X[j][2]], out[i]);
+  if (noDF || Phys.lnL <= 0) return;
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    const r = Math.hypot(X[i][0] - X[j][0], X[i][1] - X[j][1], X[i][2] - X[j][2]);
+    const dvx = V[i][0] - V[j][0], dvy = V[i][1] - V[j][1], dvz = V[i][2] - V[j][2];
+    const v = Math.hypot(dvx, dvy, dvz) + 1e-9;
+    const Mi = gals[i].Mtot, Mj = gals[j].Mtot, wi = Mj / (Mi + Mj), wj = Mi / (Mi + Mj);
+    const F = wi * Mi * dfCoef(gals[j], r, v, gals[i]) + wj * Mj * dfCoef(gals[i], r, v, gals[j]);
+    const ai = F / Mi, aj = F / Mj;
+    out[i][0] -= ai * dvx; out[i][1] -= ai * dvy; out[i][2] -= ai * dvz;
+    out[j][0] += aj * dvx; out[j][1] += aj * dvy; out[j][2] += aj * dvz;
+  }
+}
+/** |a_df| / v for `sat` moving at speed v through `host`'s halo at separation r */
+function dfCoef(host, r, v, sat) {
+  const M = sat.Mtot;
+  const rho = host.rhoHalo(Math.max(r, sat.coreR));   // the wake is about as big as the satellite itself
+  if (rho <= 0 || M <= 0) return 0;
+  const rr = Math.max(r, 0.5);
+  const sigma = Math.sqrt(G * host.enc(rr) / rr / 2) + 1e-6;
+  const X = v / (Math.SQRT2 * sigma);
+  const brv3 = X < 1e-2 ? 4 / (3 * Math.sqrt(Math.PI)) / Math.pow(Math.SQRT2 * sigma, 3) : (erf(X) - 2 * X / Math.sqrt(Math.PI) * Math.exp(-X * X)) / (v * v * v);
+  const lnL = Math.log(1 + host.Mtot / M) * Phys.lnL;
+  return 4 * Math.PI * G * G * M * rho * lnL * brv3;
+}
+function stripHalos(gals, X) {
+  if (!Phys.strip) return;
+  const n = gals.length;
+  for (let i = 0; i < n; i++) {
+    const gi = gals[i]; if (gi.halo === 'none') continue;
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue; const gj = gals[j];
+      if (gi.Mtot > 0.5 * gj.Mtot) continue;
+      const r = Math.hypot(X[i][0] - X[j][0], X[i][1] - X[j][1], X[i][2] - X[j][2]);
+      const Mj = gj.enc(r);
+      let rJ = gi.rt;
+      for (let k = 0; k < 6; k++) rJ = r * Math.cbrt(gi.enc(rJ) / (3 * Mj));
+      rJ = Math.max(rJ, gi.rtMin);
+      if (rJ < gi.rt) {
+        const tIn = 2 * Math.PI * rJ / Math.max(1e-3, Math.sqrt(G * gi.enc(rJ) / rJ));
+        const tHost = 2 * Math.PI * r / Math.max(1e-3, Math.sqrt(G * Mj / Math.max(r, 0.1)));
+        gi.setRt(gi.rt - (gi.rt - rJ) * Math.min(1, DT / Math.max(tIn, tHost)));
+      }
+    }
+  }
+}
+
+/** Recorded history of the galaxy centres, step by step (Levesque–Verlet form in doubles). */
+class History {
+  constructor(gals, sun) {
+    this.g = gals; this.ng = gals.length; this.cap = 8192; this.n = 0; this.sun = !!sun; this.alloc();
+    if (sun) {
+      // one extra test particle integrated on the CPU in the same potentials: the Sun, for the "From the Sun" camera
+      const a = [0, 0, 0]; gals.forEach((g) => g.accWorld([sun.x[0] - g.pos[0], sun.x[1] - g.pos[1], sun.x[2] - g.pos[2]], a));
+      for (let c = 0; c < 3; c++) { this.SX[c] = sun.x[c]; this.SD[c] = (sun.v[c] - 0.5 * a[c] * DT) * DT; }
+    }
+    const X = gals.map((g) => g.pos.slice()), V = gals.map((g) => g.vel.slice()), A = gals.map(() => [0, 0, 0]);
+    accCentres(gals, X, V, A);
+    for (let i = 0; i < this.ng; i++) for (let k = 0; k < 3; k++) { this.X[i * 3 + k] = X[i][k]; this.D[i * 3 + k] = (V[i][k] - 0.5 * A[i][k] * DT) * DT; }
+    for (let i = 0; i < this.ng; i++) this.RT[i] = gals[i].rt;
+    this.n = 1;
+    this._X = gals.map(() => [0, 0, 0]); this._V = gals.map(() => [0, 0, 0]); this._A = gals.map(() => [0, 0, 0]);
+  }
+  alloc() {
+    const m = this.cap * this.ng;
+    const grow = (old, T, k) => { const a = new T(m * k); if (old) a.set(old.subarray(0, Math.min(old.length, a.length))); return a; };
+    this.X = grow(this.X, Float64Array, 3); this.D = grow(this.D, Float64Array, 3); this.RT = grow(this.RT, Float64Array, 1);
+    if (this.sun) { const g2 = (old) => { const a = new Float64Array(this.cap * 3); if (old) a.set(old.subarray(0, Math.min(old.length, a.length))); return a; }; this.SX = g2(this.SX); this.SD = g2(this.SD); }
+  }
+  ensure(n) { while (this.n <= n) this.step(); }
+  truncate(n) { this.n = Math.max(1, Math.min(this.n, n + 1)); }
+  step() {
+    const k = this.n - 1, ng = this.ng, X = this._X, V = this._V, A = this._A;
+    if (this.n >= this.cap) { this.cap *= 2; this.alloc(); }
+    for (let i = 0; i < ng; i++) this.g[i].setRt(this.RT[k * ng + i]);
+    for (let i = 0; i < ng; i++) for (let c = 0; c < 3; c++) { X[i][c] = this.X[(k * ng + i) * 3 + c]; V[i][c] = this.D[(k * ng + i) * 3 + c] / DT; }
+    if (this.sun) {
+      const a = [0, 0, 0], j = k + 1;
+      for (let i = 0; i < ng; i++) this.g[i].accWorld([this.SX[k * 3] - X[i][0], this.SX[k * 3 + 1] - X[i][1], this.SX[k * 3 + 2] - X[i][2]], a);
+      for (let c = 0; c < 3; c++) { this.SD[j * 3 + c] = this.SD[k * 3 + c] + a[c] * DT * DT; this.SX[j * 3 + c] = this.SX[k * 3 + c] + this.SD[j * 3 + c]; }
+    }
+    accCentres(this.g, X, V, A, true);
+    for (let i = 0; i < ng; i++) for (let c = 0; c < 3; c++) V[i][c] += 0.5 * A[i][c] * DT;
+    accCentres(this.g, X, V, A);
+    const j = k + 1;
+    for (let i = 0; i < ng; i++) for (let c = 0; c < 3; c++) {
+      const d = this.D[(k * ng + i) * 3 + c] + A[i][c] * DT * DT;
+      this.D[(j * ng + i) * 3 + c] = d; X[i][c] += d; this.X[(j * ng + i) * 3 + c] = X[i][c];
+    }
+    stripHalos(this.g, X);
+    for (let i = 0; i < ng; i++) this.RT[j * ng + i] = this.g[i].rt;
+    this.n++;
+  }
+  x(n, i, c) { return this.X[(n * this.ng + i) * 3 + c]; }
+  vel(n, i, out) { const n1 = Math.min(n + 1, this.n - 1), ng = this.ng; for (let c = 0; c < 3; c++) out[c] = (this.D[(n * ng + i) * 3 + c] + this.D[(n1 * ng + i) * 3 + c]) / (2 * DT); return out; }
+  sep(n, a = 0, b = 1) { return Math.hypot(this.x(n, a, 0) - this.x(n, b, 0), this.x(n, a, 1) - this.x(n, b, 1), this.x(n, a, 2) - this.x(n, b, 2)); }
+}
+
+/** Disk orientation from Toomre & Toomre's (i, ω): orbit in the x–y plane with L along +z. */
+function orientIW(iDeg, wDeg, pdir, retro) {
+  const i = iDeg * RAD, w = -wDeg * RAD;
+  const lx = pdir[0] * Math.cos(w) - pdir[1] * Math.sin(w), ly = pdir[0] * Math.sin(w) + pdir[1] * Math.cos(w);
+  let n = [ly * Math.sin(i), -lx * Math.sin(i), Math.cos(i)];
+  if (retro) n = [-n[0], -n[1], -n[2]];
+  return basisFromNormal(n, [lx, ly, 0]);
+}
+function integrateCentres(gals, T, h) {
+  const X = gals.map((g) => g.pos.slice()), V = gals.map((g) => g.vel.slice()), A = gals.map(() => [0, 0, 0]);
+  const steps = Math.round(Math.abs(T / h));
+  for (let s = 0; s < steps; s++) {
+    accCentres(gals, X, V, A);
+    for (let i = 0; i < gals.length; i++) for (let c = 0; c < 3; c++) { V[i][c] += 0.5 * h * A[i][c]; X[i][c] += h * V[i][c]; }
+    accCentres(gals, X, V, A);
+    for (let i = 0; i < gals.length; i++) for (let c = 0; c < 3; c++) V[i][c] += 0.5 * h * A[i][c];
+  }
+  gals.forEach((g, i) => { g.pos = X[i]; g.vel = V[i]; });
+}
+function vEscape(g1, g2, rp) { return Math.sqrt(Math.max(0, -2 * (g1.potLocal(rp, 0, 0) + g2.potLocal(rp, 0, 0)))); }
+/** Place two galaxies on the orbit whose pericentre is (rp, vp), then integrate back by Tpre. */
+function encounter(g1, g2, o) {
+  g1.R = orientIW(o.i1, o.w1, [1, 0, 0], o.retro1);
+  g2.R = orientIW(o.i2, o.w2, [-1, 0, 0], o.retro2);
+  const ve = vEscape(g1, g2, o.rp);
+  const vp = o.vp != null ? o.vp : ve * (o.f || 1);
+  const M = g1.Mtot + g2.Mtot, m1 = g1.Mtot / M, m2 = g2.Mtot / M;
+  g1.pos = [-m2 * o.rp, 0, 0]; g2.pos = [m1 * o.rp, 0, 0];
+  g1.vel = [0, -m2 * vp, 0]; g2.vel = [0, m1 * vp, 0];
+  integrateCentres([g1, g2], o.Tpre, -DT);
+  return { ve, vp };
+}
+
+/* ---------- galaxy templates ---------- */
+const HALO = { type: 'nfw', mult: 1 };
+function spiralGal(m, o = {}) {
+  const s = Math.cbrt(m), rd = o.rd || 1, hm = (o.hm != null ? o.hm : 1) * HALO.mult;
+  const g = new Galaxy(Object.assign({
+    halo: HALO.type, Mh: 100 * m * hm, rs: 20 * s, rt: 200 * s, v0: 0.19 * s * Math.sqrt(hm), rc: 5 * s,
+    Mb: (o.mb != null ? o.mb : 1) * m, ab: 0.6 * s, Md: 5 * m, ad: 3 * s * rd, bd: 0.3 * s,
+    Rd: 2.8 * s * rd, Rmax: 16 * s * rd, z0: 0.4 * s, gRd: 4.6 * s * rd, gRmax: 25 * s * rd, gz0: 0.1 * s,
+    sig0: 0.08 * s, gsig: 0.007,
+  }, o));
+  if (HALO.type === 'none') { g.halo = 'none'; g.setup(); }
+  return g;
+}
+function dwarfGal(m, o = {}) {
+  const s = Math.cbrt(m);
+  return new Galaxy(Object.assign({ halo: HALO.type === 'none' ? 'none' : 'nfw', Mh: 100 * m, rs: 20 * s, rt: 200 * s, Md: 0, Mb: 0.1, ab: 0.8, dsph: true, gasFrac: 0, spiral: 0 }, o));
+}
+
+/* =====================================================================================
+   PRESETS
+   ===================================================================================== */
+const SAT = { m: 0.006, mb: 0.08, ab: 1.0, boost: 9, r0: 70, fv: 0.6 };
+const CART = { m: 0.4, rs: 6, b: 1.2, f: 1.1, tilt: 26 };
+const MW_N = [0, 0, -1];                       // Milky Way spin: rotation toward +y at the Sun (x = −8.3 kpc) → L along −z
+const M31_N = [-0.4188, -0.7571, -0.5013];      // M31 spin in Galactic axes, from i = 77.5°, PA = 37.7°, NW side near, SW side approaching
+const M31_DIR = V3.norm([-379.0, 612.7, -283.1]);// Galactocentric position of M31 (van der Marel et al. 2012), |r| = 774 kpc
+
+const PRESETS = [
+  {
+    id: 'antennae', key: '1', label: 'Antennae',
+    caption: 'Two equal gas-rich spirals on a prograde, nearly parabolic orbit. After the first pass each one flings out a tail of stars and gas 100 kpc long, like NGC 4038/4039.',
+    speed: 105, end: 1150,
+    build() {
+      const a = spiralGal(1, { name: 'NGC 4038', sub: 'spiral A' }), b = spiralGal(1, { name: 'NGC 4039', sub: 'spiral B' });
+      encounter(a, b, { rp: 13, f: 1.0, i1: 60, w1: -30, i2: 60, w2: -30, Tpre: 230 });
+      return [a, b];
+    },
+    view: { theta: 0.25, phi: 1.2, dist: 150 }, maxDist: 360,
+  },
+  {
+    id: 'mice', key: '2', label: 'The Mice',
+    caption: 'NGC 4676: two equal disks shortly after a close prograde pass, one tipped nearly edge-on to the orbit. Their straight tails give the pair its name (Barnes 2004).',
+    speed: 100, end: 900,
+    build() {
+      const a = spiralGal(1, { name: 'NGC 4676A', sub: 'north' }), b = spiralGal(1, { name: 'NGC 4676B', sub: 'south' });
+      encounter(a, b, { rp: 11, f: 1.0, i1: 25, w1: -30, i2: 75, w2: 90, Tpre: 200 });
+      return [a, b];
+    },
+    view: { theta: 2.3, phi: 1.2, dist: 140 },
+  },
+  {
+    id: 'cartwheel', key: '3', label: 'Cartwheel',
+    caption: 'A compact galaxy plunges through the middle of a big disk at nearly 1,000 km/s. The disk rebounds, and a ring of new stars races outward like a ripple on a pond.',
+    speed: 60, end: 520,
+    build() {
+      const a = spiralGal(1, { name: 'Cartwheel', sub: 'target disk', gasFrac: 0.38, rd: 1.1 });
+      const m = CART.m, s = Math.cbrt(m);
+      const b = spiralGal(m, { name: 'Intruder', sub: 'compact companion', Mh: 100 * m * HALO.mult, rs: CART.rs * s, rt: 100 * s, Md: 1.5 * m, Mb: 2 * m, ab: 0.4 * s, ad: 1.6 * s, bd: 0.25 * s, Rd: 1.2 * s, Rmax: 5 * s, gRd: 1.6 * s, gRmax: 6 * s, gasFrac: 0.15, spiral: 0, share: 0.07 });
+      // the target's spin axis is +y, so the default camera (looking down from +y) sees it nearly face-on
+      a.R = basisFromNormal([0, 1, 0], [1, 0, 0]); b.R = basisFromNormal(V3.norm([0.5, 1, 0.3]), [1, 0, 0]);
+      const bImp = CART.b, v = CART.f * vEscape(a, b, bImp), M = a.Mtot + b.Mtot;
+      a.pos = [-b.Mtot / M * bImp, 0, 0]; b.pos = [a.Mtot / M * bImp, 0, 0];
+      const tilt = CART.tilt * RAD;
+      a.vel = [b.Mtot / M * v * Math.sin(tilt), b.Mtot / M * v * Math.cos(tilt), 0]; b.vel = [-a.Mtot / M * v * Math.sin(tilt), -a.Mtot / M * v * Math.cos(tilt), 0];
+      integrateCentres([a, b], 55, -DT);
+      return [a, b];
+    },
+    view: { theta: 0.35, phi: 0.38, dist: 105 },
+  },
+  {
+    id: 'milkomeda', key: '4', label: 'Milkomeda',
+    caption: 'Andromeda starts 770 kpc away, falling in at 110 km/s and drifting 57 km/s sideways. In this model the first pass comes at 4.2 Gyr and the merger at 6.4 Gyr (time-lapsed while they are far apart). The real future is uncertain.',
+    speed: 150, end: 7600, timelapse: true,
+    build() {
+      const mw = spiralGal(1, { name: 'Milky Way', sub: 'you are here' });
+      const m31 = spiralGal(1.5, { name: 'Andromeda', sub: 'M31', Md: 7, Mb: 2.5, rd: 1.45, share: 0.54 });
+      mw.R = basisFromNormal(MW_N, [1, 0, 0]); m31.R = basisFromNormal(M31_N, [1, 0, 0]);
+      const t = V3.norm(V3.cross(M31_DIR, [0, 0, 1]));
+      const vr = -110 / KMS, vt = 57 / KMS, M = mw.Mtot + m31.Mtot;
+      const rel = M31_DIR.map((x) => x * 770), vrel = M31_DIR.map((x, i) => x * vr + t[i] * vt);
+      mw.pos = rel.map((x) => -x * m31.Mtot / M); m31.pos = rel.map((x) => x * mw.Mtot / M);
+      mw.vel = vrel.map((x) => -x * m31.Mtot / M); m31.vel = vrel.map((x) => x * mw.Mtot / M);
+      mw.sun = { x: [mw.pos[0] - 8.2, mw.pos[1], mw.pos[2] + 0.02], v: [mw.vel[0], mw.vel[1] + mw.vc(8.2), mw.vel[2]] };
+      return [mw, m31];
+    },
+    view: { along: M31_DIR, elev: 9, dist: 260 },
+  },
+  {
+    id: 'satellite', key: '5', label: 'Satellite shredding',
+    caption: 'A dwarf galaxy on a polar orbit loses stars at every pericentre. They spread along its orbit into leading and trailing streams that wrap the host, like the Sagittarius stream.',
+    speed: 300, end: 4200, timelapse: true,
+    build() {
+      const host = spiralGal(1, { name: 'Host spiral', sub: 'Milky Way-like' });
+      const sat = dwarfGal(SAT.m, { name: 'Dwarf', sub: 'Sagittarius-like', Mb: SAT.mb, ab: SAT.ab, share: 0.16, lumBoost: SAT.boost });
+      host.R = basisFromNormal([0, 0, 1], [1, 0, 0]);
+      const M = host.Mtot + sat.Mtot, r0 = SAT.r0, vt = SAT.fv * host.vc(r0);
+      sat.pos = [r0 * host.Mtot / M, 0, 0]; host.pos = [-r0 * sat.Mtot / M, 0, 0];
+      sat.vel = [0, 0, vt * host.Mtot / M]; host.vel = [0, 0, -vt * sat.Mtot / M];
+      return [host, sat];
+    },
+    view: { theta: 0.35, phi: 0.3, dist: 215 },
+  },
+  {
+    id: 'flyby', key: '6', label: 'Flyby (M51-like)',
+    caption: 'A companion a third of the mass swings past a face-on disk. The tide alone raises a two-armed grand-design spiral and a bridge of stars, like M51 and NGC 5195.',
+    speed: 95, end: 1000,
+    build() {
+      const a = spiralGal(1, { name: 'M51', sub: 'NGC 5194', spiral: 0, gasFrac: 0.34 });
+      const m = 0.33, b = spiralGal(m, { name: 'NGC 5195', sub: 'companion', spiral: 0, gasFrac: 0.12, mb: 2.0 });
+      encounter(a, b, { rp: 24, f: 1.0, i1: 15, w1: 0, i2: 50, w2: 60, Tpre: 240 });
+      return [a, b];
+    },
+    view: { face: 0, tilt: 22, spin: 0, dist: 110 }, maxDist: 290,
+  },
+];
+
+/* =====================================================================================
+   INITIAL CONDITIONS FOR THE TEST PARTICLES
+   ===================================================================================== */
+const W = SMALL ? 256 : 512, N = W * W;
+const REF_N = 262144;
+
+function spiralParams(g) {
+  if (!g.spiral || g.Md <= 0) return null;
+  const m = 2, cot = 1 / Math.tan(g.pitch * RAD);
+  const Rc2 = (1.0 * g.ad) ** 2, Rf = 2.2 * g.ad, zs = 0.6;
+  const Rcr = 3.4 * g.ad, Op = g.vc(Rcr) / Rcr;
+  // scale amplitude so the spiral force peaks at `spiral` × the axisymmetric radial force
+  let maxRatio = 0;
+  for (let R = 0.5; R < g.Rmax; R += 0.25) {
+    const R2 = R * R, fr = R2 / (R2 + Rc2) * Math.exp(-R / Rf), dfr = fr * (2 * Rc2 / (R * (R2 + Rc2)) - 1 / Rf);
+    const F = Math.abs(dfr) + fr * m * cot / R;
+    const Fax = g.vc(R) ** 2 / R;
+    maxRatio = Math.max(maxRatio, F / Fax);
+  }
+  return { A: g.spiral / maxRatio, Op, mcot: m * cot, lnR0: Math.log(g.ad), Rc2, Rf, zs };
+}
+function chiAt(sp, R, phi) { return 2 * phi + sp.mcot * (Math.log(Math.max(R, 0.01)) - sp.lnR0); }
+
+function tablesFor(g) {
+  const n = 400, Rmax = Math.max(g.gRmax, g.Rmax) * 1.3 + 2, dR = Rmax / n;
+  const vc = new Float64Array(n + 1), kap = new Float64Array(n + 1), nu = new Float64Array(n + 1);
+  const a = [0, 0, 0];
+  for (let i = 0; i <= n; i++) {
+    const R = Math.max(i * dR, 0.02);
+    vc[i] = g.vc(R);
+    const h = 0.01; g.accLocal(R, 0, h, a); nu[i] = Math.sqrt(Math.max(1e-8, -a[2] / h));
+  }
+  for (let i = 0; i <= n; i++) {
+    const R = Math.max(i * dR, 0.02), i0 = Math.max(0, i - 1), i1 = Math.min(n, i + 1);
+    const O2 = (vc[i] / R) ** 2;
+    const Ra = Math.max(i0 * dR, 0.02), Rb = Math.max(i1 * dR, 0.02);
+    const dO2 = ((vc[i1] / Rb) ** 2 - (vc[i0] / Ra) ** 2) / (Rb - Ra);
+    kap[i] = Math.sqrt(Math.max(1e-8, R * dO2 + 4 * O2));
+  }
+  const at = (T, R) => { const x = Math.min(n - 1e-6, R / dR), i = Math.floor(x), f = x - i; return T[i] * (1 - f) + T[i + 1] * f; };
+  // isotropic Jeans dispersion for the bulge in the (spherically averaged) total potential
+  const nb = 220, rmin = 0.01 * g.ab, rmax = 60 * g.ab, lr = Math.log(rmax / rmin);
+  const sig = new Float64Array(nb);
+  const rho = (r) => 1 / (r * (r + g.ab) ** 3);
+  const gr = (r) => { let s = 0; const dirs = [[1, 0, 0], [0.7071, 0, 0.7071], [0, 0, 1]]; for (const d of dirs) { g.accLocal(r * d[0], 0, r * d[2], a); s += -(a[0] * d[0] + a[2] * d[2]); } return s / 3; };
+  let acc = 0;
+  for (let i = nb - 1; i >= 0; i--) {
+    const r = rmin * Math.exp(lr * i / (nb - 1));
+    if (i < nb - 1) { const r1 = rmin * Math.exp(lr * (i + 1) / (nb - 1)); const rm = 0.5 * (r + r1); acc += rho(rm) * gr(rm) * (r1 - r); }
+    sig[i] = Math.sqrt(Math.max(0, acc / rho(r)));
+  }
+  const sigAt = (r) => { const x = U.clamp(Math.log(Math.max(r, rmin) / rmin) / lr * (nb - 1), 0, nb - 1.001), i = Math.floor(x), f = x - i; return sig[i] * (1 - f) + sig[i + 1] * f; };
+  return { vc: (R) => at(vc, R), kap: (R) => at(kap, R), nu: (R) => at(nu, R), sig: sigAt };
+}
+
+/** Build all particles. Order in the texture: all gas first (so the density grid can draw one range), then disk stars, then bulge stars. */
+function buildParticles(gals, seed) {
+  const rng = U.rng(seed), gauss = () => U.gauss(rng);
+  const pos = new Int32Array(N * 4), del = new Int32Array(N * 4), aux = new Float32Array(N * 4);
+  const ng = gals.length;
+  // particle shares ∝ luminous mass (with optional overrides)
+  let lumTot = 0; gals.forEach((g) => (lumTot += g.Md + g.Mb));
+  const share = gals.map((g) => (g.share != null ? g.share : (g.Md + g.Mb) / lumTot));
+  const sSum = share.reduce((a, b) => a + b, 0);
+  const counts = gals.map((g, i) => {
+    const n = Math.round(N * share[i] / sSum);
+    const nb = g.dsph ? n : Math.round(n * g.Mb / (g.Md + g.Mb) * 0.9);
+    const ngas = g.dsph ? 0 : Math.round((n - nb) * g.gasFrac);
+    return { n, nb, ngas, nd: n - nb - ngas };
+  });
+  let diff = N - counts.reduce((a, c) => a + c.n, 0); counts[0].n += diff; counts[0].nd += diff;
+  // mass per particle (for brightness), relative to a Milky-Way-like galaxy at REF_N particles
+  gals.forEach((g, i) => { g.lumPer = ((g.Md + g.Mb) / Math.max(1, counts[i].n - counts[i].ngas)) / (6 / (REF_N * 0.45)); g.counts = counts[i]; });
+  const tables = gals.map(tablesFor), sps = gals.map(spiralParams);
+  gals.forEach((g, i) => { g.sp = sps[i]; });
+  let idx = 0;
+  const put = (gi, typ, q, u, glow, young) => {
+    const g = gals[gi];
+    const x = g.toWorld(q), v = g.toWorld(u);
+    const a = g.accLocal(q[0], q[1], q[2], [0, 0, 0]), aw = g.toWorld(a);
+    const o = idx * 4;
+    for (let c = 0; c < 3; c++) {
+      pos[o + c] = Math.round((g.pos[c] + x[c]) * SCALE);
+      del[o + c] = Math.round(((g.vel[c] + v[c]) - 0.5 * aw[c] * DT) * DT * SCALE);
+    }
+    const rnd = Math.floor(rng() * 1024) & 1023;
+    pos[o + 3] = gi | (typ << 2) | (rnd << 4) | (young ? 1 << 14 : 0);
+    del[o + 3] = 0;
+    if (typ === 2) { aux[o] = -1; aux[o + 1] = glow; aux[o + 2] = glow; aux[o + 3] = 0; }
+    idx++;
+  };
+  const sampleDisk = (gi, typ) => {
+    const g = gals[gi], T = tables[gi], sp = sps[gi];
+    const gas = typ === 2;
+    const Rd = gas ? g.gRd : g.Rd, Rmax = gas ? g.gRmax : g.Rmax, z0 = gas ? g.gz0 : g.z0;
+    let R, phi, glow = 0, clump = null, young = false;
+    if (gas && g.clumpList && rng() < g.clumps) {
+      clump = g.clumpList[Math.floor(rng() * g.clumpList.length)];
+      const cx = clump[0] + gauss() * clump[2], cy = clump[1] + gauss() * clump[2];
+      R = Math.hypot(cx, cy); phi = Math.atan2(cy, cx); glow = 0.6 + 0.6 * rng();
+    } else {
+      do { R = -Rd * Math.log(rng() * rng() + 1e-12); } while (R > Rmax || R < 0.05 || (gas && rng() > 1 - Math.exp(-((R / (0.9 * g.ad)) ** 2))));
+      // disk stars come in two populations: old (smooth, warm) and young (blue-white, crowded into the arms, commoner further out)
+      if (!gas) young = rng() < 0.08 + 0.32 * U.smoothstep(0.4, 3.0, R / Rd);
+      const amp = sp ? (gas ? 0.75 : young ? 0.9 : 0.12) : 0;
+      for (let k = 0; k < 30; k++) { phi = rng() * 2 * Math.PI; if (!amp || rng() * (1 + amp) < 1 + amp * Math.cos(chiAt(sp, R, phi))) break; }
+      if (gas && sp) glow = Math.pow(Math.max(0, Math.cos(chiAt(sp, R, phi))), 6) * 0.5 * Math.exp(-R / (2.5 * g.gRd));
+    }
+    let z = z0 * Math.atanh(U.clamp(2 * rng() - 1, -0.995, 0.995));
+    const vc = T.vc(R), kap = T.kap(R), Om = Math.max(1e-4, vc / R), nu = T.nu(R);
+    let sR, sP, sZ, vphi;
+    if (gas) { sR = g.gsig; sP = g.gsig; sZ = Math.min(g.gsig, nu * z0); vphi = vc; }
+    else {
+      sR = g.sig0 * Math.exp(-R / (2 * Rd)); sP = sR * kap / (2 * Om); sZ = nu * z0 * 0.9;
+      vphi = Math.sqrt(Math.max(0, vc * vc + sR * sR * (1 - kap * kap / (4 * Om * Om) - 2 * R / Rd)));
+    }
+    const uR = sR * gauss(), uP = vphi + sP * gauss(), uZ = sZ * gauss();
+    const c = Math.cos(phi), s = Math.sin(phi);
+    put(gi, typ, [R * c, R * s, young ? z * 0.45 : z], [uR * c - uP * s, uR * s + uP * c, young ? uZ * 0.45 : uZ], glow, young);
+  };
+  const sampleBulge = (gi) => {
+    const g = gals[gi], T = tables[gi];
+    let r; do { const u = Math.sqrt(rng()); r = g.ab * u / (1 - u); } while (r > (g.dsph ? 12 : 7) * g.ab);
+    const ct = 2 * rng() - 1, st = Math.sqrt(1 - ct * ct), ph = 2 * Math.PI * rng();
+    const q = [r * st * Math.cos(ph), r * st * Math.sin(ph), r * ct];
+    const vesc = Math.sqrt(Math.max(0, -2 * g.potLocal(q[0], q[1], q[2])));
+    const sg = T.sig(r);
+    let u; do { u = [sg * gauss(), sg * gauss(), sg * gauss()]; } while (Math.hypot(u[0], u[1], u[2]) > 0.92 * vesc);
+    put(gi, 1, q, u, 0);
+  };
+  // clumps of star-forming gas strung along the arms
+  gals.forEach((g, gi) => {
+    const sp = sps[gi]; g.clumpList = null;
+    if (g.gasFrac <= 0 || g.dsph) return;
+    const list = [];
+    for (let k = 0; k < 140; k++) {
+      let R; do { R = -g.gRd * Math.log(rng() * rng() + 1e-12); } while (R > g.gRmax * 0.8 || R < 1.2 * g.ad * 0.5);
+      let phi = rng() * 2 * Math.PI;
+      if (sp) { const chi0 = chiAt(sp, R, 0); phi = (-chi0 + 2 * Math.PI * Math.round(rng()) + gauss() * 0.35) / 2; }
+      list.push([R * Math.cos(phi), R * Math.sin(phi), (0.18 + 0.25 * rng()) * Math.cbrt(g.Md / 5 + 0.01)]);
+    }
+    g.clumpList = list;
+  });
+  for (let gi = 0; gi < ng; gi++) for (let k = 0; k < counts[gi].ngas; k++) sampleDisk(gi, 2);
+  const nGas = idx;
+  for (let gi = 0; gi < ng; gi++) for (let k = 0; k < counts[gi].nd; k++) sampleDisk(gi, 0);
+  for (let gi = 0; gi < ng; gi++) for (let k = 0; k < counts[gi].nb; k++) sampleBulge(gi);
+  return { pos, del, aux, nGas };
+}
+
+/* =====================================================================================
+   WEBGL
+   ===================================================================================== */
+const canvas = ch.canvas('gx-gl');
+const gl = Cosmos.gl.context(canvas, { antialias: false });
+if (!gl) { ch.fatal('This chapter needs WebGL2, which this browser does not provide. Try a recent Chrome, Edge, Firefox or Safari.'); return; }
+const FULL = gl.ext.floatRT && !/[?&]lite\b/.test(location.search);                          // HDR, bloom, density grid and star formation
+const FLOAT_BLEND = !!gl.getExtension('EXT_float_blend');
+const PT_MAX = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)[1] || 64;
+
+const GLSL_HEAD = `#version 300 es
+precision highp float; precision highp int; precision highp isampler2D; precision highp sampler2D;
+#define MAXG ${MAXG}
+const float INV_S = ${(1 / SCALE).toExponential(10)};
+const float EPS2 = ${(EPS * EPS).toFixed(6)};
+`;
+const GAL_GLSL = `
+uniform int uNG;
+uniform ivec3 uC[MAXG];
+uniform mat3 uR[MAXG];
+uniform vec4 uH[MAXG];
+uniform float uHC[MAXG];
+uniform vec4 uB[MAXG];
+uniform vec4 uD[MAXG];
+uniform vec4 uS[MAXG];
+uniform vec4 uS2[MAXG];
+float mnfw(float x){ return x < 0.02 ? x*x*(0.5 - x*(0.6666667 - 0.75*x)) : log(1.0 + x) - x/(1.0 + x); }
+vec3 accGal(int g, vec3 r){
+  vec4 H = uH[g];
+  float r2 = dot(r, r) + EPS2;          // Plummer-softened radius keeps the cuspy centres harmonic for the 0.5 Myr step
+  float rr = sqrt(r2);
+  float ir3 = 1.0/(r2*rr);
+  float f = 0.0;
+  if (H.y > 0.0) f = rr < H.z ? H.x*mnfw(rr/H.y)*ir3 : H.w*ir3;
+  else if (H.y < 0.0) f = rr < H.z ? H.x/(r2 + H.y*H.y) : H.w*ir3;
+  vec4 B = uB[g];
+  float rb = rr + B.y;
+  f += B.x/(rr*rb*rb);
+  vec3 acc = -f*r;
+  vec4 D = uD[g];
+  vec3 q = r*uR[g];
+  float zeta = sqrt(q.z*q.z + D.z*D.z);
+  float az = D.y + zeta;
+  float dd = q.x*q.x + q.y*q.y + az*az;
+  float k = D.x*inversesqrt(dd)/dd;
+  vec3 gd = vec3(-q.x*k, -q.y*k, -q.z*k*az/zeta);
+  vec4 S = uS[g];
+  if (S.x != 0.0) {
+    vec4 S2 = uS2[g];
+    float R2 = q.x*q.x + q.y*q.y + 1.0e-4;
+    float R = sqrt(R2);
+    // χ = 2φ + m cot(p) ln(R/R0) − Ω-phase, using cos 2φ and sin 2φ directly (no atan)
+    float c2 = (q.x*q.x - q.y*q.y)/R2, s2 = 2.0*q.x*q.y/R2;
+    float psi = S.z*(0.5*log(R2) - S.w) - S.y;
+    float cp_ = cos(psi), sp_ = sin(psi);
+    float cc = c2*cp_ - s2*sp_, ss = s2*cp_ + c2*sp_;
+    float fr = R2/(R2 + S2.x)*exp(-R*S2.y);
+    float dfr = fr*(2.0*S2.x/(R*(R2 + S2.x)) - S2.y);
+    float ez = exp(-2.0*abs(q.z)*S2.z);
+    float th = sign(q.z)*(1.0 - ez)/(1.0 + ez);
+    float hz = 1.0 - th*th;
+    float dhz = -2.0*S2.z*hz*th;
+    float dPdR = -S.x*hz*(dfr*cc - fr*ss*S.z/R);
+    float dPdp = 2.0*S.x*hz*fr*ss/R;
+    float dPdz = -S.x*fr*cc*dhz;
+    float cp = q.x/R, sp = q.y/R;
+    gd += vec3(-(dPdR*cp - dPdp*sp), -(dPdR*sp + dPdp*cp), -dPdz);
+  }
+  return acc + uR[g]*gd;
+}
+vec3 accAll(ivec3 p){
+  vec3 a = vec3(0.0);
+  for (int g = 0; g < MAXG; g++) { if (g >= uNG) break; a += accGal(g, vec3(p - uC[g])*INV_S); }
+  return a;
+}
+float potGal(int g, vec3 r){
+  vec4 H = uH[g];
+  float rr = sqrt(dot(r, r) + EPS2);
+  float ph = 0.0;
+  if (H.y > 0.0) ph = rr < H.z ? -H.x*log(1.0 + rr/H.y)/rr + uHC[g] : -H.w/rr;
+  else if (H.y < 0.0) { float c2 = H.y*H.y; ph = rr < H.z ? 0.5*H.x*log((rr*rr + c2)/(H.z*H.z + c2)) - H.w/H.z : -H.w/rr; }
+  ph -= uB[g].x/(rr + uB[g].y);
+  vec3 q = r*uR[g];
+  float zeta = sqrt(q.z*q.z + uD[g].z*uD[g].z);
+  float az = uD[g].y + zeta;
+  return ph - uD[g].x*inversesqrt(q.x*q.x + q.y*q.y + az*az);
+}
+`;
+
+// --- integer leapfrog step (Levesque–Verlet, bit-reversible) ---
+const STEP_FS = GLSL_HEAD + GAL_GLSL + `
+uniform highp isampler2D uPos, uDel;
+uniform float uK;
+layout(location = 0) out ivec4 oPos;
+layout(location = 1) out ivec4 oDel;
+void main(){
+  ivec2 ij = ivec2(gl_FragCoord.xy);
+  ivec4 p = texelFetch(uPos, ij, 0);
+  ivec4 d = texelFetch(uDel, ij, 0);
+  vec3 k = clamp(accAll(p.xyz)*uK, vec3(-1.0e8), vec3(1.0e8));
+  ivec3 dn = d.xyz + ivec3(round(k));
+  ivec3 pn = p.xyz + dn;
+  if (any(greaterThan(abs(pn), ivec3(1900000000)))) { pn = p.xyz; dn = ivec3(0); }
+  oPos = ivec4(pn, p.w);
+  oDel = ivec4(dn, d.w);
+}`;
+const FLIP_FS = GLSL_HEAD + `
+uniform highp isampler2D uPos, uDel;
+layout(location = 0) out ivec4 oPos;
+layout(location = 1) out ivec4 oDel;
+void main(){
+  ivec2 ij = ivec2(gl_FragCoord.xy);
+  ivec4 p = texelFetch(uPos, ij, 0);
+  ivec4 d = texelFetch(uDel, ij, 0);
+  oPos = ivec4(p.xyz - d.xyz, p.w);
+  oDel = ivec4(-d.xyz, d.w);
+}`;
+
+// --- tracer dye: sets or clears bit 15 of the particle's tag word; positions and displacements pass through untouched,
+//     so dyeing never disturbs the orbits or the bit-exact reversibility ---
+const TAG_FS = GLSL_HEAD + GAL_GLSL + `
+uniform highp isampler2D uPos, uDel;
+uniform int uMode, uGal;              // 0 brush (add), 1 tails (set), 2 wash out, 3 one galaxy (set)
+uniform ivec3 uOrigin;
+uniform mat4 uVP;
+uniform vec3 uBrush;                  // NDC centre and radius (in NDC-y units)
+uniform float uAspect;
+uniform float uTail[MAXG];
+layout(location = 0) out ivec4 oPos;
+layout(location = 1) out ivec4 oDel;
+void main(){
+  ivec2 ij = ivec2(gl_FragCoord.xy);
+  ivec4 p = texelFetch(uPos, ij, 0);
+  ivec4 d = texelFetch(uDel, ij, 0);
+  int w = p.w;
+  const int TAG = 32768;
+  if (uMode == 0) {
+    vec4 c = uVP*vec4(vec3(p.xyz - uOrigin)*INV_S, 1.0);
+    if (c.w > 0.05) { vec2 q = (c.xy/c.w - uBrush.xy)*vec2(uAspect, 1.0); if (dot(q, q) < uBrush.z*uBrush.z) w = w | TAG; }
+  } else if (uMode == 1) {
+    bool far = true;
+    for (int g = 0; g < MAXG; g++) { if (g >= uNG) break; if (length(vec3(p.xyz - uC[g])*INV_S) < uTail[g]) far = false; }
+    w = far ? (w | TAG) : (w & ~TAG);
+  } else if (uMode == 3) {
+    w = (p.w & 3) == uGal ? (w | TAG) : (w & ~TAG);
+  } else w = w & ~TAG;
+  oPos = ivec4(p.xyz, w);
+  oDel = d;
+}`;
+
+// --- density grid: 64³ cells per galaxy, as 8×8 tiles of 64² in one quadrant of a 1024² atlas ---
+const GRID_VS = GLSL_HEAD + `
+uniform highp isampler2D uPos;
+uniform int uW, uG;
+uniform ivec3 uGC;
+uniform float uInv;
+void main(){
+  ivec4 p = texelFetch(uPos, ivec2(gl_VertexID % uW, gl_VertexID / uW), 0);
+  vec3 c = vec3(p.xyz - uGC)*INV_S*uInv + 32.0;
+  ivec3 ic = ivec3(floor(c));
+  gl_PointSize = 1.0;
+  // each galaxy's grid holds only its own gas, so a particle can tell its own gas from a colliding galaxy's
+  if ((p.w & 3) != uG || any(lessThan(ic, ivec3(0))) || any(greaterThan(ic, ivec3(63)))) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+  vec2 px = vec2(float((uG & 1)*512 + (ic.z & 7)*64 + ic.x), float((uG >> 1)*512 + (ic.z >> 3)*64 + ic.y)) + 0.5;
+  gl_Position = vec4(px/1024.0*2.0 - 1.0, 0.0, 1.0);
+}`;
+const GRID_FS = GLSL_HEAD + `out vec4 o; void main(){ o = vec4(1.0, 0.0, 0.0, 1.0); }`;
+const GRID_SAMPLE = `
+uniform sampler2D uGrid;
+float gridAt(int g, vec3 c){
+  c = clamp(c - 0.5, vec3(0.0), vec3(63.0));
+  float z0 = floor(c.z); float fz = c.z - z0; int iz0 = int(z0); int iz1 = min(iz0 + 1, 63);
+  vec2 xy = c.xy + 0.5;
+  vec2 base = vec2(float((g & 1)*512), float((g >> 1)*512));
+  vec2 t0 = base + vec2(float((iz0 & 7)*64), float((iz0 >> 3)*64)) + xy;
+  vec2 t1 = base + vec2(float((iz1 & 7)*64), float((iz1 >> 3)*64)) + xy;
+  return mix(texture(uGrid, t0*(1.0/1024.0)).r, texture(uGrid, t1*(1.0/1024.0)).r, fz);
+}`;
+
+// --- per-particle star-formation state: (running mean density, Hα, blue light, density) ---
+const AUX_FS = GLSL_HEAD + GRID_SAMPLE + `
+uniform highp isampler2D uPos;
+uniform sampler2D uAux;
+uniform int uNG;
+uniform ivec3 uGC[MAXG];
+uniform float uGInv[MAXG];
+uniform float uNorm, uDtMyr, uRef, uShock;
+out vec4 o;
+void main(){
+  ivec2 ij = ivec2(gl_FragCoord.xy);
+  ivec4 p = texelFetch(uPos, ij, 0);
+  vec4 A = texelFetch(uAux, ij, 0);
+  if (((p.w >> 2) & 3) != 2) { o = vec4(0.0); return; }
+  // own and foreign gas density from the per-galaxy grids
+  int gal = p.w & 3;
+  float nOwn = 0.0, nFor = 0.0;
+  for (int g = 0; g < MAXG; g++) {
+    if (g >= uNG) break;
+    float inv = uGInv[g];
+    vec3 c = vec3(p.xyz - uGC[g])*INV_S*inv + 32.0;
+    if (any(lessThan(c, vec3(0.5))) || any(greaterThan(c, vec3(63.5)))) continue;
+    float v = gridAt(g, c)*inv*inv*inv*uNorm;
+    if (g == gal) nOwn = v; else nFor += v;
+  }
+  float n = nOwn + nFor;
+  float nbar = A.x < 0.0 ? n : A.x;
+  float dt = uDtMyr;
+  nbar += (n - nbar)*(1.0 - exp(-dt/150.0));
+  float x = n/uRef;
+  float comp = n/max(nbar, 0.02*uRef);
+  // Schmidt law above a threshold, boosted where the gas is being compressed ...
+  float sfr = pow(x, 1.5)*smoothstep(0.75, 1.4, x)*(1.0 + 3.0*smoothstep(1.2, 2.6, comp));
+  // ... plus cloud–cloud collisions where two galaxies' gas interpenetrates (rate ∝ n_foreign × v_rel)
+  sfr += uShock*(nFor/uRef)*smoothstep(0.1, 0.6, nOwn/uRef);
+  sfr = min(sfr, 40.0);
+  float ha = A.y + (sfr - A.y)*(1.0 - exp(-dt/15.0));
+  float bl = A.z + (sfr - A.z)*(1.0 - exp(-dt/60.0));
+  o = vec4(nbar, ha, bl, n);
+}`;
+
+// --- diagnostics per particle, then summed on the GPU ---
+const FLAG_FS = GLSL_HEAD + GAL_GLSL + `
+uniform highp isampler2D uPos, uDel;
+uniform sampler2D uAux;
+uniform float uTail[MAXG];
+uniform vec3 uVcom;
+uniform float uInvDt;
+out vec4 o;
+void main(){
+  ivec2 ij = ivec2(gl_FragCoord.xy);
+  ivec4 p = texelFetch(uPos, ij, 0);
+  int typ = (p.w >> 2) & 3;
+  if (typ == 2) { vec4 A = texelFetch(uAux, ij, 0); o = vec4(0.0, 0.0, A.y, 0.0); return; }
+  ivec4 d = texelFetch(uDel, ij, 0);
+  vec3 v = vec3(d.xyz)*INV_S*uInvDt - uVcom;
+  float phi = 0.0; bool far = true;
+  for (int g = 0; g < MAXG; g++) {
+    if (g >= uNG) break;
+    vec3 r = vec3(p.xyz - uC[g])*INV_S;
+    phi += potGal(g, r);
+    if (length(r) < uTail[g]) far = false;
+  }
+  float e = 0.5*dot(v, v) + phi;
+  o = vec4(far ? 1.0 : 0.0, e > 0.0 ? 1.0 : 0.0, 0.0, 1.0);
+}`;
+const REDUCE_FS = GLSL_HEAD + `
+uniform sampler2D uSrc;
+uniform int uK;
+out vec4 o;
+void main(){
+  ivec2 b = ivec2(gl_FragCoord.xy)*uK;
+  vec4 s = vec4(0.0);
+  for (int y = 0; y < 32; y++) { if (y >= uK) break; for (int x = 0; x < 32; x++) { if (x >= uK) break; s += texelFetch(uSrc, b + ivec2(x, y), 0); } }
+  o = s;
+}`;
+
+// --- render: stars, gas and young stars as HDR point sprites ---
+const PART_COMMON = `
+uniform highp isampler2D uPos;
+uniform int uW;
+uniform ivec3 uOrigin;
+uniform mat4 uVP;
+uniform float uFocal, uMaxPx, uSizeN, uRefD, uGrowMax;
+uniform vec2 uNear;
+uniform vec3 uCen[MAXG];
+uniform float uRd[MAXG];
+uniform float uAb[MAXG];
+// shared geometry: position, sprite size and flux gain for particle ij
+bool geom(ivec4 p, int typ, out vec4 clip, out float px, out float gain, out float worldR){
+  int gal = p.w & 3;
+  vec3 x = vec3(p.xyz - uOrigin)*INV_S;
+  clip = uVP*vec4(x, 1.0);
+  if (clip.w < 0.05) return false;
+  float rnd = float((p.w >> 4) & 1023)*(1.0/1023.0);
+  bool cluster = typ != 2 && rnd > 0.975;       // a few particles are drawn as compact, unsmoothed star clusters
+  worldR = (typ == 2 ? 0.18 : typ == 1 ? 0.12 : 0.13)*uSizeN;
+  if (cluster) worldR = 0.035*uSizeN;
+  // density-adaptive smoothing: sparse outskirts and tidal tails get wider, fainter kernels (flux conserved)
+  float Rg = length(x - uCen[gal]);
+  float grow = cluster ? 1.0 : typ == 1 ? clamp(pow(Rg/(2.0*uAb[gal]), 0.8), 0.8, 2.0)
+                        : clamp(exp((Rg - 1.2*uRd[gal])/(3.0*uRd[gal])), 0.85, typ == 2 ? 1.5 : uGrowMax);
+  worldR *= grow;
+  gain = 1.0/(grow*grow);
+  px = worldR*uFocal/clip.w;
+  const float MINPX = 0.7;
+  if (px < MINPX) { gain *= (px/MINPX)*(px/MINPX); px = MINPX; }
+  else if (px > uMaxPx) px = uMaxPx;                        // very near sprites keep their surface brightness
+  gain *= smoothstep(uNear.x, uNear.y, clip.w);           // fade the particles right next to the camera
+  return true;
+}
+`;
+const PART_VS = GLSL_HEAD + PART_COMMON + `
+uniform sampler2D uAux;
+uniform float uLumN, uSF, uGasVis, uOldK, uYoungK, uHaK;
+uniform float uLumG[MAXG];
+out vec3 vCore;
+out vec3 vHalo;
+out float vK;
+out float vZ;
+out float vEmb;
+void main(){
+  ivec2 ij = ivec2(gl_VertexID % uW, gl_VertexID / uW);
+  ivec4 p = texelFetch(uPos, ij, 0);
+  int gal = p.w & 3, typ = (p.w >> 2) & 3;
+  float rnd = float((p.w >> 4) & 1023)*(1.0/1023.0);
+  vec4 clip; float px, gain, worldR;
+  vCore = vHalo = vec3(0.0); vK = 1.0; vZ = 0.0; vEmb = 0.0;
+  if (!geom(p, typ, clip, px, gain, worldR)) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); gl_PointSize = 0.0; return; }
+  float lum = uLumN*uLumG[gal]*gain;
+  vec3 core, halo = vec3(0.0);
+  if (typ == 2) {
+    vec4 A = texelFetch(uAux, ij, 0);
+    float ha = max(A.y, 0.0), bl = max(A.z, 0.0);
+    ha = uSF*ha/(1.0 + 0.25*ha); bl = uSF*bl/(1.0 + 0.2*bl);
+    // young clusters: a hot blue-white core inside a pink Hα halo; quiet gas is a faint red haze
+    core = vec3(0.36, 0.55, 1.00)*bl*10.0 + vec3(0.8, 0.9, 1.0)*ha*0.5;
+    halo = vec3(1.00, 0.18, 0.40)*(0.004 + ha*0.7*uHaK)*uGasVis;
+    vK = 5.0;
+    vEmb = 0.14;                                  // star-forming regions sit inside their own dusty birth clouds
+  } else if (typ == 1) {
+    core = mix(vec3(1.0, 0.62, 0.34), vec3(1.0, 0.76, 0.50), rnd)*uOldK;
+  } else {
+    if (((p.w >> 14) & 1) == 1) vEmb = 0.12;
+    core = ((p.w >> 14) & 1) == 1 ? mix(vec3(0.55, 0.71, 1.0), vec3(0.78, 0.86, 1.0), rnd)*1.6*uYoungK : mix(vec3(1.0, 0.76, 0.50), vec3(1.0, 0.87, 0.70), rnd)*uOldK;
+  }
+  if (typ != 2 && rnd > 0.975) core *= 1.7;
+  if (((p.w >> 15) & 1) == 1) {
+    // tracer dye: a stain, not physics (teal, a colour no stellar population has)
+    core = mix(vec3(0.16, 1.0, 0.78), vec3(0.45, 1.0, 0.92), rnd)*(typ == 2 ? 1.0 : 1.45);
+    halo = vec3(0.0); vK = 1.0; vEmb = 0.0;
+  }
+  gl_Position = clip;
+  gl_PointSize = px*5.0;
+  vCore = core*lum;
+  vHalo = halo*lum;
+  vZ = (clip.w - uRefD)*0.05;
+}`;
+const PART_FS = GLSL_HEAD + `
+in vec3 vCore; in vec3 vHalo; in float vK; in float vZ; in float vEmb;
+uniform sampler2D uDust;
+uniform vec2 uInvRes;
+uniform float uKappa, uVarOK;
+out vec4 o;
+void main(){
+  vec2 d = gl_PointCoord*2.0 - 1.0;
+  float s2 = dot(d, d)*6.25;         // (r/σ)² with the sprite spanning ±2.5σ
+  if (s2 > 6.25) discard;
+  vec3 c = vCore*exp(-0.5*s2*vK) + vHalo*exp(-0.5*s2);
+  if (uKappa > 0.0) {
+    // dust: attenuate by the part of the gas column that lies in front of this particle, reddening as it goes
+    vec4 D = texture(uDust, gl_FragCoord.xy*uInvRes);
+    float tau = D.x*uKappa;
+    if (tau > 0.003) {
+      float mu = D.y/D.x;
+      float sig = uVarOK > 0.5 ? sqrt(max(D.z/D.x - mu*mu, 0.0)) + 0.012 : 0.12;
+      float f = max(1.0/(1.0 + exp(-1.702*(vZ - mu)/sig)), vEmb);
+      c *= exp(-tau*f*vec3(0.74, 1.0, 1.34));
+    }
+  }
+  o = vec4(c, 1.0);
+}`;
+// dust layer: gas surface density seen from the camera, with its mean depth and depth spread
+const DUST_VS = GLSL_HEAD + PART_COMMON + `
+out float vW; out float vZ;
+void main(){
+  ivec2 ij = ivec2(gl_VertexID % uW, gl_VertexID / uW);
+  ivec4 p = texelFetch(uPos, ij, 0);
+  vec4 clip; float px, gain, worldR;
+  vW = 0.0; vZ = 0.0;
+  if (!geom(p, 2, clip, px, gain, worldR)) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); gl_PointSize = 0.0; return; }
+  worldR *= 0.7; px *= 0.7;                   // dust hugs the midplane: a thinner layer than the stars, so edge-on disks show a lane
+  if (px < 0.7) { gain *= (px/0.7)*(px/0.7); px = 0.7; }
+  gl_Position = clip; gl_PointSize = px*5.0;
+  vW = gain/(6.2832*worldR*worldR);           // Σ over sprites ≈ gas particles per kpc² along the sight line
+  vZ = (clip.w - uRefD)*0.05;
+}`;
+const DUST_FS = GLSL_HEAD + `
+in float vW; in float vZ; uniform float uClampZ; out vec4 o;
+void main(){
+  vec2 d = gl_PointCoord*2.0 - 1.0; float s2 = dot(d, d)*6.25; if (s2 > 6.25) discard;
+  float w = vW*exp(-0.5*s2);
+  float z = clamp(vZ, -uClampZ, uClampZ);
+  o = vec4(w, w*z, w*z*z, 0.0);
+}`;
+// nuclei: a compact glow at each galaxy centre
+const NUC_VS = GLSL_HEAD + `
+uniform mat4 uVP; uniform vec3 uP[MAXG]; uniform float uL[MAXG]; uniform float uFocal, uMaxPx;
+out float vL;
+void main(){
+  vec4 clip = uVP*vec4(uP[gl_VertexID], 1.0);
+  vL = uL[gl_VertexID];
+  if (clip.w < 0.05) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); gl_PointSize = 0.0; return; }
+  float px = clamp(0.35*uFocal/clip.w, 2.0, uMaxPx);
+  gl_Position = clip; gl_PointSize = px*6.0;
+}`;
+const NUC_FS = GLSL_HEAD + `in float vL; out vec4 o; void main(){ vec2 d = gl_PointCoord*2.0 - 1.0; float r2 = dot(d, d)*9.0; o = vec4(vec3(1.0, 0.86, 0.66)*vL*(exp(-0.5*r2*6.0) + 0.08*exp(-0.5*r2)), 1.0); }`;
+
+// --- background: faint distant galaxies and a few foreground stars on the sky sphere ---
+const BG_VS = GLSL_HEAD + `
+in vec3 aDir; in vec4 aP; in vec4 aC;
+uniform mat4 uVProt; uniform float uDpr;
+out vec4 vP; out vec4 vC;
+void main(){
+  vec4 c = uVProt*vec4(aDir*100.0, 1.0);
+  gl_Position = vec4(c.xy, c.w*0.9999, c.w);
+  if (c.w <= 0.0) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
+  gl_PointSize = aP.x*uDpr;
+  vP = aP; vC = aC;
+}`;
+const BG_FS = GLSL_HEAD + `
+in vec4 vP; in vec4 vC; out vec4 o;
+void main(){
+  vec2 d = gl_PointCoord*2.0 - 1.0;
+  float ca = cos(vP.z), sa = sin(vP.z);
+  vec2 q = vec2(ca*d.x + sa*d.y, -sa*d.x + ca*d.y);
+  float typ = vC.w;
+  float I;
+  if (typ < 0.5) { float r2 = dot(d, d); I = exp(-r2*9.0); }
+  else {
+    q.y /= max(0.12, 1.0 - vP.y);
+    float r = length(q);
+    if (r > 1.0) discard;
+    if (typ < 1.5) I = exp(-7.0*(pow(r*2.2 + 0.02, 0.35) - 0.4));
+    else { float th = atan(q.y, q.x); I = exp(-r*5.5)*(0.6 + 0.4*cos(2.0*th - 7.0*log(r + 0.05))) + exp(-r*r*120.0); }
+    I *= smoothstep(1.0, 0.7, r);
+  }
+  o = vec4(vC.rgb*vP.w*I, 1.0);
+}`;
+
+// --- bloom and final grade ---
+const DOWN_FS = GLSL_HEAD + `
+in vec2 vUv; uniform sampler2D uSrc; uniform vec2 uTexel; uniform float uThresh; out vec4 o;
+void main(){
+  vec2 t = uTexel;
+  vec3 a = texture(uSrc, vUv + t*vec2(-2, 2)).rgb, b = texture(uSrc, vUv + t*vec2(0, 2)).rgb, c = texture(uSrc, vUv + t*vec2(2, 2)).rgb;
+  vec3 d = texture(uSrc, vUv + t*vec2(-2, 0)).rgb, e = texture(uSrc, vUv).rgb, f = texture(uSrc, vUv + t*vec2(2, 0)).rgb;
+  vec3 g = texture(uSrc, vUv + t*vec2(-2, -2)).rgb, h = texture(uSrc, vUv + t*vec2(0, -2)).rgb, i = texture(uSrc, vUv + t*vec2(2, -2)).rgb;
+  vec3 j = texture(uSrc, vUv + t*vec2(-1, 1)).rgb, k = texture(uSrc, vUv + t*vec2(1, 1)).rgb, l = texture(uSrc, vUv + t*vec2(-1, -1)).rgb, m = texture(uSrc, vUv + t*vec2(1, -1)).rgb;
+  vec3 s = e*0.125 + (a + c + g + i)*0.03125 + (b + d + f + h)*0.0625 + (j + k + l + m)*0.125;
+  if (uThresh > 0.0) { float br = max(s.r, max(s.g, s.b)); float soft = clamp(br - uThresh*0.5, 0.0, uThresh); soft = soft*soft/(2.0*uThresh + 1e-5); s *= max(soft, br - uThresh)/max(br, 1e-5); }
+  o = vec4(min(s, vec3(6.0e4)), 1.0);
+}`;
+const UP_FS = GLSL_HEAD + `
+in vec2 vUv; uniform sampler2D uSrc; uniform vec2 uTexel; out vec4 o;
+void main(){
+  vec2 t = uTexel;
+  vec3 s = texture(uSrc, vUv).rgb*4.0;
+  s += (texture(uSrc, vUv + vec2(-t.x, 0)).rgb + texture(uSrc, vUv + vec2(t.x, 0)).rgb + texture(uSrc, vUv + vec2(0, -t.y)).rgb + texture(uSrc, vUv + vec2(0, t.y)).rgb)*2.0;
+  s += texture(uSrc, vUv + vec2(-t.x, -t.y)).rgb + texture(uSrc, vUv + vec2(t.x, -t.y)).rgb + texture(uSrc, vUv + vec2(-t.x, t.y)).rgb + texture(uSrc, vUv + vec2(t.x, t.y)).rgb;
+  o = vec4(s/16.0, 1.0);
+}`;
+const FINAL_FS = GLSL_HEAD + `
+in vec2 vUv; uniform sampler2D uScene, uBloom; uniform float uExpo, uBloomK, uTime, uBeta, uVib; uniform vec4 uG; uniform vec2 uRes; out vec4 o;
+uniform int uDMn; uniform vec4 uDM[MAXG]; uniform vec4 uDM2[MAXG]; uniform vec3 uDMcol;
+// projected NFW surface density in units of rho_s r_s (Wright & Brainerd 2000)
+float sigmaNFW(float x){
+  x = max(x, 1.0e-3);
+  if (abs(x - 1.0) < 1.0e-3) return 2.0/3.0;
+  if (x < 1.0) { float s = sqrt(1.0 - x*x); return 2.0/(x*x - 1.0)*(1.0 - 2.0/s*atanh(sqrt((1.0 - x)/(1.0 + x)))); }
+  float s = sqrt(x*x - 1.0); return 2.0/(x*x - 1.0)*(1.0 - 2.0/s*atan(sqrt((x - 1.0)/(1.0 + x))));
+}
+vec3 aces(vec3 x){ return clamp((x*(2.51*x + 0.03))/(x*(2.43*x + 0.59) + 0.14), 0.0, 1.0); }
+float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)))*43758.5453); }
+void main(){
+  // Lupton-style asinh stretch on luminance (colour preserved): faint tails and bright disks on one plate
+  vec3 c = texture(uScene, vUv).rgb*uExpo;
+  float L = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  c *= asinh(uBeta*L)/(asinh(uBeta*uG.x)*max(L, 1.0e-7));
+  c += texture(uBloom, vUv).rgb*uBloomK*uExpo*0.06;
+  float m = max(c.r, max(c.g, c.b));
+  c = mix(c, vec3(m), smoothstep(uG.y, uG.z, m)*uG.w);      // saturated cores burn to white, as on a photographic plate
+  float L2 = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  c = max(mix(vec3(L2), c, uVib), 0.0);                   // vibrance: keep old-star gold and young-star blue apart after the stretch
+  c = aces(c*0.9);
+  vec2 q = vUv - 0.5; q.x *= uRes.x/uRes.y;
+  c *= 1.0 - 0.28*smoothstep(0.35, 1.05, length(q));
+  c = pow(c, vec3(1.0/2.2));
+  if (uDMn > 0) {
+    // dark matter: summed projected density of every halo, drawn as hairline contours every 0.25 dex
+    vec2 px = vUv*uRes; float S = 0.0;
+    for (int g = 0; g < MAXG; g++) {
+      if (g >= uDMn) break;
+      vec4 d = uDM[g]; vec4 d2 = uDM2[g];
+      float R = length(px - d.xy)/d.z;                // impact parameter in kpc
+      if (d2.x > 0.0) S += d2.y*sigmaNFW(R/d.w)*(1.0 - smoothstep(0.7*d2.x, d2.x, R));
+      else S += d2.y*d.w/sqrt(R*R + d.w*d.w);           // cored logarithmic halo
+    }
+    if (S > 1.0e-6) {
+      float L = log(S)/log(10.0)/0.25;
+      float fw = fwidth(L)*1.1;
+      float f = fract(L); float line = 1.0 - smoothstep(0.0, fw, min(f, 1.0 - f));
+      // S in M☉/pc²: lines from ≈0.3 to ≈100 M☉/pc² (inside that the disk is the story), faint violet fill
+      float fade = smoothstep(-3.0, 0.0, L)*(1.0 - smoothstep(7.0, 9.0, L));
+      c += uDMcol*(line*0.30*fade + 0.05*smoothstep(-3.0, 9.0, L));
+    }
+  }
+  c += (hash(vUv*uRes + fract(uTime)*91.7) - 0.5)/255.0;
+  o = vec4(c + vec3(0.006, 0.007, 0.014)*clamp(1.0 - L2, 0.0, 1.0), 1.0);
+}`;
+const LITE_FS = GLSL_HEAD + `in vec2 vUv; uniform sampler2D uScene; uniform float uExpo; out vec4 o; void main(){ vec3 c = texture(uScene, vUv).rgb*uExpo; o = vec4(pow(c/(1.0 + c), vec3(0.6)), 1.0); }`;
+
+let progs;
+try {
+  progs = {
+    step: Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, STEP_FS),
+    flip: Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, FLIP_FS),
+    tag: Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, TAG_FS),
+    part: Cosmos.gl.program(gl, PART_VS, PART_FS),
+    dust: Cosmos.gl.program(gl, DUST_VS, DUST_FS),
+    nuc: Cosmos.gl.program(gl, NUC_VS, NUC_FS),
+    bg: Cosmos.gl.program(gl, BG_VS, BG_FS),
+    lite: Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, LITE_FS),
+  };
+  if (FULL) Object.assign(progs, {
+    grid: Cosmos.gl.program(gl, GRID_VS, GRID_FS),
+    aux: Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, AUX_FS),
+    flag: Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, FLAG_FS),
+    reduce: Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, REDUCE_FS),
+    down: Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, DOWN_FS),
+    up: Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, UP_FS),
+    final: Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, FINAL_FS),
+  });
+} catch (e) { ch.fatal('A graphics shader failed to compile on this device.', e); return; }
+const fsTri = Cosmos.gl.quad(gl);
+const emptyVAO = gl.createVertexArray();
+
+// cached uniform setter
+function U_(p, name) { const u = p.uniforms[name]; return u ? u.loc : null; }
+function setI(p, n, v) { const l = U_(p, n); if (l) gl.uniform1i(l, v); }
+function setF(p, n, v) { const l = U_(p, n); if (l) gl.uniform1f(l, v); }
+function bindTex(unit, tex, p, name) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, tex); setI(p, name, unit); }
+
+// particle state: two ping-pong sets of (position, displacement) integer textures
+function itex() {
+  const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32I, W, W);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+}
+function mrt(a, b) {
+  const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, a, 0);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, b, 0);
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+  const st = gl.checkFramebufferStatus(gl.FRAMEBUFFER); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  if (st !== gl.FRAMEBUFFER_COMPLETE) throw new Error('integer framebuffer incomplete 0x' + st.toString(16));
+  return f;
+}
+let PS;
+try {
+  PS = [0, 1].map(() => { const pos = itex(), del = itex(); return { pos, del, fbo: mrt(pos, del) }; });
+} catch (e) { ch.fatal('This device cannot render to integer textures, which the time-reversible integrator needs.', e); return; }
+let cur = 0;
+
+let auxPP = null, gridT = null, flagT = null, red1 = null, red2 = null;
+if (FULL) {
+  auxPP = Cosmos.gl.pingpong(gl, { w: W, h: W, internal: gl.RGBA16F, filter: 'nearest' });
+  gridT = Cosmos.gl.target(gl, { w: 1024, h: 1024, internal: gl.R16F, format: gl.RED, type: gl.HALF_FLOAT, filter: 'linear' });
+  flagT = Cosmos.gl.target(gl, { w: W, h: W, internal: gl.RGBA32F, filter: 'nearest' });
+  red1 = Cosmos.gl.target(gl, { w: W / 16, h: W / 16, internal: gl.RGBA32F, filter: 'nearest' });
+  red2 = Cosmos.gl.target(gl, { w: 1, h: 1, internal: gl.RGBA32F, filter: 'nearest' });
+} else {
+  // without float render targets: a static texture stands in for the star-formation state
+  auxPP = { read: { tex: gl.createTexture() } };
+  gl.bindTexture(gl.TEXTURE_2D, auxPP.read.tex); gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA16F, W, W);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+}
+
+// HDR scene + bloom chain
+let scene = null, blooms = [], sceneW = 0, sceneH = 0, dustT = null;
+function makeTargets() {
+  const w = canvas.width, h = canvas.height;
+  if (w === sceneW && h === sceneH && scene) return;
+  sceneW = w; sceneH = h;
+  const del = (t) => { if (t) { gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fbo); } };
+  del(scene); blooms.forEach(del); blooms = []; del(dustT); dustT = null;
+  const internal = FULL ? gl.RGBA16F : gl.RGBA8;
+  scene = Cosmos.gl.target(gl, { w, h, internal, type: FULL ? gl.HALF_FLOAT : gl.UNSIGNED_BYTE, filter: 'linear' });
+  if (!FULL) return;
+  dustT = Cosmos.gl.target(gl, { w: Math.max(4, w >> 1), h: Math.max(4, h >> 1), internal: FLOAT_BLEND ? gl.RGBA32F : gl.RGBA16F, filter: FLOAT_BLEND && !gl.ext.floatLinear ? 'nearest' : 'linear' });
+  let bw = w >> 1, bh = h >> 1;
+  for (let i = 0; i < 6 && bw >= 4 && bh >= 4; i++) { blooms.push(Cosmos.gl.target(gl, { w: bw, h: bh, internal: gl.RGBA16F, filter: 'linear' })); bw >>= 1; bh >>= 1; }
+}
+
+// background sky
+const bg = (() => {
+  const rng = U.rng(9001), gauss = () => U.gauss(rng);
+  const nGal = SMALL ? 900 : 2200, nStar = SMALL ? 500 : 1100, n = nGal + nStar;
+  const dir = new Float32Array(n * 3), P = new Float32Array(n * 4), C = new Float32Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    const v = V3.norm([gauss(), gauss(), gauss()]); dir.set(v, i * 3);
+    if (i < nGal) {
+      const typ = rng() < 0.35 ? 1 : 2, big = Math.pow(rng(), 5);
+      const size = 3 + 20 * big + 2 * rng();
+      const ell = typ === 1 ? 0.5 * rng() : 0.25 + 0.7 * rng();
+      const z = rng();   // stand-in redshift: small, faint, red
+      const warm = typ === 1 ? [1.0, 0.78, 0.55] : [0.75, 0.82, 1.0];
+      const col = warm.map((c, k) => U.lerp(c, [1.0, 0.55, 0.4][k], z * 0.7));
+      const br = (0.012 + 0.05 * big) * (1.2 - z * 0.6);
+      P.set([size, ell, rng() * Math.PI, br], i * 4); C.set([col[0], col[1], col[2], typ], i * 4);
+    } else {
+      const b = Math.pow(rng(), 7);
+      const T = 3500 + 9000 * Math.pow(rng(), 2);
+      const col = U.blackbody(T);
+      P.set([2.2 + 3.0 * b, 0, 0, 0.05 + 2.2 * b], i * 4); C.set([col[0], col[1], col[2], 0], i * 4);
+    }
+  }
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const buf = (data, loc, size) => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0); };
+  const pr = progs.bg;
+  buf(dir, pr.attribs.aDir, 3); buf(P, pr.attribs.aP, 4); buf(C, pr.attribs.aC, 4);
+  gl.bindVertexArray(null);
+  return { vao, n };
+})();
+
+/* =====================================================================================
+   SIMULATION STATE
+   ===================================================================================== */
+const sim = {
+  preset: null, gals: [], hist: null, n: 0, reversed: false, nGas: 0, acc: 0, seed: 1,
+  spiralOn: true, simT: 0, stats: { tail: 0, unbound: 0, sfr: 0, stars: 1 }, sfr0: 0, series: [], peris: [],
+  pending: false, lastSampleT: -1e9, maxN: 0, budget: 16,
+};
+const galU = { C: new Int32Array(MAXG * 3), R: new Float32Array(MAXG * 9), H: new Float32Array(MAXG * 4), HC: new Float32Array(MAXG), B: new Float32Array(MAXG * 4), D: new Float32Array(MAXG * 4), S: new Float32Array(MAXG * 4), S2: new Float32Array(MAXG * 4), tail: new Float32Array(MAXG), lum: new Float32Array(MAXG), ginv: new Float32Array(MAXG), GC: new Int32Array(MAXG * 3) };
+
+function packStatic() {
+  const gs = sim.gals;
+  gs.forEach((g, i) => {
+    galU.R.set(g.R, i * 9);
+    galU.B.set([G * g.Mb, g.ab, 0, 0], i * 4);
+    galU.D.set([G * g.Md, g.ad, g.bd, 0], i * 4);
+    const sp = g.sp;
+    if (sp && sim.spiralOn) { galU.S.set([sp.A, 0, sp.mcot, sp.lnR0], i * 4); galU.S2.set([sp.Rc2, 1 / sp.Rf, 1 / sp.zs, 0], i * 4); }
+    else { galU.S.set([0, 0, 0, 0], i * 4); galU.S2.set([1, 1, 1, 0], i * 4); }
+    galU.tail[i] = Math.max(22, 1.5 * g.Rmax, 6 * g.ab);
+    galU.lum[i] = g.lumPer * g.lumBoost;
+    galU.ginv[i] = 64 / g.gridL;
+  });
+}
+/** Per-step uniforms: centre positions, halo truncation, spiral phase at step n. */
+function packStep(n) {
+  const h = sim.hist, ng = sim.gals.length;
+  for (let i = 0; i < ng; i++) {
+    for (let c = 0; c < 3; c++) galU.C[i * 3 + c] = Math.round(h.X[(n * ng + i) * 3 + c] * SCALE);
+    const hu = sim.gals[i].haloU(h.RT[n * ng + i]);
+    galU.H.set([hu[0], hu[1], hu[2], hu[3]], i * 4); galU.HC[i] = hu[4];
+    const sp = sim.gals[i].sp;
+    if (sp && sim.spiralOn) { let ph = (2 * sp.Op * n * DT) % (2 * Math.PI); galU.S[i * 4 + 1] = ph; }
+  }
+}
+function uploadGal(p) {
+  const ng = sim.gals.length, l = (n) => U_(p, n);
+  gl.uniform1i(l('uNG'), ng);
+  if (l('uC')) gl.uniform3iv(l('uC'), galU.C);
+  if (l('uR')) gl.uniformMatrix3fv(l('uR'), false, galU.R);
+  if (l('uH')) gl.uniform4fv(l('uH'), galU.H);
+  if (l('uHC')) gl.uniform1fv(l('uHC'), galU.HC);
+  if (l('uB')) gl.uniform4fv(l('uB'), galU.B);
+  if (l('uD')) gl.uniform4fv(l('uD'), galU.D);
+  if (l('uS')) gl.uniform4fv(l('uS'), galU.S);
+  if (l('uS2')) gl.uniform4fv(l('uS2'), galU.S2);
+}
+
+function loadPreset(p, opts = {}) {
+  sim.preset = p;
+  Phys.lnL = dfSlider ? dfSlider.value : 1.3;
+  Phys.strip = stripToggle ? stripToggle.value : true;
+  sim.gals = p.build();
+  sim.gals.forEach((g) => { g.gridL = Math.max(24, 2.5 * Math.max(g.gRmax, g.Rmax)); });
+  const t0 = performance.now();
+  const P = buildParticles(sim.gals, (p.seed || 7) + (opts.reseed || 0));
+  sim.nGas = P.nGas;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  // Every encounter gets fresh state textures. Uploading into render targets the GPU may still be using was
+  // intermittently lost on ANGLE/Metal: positions then stayed frozen while displacements grew (a broken Cartwheel).
+  const fresh = (data) => { const t = itex(); if (data) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, W, gl.RGBA_INTEGER, gl.INT, data); return t; };
+  const set = (a, b) => ({ pos: a, del: b, fbo: mrt(a, b) });
+  const oldPS = PS;
+  PS = [set(fresh(P.pos), fresh(P.del)), set(fresh(null), fresh(null))];
+  oldPS.forEach((o) => { gl.deleteFramebuffer(o.fbo); gl.deleteTexture(o.pos); gl.deleteTexture(o.del); });
+  if (FULL) {
+    const oldAux = auxPP;
+    auxPP = Cosmos.gl.pingpong(gl, { w: W, h: W, internal: gl.RGBA16F, type: gl.FLOAT, filter: 'nearest', data: P.aux });
+    [oldAux.read, oldAux.write].forEach((o) => { gl.deleteFramebuffer(o.fbo); gl.deleteTexture(o.tex); });
+  } else { gl.bindTexture(gl.TEXTURE_2D, auxPP.read.tex); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, W, gl.RGBA, gl.FLOAT, P.aux); }
+  cur = 0;
+  sim.hist = new History(sim.gals, sim.gals[0].sun);
+  sim.hist.ensure(2);
+  sim.n = 0; sim.maxN = 0; sim.reversed = false; sim.acc = 0; sim.series = []; sim.peris = []; sim.sfr0 = 0; sim.sfrAcc = 0; sim.sfrN = 0; sim.periT = null; sim.minSep = 1e9; sim.lastSampleT = -1e9; sim.dyed = false; sim.seekN = null; dyeQueue.length = 0; trackCache.n = -1;
+  sim.stats = { tail: 0, unbound: 0, sfr: 0, stars: 1 };
+  packStatic(); packStep(0);
+  speedSlider && speedSlider.set(p.speed);
+  timelapseToggle && timelapseToggle.set(!!p.timelapse);
+  setReverseUI(false);
+  setCaption(p);
+  presetBtns.forEach((b, i) => b.setPressed(PRESETS[i] === p));
+  if (cam.mode === 'sun' && !sim.hist.sun) { cam.mode = 'cinematic'; camSel.set('cinematic'); }
+  cam.sunInit = false;
+  cam.setView(p.view, !opts.keepCam);
+  buildLabels();
+  drawRotationCurve();
+  console.info('[galaxies] ' + p.label + ': ' + N.toLocaleString() + ' particles built in ' + Math.round(performance.now() - t0) + ' ms');
+}
+
+/* ---------- stepping ---------- */
+function runStep() {
+  // forward: state (X_n, D_n) → uses centres at n.  reversed: state (X_m, −D_{m+1}) → uses centres at m.
+  const n = sim.n;
+  sim.hist.ensure(n + 1);
+  packStep(n);
+  const p = progs.step, src = PS[cur], dst = PS[1 - cur];
+  gl.useProgram(p);
+  uploadGal(p);
+  bindTex(0, src.pos, p, 'uPos'); bindTex(1, src.del, p, 'uDel');
+  setF(p, 'uK', DT * DT * SCALE);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo); gl.viewport(0, 0, W, W);
+  fsTri();
+  cur = 1 - cur;
+  if (sim.reversed) sim.n--; else { sim.n++; if (sim.n > sim.maxN) sim.maxN = sim.n; }
+}
+function flipState() {
+  const p = progs.flip, src = PS[cur], dst = PS[1 - cur];
+  gl.useProgram(p);
+  bindTex(0, src.pos, p, 'uPos'); bindTex(1, src.del, p, 'uDel');
+  gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo); gl.viewport(0, 0, W, W);
+  fsTri();
+  cur = 1 - cur;
+}
+function setReversed(on) {
+  if (on === sim.reversed) return;
+  if (on && sim.n <= 0) { ch.toast('Already at t = 0'); return; }
+  gl.disable(gl.BLEND);
+  flipState();
+  if (on) { sim.n -= 1; sim.reversed = true; }
+  else { sim.n += 1; sim.reversed = false; }
+  setReverseUI(on);
+}
+
+/* ---------- tracer dye ---------- */
+const rstate = { VP: null, origin: [0, 0, 0] };           // the view-projection of the last rendered frame, for the brush
+const dyeQueue = [];
+/** mode: 0 brush at NDC (x, y) with radius r, 1 the tails, 2 wash out, 3 galaxy `gal` */
+function dyePass(mode, x, y, r, gal) {
+  if (mode === 0 && !rstate.VP) return;
+  const p = progs.tag, src = PS[cur], dst = PS[1 - cur];
+  gl.disable(gl.BLEND);
+  gl.useProgram(p);
+  if (mode === 1) { packStep(U.clamp(sim.n, 0, sim.hist.n - 1)); uploadGal(p); gl.uniform1fv(U_(p, 'uTail'), galU.tail); }
+  else setI(p, 'uNG', sim.gals.length);
+  bindTex(0, src.pos, p, 'uPos'); bindTex(1, src.del, p, 'uDel');
+  setI(p, 'uMode', mode); setI(p, 'uGal', gal || 0);
+  if (mode === 0) {
+    gl.uniform3i(U_(p, 'uOrigin'), rstate.origin[0], rstate.origin[1], rstate.origin[2]);
+    gl.uniformMatrix4fv(U_(p, 'uVP'), false, rstate.VP);
+    gl.uniform3f(U_(p, 'uBrush'), x, y, r); setF(p, 'uAspect', (canvas.clientWidth || 1) / (canvas.clientHeight || 1));
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo); gl.viewport(0, 0, W, W);
+  fsTri();
+  cur = 1 - cur;
+  sim.dyed = mode !== 2;
+}
+function dyeTails(say) {
+  dyePass(1);
+  if (say) ch.toast(say, 4600);
+}
+
+/* ---------- density grid + star-formation state ---------- */
+function updateGrid() {
+  if (!FULL) return;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, gridT.fbo); gl.viewport(0, 0, 1024, 1024);
+  gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+  if (!sim.nGas) return;
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  const p = progs.grid; gl.useProgram(p);
+  bindTex(0, PS[cur].pos, p, 'uPos'); setI(p, 'uW', W);
+  gl.bindVertexArray(emptyVAO);
+  const h = sim.hist, ng = sim.gals.length, n = U.clamp(sim.n, 0, h.n - 1);
+  for (let g = 0; g < ng; g++) {
+    for (let c = 0; c < 3; c++) galU.GC[g * 3 + c] = Math.round(h.X[(n * ng + g) * 3 + c] * SCALE);
+    setI(p, 'uG', g); gl.uniform3i(U_(p, 'uGC'), galU.GC[g * 3], galU.GC[g * 3 + 1], galU.GC[g * 3 + 2]);
+    setF(p, 'uInv', galU.ginv[g]);
+    gl.drawArrays(gl.POINTS, 0, sim.nGas);
+  }
+  gl.bindVertexArray(null);
+  gl.disable(gl.BLEND);
+}
+function updateAux(dtMyr) {
+  if (!FULL) return;
+  const p = progs.aux; gl.useProgram(p);
+  bindTex(0, PS[cur].pos, p, 'uPos'); bindTex(1, auxPP.read.tex, p, 'uAux'); bindTex(2, gridT.tex, p, 'uGrid');
+  setI(p, 'uNG', sim.gals.length);
+  gl.uniform3iv(U_(p, 'uGC'), galU.GC); gl.uniform1fv(U_(p, 'uGInv'), galU.ginv);
+  setF(p, 'uNorm', REF_N / N); setF(p, 'uDtMyr', dtMyr); setF(p, 'uRef', SF_REF);
+  setF(p, 'uShock', sim.gals.length > 1 ? 14.0 * U.clamp(relvNow() * KMS / 300, 0, 2.5) : 0);
+  auxPP.write.bind(); fsTri(); auxPP.swap();
+}
+const SF_REF = 100;   // gas particles per kpc³ (at 262k) where star formation switches on
+
+/* ---------- diagnostics via GPU reduction + async readback ---------- */
+const statBuf = new Float32Array(4);
+function requestStats() {
+  if (!FULL || sim.pending) return;
+  const p = progs.flag; gl.useProgram(p);
+  packStep(U.clamp(sim.n, 0, sim.hist.n - 1)); uploadGal(p);
+  bindTex(0, PS[cur].pos, p, 'uPos'); bindTex(1, PS[cur].del, p, 'uDel'); bindTex(2, auxPP.read.tex, p, 'uAux');
+  gl.uniform1fv(U_(p, 'uTail'), galU.tail);
+  const vc = comVel(); gl.uniform3f(U_(p, 'uVcom'), vc[0], vc[1], vc[2]);
+  setF(p, 'uInvDt', (sim.reversed ? -1 : 1) / DT);
+  flagT.bind(); fsTri();
+  const r = progs.reduce; gl.useProgram(r);
+  bindTex(0, flagT.tex, r, 'uSrc'); setI(r, 'uK', 16); red1.bind(); fsTri();
+  bindTex(0, red1.tex, r, 'uSrc'); setI(r, 'uK', W / 16); red2.bind(); fsTri();
+  sim.pending = true; sim.pendAge = 0;
+}
+function pollStats() {
+  // read two frames after the request, when the GPU has long finished the reduction (no pipeline stall)
+  if (!sim.pending || ++sim.pendAge < 3) return;
+  sim.pending = false;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, red2.fbo);
+  gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.FLOAT, statBuf);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  const stars = Math.max(1, statBuf[3]);
+  sim.stats = { tail: statBuf[0] / stars, unbound: statBuf[1] / stars, sfr: statBuf[2] * REF_N / N, stars };
+  const t = sim.n * DT;
+  // baseline: mean rate over 60–150 Myr, once the seeded glow has settled into the density-driven rate
+  if (!sim.sfr0 && !sim.reversed && sim.stats.sfr > 0) { if (t >= 60) { sim.sfrAcc += sim.stats.sfr; sim.sfrN++; } if (t > 150 && sim.sfrN) sim.sfr0 = sim.sfrAcc / sim.sfrN; }
+  if (!sim.reversed && sim.n >= sim.maxN - 2 && t - sim.lastSampleT >= Math.max(2, sim.preset.end / 300)) {
+    sim.lastSampleT = t;
+    sim.series.push([t, sepNow(), sim.sfr0 ? sim.stats.sfr / sim.sfr0 : 1, sim.stats.tail]);
+  }
+}
+function comVel() {
+  const h = sim.hist, n = U.clamp(sim.n, 0, h.n - 2), v = [0, 0, 0], t = [0, 0, 0]; let M = 0;
+  sim.gals.forEach((g, i) => { h.vel(n, i, t); for (let c = 0; c < 3; c++) v[c] += g.Mtot * t[c]; M += g.Mtot; });
+  return v.map((x) => x / M);
+}
+function sepNow() { const h = sim.hist; return h.sep(U.clamp(sim.n, 0, h.n - 1)); }
+function relvNow() { const h = sim.hist, n = U.clamp(sim.n, 0, h.n - 2), a = h.vel(n, 0, [0, 0, 0]), b = h.vel(n, 1, [0, 0, 0]); return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); }
+
+/* =====================================================================================
+   CAMERA
+   ===================================================================================== */
+const orbit = Cosmos.orbit(canvas, { dist: 150, minDist: 4, maxDist: 4000, theta: 0.5, phi: 0.9, damping: 0.08 });
+ch.stage.classList.add('cz-grab');
+const cam = {
+  mode: 'cinematic', target: [0, 0, 0], lastInput: -1e9, userZoom: -1e9, shiftX: 0, shiftY: 0, fov: 0.78, free: [0, 0],
+  view: null, proj: null, vp: new Float32Array(16), eye: [0, 0, 0], focal: 1,
+  setView(v, snap) {
+    if (v.face != null && sim.gals[v.face]) {
+      // look down galaxy `face`'s spin axis, tipped by `tilt` degrees
+      const R = sim.gals[v.face].R, n = [R[6], R[7], R[8]];
+      const phi0 = Math.acos(U.clamp(n[1], -1, 1)), th0 = Math.atan2(n[0], n[2]);
+      v.phi = U.clamp(phi0 + (v.tilt || 0) * RAD * (phi0 < Math.PI / 2 ? 1 : -1), 0.08, Math.PI - 0.08); v.theta = th0 + (v.spin || 0) * RAD;
+    }
+    if (v.along) {
+      // stand behind the first galaxy looking along `along` (toward the second), raised by `elev` degrees
+      const n = V3.norm(v.along), el = (v.elev || 0) * RAD;
+      const e = V3.norm([-n[0], -n[1] + Math.tan(el), -n[2]]);
+      v.phi = Math.acos(U.clamp(e[1], -1, 1)); v.theta = Math.atan2(e[0], e[2]);
+    }
+    orbit.theta = v.theta; orbit.phi = v.phi; orbit.setDist(v.dist);
+    if (snap) { orbit.dist = v.dist; const f = frameTarget(); cam.target = f.slice(); }
+    cam.lastInput = -1e9; cam.userZoom = -1e9; cam.baseTheta = v.theta; cam.swing = null; cam.wasApproach = false;
+  },
+};
+canvas.addEventListener('pointerdown', () => { cam.lastInput = performance.now(); });
+canvas.addEventListener('wheel', () => { cam.lastInput = performance.now(); cam.userZoom = performance.now(); }, { passive: true });
+canvas.addEventListener('pointermove', (e) => { if (orbit.dragging) cam.lastInput = performance.now(); });
+function galPos(i) { const h = sim.hist, n = U.clamp(sim.n, 0, h.n - 1), ng = h.ng; return [h.X[(n * ng + i) * 3], h.X[(n * ng + i) * 3 + 1], h.X[(n * ng + i) * 3 + 2]]; }
+function milkApproach() { return sim.preset.id === 'milkomeda' && sim.gals.length > 1 && sepNow() > 230 && sim.n * DT < 4100; }
+function frameTarget() {
+  const gs = sim.gals;
+  if (cam.fixed) return cam.fixed === 'g1' ? galPos(0) : cam.fixed === 'g2' ? galPos(1) : cam.fixed;
+  if (cam.mode === 'g1') return galPos(0);
+  if (cam.mode === 'g2' && gs.length > 1) return galPos(1);
+  // light-weighted centre, pulled toward the bigger galaxy when they are far apart
+  let w = 0; const t = [0, 0, 0];
+  gs.forEach((g, i) => { const p = galPos(i), m = g.Md + g.Mb; for (let c = 0; c < 3; c++) t[c] += p[c] * m; w += m; });
+  for (let c = 0; c < 3; c++) t[c] /= w;
+  if (milkApproach()) {
+    const a = galPos(0), b = galPos(1);
+    return a.map((x, c) => x + (b[c] - x) * 0.14);
+  }
+  return t;
+}
+/** tangent of the smaller half field of view (portrait screens are narrower than they are tall) */
+function halfTan() { const a = (canvas.clientWidth || 1) / (canvas.clientHeight || 1); return Math.tan(cam.fov / 2) * Math.min(1, a * 1.15); }
+function baseAspect() { return Math.tan(cam.fov / 2) / halfTan(); }
+function frameDist() {
+  const p = sim.preset, base = p.view.dist;
+  if (milkApproach()) return U.clamp(0.14 * sepNow() + 150, 130, 260) * baseAspect();
+  if (p.id === 'satellite') return base * baseAspect();
+  if (p.id === 'cartwheel') return U.clamp(base + 0.3 * Math.max(0, sim.n * DT - 60), base, 230) * baseAspect();
+  // keep every galaxy (and a disk's worth of margin) inside the frame around the view target
+  const t = frameTarget(); let need = 0;
+  sim.gals.forEach((g, i) => { const q = galPos(i); need = Math.max(need, Math.hypot(q[0] - t[0], q[1] - t[1], q[2] - t[2]) + 1.45 * g.Rmax); });
+  // after a close pass, leave room for the tidal tails as they lengthen
+  if (sim.periT != null) need += 55 * U.smoothstep(0, 350, sim.n * DT - sim.periT);
+  return U.clamp(need / halfTan() * 1.1, base * baseAspect(), (p.maxDist || 320) * baseAspect());
+}
+const deckEl = document.querySelector('.cz-deck'), notesEl = document.querySelector('.cz-notes');
+/** centre of the screen area left free by the notes (bottom-left) and the deck (right, or a bottom sheet on phones) */
+function freeCentre(w, h) {
+  if (document.body.classList.contains('cz-cinema')) return [w / 2, h / 2];
+  const cs = getComputedStyle(document.documentElement);
+  const top = parseFloat(cs.getPropertyValue('--bar-h')) || 54, foot = parseFloat(cs.getPropertyValue('--foot-h')) || 58;
+  let xL = 0, xR = w, yT = top, yB = h - foot;
+  const dr = deckEl.getBoundingClientRect(), nr = notesEl.getBoundingClientRect();
+  const deckVis = deckEl.classList.contains('cz-open') && dr.width > 0 && getComputedStyle(deckEl).display !== 'none';
+  const notesVis = nr.width > 0 && getComputedStyle(notesEl).display !== 'none';
+  if (SMALL) {
+    if (deckVis) yB = Math.min(yB, dr.top);
+    else if (notesVis) yB = Math.min(yB, nr.top);
+  } else {
+    if (deckVis) xR = dr.left;
+    if (notesVis && nr.top < h * 0.62) xL = nr.right;
+  }
+  return [(xL + xR) / 2, (yT + yB) / 2];
+}
+function sunPos() { const h = sim.hist, n = U.clamp(sim.n, 0, h.n - 1); return [h.SX[n * 3], h.SX[n * 3 + 1], h.SX[n * 3 + 2]]; }
+function updateCamera(dt, now) {
+  const idle = now - cam.lastInput > 7000;
+  cam.refD = orbit.dist;
+  if (cam.mode === 'sun' && sim.hist && sim.hist.sun) {
+    // ride along with the Sun, 8.2 kpc from the Galactic centre, gazing at Andromeda unless the visitor looks around
+    const sp = sunPos(); cam.target = sp;
+    if (idle || !cam.sunInit) {
+      const m = galPos(1), d = V3.norm([m[0] - sp[0], m[1] - sp[1], m[2] - sp[2]]);
+      const tp = Math.acos(U.clamp(d[1], -1, 1)), tt = Math.atan2(d[0], d[2]);
+      const kk = cam.sunInit ? 1 - Math.exp(-dt * 1.2) : 1;
+      let dth = tt - orbit.theta; dth = Math.atan2(Math.sin(dth), Math.cos(dth));
+      orbit.theta += dth * kk; orbit.phi += (tp - orbit.phi) * kk; cam.sunInit = true;
+    }
+    orbit.autoRotate = 0; orbit.update(dt);
+    const d = [Math.sin(orbit.phi) * Math.sin(orbit.theta), Math.cos(orbit.phi), Math.sin(orbit.phi) * Math.cos(orbit.theta)];
+    const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
+    const P = Cosmos.mat4.perspective(1.15, w / h, 0.02, 20000);
+    cam.proj = P; cam.view = Cosmos.mat4.lookAt([0, 0, 0], d); cam.eye = [0, 0, 0];
+    cam.vp = Cosmos.mat4.multiply(P, cam.view); cam.focal = 0.5 * canvas.height * P[5]; cam.refD = 8;
+    return;
+  }
+  const desired = frameTarget();
+  const k = 1 - Math.exp(-dt * 5);
+  for (let c = 0; c < 3; c++) cam.target[c] += (desired[c] - cam.target[c]) * k;
+  if (cam.mode === 'cinematic' && idle) {
+    // no drift while Andromeda is still far away: it must stay lined up behind the Milky Way
+    orbit.autoRotate = sim.preset.id === 'milkomeda' ? 0 : 0.035;
+    if (now - cam.userZoom > 7000) orbit.setDist(frameDist());
+    if (milkApproach()) {
+      // the long approach is filmed from behind the Milky Way, with Andromeda lined up beyond it
+      const a = galPos(0), b = galPos(1), n = V3.norm([b[0] - a[0], b[1] - a[1], b[2] - a[2]]);
+      const e = V3.norm([-n[0], -n[1] + 0.16, -n[2]]);
+      const tp = Math.acos(U.clamp(e[1], -1, 1)), tt = Math.atan2(e[0], e[2]);
+      let dth = tt - orbit.theta; dth = Math.atan2(Math.sin(dth), Math.cos(dth));
+      const kk = 1 - Math.exp(-dt * 1.5);
+      orbit.theta += dth * kk; orbit.phi += (tp - orbit.phi) * kk; orbit.autoRotate = 0;
+      cam.swing = null; cam.wasApproach = true;
+    } else if (sim.preset.id === 'milkomeda' && cam.wasApproach) {
+      // hand over once to a side-on view of the encounter
+      if (!cam.swing) { const a = galPos(0), b = galPos(1), n = V3.norm([b[0] - a[0], b[1] - a[1], b[2] - a[2]]); let sd = V3.norm(V3.cross(n, [0, 1, 0])); const e = V3.norm([sd[0], sd[1] + 0.45, sd[2]]); cam.swing = { phi: Math.acos(U.clamp(e[1], -1, 1)), theta: Math.atan2(e[0], e[2]), t: 0 }; }
+      const kk = 1 - Math.exp(-dt * 1.2); let dth = cam.swing.theta - orbit.theta; dth = Math.atan2(Math.sin(dth), Math.cos(dth));
+      orbit.theta += dth * kk; orbit.phi += (cam.swing.phi - orbit.phi) * kk; cam.swing.theta += 0.03 * dt;
+    } else {
+      // slow breathing of the elevation
+      orbit.phi += (U.clamp(sim.preset.view.phi + 0.12 * Math.sin(now * 0.00007), 0.15, 2.9) - orbit.phi) * (1 - Math.exp(-dt * 0.3));
+    }
+  } else orbit.autoRotate = cam.mode === 'free' ? 0 : 0.012;
+  orbit.update(dt);
+  const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
+  // keep the action centred in the part of the screen the panels leave free
+  if (now - (cam.freeT || 0) > 400) { cam.freeT = now; cam.free = freeCentre(w, h); }
+  const tx = 1 - 2 * cam.free[0] / w, ty = 2 * cam.free[1] / h - 1;
+  cam.shiftX += (tx - cam.shiftX) * (1 - Math.exp(-dt * 4)); cam.shiftY += (ty - cam.shiftY) * (1 - Math.exp(-dt * 4));
+  const P = Cosmos.mat4.perspective(cam.fov, w / h, 0.05, 20000);
+  P[8] = cam.shiftX; P[9] = cam.shiftY;
+  cam.proj = P; cam.view = orbit.view; cam.eye = orbit.eye;
+  cam.vp = Cosmos.mat4.multiply(P, orbit.view);
+  cam.focal = 0.5 * canvas.height * P[5];
+}
+
+/* =====================================================================================
+   LABELS + SCALE BAR (hairline annotations on the plate)
+   ===================================================================================== */
+const layer = Cosmos.h('div', { class: 'gx-layer' });
+ch.stage.append(layer);
+const scaleEl = Cosmos.h('div', { class: 'gx-scale' }, Cosmos.h('i'), Cosmos.h('span'));
+const revBadge = Cosmos.h('div', { class: 'gx-rev-badge', text: '◂◂ Time reversed' });
+layer.append(scaleEl, revBadge);
+let labels = [];
+let labelsOn = true;
+function buildLabels() {
+  labels.forEach((l) => l.el.remove());
+  labels = sim.gals.map((g) => {
+    const el = Cosmos.h('div', { class: 'gx-label' }, g.name, g.sub ? Cosmos.h('small', { text: g.sub }) : null);
+    layer.append(el); return { el, x: 0, y: 0, a: 0 };
+  });
+}
+function project(p) {
+  const v = cam.vp, x = p[0] - cam.target[0], y = p[1] - cam.target[1], z = p[2] - cam.target[2];
+  const cx = v[0] * x + v[4] * y + v[8] * z + v[12], cy = v[1] * x + v[5] * y + v[9] * z + v[13], cw = v[3] * x + v[7] * y + v[11] * z + v[15];
+  if (cw <= 0.05) return null;
+  return [(cx / cw * 0.5 + 0.5) * canvas.clientWidth, (1 - (cy / cw * 0.5 + 0.5)) * canvas.clientHeight, cw];
+}
+function updateLabels() {
+  const s = sim.gals.length > 1 ? sepNow() : 99;
+  labels.forEach((l, i) => {
+    const q = project(galPos(i));
+    let a = labelsOn && q ? 1 : 0;
+    if (s < 6 && i > 0 && sim.gals[1].Mtot > 0.25 * sim.gals[0].Mtot) a = 0;
+    if (q) {
+      const off = U.clamp(0.9 * 18 * cam.focal / q[2] / (window.devicePixelRatio || 1), 14, 160) * (sim.gals[i].Rmax / 16);
+      l.x = q[0] + off * 0.7; l.y = q[1] - off * 0.55;
+      const w = l.w || (l.w = l.el.offsetWidth || 120);
+      if (l.x + w > canvas.clientWidth - 8 && l.x < canvas.clientWidth - 60) l.x = Math.max(q[0] - off * 0.7 - w, canvas.clientWidth - w - 8);
+      const x = l.x, y = l.y;
+      if (x < 0 || x > canvas.clientWidth - 60 || y < 60 || y > canvas.clientHeight - 80) a = 0;
+    }
+    l.want = a;
+    if (i === 0 && s < 6 && sim.gals.length > 1 && sim.gals[1].Mtot > 0.25 * sim.gals[0].Mtot) { if (l.el.firstChild.textContent !== 'Merger remnant') { l.el.firstChild.textContent = 'Merger remnant'; l.w = 0; const sb = l.el.querySelector('small'); if (sb) sb.textContent = 'two galaxies, one ball of stars'; } }
+    else {
+      const nm = cam.mode === 'sun' && i === 0 ? 'Galactic centre' : sim.gals[i].name;
+      if (l.el.firstChild.textContent !== nm) { l.el.firstChild.textContent = nm; l.w = 0; const sb = l.el.querySelector('small'); if (sb) sb.textContent = cam.mode === 'sun' && i === 0 ? '8.2 kpc from the Sun' : sim.gals[i].sub; }
+    }
+  });
+  // keep labels from sitting on top of each other
+  for (let i = 1; i < labels.length; i++) for (let j = 0; j < i; j++) {
+    const A = labels[j], B = labels[i];
+    if (A.want && B.want && Math.abs(A.x - B.x) < 150 && Math.abs(A.y - B.y) < 36) B.y = A.y + (B.y >= A.y ? 36 : -36);
+  }
+  labels.forEach((l) => {
+    l.el.style.transform = `translate(${(l.x || 0).toFixed(1)}px, ${(l.y || 0).toFixed(1)}px)`;
+    if (l.a !== l.want) { l.el.style.opacity = l.want ? 0.92 : 0; l.a = l.want; }
+  });
+  // scale bar at the target distance
+  const pxPerKpc = cam.focal / orbit.dist / (canvas.height / canvas.clientHeight);
+  const nice = [1, 2, 5, 10, 20, 50, 100, 200, 500];
+  let L = nice[0]; for (const v of nice) if (v * pxPerKpc <= 150) L = v;
+  scaleEl.firstChild.style.width = (L * pxPerKpc).toFixed(1) + 'px';
+  scaleEl.style.left = cam.free[0].toFixed(0) + 'px'; revBadge.style.left = cam.free[0].toFixed(0) + 'px';
+  scaleEl.style.visibility = cam.mode === 'sun' ? 'hidden' : 'visible';
+  const ly = L * 3261.56;
+  scaleEl.lastChild.innerHTML = `<b>${L} kpc</b> · ${ly >= 1e6 ? (ly / 1e6).toFixed(ly >= 1e7 ? 0 : 1) + ' million' : Math.round(ly).toLocaleString('en-US')} light-years`;
+}
+
+/* =====================================================================================
+   CONTROL DECK
+   ===================================================================================== */
+let speedSlider, timelapseToggle, dfSlider, stripToggle;
+const gP = ch.ui.group('Encounters');
+gP.el.classList.add('gx-presets');
+const presetBtns = gP.buttons(PRESETS.map((p) => ({ label: p.label, title: p.label + ' (' + p.key + ')', onClick: () => { stopTour(); loadPreset(p); } })));
+const capEl = gP.note('');
+capEl.classList.add('gx-caption');
+function setCaption(p) { capEl.innerHTML = `<b>${p.label}</b>${p.caption}`; }
+
+const gT = ch.ui.group('Time');
+speedSlider = gT.slider({ id: 'gx-speed', label: 'Playback', min: 10, max: 2000, value: 105, log: true, format: (v) => Math.round(v) + ' Myr/s', hint: 'Each leapfrog step is 0.5 Myr; faster playback takes more steps per frame.' });
+const tBtns = gT.buttons([
+  { label: 'Pause', id: 'gx-pause', onClick: () => ch.setPaused(!ch.paused) },
+  { label: 'Reverse time', id: 'gx-reverse', kind: 'primary', title: 'Reverse time (R)', onClick: () => { stopTour(); toggleReverse(); } },
+  { label: 'Restart', id: 'gx-restart', onClick: () => { stopTour(); loadPreset(sim.preset, { keepCam: true }); } },
+]);
+ch.onPause((p) => tBtns[0].setLabel(p ? 'Play' : 'Pause'));
+timelapseToggle = gT.toggle({ id: 'gx-timelapse', label: 'Adaptive time-lapse', value: false, hint: 'Speeds playback up while the galaxies are far apart.' });
+const tourToggle = gT.toggle({ id: 'gx-tour', label: 'Guided tour', value: true, hint: 'Plays each encounter in turn, with one reversal of time.', onChange: (v) => { tour.on = v; if (v) tour.stage = -1; } });
+
+const gC = ch.ui.group('Custom encounter');
+const cMass = gC.slider({ id: 'gx-q', label: 'Mass ratio', min: 0.1, max: 1, step: 0.01, value: 0.5, format: (v) => '1 : ' + (1 / v).toFixed(v > 0.5 ? 2 : 1) });
+const cRp = gC.slider({ id: 'gx-rp', label: 'Pericentre distance', min: 2, max: 60, step: 0.5, value: 15, unit: 'kpc' });
+const cV = gC.slider({ id: 'gx-vp', label: 'Speed at pericentre', min: 0.6, max: 1.8, step: 0.01, value: 1.0, format: (v) => Math.round(v * customVesc()) + ' km/s' });
+const vHint = gC.note('');
+vHint.classList.add('gx-sub');
+const cI1 = gC.slider({ id: 'gx-i1', label: 'Disk 1 inclination i', min: 0, max: 90, step: 1, value: 20, unit: '°' });
+const cW1 = gC.slider({ id: 'gx-w1', label: 'Disk 1 argument ω', min: -180, max: 180, step: 1, value: -30, unit: '°' });
+const cI2 = gC.slider({ id: 'gx-i2', label: 'Disk 2 inclination i', min: 0, max: 90, step: 1, value: 60, unit: '°' });
+const cW2 = gC.slider({ id: 'gx-w2', label: 'Disk 2 argument ω', min: -180, max: 180, step: 1, value: 45, unit: '°' });
+const cR1 = gC.toggle({ id: 'gx-r1', label: 'Disk 1 retrograde', value: false });
+const cR2 = gC.toggle({ id: 'gx-r2', label: 'Disk 2 retrograde', value: false });
+const cHalo = gC.select({ id: 'gx-halo', label: 'Dark halo', value: 'nfw', options: [{ value: 'nfw', label: 'NFW (cold dark matter)' }, { value: 'log', label: 'Logarithmic (flat rotation curve)' }, { value: 'none', label: 'None (stars and gas only)' }] });
+const cHm = gC.slider({ id: 'gx-hm', label: 'Halo mass', min: 0.25, max: 2, step: 0.05, value: 1, format: (v) => '× ' + v.toFixed(2) });
+function customVesc() { const q = cMass ? cMass.value : 0.5; const a = spiralGal(1), b = spiralGal(q); return vEscape(a, b, cRp ? cRp.value : 15) * KMS; }
+function updVHint() { const ve = customVesc(); vHint.textContent = `Parabolic (just unbound) at this pericentre: ${Math.round(ve)} km/s. Slower orbits are bound and merge sooner.`; cV.set(cV.value); }
+[cMass, cRp].forEach((s) => s.input.addEventListener('input', updVHint));
+gC.buttons([{ label: 'Launch custom encounter', kind: 'primary', id: 'gx-launch', onClick: () => { stopTour(); launchCustom(); } }]);
+const CUSTOM = {
+  id: 'custom', key: '7', label: 'Custom', speed: 100, end: 1500,
+  caption: 'Your own encounter. Toomre & Toomre’s angles: i tilts each disk away from the orbital plane, ω turns it about the orbit’s axis.',
+  build() {
+    const a = spiralGal(1, { name: 'Galaxy 1', sub: 'primary' });
+    const q = cMass.value, b = spiralGal(q, { name: 'Galaxy 2', sub: 'mass ratio 1:' + (1 / q).toFixed(1), share: Math.max(0.15, q / (1 + q)) });
+    encounter(a, b, { rp: cRp.value, f: cV.value, i1: cI1.value, w1: cW1.value, i2: cI2.value, w2: cW2.value, retro1: cR1.value, retro2: cR2.value, Tpre: 240 });
+    return [a, b];
+  },
+  view: { theta: 0.6, phi: 0.95, dist: 150 },
+};
+function launchCustom() {
+  HALO.type = cHalo.value; HALO.mult = cHm.value;
+  loadPreset(CUSTOM);
+  HALO.type = 'nfw'; HALO.mult = 1;
+}
+
+const gV = ch.ui.group('View');
+const camSel = gV.select({ id: 'gx-cam', label: 'Camera', value: 'cinematic', options: [
+  { value: 'cinematic', label: 'Cinematic dolly' }, { value: 'free', label: 'Free orbit' }, { value: 'g1', label: 'Follow galaxy 1' }, { value: 'g2', label: 'Follow galaxy 2' }, { value: 'sun', label: 'From the Sun (Milkomeda)' }],
+  onChange: (v) => {
+    if (v === 'sun' && sim.preset.id !== 'milkomeda') { stopTour(); loadPreset(PRESETS.find((p) => p.id === 'milkomeda')); camSel.set('sun'); }
+    cam.mode = v; cam.sunInit = false; cam.lastInput = v === 'cinematic' ? -1e9 : performance.now();
+    if (v === 'sun') ch.toast('Riding with the Sun, 8.2 kpc from the Galactic centre. Drag to look around.');
+    if (v !== 'sun' && sim.preset) cam.setView(sim.preset.view, false);
+  } });
+const expo = gV.slider({ id: 'gx-expo', label: 'Exposure', min: 0.2, max: 4, value: 1.0, log: true, format: (v) => v.toFixed(2) + '×' });
+const bloomS = gV.slider({ id: 'gx-bloom', label: 'Bloom', min: 0, max: 1.5, step: 0.01, value: 0.55, format: (v) => v.toFixed(2) });
+const gasT = gV.toggle({ id: 'gx-gas', label: 'Gas and star formation', value: true });
+const dustTog = gV.toggle({ id: 'gx-dust', label: 'Dust lanes', value: true, hint: 'Dust follows the gas and dims and reddens the starlight behind it.' });
+const dmTog = gV.toggle({ id: 'gx-dm', label: 'Dark matter contours', value: false, hint: 'Hairlines of equal projected dark-matter density, every 0.25 dex. The halos overlap long before the stars do.' });
+const labT = gV.toggle({ id: 'gx-labels', label: 'Labels and scale bar', value: true, onChange: (v) => { labelsOn = v; scaleEl.style.opacity = v ? 1 : 0; } });
+const trkT = gV.toggle({ id: 'gx-tracks', label: 'Orbit tracks', value: true, hint: 'Hairline paths of the galaxy centres: the past solid, the future dotted, with every pericentre marked.' });
+
+const gD = ch.ui.group('Tracer dye');
+gD.note('<span class="gx-sub">Stain stars teal and follow them. The dye never touches their orbits, so it survives Reverse time: dye a tail, run time backwards, and see which part of which disk its stars came from.</span>');
+const paintT = gD.toggle({ id: 'gx-paint', label: 'Paint with the dye', value: false, hint: 'Drag across the galaxies to dye stars (key T). On a desktop, Shift-drag paints in any mode.', onChange: (v) => setPaint(v) });
+gD.buttons([
+  { label: 'Dye the tails', id: 'gx-dye-tails', onClick: () => { if (FULL && sim.stats.tail < 0.002) ch.toast('No tails yet. Let the galaxies pass each other first.'); dyeQueue.push([1]); } },
+  { label: 'Dye galaxy 2', id: 'gx-dye-g2', onClick: () => dyeQueue.push([3, 0, 0, 0, 1]) },
+  { label: 'Wash out', id: 'gx-dye-clear', onClick: () => dyeQueue.push([2]) },
+]);
+
+const gX = ch.ui.group('Physics');
+const spiralT = gX.toggle({ id: 'gx-spiral', label: 'Spiral density wave', value: true, hint: 'A weak rotating spiral potential that stands in for the disk’s own gravity.', onChange: (v) => { sim.spiralOn = v; packStatic(); } });
+dfSlider = gX.slider({ id: 'gx-df', label: 'Dynamical friction', min: 0, max: 3, step: 0.05, value: 1.3, format: (v) => v === 0 ? 'off' : 'lnΛ × ' + v.toFixed(2), hint: 'Scales the Coulomb logarithm. Off, the galaxies never merge. Watch the dotted future orbit redraw as you move it.', onChange: (v) => { Phys.lnL = v; sim.hist.truncate(sim.n + 1); sim.maxN = sim.n; trackCache.n = -1; } });
+stripToggle = gX.toggle({ id: 'gx-strip', label: 'Tidal stripping of halos', value: true, onChange: (v) => { Phys.strip = v; sim.hist.truncate(sim.n + 1); sim.maxN = sim.n; trackCache.n = -1; } });
+
+const gR = ch.ui.group('Readouts');
+const ro = gR.readouts([
+  { id: 't', label: 'Time' }, { id: 'sep', label: 'Separation' },
+  { id: 'v', label: 'Relative speed' }, { id: 'n', label: 'Particles' },
+  { id: 'tail', label: 'Stars in tails' }, { id: 'unb', label: 'Unbound stars' },
+  { id: 'sfr', label: 'Star formation' }, { id: 'rt', label: 'Halo 2 radius' },
+]);
+const histCv = gR.canvas(120);
+gR.note('<span class="gx-sub">Separation (blue) and star-formation rate relative to the start (pink) against time, pericentres ticked. <b style="color:var(--star);font-weight:500">Drag along it to scrub time:</b> the integrator runs forwards or backwards to get there.</span>');
+const rcCv = gR.canvas(120);
+gR.note('<span class="gx-sub">Rotation curve of galaxy 1: dark halo, disk and bulge add in quadrature to the total. The flat outer part is the classic evidence for dark matter.</span>');
+
+const hudT = ch.hud.add('Time', '');
+const hudS = ch.hud.add('Separation', '');
+const hudV = ch.hud.add('Rel. speed', '');
+const hudN = ch.hud.add('Particles', N.toLocaleString('en-US'));
+const hudTail = ch.hud.add('In tails', '');
+
+function fmtT(tMyr) { return tMyr >= 1000 ? (tMyr / 1000).toFixed(2) + ' Gyr' : Math.round(tMyr) + ' Myr'; }
+
+function drawHistory() {
+  const c = histCv, ctx = c.getContext('2d'), dpr = Math.min(2, window.devicePixelRatio || 1);
+  const Wc = Math.round(c.clientWidth * dpr), Hc = Math.round(c.clientHeight * dpr);
+  if (!Wc || !Hc) return;
+  if (c.width !== Wc || c.height !== Hc) { c.width = Wc; c.height = Hc; }
+  ctx.clearRect(0, 0, Wc, Hc);
+  const pl = 30 * dpr, pr = 30 * dpr, pt = 10 * dpr, pb = 18 * dpr;
+  const tMax = Math.max(sim.preset.end, sim.maxN * DT);
+  const s = sim.series, sMax = Math.max(20, ...s.map((d) => d[1])) * 1.05, fMax = Math.max(3, ...s.map((d) => d[2])) * 1.1;
+  const X = (t) => pl + (t / tMax) * (Wc - pl - pr), Ys = (v) => Hc - pb - (v / sMax) * (Hc - pt - pb), Yf = (v) => Hc - pb - (v / fMax) * (Hc - pt - pb);
+  ctx.font = `${9.5 * dpr}px "JetBrains Mono", monospace`; ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(236,230,214,0.10)'; ctx.fillStyle = '#5e6479';
+  for (let k = 0; k <= 2; k++) { const y = pt + k * (Hc - pt - pb) / 2; ctx.beginPath(); ctx.moveTo(pl, y); ctx.lineTo(Wc - pr, y); ctx.stroke(); }
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#8fa6e6';
+  ctx.fillText(Math.round(sMax), pl - 4 * dpr, pt); ctx.fillText('kpc', pl - 4 * dpr, Hc - pb);
+  ctx.textAlign = 'left'; ctx.fillStyle = '#e58aa6';
+  ctx.fillText(fMax.toFixed(0) + '×', Wc - pr + 4 * dpr, pt); ctx.fillText('SFR', Wc - pr + 4 * dpr, Hc - pb);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#5e6479';
+  ctx.fillText('0', X(0), Hc - 4 * dpr); ctx.fillText(fmtT(tMax), X(tMax) - 14 * dpr, Hc - 4 * dpr);
+  // pericentre ticks
+  ctx.strokeStyle = 'rgba(179,199,255,0.35)';
+  for (let i = 1; i < s.length - 1; i++) if (s[i][1] < s[i - 1][1] && s[i][1] <= s[i + 1][1] && s[i][1] > 1) { const x = X(s[i][0]); ctx.beginPath(); ctx.moveTo(x, pt); ctx.lineTo(x, Hc - pb); ctx.setLineDash([2 * dpr, 3 * dpr]); ctx.stroke(); ctx.setLineDash([]); }
+  const line = (k, Y, col) => { if (s.length < 2) return; ctx.beginPath(); s.forEach((d, i) => { const x = X(d[0]), y = Y(d[k]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.strokeStyle = col; ctx.lineWidth = 1.5 * dpr; ctx.stroke(); ctx.lineWidth = 1; };
+  line(2, Yf, '#e58aa6'); line(1, Ys, '#b3c7ff');
+  if (sim.seekN != null) { const xs = X(sim.seekN * DT); ctx.strokeStyle = '#b3c7ff'; ctx.setLineDash([3 * dpr, 3 * dpr]); ctx.beginPath(); ctx.moveTo(xs, pt - 4 * dpr); ctx.lineTo(xs, Hc - pb); ctx.stroke(); ctx.setLineDash([]); }
+  const xn = X(sim.n * DT);
+  ctx.strokeStyle = sim.reversed ? '#b3c7ff' : 'rgba(236,230,214,0.6)'; ctx.beginPath(); ctx.moveTo(xn, pt - 4 * dpr); ctx.lineTo(xn, Hc - pb); ctx.stroke();
+}
+function drawRotationCurve() {
+  const c = rcCv, ctx = c.getContext('2d'), dpr = Math.min(2, window.devicePixelRatio || 1);
+  const Wc = Math.round(c.clientWidth * dpr), Hc = Math.round(c.clientHeight * dpr);
+  if (!Wc || !Hc || !sim.gals.length) return;
+  if (c.width !== Wc || c.height !== Hc) { c.width = Wc; c.height = Hc; }
+  ctx.clearRect(0, 0, Wc, Hc);
+  const g = sim.gals[0], pl = 30 * dpr, pr = 10 * dpr, pt = 10 * dpr, pb = 18 * dpr, Rm = 40, vm = 320;
+  const X = (R) => pl + R / Rm * (Wc - pl - pr), Y = (v) => Hc - pb - v / vm * (Hc - pt - pb);
+  ctx.font = `${9.5 * dpr}px "JetBrains Mono", monospace`; ctx.strokeStyle = 'rgba(236,230,214,0.10)'; ctx.lineWidth = 1;
+  [0, 100, 200, 300].forEach((v) => { ctx.beginPath(); ctx.moveTo(pl, Y(v)); ctx.lineTo(Wc - pr, Y(v)); ctx.stroke(); });
+  ctx.fillStyle = '#5e6479'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  [0, 100, 200, 300].forEach((v) => ctx.fillText(v, pl - 4 * dpr, Y(v)));
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  [0, 10, 20, 30, 40].forEach((R) => ctx.fillText(R + (R === 40 ? ' kpc' : ''), X(R) - (R === 40 ? 12 * dpr : 0), Hc - 4 * dpr));
+  const curve = (fn, col, w) => { ctx.beginPath(); for (let i = 1; i <= 120; i++) { const R = i / 120 * Rm; const v = fn(R) * KMS; i === 1 ? ctx.moveTo(X(R), Y(v)) : ctx.lineTo(X(R), Y(v)); } ctx.strokeStyle = col; ctx.lineWidth = w * dpr; ctx.stroke(); };
+  curve((R) => g.vcParts(R)[0], '#7f95d6', 1.3); curve((R) => g.vcParts(R)[2], '#e8c38a', 1.3); curve((R) => g.vcParts(R)[1], '#f09a62', 1.3);
+  curve((R) => g.vc(R), '#ece6d6', 2);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  const key = [['total', '#ece6d6'], ['halo', '#7f95d6'], ['disk', '#e8c38a'], ['bulge', '#f09a62']];
+  let lx = pl + 6 * dpr; key.forEach(([k, col]) => { ctx.fillStyle = col; ctx.fillRect(lx, pt + 3 * dpr, 8 * dpr, 2 * dpr); ctx.fillText(k, lx + 11 * dpr, pt - 1 * dpr); lx += ctx.measureText(k).width + 22 * dpr; });
+}
+
+/* =====================================================================================
+   REVERSAL, TOUR, KEYS
+   ===================================================================================== */
+const revBtn = tBtns[1];
+function setReverseUI(on) {
+  revBtn.el.classList.toggle('gx-reverse', true);
+  revBtn.setLabel(on ? 'Run forward' : 'Reverse time');
+  revBadge.classList.toggle('on', on);
+}
+function toggleReverse() {
+  if (!sim.reversed) {
+    if (sim.n < 4) { ch.toast('Let it run first, then reverse time'); return; }
+    // the first reversal after tails have grown dyes them, so the visitor sees where tail stars come from
+    if (!sim.dyed && FULL && sim.stats.tail > 0.01) { dyePass(1); ch.toast('Time reversed. The stars now in the tails are dyed teal: watch where they came from.', 5200); }
+    else ch.toast('Time reversed: every star retraces its orbit');
+    setReversed(true);
+  }
+  else setReversed(false);
+  if (ch.paused) ch.setPaused(false);
+}
+ch.onKey('r', () => { stopTour(); toggleReverse(); }, 'Reverse time');
+ch.onKey('x', () => { stopTour(); loadPreset(sim.preset, { keepCam: true }); }, 'Restart encounter');
+ch.onKey('l', () => labT.set(!labT.value, true), 'Labels');
+ch.onKey('d', () => { dmTog.set(!dmTog.value, true); ch.toast(dmTog.value ? 'Dark matter contours on' : 'Dark matter contours off'); }, 'Dark matter contours');
+ch.onKey('v', () => { const o = sim.hist.sun ? ['cinematic', 'free', 'g1', 'g2', 'sun'] : ['cinematic', 'free', 'g1', 'g2']; const i = (o.indexOf(camSel.value) + 1) % o.length; camSel.set(o[i], true); ch.toast('Camera: ' + camSel.input.selectedOptions[0].text); }, 'Cycle camera');
+PRESETS.forEach((p) => ch.onKey(p.key, () => { stopTour(); loadPreset(p); }));
+ch.onKey('t', () => paintT.set(!paintT.value, true), 'Paint with the tracer dye');
+ch.onKey('o', () => { trkT.set(!trkT.value); ch.toast(trkT.value ? 'Orbit tracks on' : 'Orbit tracks off'); }, 'Orbit tracks');
+ch.onKey(',', () => seekTo(sim.n - 100), 'Scrub back 50 Myr');
+ch.onKey('.', () => seekTo(sim.n + 100), 'Scrub forward 50 Myr');
+
+/* ---------- the dye brush ---------- */
+const BRUSH_PX = SMALL ? 34 : 28;
+const brushEl = Cosmos.h('div', { class: 'gx-brush' });
+brushEl.style.width = brushEl.style.height = 2 * BRUSH_PX + 'px';
+layer.append(brushEl);
+let paintMode = false, painting = null;
+function setPaint(v) {
+  paintMode = v; ch.stage.classList.toggle('gx-painting', v); brushEl.classList.toggle('on', v);
+  if (v) ch.toast(SMALL ? 'Drag a finger across a galaxy to dye its stars.' : 'Drag across a galaxy to dye its stars. Turn painting off to orbit again.', 3800);
+}
+function moveBrush(e) {
+  const r = layer.getBoundingClientRect();
+  brushEl.style.transform = `translate(${(e.clientX - r.left - BRUSH_PX).toFixed(1)}px, ${(e.clientY - r.top - BRUSH_PX).toFixed(1)}px)`;
+}
+function brushAt(e) {
+  const r = canvas.getBoundingClientRect();
+  dyeQueue.push([0, (e.clientX - r.left) / r.width * 2 - 1, 1 - (e.clientY - r.top) / r.height * 2, BRUSH_PX / (r.height / 2)]);
+  sim.dyedByHand = true;
+}
+// capture phase on the stage, so a paint stroke never reaches the camera's orbit handler on the canvas
+ch.stage.addEventListener('pointerdown', (e) => {
+  if (e.target !== canvas || !(paintMode || (e.shiftKey && e.pointerType === 'mouse'))) return;
+  if (painting != null) return;                       // a second finger: let the pinch through
+  e.stopPropagation(); e.preventDefault();
+  painting = e.pointerId; moveBrush(e); brushAt(e);
+  brushEl.classList.add('on', 'down');
+}, true);
+window.addEventListener('pointermove', (e) => {
+  if (paintMode || painting != null) moveBrush(e);
+  if (painting === e.pointerId) brushAt(e);
+});
+const endPaint = (e) => { if (painting === e.pointerId) { painting = null; brushEl.classList.remove('down'); if (!paintMode) brushEl.classList.remove('on'); } };
+window.addEventListener('pointerup', endPaint); window.addEventListener('pointercancel', endPaint);
+
+/* ---------- time scrubbing: the integrator runs forwards or backwards to the requested moment ---------- */
+const SEEK_MAX = 64;          // leapfrog steps per frame while scrubbing (≈ 0.2 ms each on an M3)
+let seekDrag = false, seekTMax = 1;
+function seekTo(n) {
+  const maxN = Math.round(Math.max(sim.preset.end, sim.maxN * DT) / DT);
+  n = Math.round(U.clamp(n, 0, maxN));
+  if (sim.seekN == null) sim.seekRev0 = sim.reversed;
+  sim.seekN = n; stopTour();
+}
+function seekTick() {
+  const target = sim.seekN; let steps = 0;
+  gl.disable(gl.BLEND);
+  if (target < sim.n) {
+    if (!sim.reversed) setReversed(true);
+    while (steps < SEEK_MAX && sim.n > target && sim.n > 0) { runStep(); steps++; }
+  } else if (target > sim.n) {
+    if (sim.reversed) setReversed(false);
+    while (steps < SEEK_MAX && sim.n < target) { runStep(); steps++; }
+  }
+  if (sim.n === target && !seekDrag) {
+    // arrived: carry on in the direction the visitor was going before the scrub
+    sim.seekN = null;
+    const want = !!sim.seekRev0 && sim.n > 0;
+    if (want !== sim.reversed) setReversed(want);
+  }
+  return steps;
+}
+histCv.style.cursor = 'ew-resize'; histCv.style.touchAction = 'none';
+const chartN = (e) => { const r = histCv.getBoundingClientRect(); return U.clamp((e.clientX - r.left - 30) / Math.max(1, r.width - 60), 0, 1) * seekTMax / DT; };
+histCv.addEventListener('pointerdown', (e) => {
+  seekDrag = true; seekTMax = Math.max(sim.preset.end, sim.maxN * DT);
+  try { histCv.setPointerCapture(e.pointerId); } catch (_) { /* older browsers */ }
+  seekTo(chartN(e)); e.preventDefault();
+});
+histCv.addEventListener('pointermove', (e) => { if (seekDrag) seekTo(chartN(e)); });
+const endSeek = () => { seekDrag = false; };
+histCv.addEventListener('pointerup', endSeek); histCv.addEventListener('pointercancel', endSeek);
+
+/* ---------- orbit tracks: the centres' paths as hairlines on the plate ---------- */
+const trkCv = Cosmos.h('canvas', { class: 'gx-tracks' });
+layer.prepend(trkCv);
+const trkCtx = trkCv.getContext('2d');
+const trackCache = { n: -1, k: 1, peris: [], hist: null };
+const TRACK_COL = ['255,214,160', '179,199,255', '200,220,190', '230,190,230'];
+function drawTracks() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1), w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
+  const Wc = Math.round(w * dpr), Hc = Math.round(h * dpr);
+  if (trkCv.width !== Wc || trkCv.height !== Hc) { trkCv.width = Wc; trkCv.height = Hc; }
+  const ctx = trkCtx;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, Wc, Hc);
+  if (!trkT.value || cam.mode === 'sun' || sim.gals.length < 2 || document.body.classList.contains('cz-cinema')) return;
+  const hs = sim.hist, ng = hs.ng;
+  const endN = Math.round(Math.max(sim.preset.end, sim.maxN * DT) / DT);
+  if (hs.n <= endN) hs.ensure(Math.min(endN, hs.n + 400));        // precompute the future a slice at a time
+  if (trackCache.n === -1 || trackCache.hist !== hs || trackCache.k > hs.n - 1) { trackCache.n = 0; trackCache.k = 1; trackCache.peris = []; trackCache.hist = hs; }
+  for (let k = trackCache.k; k < hs.n - 1; k++) {
+    const a = hs.sep(k - 1), b = hs.sep(k), c = hs.sep(k + 1);
+    if (b < a && b <= c && b > 0.8) trackCache.peris.push([k, b]);
+  }
+  trackCache.k = Math.max(1, hs.n - 1);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const n = U.clamp(sim.n, 0, hs.n - 1), last = Math.min(hs.n - 1, endN);
+  const stride = Math.max(1, Math.ceil(last / 700));
+  const P = [0, 0, 0];
+  const path = (i, k0, k1) => {
+    ctx.beginPath(); let pen = false;
+    const pt = (k) => { for (let c = 0; c < 3; c++) P[c] = hs.X[(k * ng + i) * 3 + c]; const q = project(P); if (!q) { pen = false; return; } if (pen) ctx.lineTo(q[0], q[1]); else { ctx.moveTo(q[0], q[1]); pen = true; } };
+    for (let k = k0; k < k1; k += stride) pt(k);
+    pt(k1); ctx.stroke();
+  };
+  ctx.lineWidth = 1;
+  for (let i = 0; i < ng; i++) {
+    const col = TRACK_COL[i];
+    ctx.setLineDash([]); ctx.strokeStyle = `rgba(${col},0.34)`; if (n > 0) path(i, 0, n);
+    ctx.setLineDash([1.5, 4]); ctx.strokeStyle = `rgba(${col},0.3)`; if (last > n) path(i, n, last);
+  }
+  ctx.setLineDash([]);
+  // pericentre marks: a small ring midway between the centres, with the distance and the time
+  ctx.font = '500 9.5px "JetBrains Mono", monospace'; ctx.textBaseline = 'middle';
+  // only the latest pericentre behind us and the next one ahead, so repeated passes never clutter the plate
+  let iPast = -1, iNext = -1;
+  trackCache.peris.forEach(([k], j) => { if (k <= n) iPast = j; else if (iNext < 0 && k <= last) iNext = j; });
+  for (const j of [iPast, iNext]) {
+    if (j < 0) continue;
+    const [k, sp] = trackCache.peris[j];
+    for (let c = 0; c < 3; c++) P[c] = 0.5 * (hs.X[(k * ng) * 3 + c] + hs.X[(k * ng + 1) * 3 + c]);
+    const q = project(P); if (!q) continue;
+    const past = k <= n, a = past ? 0.5 : 0.85;
+    ctx.strokeStyle = `rgba(179,199,255,${a})`; ctx.beginPath(); ctx.arc(q[0], q[1], 3, 0, 2 * Math.PI); ctx.stroke();
+    ctx.fillStyle = `rgba(179,199,255,${a * 0.9})`;
+    // keep the note off the galaxy labels
+    if (labels.some((l) => l.want && q[0] + 8 < l.x + 150 && q[0] + 200 > l.x && Math.abs(q[1] - l.y - 10) < 26)) continue;
+    ctx.fillText(`pericentre ${sp < 10 ? sp.toFixed(1) : Math.round(sp)} kpc · ${fmtT(k * DT)}`, q[0] + 8, q[1] + 1);
+  }
+}
+
+const tour = { on: true, stage: 0, hold: 0 };
+const TOUR = ['antennae', 'reverse', 'cartwheel', 'mice', 'flyby', 'satellite', 'milkomeda'];
+const TOUR_SAY = {
+  cartwheel: 'Next: the Cartwheel. A small galaxy is about to punch through a big one.',
+  mice: 'Next: the Mice. Two disks, one tipped on its side, trading tides.',
+  flyby: 'Next: a flyby. Watch a passing companion raise two spiral arms.',
+  satellite: 'Next: a dwarf galaxy torn into a stream around its host.',
+  milkomeda: 'Finally, our own future. Riding with the Sun as Andromeda approaches.',
+};
+function stopTour() { if (tour.on) { tour.on = false; tourToggle.set(false); } }
+function tourLoad(id) {
+  tour.atZero = false;
+  loadPreset(PRESETS.find((p) => p.id === id));
+  if (TOUR_SAY[id]) ch.toast(TOUR_SAY[id], 4200);
+  if (id === 'milkomeda') { camSel.set('sun'); cam.mode = 'sun'; cam.sunInit = false; tour.sunCut = false; }
+}
+function tourTick(dt) {
+  if (!tour.on) return;
+  const st = TOUR[tour.stage];
+  if (tour.stage < 0) { tour.stage = 0; tourLoad(TOUR[0]); return; }
+  if (st === 'reverse') {
+    if (!sim.reversed && sim.n > 0) { dyePass(1); setReversed(true); speedSlider.set(sim.preset.speed * 1.8); ch.toast('Time runs backwards now. The tail stars are dyed teal: watch where they came from.', 5200); }
+    if (sim.n <= 0) {
+      tour.hold += dt;
+      if (tour.hold > 5) { tour.hold = 0; tour.stage = (tour.stage + 1) % TOUR.length; tourLoad(TOUR[tour.stage]); }
+    }
+    return;
+  }
+  if (sim.preset.id !== st) { tourLoad(st); return; }
+  // Milkomeda: leave the Sun's point of view when Andromeda is close, and film the collision from outside
+  if (st === 'milkomeda' && cam.mode === 'sun' && !tour.sunCut && sepNow() < 300) { tour.sunCut = true; camSel.set('cinematic'); cam.mode = 'cinematic'; cam.setView(sim.preset.view, false); }
+  if (sim.n * DT >= sim.preset.end) {
+    tour.hold += dt;
+    if (tour.hold > 1.5) { tour.hold = 0; tour.stage = (tour.stage + 1) % TOUR.length; const nx = TOUR[tour.stage]; if (nx !== 'reverse') tourLoad(nx); }
+  }
+}
+// any deck interaction ends the tour (camera drags do not)
+document.querySelector('.cz-deck').addEventListener('input', (e) => { if (e.target.id !== 'gx-tour' && e.target.id !== 'gx-cam') stopTour(); });
+
+/* =====================================================================================
+   SOUND: a sonification of the encounter (only after the visitor turns sound on)
+   drone pitch ← separation, drone brightness ← relative speed, chimes ← star-formation rate
+   ===================================================================================== */
+const audio = { on: false, ctx: null, osc: [], filt: null, gain: null, lastSfr: 1, chimeT: 0 };
+function audioStart() {
+  const ctx = ch.sound.ensure(); if (!ctx) return;
+  audio.ctx = ctx;
+  if (!audio.gain) {
+    audio.gain = ctx.createGain(); audio.gain.gain.value = 0;
+    audio.filt = ctx.createBiquadFilter(); audio.filt.type = 'lowpass'; audio.filt.frequency.value = 300; audio.filt.Q.value = 2;
+    audio.filt.connect(audio.gain).connect(ch.sound.out);
+    [1, 1.498, 2.003].forEach((m, i) => { const o = ctx.createOscillator(); o.type = i === 1 ? 'triangle' : 'sine'; o.frequency.value = 55 * m; const g = ctx.createGain(); g.gain.value = [0.5, 0.22, 0.14][i]; o.connect(g).connect(audio.filt); o.start(); audio.osc.push({ o, m }); });
+  }
+  audio.gain.gain.setTargetAtTime(0.09, ctx.currentTime, 0.8);
+  audio.on = true;
+}
+function audioStop() { if (audio.gain && audio.ctx) audio.gain.gain.setTargetAtTime(0, audio.ctx.currentTime, 0.3); audio.on = false; }
+ch.onSound((on) => (on ? audioStart() : audioStop()));
+const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
+function chime(level) {
+  const ctx = audio.ctx, t = ctx.currentTime;
+  const f = 440 * Math.pow(2, (PENTA[Math.floor(Math.random() * PENTA.length)] - 12) / 12) * (Math.random() < 0.3 ? 2 : 1);
+  const o = ctx.createOscillator(), g = ctx.createGain(), pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+  o.type = 'sine'; o.frequency.value = f;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.05 * level, t + 0.01); g.gain.exponentialRampToValueAtTime(1e-4, t + 2.4);
+  if (pan) { pan.pan.value = Math.random() * 1.6 - 0.8; o.connect(g).connect(pan).connect(ch.sound.out); } else o.connect(g).connect(ch.sound.out);
+  o.start(t); o.stop(t + 2.5);
+}
+function audioTick(dt) {
+  if (!audio.on || !audio.ctx || !sim.gals.length) return;
+  const t = audio.ctx.currentTime, s = sim.gals.length > 1 ? sepNow() : 60, v = sim.gals.length > 1 ? relvNow() * KMS : 0;
+  const base = 41.2 * (1 + 1.2 / (1 + s / 25)) * (sim.reversed ? 0.94 : 1);        // closer → higher (E1 up toward A2)
+  audio.osc.forEach(({ o, m }) => o.frequency.setTargetAtTime(base * m, t, 0.4));
+  audio.filt.frequency.setTargetAtTime(160 + v * 1.4, t, 0.3);
+  const sfr = sim.sfr0 ? sim.stats.sfr / sim.sfr0 : 1;
+  audio.chimeT -= dt;
+  const rate = ch.paused ? 0 : U.clamp((sfr - 0.8) * 1.4, 0, 6);                  // chimes per second
+  if (rate > 0 && audio.chimeT <= 0) { chime(U.clamp(0.4 + sfr * 0.15, 0.4, 1.2)); audio.chimeT = (0.4 + Math.random()) / rate; }
+}
+
+/* =====================================================================================
+   MAIN LOOP
+   ===================================================================================== */
+const nucU = { P: new Float32Array(MAXG * 3), L: new Float32Array(MAXG) };
+const LAYERS = { stars: true, gas: true, bg: true, nuc: true };
+const dmU = { a: new Float32Array(MAXG * 4), b: new Float32Array(MAXG * 4) };
+const partU = { cen: new Float32Array(MAXG * 3), rd: new Float32Array(MAXG), ab: new Float32Array(MAXG) };
+let DUST_KAPPA = 0.009;
+const LOOK = { grow: 2.0, old: 0.8, young: 1, sf: 2.5, ha: 2 };
+const GRADE = { beta: 50, lmax: 2, b0: 1.2, b1: 4, bk: 0.5, vib: 1.35 };
+let frames = 0, fpsAcc = 0, fps = 60, lastHud = 0, statTick = 0;
+function render(now, dtReal) {
+  Cosmos.gl.fit(canvas, 1.5);
+  makeTargets();
+  updateCamera(dtReal, now);
+  const origin = cam.target.map((x) => Math.round(x * SCALE));
+  const tgtRender = [cam.target[0] - origin[0] / SCALE, cam.target[1] - origin[1] / SCALE, cam.target[2] - origin[2] / SCALE];
+  // view-projection in render space (origin = rounded target)
+  const T = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -tgtRender[0], -tgtRender[1], -tgtRender[2], 1]);
+  const VP = Cosmos.mat4.multiply(cam.vp, T);
+  rstate.VP = VP; rstate.origin = origin;
+
+  scene.bind();
+  gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  // sky
+  const Vr = cam.view.slice(); Vr[12] = Vr[13] = Vr[14] = 0;
+  gl.useProgram(progs.bg);
+  gl.uniformMatrix4fv(U_(progs.bg, 'uVProt'), false, Cosmos.mat4.multiply(cam.proj, Vr));
+  setF(progs.bg, 'uDpr', canvas.width / (canvas.clientWidth || 1));
+  gl.bindVertexArray(bg.vao); gl.drawArrays(gl.POINTS, 0, bg.n); gl.bindVertexArray(null);
+  // particles
+  const sizeN = Math.pow(REF_N / N, 0.3);
+  sim.gals.forEach((g, i) => { const gp = galPos(i); for (let c = 0; c < 3; c++) partU.cen[i * 3 + c] = gp[c] - cam.target[c] + tgtRender[c]; partU.rd[i] = g.dsph ? 1.5 * g.ab : g.Rd; partU.ab[i] = g.ab; });
+  const common = (pr) => {
+    bindTex(0, PS[cur].pos, pr, 'uPos'); setI(pr, 'uW', W);
+    gl.uniform3i(U_(pr, 'uOrigin'), origin[0], origin[1], origin[2]);
+    gl.uniformMatrix4fv(U_(pr, 'uVP'), false, VP);
+    setF(pr, 'uFocal', cam.focal); setF(pr, 'uMaxPx', cam.mode === 'sun' ? 6 : Math.min(40, PT_MAX / 5));
+    gl.uniform2f(U_(pr, 'uNear'), cam.mode === 'sun' ? 0.8 : 0.12, cam.mode === 'sun' ? 4.5 : 0.6); setF(pr, 'uSizeN', sizeN); setF(pr, 'uGrowMax', LOOK.grow); setF(pr, 'uRefD', cam.refD || orbit.dist);
+    gl.uniform3fv(U_(pr, 'uCen'), partU.cen); gl.uniform1fv(U_(pr, 'uRd'), partU.rd); gl.uniform1fv(U_(pr, 'uAb'), partU.ab);
+  };
+  const dustOn = FULL && dustTog.value && gasT.value && sim.nGas > 0;
+  if (dustOn) {
+    gl.bindVertexArray(emptyVAO);
+    dustT.bind(); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    const dp = progs.dust; gl.useProgram(dp); common(dp);
+    setF(dp, 'uClampZ', FLOAT_BLEND ? 40 : 4);
+    gl.drawArrays(gl.POINTS, 0, sim.nGas);
+    scene.bind();
+    gl.bindVertexArray(null);
+  }
+  const p = progs.part; gl.useProgram(p);
+  common(p);
+  bindTex(1, auxPP.read.tex, p, 'uAux');
+  if (dustOn) bindTex(2, dustT.tex, p, 'uDust'); else bindTex(2, auxPP.read.tex, p, 'uDust');
+  setF(p, 'uKappa', dustOn ? DUST_KAPPA * (REF_N / N) : 0); setF(p, 'uVarOK', FLOAT_BLEND ? 1 : 0);
+  gl.uniform2f(U_(p, 'uInvRes'), 1 / scene.w, 1 / scene.h);
+  setF(p, 'uLumN', (FULL ? 0.008 : 0.06) * (REF_N / N) / (sizeN * sizeN));
+  setF(p, 'uSF', (FULL ? 1 : 0.6) * LOOK.sf); setF(p, 'uGasVis', 1); setF(p, 'uOldK', LOOK.old); setF(p, 'uYoungK', LOOK.young); setF(p, 'uHaK', LOOK.ha);
+  gl.uniform1fv(U_(p, 'uLumG'), galU.lum);
+  gl.bindVertexArray(emptyVAO);
+  const first = gasT.value && LAYERS.gas ? 0 : sim.nGas, last = LAYERS.stars ? N : sim.nGas;
+  if (last > first) gl.drawArrays(gl.POINTS, first, last - first);
+  // nuclei
+  const q = progs.nuc; gl.useProgram(q);
+  sim.gals.forEach((g, i) => { const gp = galPos(i); for (let c = 0; c < 3; c++) nucU.P[i * 3 + c] = gp[c] - cam.target[c] + tgtRender[c]; nucU.L[i] = 0.9 * Math.sqrt(g.Mb) * galU.lum[i] / Math.max(0.2, g.lumPer) * 1.0; });
+  gl.uniformMatrix4fv(U_(q, 'uVP'), false, VP);
+  gl.uniform3fv(U_(q, 'uP'), nucU.P); gl.uniform1fv(U_(q, 'uL'), nucU.L);
+  setF(q, 'uFocal', cam.focal); setF(q, 'uMaxPx', Math.min(40, PT_MAX / 6));
+  gl.drawArrays(gl.POINTS, 0, sim.gals.length);
+  gl.bindVertexArray(null);
+  gl.disable(gl.BLEND);
+
+  if (FULL) {
+    // bloom: threshold + downsample chain, then additive upsample
+    let src = scene;
+    gl.useProgram(progs.down);
+    blooms.forEach((b, i) => {
+      b.bind(); bindTex(0, src.tex, progs.down, 'uSrc');
+      gl.uniform2f(U_(progs.down, 'uTexel'), 1 / src.w, 1 / src.h); setF(progs.down, 'uThresh', i === 0 ? 0.9 : 0);
+      fsTri(); src = b;
+    });
+    gl.useProgram(progs.up); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+    for (let i = blooms.length - 1; i > 0; i--) {
+      blooms[i - 1].bind(); bindTex(0, blooms[i].tex, progs.up, 'uSrc');
+      gl.uniform2f(U_(progs.up, 'uTexel'), 1 / blooms[i].w, 1 / blooms[i].h); fsTri();
+    }
+    gl.disable(gl.BLEND);
+    Cosmos.gl.screen(gl);
+    const f = progs.final; gl.useProgram(f);
+    bindTex(0, scene.tex, f, 'uScene'); bindTex(1, blooms[0].tex, f, 'uBloom');
+    setF(f, 'uExpo', expo.value); setF(f, 'uBloomK', bloomS.value); setF(f, 'uTime', now * 0.001); setF(f, 'uBeta', GRADE.beta); setF(f, 'uVib', GRADE.vib);
+    gl.uniform4f(U_(f, 'uG'), GRADE.lmax, GRADE.b0, GRADE.b1, GRADE.bk);
+    gl.uniform2f(U_(f, 'uRes'), canvas.width, canvas.height);
+    let nDM = 0;
+    if (dmTog.value) sim.gals.forEach((g, i) => {
+      if (g.halo === 'none' || nDM >= MAXG) return;
+      const q = project(galPos(i)); if (!q) return;
+      const dpr = canvas.width / (canvas.clientWidth || 1);
+      const ppk = cam.focal / q[2];
+      dmU.a.set([q[0] * dpr, canvas.height - q[1] * dpr, ppk, g.halo === 'nfw' ? g.rs : g.rc], nDM * 4);
+      const amp = 1e4 * (g.halo === 'nfw' ? g.Mh / (4 * Math.PI * g.rs * g.rs * g.mc) : g.v0 * g.v0 / (2 * G) / Math.PI);   // ρ_s r_s in M☉/pc²
+      dmU.b.set([g.halo === 'nfw' ? sim.hist.RT[U.clamp(sim.n, 0, sim.hist.n - 1) * sim.hist.ng + i] : 0, amp, 0, 0], nDM * 4); nDM++;
+    });
+    setI(f, 'uDMn', nDM);
+    if (nDM) { gl.uniform4fv(U_(f, 'uDM'), dmU.a); gl.uniform4fv(U_(f, 'uDM2'), dmU.b); gl.uniform3f(U_(f, 'uDMcol'), 0.70, 0.78, 1.0); }
+    fsTri();
+  } else {
+    // no float render targets: a simple tone curve straight from the 8-bit scene
+    Cosmos.gl.screen(gl);
+    const f = progs.lite; gl.useProgram(f);
+    bindTex(0, scene.tex, f, 'uScene'); setF(f, 'uExpo', expo.value * 1.5);
+    fsTri();
+  }
+}
+
+let lastNow = performance.now();
+ch.loop((dt, t, frame) => {
+  const now = performance.now();
+  const dtReal = Math.min(0.1, (now - lastNow) / 1000); lastNow = now;
+  // ---- advance the simulation ----
+  let steps = 0;
+  while (dyeQueue.length) { const d = dyeQueue.shift(); if (dyeQueue.length > 8) continue; dyePass(d[0], d[1], d[2], d[3], d[4]); }
+  if (sim.seekN != null) { steps = seekTick(); sim.acc = 0; }
+  else if (!ch.paused) {
+    tourTick(dt);
+    let rate = speedSlider.value;
+    if (timelapseToggle.value && sim.gals.length > 1) rate *= U.clamp(sepNow() / 90, 1, 9);
+    sim.acc += rate * dt / DT;
+    // adaptive budget: when frames run long, the simulation slows down instead of spiralling
+    sim.ft = sim.ft ? sim.ft * 0.9 + dtReal * 0.1 : dtReal;       // smoothed frame time
+    if (sim.ft > 1 / 28) sim.budget = Math.max(2, sim.budget - 2); else if (sim.ft < 1 / 42) sim.budget = Math.min(48, sim.budget + 1);
+    steps = Math.min(Math.floor(sim.acc), sim.budget);
+    sim.acc -= steps; if (sim.acc > 2) sim.acc = sim.acc % 1;
+    gl.disable(gl.BLEND);
+    for (let k = 0; k < steps; k++) {
+      if (sim.reversed && sim.n <= 0) {
+        if (tour.on && TOUR[tour.stage] === 'reverse') {
+          // the tour rests at t = 0 (still reversed) until it moves on; flipping here would make it re-reverse every frame
+          if (!tour.atZero) { tour.atZero = true; ch.toast('Back at t = 0. Every star is exactly where it started, to the last bit.' + (sim.dyed ? ' The teal ones sat in the outer disks.' : ''), 4800); }
+          break;
+        }
+        setReversed(false);
+        const msg = 'Back at t = 0. Every star is exactly where it started, to the last bit.' + (sim.dyed ? ' The teal ones sat in the outer disks.' : '');
+        if (!tour.on) { ch.setPaused(true); ch.toast(msg, 5200); } else ch.toast(msg, 4800);
+        break;
+      }
+      runStep();
+    }
+  }
+  if (sim.gals.length > 1 && !sim.reversed) { const s = sepNow(); if (s < (sim.minSep ?? 1e9)) sim.minSep = s; else if (sim.periT == null && sim.minSep < 40 && s > sim.minSep + 3) sim.periT = sim.n * DT; }
+  if (sim.reversed && sim.periT != null && sim.n * DT < sim.periT) { sim.periT = null; sim.minSep = 1e9; }
+  if (FULL && (steps > 0 || frame < 3)) { updateGrid(); updateAux(Math.max(steps, frame < 3 ? 1 : 0) * DT); }
+  if (FULL) { pollStats(); if (++statTick % 10 === 0) requestStats(); }
+  render(now, dtReal);
+  updateLabels();
+  drawTracks();
+  audioTick(dtReal);
+  // ---- readouts ----
+  frames++; fpsAcc += dtReal;
+  if (now - lastHud > 200) {
+    fps = frames / Math.max(1e-3, fpsAcc); frames = 0; fpsAcc = 0; lastHud = now;
+    const tM = sim.n * DT, s = sim.gals.length > 1 ? sepNow() : 0, v = sim.gals.length > 1 ? relvNow() * KMS : 0;
+    const tStr = fmtT(tM);
+    hudT.set(tStr + (sim.reversed ? '  ◂◂' : '')); ro.t.set(tStr);
+    hudS.set(s.toFixed(1) + ' kpc'); ro.sep.set(s.toFixed(1) + ' kpc');
+    hudV.set(Math.round(v) + ' km/s'); ro.v.set(Math.round(v) + ' km/s');
+    ro.n.set(N.toLocaleString('en-US'));
+    const tail = FMT.pct(sim.stats.tail, 1), unb = FMT.pct(sim.stats.unbound, 1);
+    hudTail.set(tail + ' · unbound ' + unb); ro.tail.set(tail); ro.unb.set(unb);
+    ro.sfr.set(sim.sfr0 ? (sim.stats.sfr / sim.sfr0).toFixed(1) + '× start' : '…');
+    const h = sim.hist, n = U.clamp(sim.n, 0, h.n - 1);
+    ro.rt.set(sim.gals.length > 1 ? Math.round(h.RT[n * h.ng + 1]) + ' kpc' : '—');
+    drawHistory();
+  }
+}, { always: true });
+
+Cosmos.debug.state = () => ({
+  preset: sim.preset.id, tMyr: sim.n * DT, step: sim.n, reversed: sim.reversed,
+  sepKpc: +sepNow().toFixed(2), relKms: +(relvNow() * KMS).toFixed(1), particles: N, gas: sim.nGas,
+  tailFrac: +sim.stats.tail.toFixed(4), unboundFrac: +sim.stats.unbound.toFixed(4), sfrRel: sim.sfr0 ? +(sim.stats.sfr / sim.sfr0).toFixed(3) : null,
+  fps: Math.round(fps), full: FULL, tour: tour.on, halo2rt: sim.gals[1] ? +sim.hist.RT[U.clamp(sim.n, 0, sim.hist.n - 1) * sim.hist.ng + 1].toFixed(1) : null, dyed: !!sim.dyed, seek: sim.seekN,
+});
+Cosmos.debug.sim = sim;
+Cosmos.debug.auxStats = () => {
+  if (!FULL) return null;
+  const buf = new Float32Array(W * W * 4);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, auxPP.read.fbo); gl.readPixels(0, 0, W, W, gl.RGBA, gl.FLOAT, buf); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  const pick = (k) => { const a = []; for (let i = 0; i < sim.nGas; i += 7) a.push(buf[i * 4 + k]); a.sort((x, y) => x - y); return [0.1, 0.5, 0.9, 0.99, 1].map((q) => +a[Math.min(a.length - 1, Math.floor(q * a.length))].toFixed(3)); };
+  return { nbar: pick(0), ha: pick(1), blue: pick(2), n: pick(3) };
+};
+Cosmos.debug.sceneStats = () => {
+  const w = scene.w, h = scene.h, buf = new Float32Array(w * h * 4);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, scene.fbo); gl.readPixels(0, 0, w, h, gl.RGBA, gl.FLOAT, buf); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  let nan = 0, inf = 0, neg = 0, mx = 0, big = 0;
+  for (let i = 0; i < buf.length; i += 4) for (let k = 0; k < 3; k++) { const v = buf[i + k]; if (v !== v) nan++; else if (!isFinite(v)) inf++; else { if (v < 0) neg++; if (v > mx) mx = v; if (v > 1000) big++; } }
+  return { w, h, nan, inf, neg, max: mx, big };
+};
+/** jump to a preset at time tMyr with a fixed camera, paused (for QA screenshots) */
+Cosmos.debug.look = (id, tMyr, view, opts = {}) => {
+  stopTour();
+  const p = PRESETS.find((x) => x.id === id) || CUSTOM;
+  loadPreset(p);
+  gl.disable(gl.BLEND);
+  const n = Math.round((tMyr || 0) / DT);
+  for (let k = 0; k < n; k++) { runStep(); if (k % 8 === 7) { updateGrid(); updateAux(8 * DT); } }
+  for (let k = 0; k < 3; k++) { updateGrid(); updateAux(1); }
+  if (view) { camSel.set('free', true); orbit.theta = view.theta; orbit.phi = view.phi; orbit.dist = view.dist; orbit.setDist(view.dist); if (view.target) cam.fixed = view.target; }
+  if (opts.play) ch.setPaused(false); else ch.setPaused(true);
+  return Cosmos.debug.state();
+};
+Cosmos.debug.layers = LAYERS;
+Cosmos.debug.dustStats = () => {
+  if (!dustT) return null;
+  const w = dustT.w, h = dustT.h, buf = new Float32Array(w * h * 4);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, dustT.fbo); gl.readPixels(0, 0, w, h, gl.RGBA, gl.FLOAT, buf); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  let mx = 0, sum = 0, nz = 0, zmin = 1e9, zmax = -1e9;
+  for (let i = 0; i < buf.length; i += 4) { const v = buf[i]; if (v > mx) mx = v; sum += v; if (v > 1e-3) { nz++; const z = buf[i + 1] / v; zmin = Math.min(zmin, z); zmax = Math.max(zmax, z); } }
+  return { w, h, max: mx, mean: sum / (w * h), nonzero: nz, zmin, zmax, kappa: DUST_KAPPA };
+};
+Cosmos.debug.dustCut = (x, y0, y1) => {
+  const n = y1 - y0, buf = new Float32Array(n * 4);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, dustT.fbo); gl.readPixels(x, y0, 1, n, gl.RGBA, gl.FLOAT, buf); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  const out = []; for (let i = 0; i < n; i += 2) out.push([y0 + i, +buf[i * 4].toFixed(0), +(buf[i * 4 + 1] / Math.max(buf[i * 4], 1e-6)).toFixed(3)]);
+  return out;
+};
+/** run n steps forward, reverse, run back to t = 0 and compare every particle with the initial state */
+Cosmos.debug.reversibility = (id, n) => {
+  stopTour();
+  loadPreset(PRESETS.find((x) => x.id === id) || PRESETS[0]);
+  const read = () => { const a = new Int32Array(N * 4), b = new Int32Array(N * 4); const f = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, PS[cur].pos, 0); gl.readPixels(0, 0, W, W, gl.RGBA_INTEGER, gl.INT, a);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, PS[cur].del, 0); gl.readPixels(0, 0, W, W, gl.RGBA_INTEGER, gl.INT, b);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(f); return [a, b]; };
+  const [p0, d0] = read();
+  gl.disable(gl.BLEND);
+  for (let k = 0; k < n; k++) runStep();
+  const [pm] = read();
+  setReversed(true);
+  let guard = 0; while (sim.n > 0 && guard++ < n + 5) runStep();
+  const [p1] = read();            // reversed state at m = 0 holds X_0 exactly if the scheme is reversible
+  let badP = 0, badParticles = 0, maxDev = 0, moved = 0, worst = -1;
+  for (let i = 0; i < N; i++) {
+    let bad = false;
+    for (let c = 0; c < 3; c++) { const e = Math.abs(p1[i * 4 + c] - p0[i * 4 + c]); if (e) { badP++; bad = true; if (e > maxDev) { maxDev = e; worst = i; } } }
+    if (bad) badParticles++;
+    moved = Math.max(moved, Math.hypot(pm[i * 4] - p0[i * 4], pm[i * 4 + 1] - p0[i * 4 + 1], pm[i * 4 + 2] - p0[i * 4 + 2]) / SCALE);
+  }
+  const info = worst >= 0 ? { worst, type: (p0[worst * 4 + 3] >> 2) & 3, gal: p0[worst * 4 + 3] & 3, start: [0, 1, 2].map((c) => +(p0[worst * 4 + c] / SCALE).toFixed(2)), mid: [0, 1, 2].map((c) => +(pm[worst * 4 + c] / SCALE).toFixed(2)) } : null;
+  setReversed(false);
+  ch.setPaused(true);
+  return { steps: n, tMyr: n * DT, particles: N, particlesNotRestored: badParticles, maxDevKpc: maxDev / SCALE, maxDisplacementKpc: +moved.toFixed(1), worst: info };
+};
+Cosmos.debug.seek = (tMyr) => seekTo(tMyr / DT); Cosmos.debug.dye = (mode, gal) => dyeQueue.push([mode, 0, 0, 0, gal || 0]);
+Cosmos.debug.CART = CART; Cosmos.debug.SAT = SAT;
+Cosmos.debug.camInfo = () => ({ target: cam.target.map((x) => +x.toFixed(1)), dist: +orbit.dist.toFixed(1), g: sim.gals.map((g, i) => galPos(i).map((x) => +x.toFixed(1))), mode: cam.mode, fixed: cam.fixed || null });
+Cosmos.debug.bench = (k = 200) => {
+  const pi = new Int32Array(4), pu = new Uint8Array(4);
+  const sync = () => { gl.bindFramebuffer(gl.FRAMEBUFFER, PS[cur].fbo); gl.readBuffer(gl.COLOR_ATTACHMENT0); gl.readPixels(0, 0, 1, 1, gl.RGBA_INTEGER, gl.INT, pi); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pu); };
+  gl.disable(gl.BLEND); sync(); let a = performance.now(); for (let i = 0; i < k; i++) runStep(); sync(); const step = (performance.now() - a) / k;
+  a = performance.now(); for (let i = 0; i < 20; i++) render(performance.now(), 0.016); sync(); const rend = (performance.now() - a) / 20;
+  a = performance.now(); for (let i = 0; i < 20; i++) { updateGrid(); updateAux(1); } sync(); const aux = (performance.now() - a) / 20;
+  return { stepMs: +step.toFixed(3), renderMs: +rend.toFixed(2), gridAuxMs: +aux.toFixed(2) };
+};
+/** CPU-only orbit timeline of a preset's galaxy centres: pericentres, apocentres, merger time */
+Cosmos.debug.orbitEvents = (id, tMax = 8000) => {
+  const p = PRESETS.find((x) => x.id === id); Phys.lnL = dfSlider.value; Phys.strip = stripToggle.value;
+  const gals = p.build(); const H = new History(gals); const ev = []; let prev = 1e9, dec = false, merged = null;
+  for (let n = 0; n * DT < tMax; n++) { H.ensure(n); const sp = H.sep(n); if (sp > prev && dec) ev.push('peri ' + Math.round((n - 1) * DT) + ' Myr @ ' + prev.toFixed(1) + ' kpc'); if (!dec && sp < prev && n > 1) ev.push('apo ' + Math.round((n - 1) * DT) + ' @ ' + prev.toFixed(0)); dec = sp < prev; prev = sp; if (sp < 3 && merged == null) merged = n * DT; if (ev.length > 7) break; }
+  return { events: ev, sepBelow3kpc: merged, start: H.sep(0).toFixed(1) };
+};
+Cosmos.debug.tour = tour; Cosmos.debug.tourLoad = (id) => { tour.stage = TOUR.indexOf(id); tourLoad(id); };
+Cosmos.debug.setKappa = (k) => { DUST_KAPPA = k; };
+Cosmos.debug.grade = GRADE; Cosmos.debug.lookK = LOOK;
+Cosmos.debug.setSpiral = (v) => { sim.spiralOn = v; packStatic(); };
+Cosmos.debug.profile = () => {
+  const px = new Uint8Array(4), pf = new Float32Array(4);
+  const sync = () => { gl.bindFramebuffer(gl.FRAMEBUFFER, red2.fbo); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.FLOAT, pf); gl.bindFramebuffer(gl.FRAMEBUFFER, null); };
+  const t = (fn, k = 1) => { sync(); const a = performance.now(); for (let i = 0; i < k; i++) fn(); sync(); return +((performance.now() - a) / k).toFixed(2); };
+  const nSave = sim.n, rev = sim.reversed;
+  const out = {
+    step: t(() => { gl.disable(gl.BLEND); runStep(); }, 10),
+    grid: t(updateGrid, 5), aux: t(() => updateAux(0), 5),
+    render: t(() => render(performance.now(), 0.016), 5),
+  };
+  out.nAfter = sim.n; out.nBefore = nSave; out.rev = rev;
+  return out;
+};
+
+ch.onResize(() => { drawRotationCurve(); drawHistory(); });
+updVHint();
+loadPreset(PRESETS[0]);
+})();
+</script>
+</body>
+</html>

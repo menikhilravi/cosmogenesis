@@ -1,0 +1,2845 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Learning Machine · Cosmogenesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="cosmos.css">
+<style>
+  .ml-modes {
+    position: fixed; z-index: 22; left: 50%; transform: translateX(-50%);
+    top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 8px);
+    display: flex; gap: 2px; padding: 3px; border-radius: 999px;
+    background: rgba(8, 10, 19, .6); border: 1px solid var(--line);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    transition: opacity .5s var(--ease);
+  }
+  body.cz-cinema .ml-modes, .ml-modes.ml-hide { opacity: 0; pointer-events: none; }
+  .ml-mode {
+    appearance: none; border: 0; background: none; cursor: pointer; border-radius: 999px;
+    padding: 7px 14px 7px 12px; display: flex; align-items: baseline; gap: 8px; color: var(--dust);
+    font: 500 12.5px/1 var(--f-ui); white-space: nowrap; transition: background .25s, color .25s;
+  }
+  .ml-mode b { font: 600 10px/1 var(--f-mono); letter-spacing: .12em; color: var(--faint); transition: color .25s; }
+  .ml-mode:hover { color: var(--star); }
+  .ml-mode[aria-pressed="true"] { background: var(--era-soft); color: var(--star); box-shadow: inset 0 0 0 1px rgba(126, 240, 255, .45); }
+  .ml-mode[aria-pressed="true"] b { color: var(--era); }
+  .ml-mode.ml-hint { animation: mlHint 2.4s var(--ease) 3; }
+  @keyframes mlHint { 0%, 100% { box-shadow: inset 0 0 0 1px rgba(126, 240, 255, 0); color: var(--dust); } 45% { box-shadow: inset 0 0 0 1px rgba(126, 240, 255, .55), 0 0 18px rgba(126, 240, 255, .35); color: var(--star); } }
+  #ml-ov { pointer-events: none; }
+  #ml-gl { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  .ml-draw { display: grid; gap: 8px; }
+  .ml-draw canvas { width: 100%; aspect-ratio: 1; display: block; border-radius: var(--r-s); border: 1px solid var(--line-strong); touch-action: none; cursor: crosshair; background: #05060c; }
+  .ml-swatches { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .ml-sw { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line-strong); cursor: pointer; padding: 0; }
+  .ml-sw[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--void), 0 0 0 3.5px var(--era); }
+  .ml-legend { display: flex; gap: 12px; flex-wrap: wrap; font: 500 10.5px/1.3 var(--f-mono); color: var(--dust); }
+  .ml-legend i { display: inline-block; width: 10px; height: 2px; margin-right: 6px; vertical-align: 3px; }
+  /* timeline inside the story tab */
+  .ml-tl { list-style: none; margin: .4em 0 1em; padding: 0 0 0 14px; border-left: 1px solid var(--line-strong); }
+  .ml-tl li { position: relative; margin: 0 0 .7em; padding-left: 4px; }
+  .ml-tl li::before { content: ""; position: absolute; left: -18.5px; top: .55em; width: 7px; height: 7px; border-radius: 50%; background: var(--void); border: 1.5px solid var(--era); }
+  .ml-tl li.now::before { background: var(--era); box-shadow: 0 0 10px var(--era); }
+  .ml-tl b { font: 600 11px/1 var(--f-mono); color: var(--era); letter-spacing: .06em; margin-right: 8px; }
+  @media (max-width: 760px) {
+    .cz-hud .cz-hud-row:nth-child(4) { display: none; }
+    .ml-modes { top: auto; bottom: calc(var(--foot-h) + env(safe-area-inset-bottom, 0px) + 6px); }
+    .ml-mode { padding: 7px 11px; font-size: 12px; }
+    .ml-mode b { display: none; }
+    .cz-deck.cz-open ~ .ml-modes { display: none; }
+  }
+</style>
+</head>
+<body>
+<script src="cosmos.js"></script>
+<script>
+(function () {
+'use strict';
+
+/* =====================================================================
+   THE LEARNING MACHINE
+   A coordinate network f(x, y) → (r, g, b) trained from scratch, live.
+   Training runs on the GPU: every matrix multiply of the forward pass,
+   the backward pass and Adam is a fragment-shader pass over float32
+   textures. No libraries. A CPU Web Worker takes over when float render
+   targets are missing.
+   ===================================================================== */
+
+const NOTES = `<p>The right side of the frame is a painting made by a neural network. The network is a single mathematical function with 16,771 adjustable numbers. Give it a position (<em>x</em>, <em>y</em>) and it answers with a colour (<em>r</em>, <em>g</em>, <em>b</em>). When this page opened those numbers were random and the canvas was grey fog.</p>
+<p>Since then your graphics card has shown the network a couple of thousand random pixels of the target, many times a second. After each glimpse every number moves a tiny step in the direction that makes the answer less wrong. That is all the learning there is. The strip of snapshots records the journey: first the average colour, then big shapes, then the swirls. Networks learn broad strokes before fine detail.</p>
+<p>Below the painting are the network's neurons. Each tile shows where one neuron fires across the whole picture. In the first layer they are random ripples. By the third layer some have become detectors: one lights up on stars, another on the cypress. Nobody told them to. <strong>Hover or tap a tile</strong> to look through its eyes. <strong>Click it</strong> (or press and hold) to silence it. The painting cracks where that neuron worked, and within seconds the survivors learn to cover for it.</p>
+<p>Feed the network raw <em>x</em> and <em>y</em> and it paints as if through frosted glass. This is <em>spectral bias</em>: networks find smooth patterns easy and sharp ones hard. Hand it waves first, sines and cosines of the coordinates at random frequencies, and the detail arrives. The race in mode II shows the difference side by side. In the deck you can also paint your own word or drawing, dive in ×12 (<kbd>Z</kbd>), or replay the whole learning as a time-lapse (<kbd>P</kbd>).</p>
+<h4>Try this</h4>
+<ul>
+<li>Press <kbd>L</kbd> to silence a quarter of all neurons. Training pauses on the damage, then the survivors heal it. The loss chart marks each cut.</li>
+<li>Press <kbd>B</kbd> to zoom out beyond the edge. The network never saw a pixel out there, yet it paints anyway. Switch off <strong>Fourier features</strong> and look again: now it paints rays.</li>
+<li>Back at ×1, switch Fourier features off, wait, then switch them back on, and watch the detail return.</li>
+<li>Press <kbd>3</kbd>, choose XOR and give the classifier one hidden layer. With one neuron it can only draw a single straight edge and fails, the limit Minsky and Papert proved in 1969. Three or four neurons bend the boundary and win.</li>
+</ul>
+<h4>Eighty years of learning machines</h4>
+<ol class="ml-tl">
+<li><b>1943</b>McCulloch and Pitts describe a neuron as a logic gate that fires when its weighted inputs pass a threshold.</li>
+<li><b>1958</b>Rosenblatt's perceptron learns its own weights from examples and is built in hardware.</li>
+<li><b>1969</b>Minsky and Papert prove that a single-layer perceptron cannot compute XOR. Interest fades for over a decade.</li>
+<li><b>1986</b>Rumelhart, Hinton and Williams popularise backpropagation, which trains hidden layers with the chain rule.</li>
+<li><b>1989</b>LeCun's convolutional LeNet reads handwritten zip codes. By 1998 its descendants read millions of bank cheques.</li>
+<li><b>2012</b>AlexNet, trained on two gaming GPUs, wins the ImageNet contest by a wide margin. Deep learning takes off.</li>
+<li><b>2017</b>The transformer arrives in a paper titled “Attention is all you need”. It powers today's language models.</li>
+<li class="now"><b>Today</b>This network has 1.7 × 10⁴ parameters. Frontier models have more than 10¹¹ to 10¹². Your brain has around 10¹⁴ synapses.</li>
+</ol>`;
+const SCIENCE = `<h4>One neuron</h4>
+<p>A neuron multiplies its inputs by weights, adds a bias and passes the sum through a nonlinearity φ.</p>
+<span class="eq">y = φ(Σ<sub>i</sub> w<sub>i</sub> x<sub>i</sub> + b)</span>
+<p>The painter stacks them in layers: <em>h</em><sub>l</sub> = φ(<em>W</em><sub>l</sub> <em>h</em><sub>l−1</sub> + <em>b</em><sub>l</sub>). Here φ is ReLU, max(0, z), unless you choose tanh or sine. Three sigmoid outputs give <em>r</em>, <em>g</em>, <em>b</em> in [0, 1].</p>
+<h4>The coordinate network</h4>
+<p>Pixel positions are scaled to <strong>x</strong> ∈ [−1, 1]². The default shape is 128 → 64 → 64 → 64 → 3: 16,771 parameters. The target is 768 × 768 pixels, 1.77 × 10⁶ numbers, so the network must compress it about 100 : 1 and can only approximate it.</p>
+<h4>Loss</h4>
+<span class="eq">L = (1 / 3N) Σ<sub>n</sub> ‖ f(<b>x</b><sub>n</sub>) − <b>y</b><sub>n</sub> ‖²,   PSNR = −10 log<sub>10</sub> L</span>
+<p>Training adds a tiny term, (λ/3N) Σ max(0, |z| − 5)² with λ = 0.02, on the three output pre-activations z. It never touches a visible colour, since σ(±5) is within 2/255 of 0 or 1, but it stops the sigmoids from saturating when you switch targets. By default each step draws N = 2,048 random positions, with bilinear lookups in the target. The PSNR readout is measured on a full rendering of the network, not on the training batch.</p>
+<h4>Backpropagation</h4>
+<span class="eq">δ<sub>l</sub> = (W<sub>l+1</sub><sup>T</sup> δ<sub>l+1</sub>) ⊙ φ′(z<sub>l</sub>),   ∂L/∂W<sub>l</sub> = Σ<sub>n</sub> δ<sub>l</sub> h<sub>l−1</sub><sup>T</sup>,   ∂L/∂b<sub>l</sub> = Σ<sub>n</sub> δ<sub>l</sub></span>
+<p>This is the chain rule, applied from the output back to the input.</p>
+<h4>Adam</h4>
+<span class="eq">m<sub>t</sub> = β<sub>1</sub>m<sub>t−1</sub> + (1−β<sub>1</sub>)g<sub>t</sub>,   v<sub>t</sub> = β<sub>2</sub>v<sub>t−1</sub> + (1−β<sub>2</sub>)g<sub>t</sub>²</span>
+<span class="eq">θ<sub>t</sub> = θ<sub>t−1</sub> − η · m̂<sub>t</sub> / (√v̂<sub>t</sub> + ε),   m̂ = m / (1−β<sub>1</sub><sup>t</sup>),  v̂ = v / (1−β<sub>2</sub><sup>t</sup>)</span>
+<p>β<sub>1</sub> = 0.9, β<sub>2</sub> = 0.999, ε = 10⁻⁸. Default η = 4 × 10⁻³ for ReLU, 3 × 10⁻³ for tanh and 10⁻⁴ for SIREN in the painter (3 × 10⁻⁴ for SIREN in the race).</p>
+<h4>Universal approximation, and its limits</h4>
+<p>One hidden layer with enough sigmoidal units can approximate any continuous function on a bounded domain as closely as you like (Cybenko 1989; Hornik 1991). The theorem does not say how many units are needed, or whether gradient descent will find the weights.</p>
+<h4>Spectral bias and Fourier features</h4>
+<p>Trained networks fit low frequencies first and high frequencies much more slowly (Rahaman et al. 2019). The fix used here maps the input through random waves first (Tancik et al. 2020):</p>
+<span class="eq">γ(<b>x</b>) = [ sin(2π B<b>x</b>), cos(2π B<b>x</b>) ],   B ∈ ℝ<sup>64×2</sup>,   B<sub>ij</sub> ~ 𝒩(0, σ²)</span>
+<p>Default σ = 6 on [−1, 1], the same as σ = 12 on [0, 1]. On this page's starry target, after 3,000 steps, ReLU on raw coordinates reached 16.8 dB and ReLU on γ(<b>x</b>) reached 21.8 dB. A raw network twice as wide, with 33,795 parameters, still stalled at 17.0 dB.</p>
+<h4>Beyond the frame</h4>
+<p>Training only ever samples <b>x</b> ∈ [−1, 1]². Outside it, the network's answer is pure extrapolation, and its character comes from the architecture. A ReLU network is piecewise linear, and far from the data its pieces become cones pointing away from the origin. Along each ray the output pre-activations grow linearly, so the sigmoids saturate and the picture turns into straight streaks of pure colour. With Fourier features or sine activations the answer is a sum of waves, which never settles down, so the plane fills with a restless, star-flecked texture that has no connection to anything real.</p>
+<h4>Lesions</h4>
+<p>Silencing neuron <em>j</em> of layer <em>l</em> multiplies it by a mask, <em>h</em><sub>l,j</sub> = <em>m</em><sub>l,j</sub> φ(<em>z</em><sub>l,j</sub>) with <em>m</em> ∈ {0, 1}, in the forward pass. The same mask zeroes its δ in the backward pass, so its weights freeze while the rest keep learning. The survivors re-learn the lost work. Measured on the starry target after 3,000 steps (three trials): silencing a quarter of the neurons drops the PSNR from about 21.7 to 11.4 dB. Two thirds of the loss is back after 100 steps and 90% after about 1,000. Restoring the silenced neurons 4,000 steps later drops it again, to about 13.2 dB, because the network has rearranged itself without them. Silencing a random subset at every step is dropout, a standard way to make networks robust (Srivastava et al. 2014). Neuroscientists run the same experiment with lesions and optogenetic silencing.</p>
+<h4>SIREN</h4>
+<p>Sine activations, φ(z) = sin(ω<sub>0</sub>z) with ω<sub>0</sub> = 30, reach detail without any feature mapping. They need a special initialisation: first-layer weights ~ U(−1/n, 1/n), later layers ~ U(−√(6/n)/ω<sub>0</sub>, √(6/n)/ω<sub>0</sub>) (Sitzmann et al. 2020).</p>
+<h4>How this page computes</h4>
+<p>No libraries. Every step is 13 fragment-shader passes over float32 textures: features, three forward layers, output and loss gradient, three backward layers, four weight-gradient reductions and one Adam update. The GPU gradients agree with an independent CPU implementation to a relative error below 10⁻⁴. The neuron tiles are rendered by running the network on the GPU for every pixel of every tile. The classifier in mode III is a separate network of up to 4 × 10 neurons, trained on the CPU with full-batch Adam and binary cross-entropy, −[y ln p + (1−y) ln(1−p)].</p>
+<span class="cite">Rumelhart, D. E., Hinton, G. E. & Williams, R. J. (1986). Learning representations by back-propagating errors. Nature 323, 533–536.</span>
+<span class="cite">Cybenko, G. (1989). Approximation by superpositions of a sigmoidal function. Math. Control Signals Systems 2, 303–314.</span>
+<span class="cite">Hornik, K. (1991). Approximation capabilities of multilayer feedforward networks. Neural Networks 4, 251–257.</span>
+<span class="cite">Kingma, D. P. & Ba, J. (2015). Adam: a method for stochastic optimization. ICLR.</span>
+<span class="cite">Rahaman, N. et al. (2019). On the spectral bias of neural networks. ICML, PMLR 97, 5301–5310.</span>
+<span class="cite">Tancik, M. et al. (2020). Fourier features let networks learn high frequency functions in low dimensional domains. NeurIPS 33.</span>
+<span class="cite">Sitzmann, V. et al. (2020). Implicit neural representations with periodic activation functions. NeurIPS 33.</span>
+<span class="cite">Srivastava, N., Hinton, G., Krizhevsky, A., Sutskever, I. & Salakhutdinov, R. (2014). Dropout: a simple way to prevent neural networks from overfitting. JMLR 15, 1929–1958.</span>`;
+
+const ch = Cosmos.chapter({ id: 'learning-machine', notes: NOTES, science: SCIENCE });
+const U = Cosmos.util, FMT = Cosmos.fmt;
+const ERA = ch.meta.accent;
+const isSmall = () => window.matchMedia('(max-width: 760px)').matches;
+
+/* ------------------------------------------------------------ canvases */
+const cv = ch.canvas('ml-gl');
+const ov = ch.canvas('ml-ov');
+const ox = ov.getContext('2d');
+const gl = Cosmos.gl.context(cv, { alpha: false, antialias: false });
+if (!gl) { ch.fatal('This chapter trains a neural network on your graphics card and needs WebGL2, which this browser does not provide.'); return; }
+const GPU_TRAIN = !!gl.ext.floatRT && !/cpu=1/.test(location.hash);
+const DF = Cosmos.debug.flags = {};
+const timerExt = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+// GPU profiler (debug only; enabled from Cosmos.debug.profile())
+const prof = { on: false, pending: [], acc: {}, cur: null,
+  begin(name) { if (!this.on || !timerExt || this.cur) return; const q = gl.createQuery(); gl.beginQuery(timerExt.TIME_ELAPSED_EXT, q); this.cur = { q, name }; },
+  end() { if (!this.cur) return; gl.endQuery(timerExt.TIME_ELAPSED_EXT); this.pending.push(this.cur); this.cur = null; },
+  poll() {
+    if (!timerExt) return;
+    const disjoint = gl.getParameter(timerExt.GPU_DISJOINT_EXT);
+    this.pending = this.pending.filter((e) => {
+      if (!gl.getQueryParameter(e.q, gl.QUERY_RESULT_AVAILABLE)) return true;
+      const ns = gl.getQueryParameter(e.q, gl.QUERY_RESULT); gl.deleteQuery(e.q);
+      if (!disjoint) { const a = this.acc[e.name] || (this.acc[e.name] = { n: 0, ms: 0 }); a.n++; a.ms += ns / 1e6; }
+      return false;
+    });
+  } };
+
+/* =====================================================================
+   CPU reference network (packed layout identical to the GPU textures).
+   Self-contained so its source can also run inside a Worker.
+   ===================================================================== */
+function CPUNET() {
+  const OMEGA = 30;
+  function pcg(v) {
+    const s = (Math.imul(v >>> 0, 747796405) + 2891336453) >>> 0;
+    const w = Math.imul(((s >>> ((s >>> 28) + 4)) ^ s) >>> 0, 277803737) >>> 0;
+    return ((w >>> 22) ^ w) >>> 0;
+  }
+  function sampleX(b, seed, out) {
+    const h = pcg((b ^ pcg(seed >>> 0)) >>> 0);
+    const h2 = pcg((h ^ 0x9E3779B9) >>> 0);
+    out[0] = ((h >>> 8) + 0.5) * (2 / 16777216) - 1;
+    out[1] = ((h2 >>> 8) + 0.5) * (2 / 16777216) - 1;
+  }
+  function make(s) {
+    // s: {L, W, K0, ff, m, act, WT, R, rowOff[], kin4[], Bm Float32Array(2m)}
+    const N = s.WT * s.R * 4;
+    const P = new Float32Array(N), M = new Float32Array(N), V = new Float32Array(N), G = new Float32Array(N);
+    const L = s.L, Wd = s.W, WT = s.WT;
+    const f = new Float32Array(Math.max(4, s.K0));
+    const Z = [], H = [], D = [];
+    for (let l = 0; l < L; l++) { Z.push(new Float32Array(Wd)); H.push(new Float32Array(Wd)); D.push(new Float32Array(Wd)); }
+    const tmp = new Float32Array(Math.max(Wd, s.K0));
+    const keep = new Float32Array(L * Wd).fill(1); // lesion mask: 0 silences a hidden neuron
+    const yo = new Float32Array(3), zo = new Float32Array(3), dout = new Float32Array(3);
+    const act = s.act === 0 ? (z) => (z > 0 ? z : 0) : s.act === 1 ? (z) => Math.tanh(z) : (z) => Math.sin(OMEGA * z);
+    const dact = s.act === 0 ? (z) => (z > 0 ? 1 : 0) : s.act === 1 ? (z) => { const t = Math.tanh(z); return 1 - t * t; } : (z) => OMEGA * Math.cos(OMEGA * z);
+    const kinOf = (l) => (l === 0 ? (s.ff ? 2 * s.m : 2) : Wd);
+    function feats(x0, x1) {
+      if (s.ff) { for (let k = 0; k < s.m; k++) { const a = 6.283185307179586 * (s.Bm[2 * k] * x0 + s.Bm[2 * k + 1] * x1); f[k] = Math.sin(a); f[s.m + k] = Math.cos(a); } }
+      else { f[0] = x0; f[1] = x1; f[2] = 0; f[3] = 0; }
+    }
+    function forward(x0, x1) {
+      feats(x0, x1);
+      for (let l = 0; l < L; l++) {
+        const Kin = kinOf(l), inp = l ? H[l - 1] : f, r0 = s.rowOff[l], bc = s.kin4[l] * 4;
+        for (let j = 0; j < Wd; j++) {
+          const base = (r0 + j) * WT * 4; let z = P[base + bc];
+          for (let i = 0; i < Kin; i++) z += P[base + i] * inp[i];
+          Z[l][j] = z; H[l][j] = act(z) * keep[l * Wd + j];
+        }
+      }
+      const r0 = s.rowOff[L], bc = s.kin4[L] * 4, hl = H[L - 1];
+      for (let k = 0; k < 3; k++) {
+        const base = (r0 + k) * WT * 4; let z = P[base + bc];
+        for (let i = 0; i < Wd; i++) z += P[base + i] * hl[i];
+        zo[k] = z; z = Math.max(-30, Math.min(30, z));
+        yo[k] = 1 / (1 + Math.exp(-z));
+      }
+      return yo;
+    }
+    // accumulate gradient of scale * sum_k (y_k - t_k)^2 into G; returns mean sq err over channels
+    function backward(t, scale) {
+      let se = 0;
+      for (let k = 0; k < 3; k++) { const e = yo[k] - t[k], a = Math.abs(zo[k]); se += e * e; dout[k] = scale * (e * yo[k] * (1 - yo[k]) + (a > 5 ? 0.02 * Math.sign(zo[k]) * (a - 5) : 0)); }
+      // output layer
+      { const r0 = s.rowOff[L], bc = s.kin4[L] * 4, hl = H[L - 1];
+        tmp.fill(0, 0, Wd);
+        for (let k = 0; k < 3; k++) {
+          const base = (r0 + k) * WT * 4, d = dout[k];
+          for (let i = 0; i < Wd; i++) { G[base + i] += d * hl[i]; tmp[i] += P[base + i] * d; }
+          G[base + bc] += d;
+        }
+        for (let i = 0; i < Wd; i++) D[L - 1][i] = tmp[i] * dact(Z[L - 1][i]) * keep[(L - 1) * Wd + i];
+      }
+      for (let l = L - 1; l >= 0; l--) {
+        const Kin = kinOf(l), inp = l ? H[l - 1] : f, r0 = s.rowOff[l], bc = s.kin4[l] * 4, Dl = D[l];
+        if (l > 0) tmp.fill(0, 0, Wd);
+        for (let j = 0; j < Wd; j++) {
+          const base = (r0 + j) * WT * 4, d = Dl[j];
+          if (d === 0) continue;
+          for (let i = 0; i < Kin; i++) G[base + i] += d * inp[i];
+          G[base + bc] += d;
+          if (l > 0) for (let i = 0; i < Wd; i++) tmp[i] += P[base + i] * d;
+        }
+        if (l > 0) for (let i = 0; i < Wd; i++) D[l - 1][i] = tmp[i] * dact(Z[l - 1][i]) * keep[(l - 1) * Wd + i];
+      }
+      return se / 3;
+    }
+    function adam(lr, t) {
+      const b1 = 0.9, b2 = 0.999, c1 = 1 - Math.pow(b1, t), c2 = 1 - Math.pow(b2, t);
+      for (let i = 0; i < N; i++) {
+        const g = G[i];
+        const m = (M[i] = b1 * M[i] + (1 - b1) * g);
+        const v = (V[i] = b2 * V[i] + (1 - b2) * g * g);
+        P[i] -= lr * (m / c1) / (Math.sqrt(v / c2) + 1e-8);
+      }
+    }
+    return { P, M, V, G, H, Z, f, keep, forward, backward, adam, spec: s };
+  }
+  // bilinear sampler over RGBA8 pixels (N×N, row 0 = top), GL clamp-to-edge convention, y up
+  function sampler(px, N) {
+    const out = new Float32Array(3);
+    return function (x0, x1) {
+      const u = (x0 * 0.5 + 0.5) * N - 0.5, v = (1 - (x1 * 0.5 + 0.5)) * N - 0.5;
+      let i0 = Math.floor(u), j0 = Math.floor(v); const fu = u - i0, fv = v - j0;
+      const cl = (a) => (a < 0 ? 0 : a > N - 1 ? N - 1 : a);
+      const i1 = cl(i0 + 1), j1 = cl(j0 + 1); i0 = cl(i0); j0 = cl(j0);
+      for (let k = 0; k < 3; k++) {
+        const a = px[(j0 * N + i0) * 4 + k], b = px[(j0 * N + i1) * 4 + k], c = px[(j1 * N + i0) * 4 + k], d = px[(j1 * N + i1) * 4 + k];
+        out[k] = ((a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv) / 255;
+      }
+      return out;
+    };
+  }
+  return { pcg, sampleX, make, sampler };
+}
+const CPU = CPUNET();
+
+/* =====================================================================
+   Network specification, initialisation
+   ===================================================================== */
+const ACTS = { relu: 0, tanh: 1, sine: 2 };
+const SPLITS = 32, MAXB = 4096;
+function makeSpec(o) {
+  const L = o.depth, W = o.width, ff = !!o.ff, m = o.m;
+  const K0 = ff ? 2 * m : 4;
+  const kin4 = [], rows = [], rowOff = []; let r = 0;
+  for (let l = 0; l <= L; l++) { kin4.push((l === 0 ? K0 : W) / 4); rows.push(l < L ? W : 4); rowOff.push(r); r += rows[l]; }
+  const WT = Math.max.apply(null, kin4) + 1;
+  let params = 0;
+  for (let l = 0; l <= L; l++) { const kin = l === 0 ? (ff ? 2 * m : 2) : W, out = l < L ? W : 3; params += kin * out + out; }
+  const rng = U.rng(o.seed || 1);
+  const Bm = new Float32Array(2 * Math.max(m, 1));
+  for (let i = 0; i < Bm.length; i++) Bm[i] = U.gauss(rng) * o.sigma;
+  return { L, W, K0, ff, m, act: ACTS[o.act], actName: o.act, WT, R: r, rowOff, kin4, rows, params, Bm, seed: o.seed || 1, sigma: o.sigma };
+}
+function initParams(s, seed) {
+  const P = new Float32Array(s.WT * s.R * 4);
+  const rng = U.rng(seed * 7919 + 13);
+  const uni = (a) => (rng() * 2 - 1) * a;
+  for (let l = 0; l <= s.L; l++) {
+    const kin = l === 0 ? (s.ff ? 2 * s.m : 2) : s.W, nout = l < s.L ? s.W : 3;
+    let wa, ba = 0;
+    if (s.act === 2) { // SIREN (Sitzmann et al. 2020)
+      wa = l === 0 ? 1 / kin : Math.sqrt(6 / kin) / 30; ba = 1 / Math.sqrt(kin);
+    } else if (s.act === 0) { wa = l < s.L ? Math.sqrt(6 / kin) : Math.sqrt(6 / (kin + nout)); }
+    else { wa = Math.sqrt(6 / (kin + nout)); }
+    for (let j = 0; j < nout; j++) {
+      const base = (s.rowOff[l] + j) * s.WT * 4;
+      for (let i = 0; i < kin; i++) P[base + i] = uni(wa);
+      P[base + s.kin4[l] * 4] = ba ? uni(ba) : 0;
+    }
+  }
+  return P;
+}
+
+/* =====================================================================
+   GLSL
+   ===================================================================== */
+const HEAD = '#version 300 es\nprecision highp float;\nprecision highp int;\nprecision highp sampler2D;\n';
+const COMMON = `
+#define OMEGA 30.0
+uniform sampler2D uP;
+uniform sampler2D uBm;
+uniform sampler2D uKO; // lesion mask, (W/4) × L RGBA8: 1 = alive, 0 = silenced
+uniform int uSeed;
+vec4 keep4(int l, int i4){ return texelFetch(uKO, ivec2(i4, l), 0); }
+vec4 act4(vec4 z){
+#if ACT==0
+  return max(z, vec4(0.0));
+#elif ACT==1
+  return tanh(clamp(z, -12.0, 12.0));
+#else
+  return sin(OMEGA * z);
+#endif
+}
+vec4 dact4(vec4 z){
+#if ACT==0
+  return vec4(greaterThan(z, vec4(0.0)));
+#elif ACT==1
+  vec4 t = tanh(clamp(z, -12.0, 12.0)); return 1.0 - t * t;
+#else
+  return OMEGA * cos(OMEGA * z);
+#endif
+}
+uint pcg(uint v){ uint s = v * 747796405u + 2891336453u; uint w = ((s >> ((s >> 28u) + 4u)) ^ s) * 277803737u; return (w >> 22u) ^ w; }
+vec2 sampleX(int b){
+  uint h = pcg(uint(b) ^ pcg(uint(uSeed)));
+  uint h2 = pcg(h ^ 0x9E3779B9u);
+  return (vec2(float(h >> 8u), float(h2 >> 8u)) + 0.5) * (2.0 / 16777216.0) - 1.0;
+}
+vec4 feat(int i4, vec2 x){
+#if FF
+  int base = 4 * i4; bool isCos = base >= MF; int k0 = isCos ? base - MF : base;
+  vec4 r;
+  for (int c = 0; c < 4; c++) {
+    float a = 6.2831853 * dot(texelFetch(uBm, ivec2(k0 + c, 0), 0).xy, x);
+    r[c] = isCos ? cos(a) : sin(a);
+  }
+  return r;
+#else
+  return vec4(x, 0.0, 0.0);
+#endif
+}
+vec4 Pw(int c, int r){ return texelFetch(uP, ivec2(c, r), 0); }
+vec4 bias4(int c, int r){ return vec4(Pw(c, r).x, Pw(c, r + 1).x, Pw(c, r + 2).x, Pw(c, r + 3).x); }
+vec4 mv4(int c, int r, vec4 h){ return vec4(dot(Pw(c, r), h), dot(Pw(c, r + 1), h), dot(Pw(c, r + 2), h), dot(Pw(c, r + 3), h)); }
+`;
+const FS_FEAT = `out vec4 o;
+void main(){ ivec2 p = ivec2(gl_FragCoord.xy); o = feat(p.x, sampleX(p.y)); }`;
+const FS_FWD = `uniform sampler2D uH; uniform int uActIn, uRow0, uKin4, uLin;
+out vec4 o;
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy); int r = uRow0 + 4 * p.x;
+  vec4 acc = bias4(uKin4, r);
+  for (int i = 0; i < uKin4; i++) { vec4 h = texelFetch(uH, ivec2(i, p.y), 0); if (uActIn == 1) h = act4(h) * keep4(uLin, i); acc += mv4(i, r, h); }
+  o = acc;
+}`;
+const FS_OUT = `uniform sampler2D uH; uniform sampler2D uT; uniform int uRow0, uKin4, uB;
+out vec4 o;
+void main(){
+  int b = int(gl_FragCoord.y); int r = uRow0;
+  vec4 acc = bias4(uKin4, r);
+  for (int i = 0; i < uKin4; i++) acc += mv4(i, r, act4(texelFetch(uH, ivec2(i, b), 0)) * keep4(L - 1, i));
+  vec3 y = 1.0 / (1.0 + exp(-clamp(acc.xyz, -30.0, 30.0)));
+  vec2 x = sampleX(b);
+  vec3 t = textureLod(uT, x * 0.5 + 0.5, 0.0).rgb;
+  vec3 e = y - t;
+  // MSE gradient through the sigmoid, plus a small penalty λ·max(0, |z| − 5)² that keeps outputs out of saturation
+  vec3 pen = 0.02 * sign(acc.xyz) * max(abs(acc.xyz) - 5.0, 0.0);
+  o = vec4((2.0 / (3.0 * float(uB))) * (e * y * (1.0 - y) + pen), dot(e, e) / 3.0);
+}`;
+const FS_BWD = `uniform sampler2D uDn; uniform sampler2D uZ; uniform int uRowN, uOut4, uLay; uniform vec4 uMask;
+out vec4 o;
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy);
+  vec4 acc = vec4(0.0);
+  for (int j = 0; j < uOut4; j++) {
+    vec4 d = texelFetch(uDn, ivec2(j, p.y), 0) * uMask; int r = uRowN + 4 * j;
+    acc += Pw(p.x, r) * d.x + Pw(p.x, r + 1) * d.y + Pw(p.x, r + 2) * d.z + Pw(p.x, r + 3) * d.w;
+  }
+  o = acc * dact4(texelFetch(uZ, p, 0)) * keep4(uLay, p.x);
+}`;
+const FS_DW = `uniform sampler2D uD; uniform sampler2D uH; uniform int uActIn, uRow0, uKin4, uNOut, uChunk, uB, uLin;
+out vec4 o;
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy);
+  int s = p.x / WT; int c = p.x - s * WT; int j = p.y - uRow0;
+  if (j >= uNOut || c > uKin4) { o = vec4(0.0); return; }
+  int b0 = s * uChunk; int b1 = min(b0 + uChunk, uB); int j4 = j >> 2; int jc = j & 3;
+  vec4 acc = vec4(0.0);
+  if (c < uKin4) {
+    vec4 kc = keep4(uLin, c);
+    for (int b = b0; b < b1; b++) { float d = texelFetch(uD, ivec2(j4, b), 0)[jc]; vec4 h = texelFetch(uH, ivec2(c, b), 0); if (uActIn == 1) h = act4(h) * kc; acc += d * h; }
+  } else {
+    for (int b = b0; b < b1; b++) acc.x += texelFetch(uD, ivec2(j4, b), 0)[jc];
+  }
+  o = acc;
+}`;
+const FS_ADAM = `uniform sampler2D uM, uV, uG; uniform float uLr, uBc1, uBc2;
+layout(location = 0) out vec4 oP; layout(location = 1) out vec4 oM; layout(location = 2) out vec4 oV;
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy);
+  vec4 g = vec4(0.0);
+  for (int s = 0; s < SPLITS; s++) g += texelFetch(uG, ivec2(s * WT + p.x, p.y), 0);
+  vec4 m = 0.9 * texelFetch(uM, p, 0) + 0.1 * g;
+  vec4 v = 0.999 * texelFetch(uV, p, 0) + 0.001 * g * g;
+  oP = texelFetch(uP, p, 0) - uLr * (m / uBc1) / (sqrt(v / uBc2) + 1e-8);
+  oM = m; oV = v;
+}`;
+const FS_LOSS = `uniform sampler2D uD; uniform int uChunk, uB;
+out vec4 o;
+void main(){ int x = int(gl_FragCoord.x); int b0 = x * uChunk; int b1 = min(b0 + uChunk, uB); float s = 0.0;
+  for (int b = b0; b < b1; b++) s += texelFetch(uD, ivec2(0, b), 0).w; o = vec4(s, 0.0, 0.0, 1.0); }`;
+// forward through the whole net for one coordinate (render / neuron atlas)
+const NET_FN = `
+vec4 hZ[W4]; vec4 hT[W4];
+void forwardTo(vec2 x, int lt){
+#if FF
+  vec4 f[K04]; for (int i = 0; i < K04; i++) f[i] = feat(i, x);
+#else
+  vec4 f[1]; f[0] = vec4(x, 0.0, 0.0);
+#endif
+  for (int j = 0; j < W4; j++) { int r = 4 * j; vec4 acc = bias4(K04, r); for (int i = 0; i < K04; i++) acc += mv4(i, r, f[i]); hZ[j] = acc; }
+  for (int l = 1; l < L; l++) {
+    if (l > lt) break;
+    for (int i = 0; i < W4; i++) hT[i] = act4(hZ[i]) * keep4(l - 1, i);
+    for (int j = 0; j < W4; j++) { int r = l * W + 4 * j; vec4 acc = bias4(W4, r); for (int i = 0; i < W4; i++) acc += mv4(i, r, hT[i]); hZ[j] = acc; }
+  }
+}
+vec3 netOut(vec2 x){
+  forwardTo(x, L - 1);
+  for (int i = 0; i < W4; i++) hT[i] = act4(hZ[i]) * keep4(L - 1, i);
+  int r = L * W; vec4 acc = bias4(W4, r);
+  for (int i = 0; i < W4; i++) acc += mv4(i, r, hT[i]);
+  return 1.0 / (1.0 + exp(-clamp(acc.xyz, -30.0, 30.0)));
+}`;
+const FS_RENDER = `uniform vec4 uMap; in vec2 vUv; out vec4 o;
+void main(){ o = vec4(netOut(uMap.xy + vUv * uMap.zw), 1.0); }`;
+const FS_ATLAS = `uniform int uTile, uCols, uTile0; out vec4 o;
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy); ivec2 t = p / uTile; int ti = uTile0 + t.y * uCols + t.x;
+  int l = ti / W; int j = ti - l * W;
+  if (l >= L) { o = vec4(0.0); return; }
+  vec2 x = (vec2(p - t * uTile) + 0.5) / float(uTile) * 2.0 - 1.0;
+  forwardTo(x, l);
+  vec4 a = act4(hZ[j >> 2]);
+  o = vec4(a[j & 3], 0.0, 0.0, 1.0);
+}`;
+const FS_STATS = `uniform sampler2D uA; uniform sampler2D uT; uniform int uTile; out vec4 o;
+void main(){ ivec2 t = ivec2(gl_FragCoord.xy); float mx = -1e30, s1 = 0.0, s2 = 0.0, n = 0.0;
+  vec3 c1 = vec3(0.0), c2 = vec3(0.0), hc = vec3(0.0);
+  for (int y = 0; y < uTile; y += 2) for (int x = 0; x < uTile; x += 2) {
+    float v = texelFetch(uA, t * uTile + ivec2(x, y), 0).r;
+    vec3 c = textureLod(uT, (vec2(x, y) + 0.5) / float(uTile), log2(768.0 / float(uTile))).rgb;
+    mx = max(mx, v); s1 += v; s2 += v * v; n += 1.0; c1 += c; c2 += c * c; hc += v * c; }
+  float mh = s1 / n; float vh = max(s2 / n - mh * mh, 0.0);
+  vec3 mc = c1 / n; vec3 vc = max(c2 / n - mc * mc, vec3(0.0));
+  vec3 corr = (hc / n - mh * mc) / sqrt(vh * vc + 1e-12);
+  o = vec4(max(max(abs(corr.r), abs(corr.g)), abs(corr.b)), mx, mh, sqrt(s2 / n)); }`;
+const FS_MSE = `uniform sampler2D uOut; uniform sampler2D uT; uniform int uRes; out vec4 o;
+void main(){ ivec2 q = ivec2(gl_FragCoord.xy); int n = uRes / 16; float s = 0.0;
+  for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) { ivec2 pp = q * n + ivec2(x, y);
+    vec3 e = texelFetch(uOut, pp, 0).rgb - textureLod(uT, (vec2(pp) + 0.5) / float(uRes), 0.0).rgb; s += dot(e, e); }
+  o = vec4(s, 0.0, 0.0, 1.0); }`;
+
+/* ---- display shaders (drawn into a viewport rect; vUv covers the rect) ---- */
+const DISP_HEAD = HEAD + 'in vec2 vUv; out vec4 o;\n';
+const FS_BLIT = DISP_HEAD + `uniform sampler2D uA; uniform vec4 uUV; uniform float uGain;
+void main(){ o = vec4(texture(uA, uUV.xy + vUv * uUV.zw).rgb * uGain, 1.0); }`;
+const FS_FRAME = DISP_HEAD + `uniform sampler2D uT; uniform sampler2D uN; uniform sampler2D uN0; uniform float uMix; uniform sampler2D uNeu; uniform sampler2D uS;
+uniform float uWipe; uniform int uNeuron; uniform ivec2 uStatAt; uniform int uSigned; uniform int uTint; uniform vec4 uZ; uniform int uPix; uniform sampler2D uSnap; uniform float uSnapI; uniform float uSnapJ; uniform float uSnapF; uniform vec3 uEra; uniform float uFade;
+vec3 cmapPos(float v){ v = clamp(v, 0.0, 1.0); vec3 a = vec3(0.02, 0.03, 0.06), b = vec3(0.02, 0.28, 0.38), c = uEra, d = vec3(1.0);
+  return v < 0.4 ? mix(a, b, v / 0.4) : v < 0.8 ? mix(b, c, (v - 0.4) / 0.4) : mix(c, d, (v - 0.8) / 0.2); }
+vec3 cmapNeg(float v){ v = clamp(v, 0.0, 1.0); vec3 a = vec3(0.02, 0.03, 0.06), b = vec3(0.35, 0.16, 0.03), c = vec3(1.0, 0.70, 0.36), d = vec3(1.0, 0.95, 0.85);
+  return v < 0.4 ? mix(a, b, v / 0.4) : v < 0.8 ? mix(b, c, (v - 0.4) / 0.4) : mix(c, d, (v - 0.8) / 0.2); }
+
+float scaleOf(vec4 st, int sgn){ float sd = sqrt(max(st.w * st.w - st.z * st.z, 0.0));
+  return sgn == 1 ? max(2.5 * st.w, 1e-6) : max(min(st.y, st.z + 3.0 * sd), 1e-6); }
+vec3 neuronColour(float v, vec4 st, int sgn, vec3 tc, int tint){
+  float s = scaleOf(st, sgn);
+  if (sgn == 1) { float u = clamp(v / s, -1.0, 1.0);
+    if (tint == 1) return u >= 0.0 ? mix(vec3(0.02, 0.025, 0.05), tc * 1.1, pow(u, 0.75)) : mix(vec3(0.02, 0.025, 0.05), vec3(0.16, 0.10, 0.06), pow(-u, 0.75));
+    return u >= 0.0 ? cmapPos(pow(u, 0.8)) : cmapNeg(pow(-u, 0.8)); }
+  if (st.y < 1e-5) return vec3(0.045, 0.05, 0.07);
+  float u = pow(clamp(v / s, 0.0, 1.0), 0.8);
+  return tint == 1 ? mix(vec3(0.02, 0.025, 0.05), tc * 1.1, u) : cmapPos(u);
+}
+void main(){
+  vec3 col;
+  if (uNeuron == 1) {
+    col = neuronColour(texture(uNeu, vUv).r, texelFetch(uS, uStatAt, 0), uSigned, texture(uT, vUv).rgb, uTint);
+  } else {
+    vec2 tuv = uZ.xy + vUv * uZ.zw;
+    vec3 tc = uPix == 1 ? texelFetch(uT, ivec2(clamp(tuv, 0.0, 0.9999) * vec2(textureSize(uT, 0))), 0).rgb : texture(uT, tuv).rgb;
+    if (any(lessThan(tuv, vec2(0.0))) || any(greaterThan(tuv, vec2(1.0)))) { // no data out here: faint hatching
+      float hz = step(0.82, fract((gl_FragCoord.x + gl_FragCoord.y) / 11.0));
+      tc = mix(vec3(0.02, 0.025, 0.05), vec3(0.09, 0.1, 0.14), hz);
+    }
+    col = vUv.x < uWipe ? tc : mix(texture(uN0, vUv).rgb, texture(uN, vUv).rgb, uMix);
+    if (uNeuron == 2) { vec2 su = vec2(clamp(vUv.x, 0.004, 0.996), vUv.y);
+      col = mix(texture(uSnap, vec2((uSnapI + su.x) / 8.0, su.y)).rgb, texture(uSnap, vec2((uSnapJ + su.x) / 8.0, su.y)).rgb, uSnapF); }
+  }
+  o = vec4(col * uFade, 1.0);
+}`;
+const FS_BACK = DISP_HEAD + `uniform sampler2D uA; uniform vec2 uAsp; uniform float uDim;
+void main(){
+  vec3 c = texture(uA, vUv).rgb; float l = dot(c, vec3(0.299, 0.587, 0.114)); c = mix(vec3(l), c, 0.75);
+  vec2 q = (vUv - 0.5) * uAsp; float vig = smoothstep(1.25, 0.15, length(q));
+  o = vec4(vec3(0.0196, 0.0235, 0.047) + c * uDim * vig, 1.0);
+}`;
+const FS_MOSAIC = DISP_HEAD + `uniform sampler2D uA; uniform sampler2D uS; uniform sampler2D uT; uniform sampler2D uKO; uniform int uTint; uniform int uLayer, uWn, uCols, uACols, uATile, uSigned, uHover, uCount; uniform int uIdx[128];
+uniform vec2 uBlock; uniform float uPitch, uGap; uniform vec3 uEra; uniform float uFade;
+vec3 cmapPos(float v){ v = clamp(v, 0.0, 1.0); vec3 a = vec3(0.02, 0.03, 0.06), b = vec3(0.02, 0.28, 0.38), c = uEra, d = vec3(1.0);
+  return v < 0.4 ? mix(a, b, v / 0.4) : v < 0.8 ? mix(b, c, (v - 0.4) / 0.4) : mix(c, d, (v - 0.8) / 0.2); }
+vec3 cmapNeg(float v){ v = clamp(v, 0.0, 1.0); vec3 a = vec3(0.02, 0.03, 0.06), b = vec3(0.35, 0.16, 0.03), c = vec3(1.0, 0.70, 0.36), d = vec3(1.0, 0.95, 0.85);
+  return v < 0.4 ? mix(a, b, v / 0.4) : v < 0.8 ? mix(b, c, (v - 0.4) / 0.4) : mix(c, d, (v - 0.8) / 0.2); }
+
+float scaleOf(vec4 st, int sgn){ float sd = sqrt(max(st.w * st.w - st.z * st.z, 0.0));
+  return sgn == 1 ? max(2.5 * st.w, 1e-6) : max(min(st.y, st.z + 3.0 * sd), 1e-6); }
+vec3 neuronColour(float v, vec4 st, int sgn, vec3 tc, int tint){
+  float s = scaleOf(st, sgn);
+  if (sgn == 1) { float u = clamp(v / s, -1.0, 1.0);
+    if (tint == 1) return u >= 0.0 ? mix(vec3(0.02, 0.025, 0.05), tc * 1.1, pow(u, 0.75)) : mix(vec3(0.02, 0.025, 0.05), vec3(0.16, 0.10, 0.06), pow(-u, 0.75));
+    return u >= 0.0 ? cmapPos(pow(u, 0.8)) : cmapNeg(pow(-u, 0.8)); }
+  if (st.y < 1e-5) return vec3(0.045, 0.05, 0.07);
+  float u = pow(clamp(v / s, 0.0, 1.0), 0.8);
+  return tint == 1 ? mix(vec3(0.02, 0.025, 0.05), tc * 1.1, u) : cmapPos(u);
+}
+void main(){
+  vec2 px = vec2(vUv.x, 1.0 - vUv.y) * uBlock;
+  ivec2 cell = ivec2(floor(px / uPitch));
+  vec2 f = px - vec2(cell) * uPitch; float inner = uPitch - uGap;
+  int cidx = cell.y * uCols + cell.x;
+  if (f.x > inner || f.y > inner || cidx >= uCount || cell.x >= uCols) discard;
+  int j = uIdx[cidx];
+  int ti = uLayer * uWn + j; ivec2 at = ivec2(ti % uACols, ti / uACols);
+  vec2 luv = vec2(f.x, inner - f.y) / inner;
+  float T = float(uATile); int taps = int(clamp(ceil(T / inner), 1.0, 3.0));
+  float v = 0.0;
+  for (int a = 0; a < 3; a++) for (int b = 0; b < 3; b++) {
+    if (a >= taps || b >= taps) continue;
+    vec2 q = luv * T + (vec2(float(a), float(b)) + 0.5) / float(taps) * (T / inner) - 0.5 * (T / inner);
+    v += texelFetch(uA, at * uATile + ivec2(clamp(q, vec2(0.0), vec2(T - 1.0))), 0).r;
+  }
+  v /= float(taps * taps);
+  vec3 col = neuronColour(v, texelFetch(uS, at, 0), uSigned, texture(uT, luv).rgb, uTint);
+  if (texelFetch(uKO, ivec2(j >> 2, uLayer), 0)[j & 3] < 0.5) { // silenced: ashen, struck through
+    col = vec3(dot(col, vec3(0.3, 0.5, 0.2))) * 0.3 + vec3(0.07, 0.015, 0.03);
+    if (abs(f.x - (inner - f.y)) < 1.1 * max(1.0, inner / 40.0)) col = vec3(1.0, 0.37, 0.48);
+  }
+  if (j == uHover) { float e = min(min(f.x, f.y), min(inner - f.x, inner - f.y)); if (e < 1.5) col = vec3(1.0); }
+  o = vec4(col * uFade, 1.0);
+}`;
+
+/* =====================================================================
+   GL helpers
+   ===================================================================== */
+const progCache = new Map();
+function program(fsFull, vs) {
+  const key = (vs || '') + '\u0000' + fsFull;
+  let p = progCache.get(key);
+  if (!p) { p = Cosmos.gl.program(gl, vs || Cosmos.gl.FS_VERT, fsFull); progCache.set(key, p); }
+  return p;
+}
+const drawTri = Cosmos.gl.quad(gl);
+function tex(w, h, internal, filter, data) {
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  const fmt = internal === gl.RGBA32F ? [gl.RGBA, gl.FLOAT] : internal === gl.RG32F ? [gl.RG, gl.FLOAT] : internal === gl.RGBA16F ? [gl.RGBA, gl.HALF_FLOAT] : internal === gl.R32F ? [gl.RED, gl.FLOAT] : [gl.RGBA, gl.UNSIGNED_BYTE];
+  gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, fmt[0], fmt[1], data || null);
+  const f = filter === 'linear' ? gl.LINEAR : gl.NEAREST;
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, f); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, f);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  t.w = w; t.h = h; t.internal = internal;
+  return t;
+}
+function fboFor(texs) {
+  const f = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+  texs.forEach((t, i) => gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D, t, 0));
+  if (texs.length > 1) gl.drawBuffers(texs.map((_, i) => gl.COLOR_ATTACHMENT0 + i));
+  const st = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  if (st !== gl.FRAMEBUFFER_COMPLETE) throw new Error('Framebuffer incomplete 0x' + st.toString(16));
+  f.w = texs[0].w; f.h = texs[0].h; f.tex = texs[0];
+  return f;
+}
+function rt(w, h, internal, filter) { const t = tex(w, h, internal, filter); const f = fboFor([t]); return { tex: t, fbo: f, w, h }; }
+// uniform setters (no allocation)
+function ui(p, n, v) { const u = p.uniforms[n]; if (u) gl.uniform1i(u.loc, v); }
+function uf(p, n, v) { const u = p.uniforms[n]; if (u) gl.uniform1f(u.loc, v); }
+function u2(p, n, a, b) { const u = p.uniforms[n]; if (u) gl.uniform2f(u.loc, a, b); }
+function u3(p, n, a, b, c) { const u = p.uniforms[n]; if (u) gl.uniform3f(u.loc, a, b, c); }
+function u4(p, n, a, b, c, d) { const u = p.uniforms[n]; if (u) gl.uniform4f(u.loc, a, b, c, d); }
+function ut(p, n, t, unit) { const u = p.uniforms[n]; if (!u) return; gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t); gl.uniform1i(u.loc, unit); }
+
+/* async readback through a pixel-pack buffer + fence (no pipeline stall) */
+// All readbacks share one queue. Fences complete in submission order, so only the oldest
+// pending fence is polled, at most once per frame (each poll is a round trip to the GPU process).
+const rbQueue = []; let rbFrame = 0;
+function Readback(floats, u8) {
+  const self = {
+    out: u8 ? new Uint8Array(floats) : new Float32Array(floats), busy: false, ready: null,
+    request(fbo, x, y, w, h, t) {
+      if (self.busy || w * h * 4 > floats) return false;
+      const n = w * h * 4, buf = gl.createBuffer();
+      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buf);
+      gl.bufferData(gl.PIXEL_PACK_BUFFER, n * (u8 ? 1 : 4), gl.STREAM_READ);
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fbo);
+      gl.readPixels(x, y, w, h, gl.RGBA, u8 ? gl.UNSIGNED_BYTE : gl.FLOAT, 0);
+      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+      const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+      rbQueue.push({ self, sync, buf, n, tag: t, frame: rbFrame });
+      self.busy = true;
+      return true;
+    },
+    poll() { const r = self.ready; self.ready = null; return r; },
+  };
+  return self;
+}
+function rbPump() {
+  rbFrame++;
+  while (rbQueue.length) {
+    const e = rbQueue[0];
+    if (rbFrame - e.frame < 2) break;
+    if (gl.getSyncParameter(e.sync, gl.SYNC_STATUS) !== gl.SIGNALED) break;
+    rbQueue.shift(); gl.deleteSync(e.sync);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, e.buf);
+    gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, e.self.out, 0, e.n);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    gl.deleteBuffer(e.buf);
+    e.self.busy = false; e.self.ready = { data: e.self.out, n: e.n, tag: e.tag };
+  }
+}
+
+/* =====================================================================
+   GPUNet: one network trained entirely in fragment shaders
+   ===================================================================== */
+function GPUNet(opts) {
+  this.opts = Object.assign({}, opts);
+  this.build();
+}
+GPUNet.prototype.build = function () {
+  const s = (this.spec = makeSpec(this.opts));
+  const defs = `#define L ${s.L}\n#define W ${s.W}\n#define W4 ${s.W / 4}\n#define K04 ${s.K0 / 4}\n#define FF ${s.ff ? 1 : 0}\n#define MF ${s.m}\n#define ACT ${s.act}\n#define WT ${s.WT}\n#define SPLITS ${SPLITS}\n`;
+  const pre = HEAD + defs + COMMON;
+  this.prog = {
+    render: program(pre + NET_FN + FS_RENDER),
+    atlas: program(pre + NET_FN + FS_ATLAS),
+  };
+  this.Bm = tex(Math.max(1, s.m), 1, gl.RG32F, 'nearest', s.Bm);
+  this.keep = new Float32Array(s.L * s.W).fill(1);
+  this.KO = tex(s.W / 4, s.L, gl.RGBA8, 'nearest', new Uint8Array(s.L * s.W).fill(255));
+  const zeros = new Float32Array(s.WT * s.R * 4);
+  this.P = [tex(s.WT, s.R, gl.RGBA32F, 'nearest', zeros), tex(s.WT, s.R, gl.RGBA32F, 'nearest', zeros)];
+  this.cur = 0;
+  this.t = 0; this.steps = 0; this.seed = 1;
+  if (GPU_TRAIN) {
+    Object.assign(this.prog, {
+      feat: program(pre + FS_FEAT), fwd: program(pre + FS_FWD), out: program(pre + FS_OUT), bwd: program(pre + FS_BWD),
+      dw: program(pre + FS_DW), adam: program(pre + FS_ADAM), loss: program(pre + FS_LOSS),
+    });
+    this.M = [tex(s.WT, s.R, gl.RGBA32F, 'nearest', zeros), tex(s.WT, s.R, gl.RGBA32F, 'nearest', zeros)];
+    this.V = [tex(s.WT, s.R, gl.RGBA32F, 'nearest', zeros), tex(s.WT, s.R, gl.RGBA32F, 'nearest', zeros)];
+    this.adamFbo = [fboFor([this.P[0], this.M[0], this.V[0]]), fboFor([this.P[1], this.M[1], this.V[1]])];
+    this.F = rt(s.K0 / 4, MAXB, gl.RGBA32F);
+    this.Zt = []; this.Dt = [];
+    for (let l = 0; l < s.L; l++) { this.Zt.push(rt(s.W / 4, MAXB, gl.RGBA32F)); this.Dt.push(rt(s.W / 4, MAXB, gl.RGBA32F)); }
+    this.Dout = rt(1, MAXB, gl.RGBA32F);
+    this.G = rt(SPLITS * s.WT, s.R, gl.RGBA32F);
+    this.lossRT = rt(64, 1, gl.RGBA32F);
+  }
+  this.reset(this.opts.seed || 1);
+};
+GPUNet.prototype.reset = function (seed) {
+  const s = this.spec;
+  this.initP = initParams(s, seed);
+  const zeros = new Float32Array(s.WT * s.R * 4);
+  for (let k = 0; k < 2; k++) {
+    gl.bindTexture(gl.TEXTURE_2D, this.P[k]); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, s.WT, s.R, gl.RGBA, gl.FLOAT, this.initP);
+    if (this.M) { gl.bindTexture(gl.TEXTURE_2D, this.M[k]); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, s.WT, s.R, gl.RGBA, gl.FLOAT, zeros); gl.bindTexture(gl.TEXTURE_2D, this.V[k]); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, s.WT, s.R, gl.RGBA, gl.FLOAT, zeros); }
+  }
+  this.cur = 0; this.t = 0; this.steps = 0; this.seed = seed;
+  if (this.KO && this.silenced()) this.setKeep(new Float32Array(s.L * s.W).fill(1));
+  this.version = (this.version || 0) + 1;
+};
+GPUNet.prototype.upload = function (P) { // CPU trainer path
+  const s = this.spec;
+  gl.bindTexture(gl.TEXTURE_2D, this.P[this.cur]); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, s.WT, s.R, gl.RGBA, gl.FLOAT, P);
+};
+GPUNet.prototype.params = function () { return this.P[this.cur]; };
+// lesions: keep[l·W + j] = 0 silences hidden neuron j of layer l in training and in every rendering
+GPUNet.prototype.setKeep = function (keep) {
+  const s = this.spec; this.keep.set(keep);
+  const b = new Uint8Array(s.L * s.W); for (let i = 0; i < b.length; i++) b[i] = keep[i] > 0.5 ? 255 : 0;
+  gl.bindTexture(gl.TEXTURE_2D, this.KO); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, s.W / 4, s.L, gl.RGBA, gl.UNSIGNED_BYTE, b);
+};
+GPUNet.prototype.silenced = function () { let n = 0; for (let i = 0; i < this.keep.length; i++) if (this.keep[i] < 0.5) n++; return n; };
+GPUNet.prototype.dispose = function () {
+  const del = (t) => t && gl.deleteTexture(t);
+  const delRT = (r) => { if (r) { gl.deleteFramebuffer(r.fbo); gl.deleteTexture(r.tex); } };
+  (this.P || []).forEach(del); (this.M || []).forEach(del); (this.V || []).forEach(del); del(this.Bm); del(this.KO);
+  (this.adamFbo || []).forEach((f) => gl.deleteFramebuffer(f));
+  delRT(this.F); (this.Zt || []).forEach(delRT); (this.Dt || []).forEach(delRT); delRT(this.Dout); delRT(this.G); delRT(this.lossRT);
+};
+// one Adam step on a fresh random batch of B coordinates
+GPUNet.prototype.step = function (B, lr, targetTex, seed) {
+  const s = this.spec, pr = this.prog, P = this.P[this.cur];
+  const bind = (r, w, h, x, y) => { gl.bindFramebuffer(gl.FRAMEBUFFER, r.fbo || r); gl.viewport(x || 0, y || 0, w, h); };
+  // features γ(x)
+  let p = pr.feat; gl.useProgram(p);
+  bind(this.F, s.K0 / 4, B); ut(p, 'uBm', this.Bm, 1); ui(p, 'uSeed', seed); drawTri();
+  // forward, hidden layers
+  p = pr.fwd; gl.useProgram(p); ut(p, 'uP', P, 0); ut(p, 'uKO', this.KO, 6);
+  for (let l = 0; l < s.L; l++) {
+    bind(this.Zt[l], s.W / 4, B);
+    ut(p, 'uH', l ? this.Zt[l - 1].tex : this.F.tex, 2); ui(p, 'uActIn', l ? 1 : 0); ui(p, 'uRow0', s.rowOff[l]); ui(p, 'uKin4', s.kin4[l]); ui(p, 'uLin', Math.max(0, l - 1));
+    drawTri();
+  }
+  // output layer + dL/dz of the loss
+  p = pr.out; gl.useProgram(p); ut(p, 'uP', P, 0); ut(p, 'uKO', this.KO, 6);
+  bind(this.Dout, 1, B);
+  ut(p, 'uH', this.Zt[s.L - 1].tex, 2); ut(p, 'uT', targetTex, 3); ui(p, 'uRow0', s.rowOff[s.L]); ui(p, 'uKin4', s.kin4[s.L]); ui(p, 'uB', B); ui(p, 'uSeed', seed);
+  drawTri();
+  // backward through hidden layers
+  p = pr.bwd; gl.useProgram(p); ut(p, 'uP', P, 0); ut(p, 'uKO', this.KO, 6);
+  for (let l = s.L - 1; l >= 0; l--) {
+    bind(this.Dt[l], s.W / 4, B);
+    const last = l === s.L - 1;
+    ut(p, 'uDn', last ? this.Dout.tex : this.Dt[l + 1].tex, 2); ut(p, 'uZ', this.Zt[l].tex, 3);
+    ui(p, 'uRowN', s.rowOff[l + 1]); ui(p, 'uOut4', last ? 1 : s.W / 4); u4(p, 'uMask', 1, 1, 1, last ? 0 : 1); ui(p, 'uLay', l);
+    drawTri();
+  }
+  // weight gradients (split over SPLITS batch chunks)
+  p = pr.dw; gl.useProgram(p); ut(p, 'uKO', this.KO, 6);
+  const chunk = Math.ceil(B / SPLITS);
+  ui(p, 'uChunk', chunk); ui(p, 'uB', B);
+  for (let l = 0; l <= s.L; l++) {
+    bind(this.G, SPLITS * s.WT, s.rows[l], 0, s.rowOff[l]);
+    ut(p, 'uD', l === s.L ? this.Dout.tex : this.Dt[l].tex, 2); ut(p, 'uH', l ? this.Zt[l - 1].tex : this.F.tex, 3);
+    ui(p, 'uActIn', l ? 1 : 0); ui(p, 'uRow0', s.rowOff[l]); ui(p, 'uKin4', s.kin4[l]); ui(p, 'uNOut', l === s.L ? 3 : s.W); ui(p, 'uLin', Math.max(0, l - 1));
+    drawTri();
+  }
+  // Adam
+  this.t++;
+  p = pr.adam; gl.useProgram(p);
+  const nxt = 1 - this.cur;
+  bind(this.adamFbo[nxt], s.WT, s.R);
+  ut(p, 'uP', P, 0); ut(p, 'uM', this.M[this.cur], 1); ut(p, 'uV', this.V[this.cur], 2); ut(p, 'uG', this.G.tex, 3);
+  uf(p, 'uLr', lr); uf(p, 'uBc1', 1 - Math.pow(0.9, this.t)); uf(p, 'uBc2', 1 - Math.pow(0.999, this.t));
+  drawTri();
+  this.cur = nxt;
+  this.steps++;
+  this.lastB = B;
+};
+GPUNet.prototype.batchLoss = function (rb) { // request async batch-loss readback
+  if (!GPU_TRAIN || rb.busy || !this.lastB) return;
+  const p = this.prog.loss; gl.useProgram(p);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, this.lossRT.fbo); gl.viewport(0, 0, 64, 1);
+  ut(p, 'uD', this.Dout.tex, 0); ui(p, 'uChunk', Math.ceil(this.lastB / 64)); ui(p, 'uB', this.lastB);
+  drawTri();
+  rb.request(this.lossRT.fbo, 0, 0, 64, 1, { B: this.lastB, step: this.steps, net: this });
+};
+GPUNet.prototype.render = function (fbo, x, y, w, h, map) {
+  const p = this.prog.render; gl.useProgram(p);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo); gl.viewport(x, y, w, h);
+  ut(p, 'uP', this.params(), 0); ut(p, 'uBm', this.Bm, 1); ut(p, 'uKO', this.KO, 6);
+  u4(p, 'uMap', map[0], map[1], map[2], map[3]);
+  drawTri();
+};
+GPUNet.prototype.atlas = function (fbo, w, h, tile, cols, tile0) {
+  const p = this.prog.atlas; gl.useProgram(p);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo); gl.viewport(0, 0, w, h);
+  ut(p, 'uP', this.params(), 0); ut(p, 'uBm', this.Bm, 1); ut(p, 'uKO', this.KO, 6);
+  ui(p, 'uTile', tile); ui(p, 'uCols', cols); ui(p, 'uTile0', tile0);
+  drawTri();
+};
+
+/* =====================================================================
+   Procedural targets (no external images)
+   ===================================================================== */
+const TS = 768; // target canvas size
+const tgtCanvas = document.createElement('canvas'); tgtCanvas.width = tgtCanvas.height = TS;
+const TARGETS = [
+  { value: 'starry', label: 'Starry swirl (painted by code)' },
+  { value: 'word', label: 'Your word, in Bodoni italic' },
+  { value: 'owl', label: 'Owl (emoji)' },
+  { value: 'earth', label: 'Earth (emoji)' },
+  { value: 'melon', label: 'Watermelon (emoji)' },
+  { value: 'card', label: 'Cosmogenesis title card' },
+  { value: 'zone', label: 'Zone plate (frequency sweep)' },
+  { value: 'draw', label: 'Draw your own' },
+];
+function paintStarry(g, S) {
+  const R = U.rng(1889);
+  const sky = g.createLinearGradient(0, 0, 0, S);
+  sky.addColorStop(0, '#0b1b4d'); sky.addColorStop(0.55, '#1d4390'); sky.addColorStop(1, '#16336e');
+  g.fillStyle = sky; g.fillRect(0, 0, S, S);
+  const horizon = (x) => 0.70 + 0.05 * Math.sin(x * 5.2 + 0.6) + 0.03 * Math.sin(x * 13 + 2);
+  const vort = [{ x: 0.40, y: 0.36, r: 0.17, s: 1 }, { x: 0.62, y: 0.40, r: 0.10, s: -1 }, { x: 0.20, y: 0.22, r: 0.08, s: 1 }, { x: 0.52, y: 0.18, r: 0.07, s: -1 }];
+  const stars = [[0.10, 0.10, 0.035], [0.30, 0.12, 0.03], [0.50, 0.08, 0.028], [0.70, 0.22, 0.034], [0.88, 0.40, 0.03], [0.62, 0.56, 0.025], [0.28, 0.52, 0.03], [0.08, 0.40, 0.026], [0.78, 0.58, 0.02], [0.46, 0.56, 0.022]];
+  const moon = [0.84, 0.15, 0.07];
+  const field = (x, y) => {
+    let vx = 1, vy = 0.35 * Math.sin(x * 9 + y * 5) + 0.25 * Math.sin(y * 17 - x * 3);
+    for (const v of vort) {
+      const dx = x - v.x, dy = y - v.y, d = Math.hypot(dx, dy) + 1e-4, w = Math.exp(-Math.pow(d / v.r, 2) * 0.9) * 3.2;
+      vx += (-dy / d) * w * v.s + (-dx / d) * w * 0.25; vy += (dx / d) * w * v.s + (-dy / d) * w * 0.25;
+    }
+    const l = Math.hypot(vx, vy) || 1; return [vx / l, vy / l];
+  };
+  const blues = ['#1a3c8c', '#2654a8', '#3a6fc4', '#5b8fd8', '#8fb8ea', '#c7defa', '#e8f2ff', '#2f63b8'];
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  const LW = S / 120;
+  for (let n = 0; n < 5200; n++) {
+    let x = R(), y = R() * 0.78;
+    if (y > horizon(x)) continue;
+    let near = 0; for (const v of vort) near = Math.max(near, Math.exp(-Math.pow(Math.hypot(x - v.x, y - v.y) / v.r, 2)));
+    let ci = Math.floor(R() * 5) + (near > 0.4 ? 2 : 0) + (y < 0.25 ? 0 : 0);
+    g.strokeStyle = blues[Math.min(blues.length - 1, ci)];
+    if (near > 0.55 && R() < 0.25) g.strokeStyle = '#e9e3b0';
+    g.globalAlpha = 0.85; g.lineWidth = LW * (0.7 + R() * 0.8);
+    g.beginPath(); g.moveTo(x * S, y * S);
+    const len = 6 + Math.floor(R() * 8);
+    for (let k = 0; k < len; k++) { const [dx, dy] = field(x, y); x += dx * 0.006; y += dy * 0.006; g.lineTo(x * S, y * S); }
+    g.stroke();
+  }
+  g.globalAlpha = 1;
+  // stars and the moon: concentric halo strokes
+  const halo = (cx, cy, r, cols) => {
+    for (let k = 7; k >= 1; k--) {
+      const rr = r * (1 + k * 0.42);
+      for (let a = 0; a < 26; a++) {
+        const t0 = R() * Math.PI * 2, t1 = t0 + 0.3 + R() * 0.5;
+        g.strokeStyle = cols[(k + a) % cols.length]; g.lineWidth = LW * (0.8 + R() * 0.6); g.globalAlpha = 0.75;
+        g.beginPath(); g.arc(cx * S, cy * S, rr * S, t0, t1); g.stroke();
+      }
+    }
+    g.globalAlpha = 1;
+  };
+  for (const [x, y, r] of stars) {
+    halo(x, y, r * 0.55, ['#f5e27a', '#fff6c8', '#d9e8ff', '#9cc0ee']);
+    const gr = g.createRadialGradient(x * S, y * S, 0, x * S, y * S, r * S);
+    gr.addColorStop(0, '#fffbe8'); gr.addColorStop(0.45, '#ffe36e'); gr.addColorStop(1, 'rgba(255,220,110,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(x * S, y * S, r * S, 0, 7); g.fill();
+  }
+  halo(moon[0], moon[1], moon[2] * 0.8, ['#ffd24a', '#ffb838', '#fff0a8', '#f0a030']);
+  g.fillStyle = '#ffe070'; g.beginPath(); g.arc(moon[0] * S, moon[1] * S, moon[2] * S, 0, 7); g.fill();
+  g.fillStyle = '#e8a52a'; g.beginPath(); g.arc((moon[0] + 0.03) * S, (moon[1] - 0.015) * S, moon[2] * 0.85 * S, 0, 7); g.fill();
+  g.fillStyle = '#ffe98a'; g.beginPath(); g.arc((moon[0] + 0.035) * S, (moon[1] - 0.02) * S, moon[2] * 0.7 * S, 0, 7); g.fill();
+  // hills
+  g.fillStyle = '#152c5a'; g.beginPath(); g.moveTo(0, S);
+  for (let i = 0; i <= 64; i++) { const x = i / 64; g.lineTo(x * S, horizon(x) * S); }
+  g.lineTo(S, S); g.closePath(); g.fill();
+  for (let n = 0; n < 900; n++) {
+    const x = R(), y0 = horizon(x); const y = y0 + R() * (1 - y0);
+    g.strokeStyle = ['#1c3b72', '#24497f', '#2d5a8a', '#123056', '#3b6a8e'][Math.floor(R() * 5)];
+    g.lineWidth = LW * (0.8 + R() * 0.6); g.beginPath(); g.moveTo(x * S, y * S); g.lineTo((x + 0.02 + R() * 0.02) * S, (y + 0.004 * Math.sin(x * 20)) * S); g.stroke();
+  }
+  // village
+  for (let i = 0; i < 16; i++) {
+    const x = 0.34 + i * 0.035 + R() * 0.01, y = horizon(x) + 0.07 + R() * 0.05, w = 0.024 + R() * 0.01, h = 0.02 + R() * 0.015;
+    g.fillStyle = ['#2a3f5e', '#34495f', '#1f3553'][i % 3]; g.fillRect(x * S, (y - h) * S, w * S, h * S);
+    g.fillStyle = '#20314c'; g.beginPath(); g.moveTo((x - 0.003) * S, (y - h) * S); g.lineTo((x + w / 2) * S, (y - h - 0.012) * S); g.lineTo((x + w + 0.003) * S, (y - h) * S); g.fill();
+    if (R() < 0.8) { g.fillStyle = '#ffd35a'; g.fillRect((x + w * 0.35) * S, (y - h * 0.6) * S, w * 0.3 * S, h * 0.35 * S); }
+  }
+  // church spire
+  g.fillStyle = '#1a2c48'; g.beginPath(); g.moveTo(0.585 * S, 0.80 * S); g.lineTo(0.598 * S, 0.64 * S); g.lineTo(0.611 * S, 0.80 * S); g.fill();
+  // cypress
+  g.fillStyle = '#0c1810'; g.beginPath(); g.moveTo(0.06 * S, S);
+  for (let i = 0; i <= 40; i++) { const t = i / 40, y = 1 - t * 0.9, w = 0.075 * Math.pow(1 - t, 0.8) * (0.8 + 0.25 * Math.sin(t * 40)); g.lineTo((0.15 - w) * S, y * S); }
+  for (let i = 40; i >= 0; i--) { const t = i / 40, y = 1 - t * 0.9, w = 0.07 * Math.pow(1 - t, 0.8) * (0.8 + 0.25 * Math.cos(t * 37)); g.lineTo((0.15 + w) * S, y * S); }
+  g.closePath(); g.fill();
+  for (let n = 0; n < 420; n++) {
+    const t = R() * 0.95, y = 1 - t * 0.9, w = 0.065 * Math.pow(1 - t, 0.8), x = 0.15 + (R() * 2 - 1) * w * 0.85;
+    g.strokeStyle = ['#1d3a20', '#2b4a26', '#122414', '#3a5a2a', '#0a140c'][Math.floor(R() * 5)];
+    g.lineWidth = LW * 0.9; g.beginPath(); g.moveTo(x * S, y * S);
+    g.quadraticCurveTo((x + 0.01 * Math.sin(n)) * S, (y - 0.03) * S, (x + 0.004 * Math.cos(n)) * S, (y - 0.05) * S); g.stroke();
+  }
+}
+function paintWord(g, S, word) {
+  word = (word || '').trim() || 'Learn';
+  const bg = g.createRadialGradient(S * 0.5, S * 0.45, 0, S * 0.5, S * 0.5, S * 0.75);
+  bg.addColorStop(0, '#101528'); bg.addColorStop(1, '#05060c');
+  g.fillStyle = bg; g.fillRect(0, 0, S, S);
+  const lines = word.length > 9 && word.indexOf(' ') > 0 ? (() => { const w = word.split(/\s+/); const h = Math.ceil(w.length / 2); return [w.slice(0, h).join(' '), w.slice(h).join(' ')]; })() : [word];
+  let fs = S * (lines.length > 1 ? 0.3 : 0.42);
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  const font = (px) => `italic 600 ${px}px "Bodoni Moda", "Bodoni 72", Didot, serif`;
+  for (let k = 0; k < 12; k++) { g.font = font(fs); const w = Math.max.apply(null, lines.map((l) => g.measureText(l).width)); if (w < S * 0.86) break; fs *= 0.88; }
+  g.font = font(fs);
+  const grd = g.createLinearGradient(S * 0.1, 0, S * 0.9, 0);
+  grd.addColorStop(0, '#7ef0ff'); grd.addColorStop(0.5, '#ece6d6'); grd.addColorStop(1, '#ffc46b');
+  g.fillStyle = grd;
+  const lh = fs * 1.02, y0 = S * 0.5 - (lines.length - 1) * lh / 2 + fs * 0.3;
+  lines.forEach((l, i) => g.fillText(l, S * 0.5, y0 + i * lh));
+  g.fillStyle = 'rgba(126,240,255,0.55)'; g.fillRect(S * 0.3, y0 + (lines.length - 1) * lh + fs * 0.2, S * 0.4, Math.max(2, S * 0.004));
+}
+function paintEmoji(g, S, ch2, bgA, bgB) {
+  const bg = g.createRadialGradient(S * 0.5, S * 0.5, 0, S * 0.5, S * 0.5, S * 0.72);
+  bg.addColorStop(0, bgA); bg.addColorStop(1, bgB);
+  g.fillStyle = bg; g.fillRect(0, 0, S, S);
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = `${Math.round(S * 0.7)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+  g.fillText(ch2, S * 0.5, S * 0.54);
+}
+function paintCard(g, S) {
+  g.fillStyle = '#05060c'; g.fillRect(0, 0, S, S);
+  const R = U.rng(22);
+  for (let i = 0; i < 260; i++) { const a = R() * 0.7 + 0.1; g.fillStyle = `rgba(236,230,214,${a * 0.6})`; const r = R() < 0.9 ? S * 0.0015 : S * 0.003; g.beginPath(); g.arc(R() * S, R() * S, r, 0, 7); g.fill(); }
+  const cx = S * 0.5, cy = S * 0.5;
+  Cosmos.CHAPTERS.forEach((c, i) => {
+    const t = i / (Cosmos.CHAPTERS.length - 1), a = -Math.PI / 2 + t * Math.PI * 3.1, r = S * (0.16 + 0.24 * t);
+    const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+    const gr = g.createRadialGradient(x, y, 0, x, y, S * 0.05);
+    gr.addColorStop(0, c.accent); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.globalAlpha = 0.5; g.beginPath(); g.arc(x, y, S * 0.05, 0, 7); g.fill(); g.globalAlpha = 1;
+    g.fillStyle = c.accent; g.beginPath(); g.arc(x, y, S * (c.id === 'learning-machine' ? 0.018 : 0.011), 0, 7); g.fill();
+  });
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#ece6d6'; g.font = `italic 500 ${Math.round(S * 0.105)}px "Bodoni Moda", Didot, serif`;
+  g.fillText('Cosmogenesis', cx, cy + S * 0.035);
+  g.fillStyle = '#7ef0ff'; g.font = `600 ${Math.round(S * 0.026)}px "JetBrains Mono", monospace`;
+  g.fillText('19 · THE LEARNING MACHINE', cx, cy + S * 0.1);
+}
+function paintZone(g, S) {
+  const img = g.createImageData(S, S), d = img.data;
+  const era = U.hexToRgb(ERA);
+  for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+    const x = (i + 0.5) / S * 2 - 1, y = (j + 0.5) / S * 2 - 1, r2 = x * x + y * y;
+    const v = 0.5 + 0.5 * Math.cos(Math.PI * 38 * r2);
+    const w = 0.5 + 0.5 * Math.cos(Math.PI * 38 * r2 * 0.5 + 1.2);
+    const k = (j * S + i) * 4;
+    d[k] = 6 + v * (era[0] - 6) * 0.95 + w * 60 * (1 - v); d[k + 1] = 7 + v * (era[1] - 7) * 0.95 + w * 30 * (1 - v); d[k + 2] = 14 + v * (era[2] - 14) * 0.95 + w * 20 * (1 - v); d[k + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+}
+
+/* =====================================================================
+   State
+   ===================================================================== */
+const MF_DEFAULT = 64;
+const state = {
+  mode: 'paint',
+  target: 'starry', word: 'Learn',
+  depth: 3, width: 64, act: 'relu', ff: true, sigma: 6,
+  lr: 4e-3, batch: 2048, speed: 16,
+  wipe: 0.34, backdrop: true, seed: 1, tint: true,
+};
+if (isSmall()) { state.batch = 1024; state.speed = 8; }
+// development overrides via the URL hash, e.g. #sigma=4&act=sine
+try { location.hash.replace(/^#/, '').split('&').forEach((kv) => { const [k, v] = kv.split('='); if (k in state && v != null) state[k] = isNaN(+v) ? (v === 'false' ? false : v === 'true' ? true : v) : +v; }); } catch (e) { /* ignore */ }
+const view = { zoom: 1, cx: 0, cy: 0 };
+const lesion = { hold: 0, ev: null, marks: [], suppress: -1, gen: 0 }; // silenced-neuron experiments (see "lesions" below)
+function zoomMap() { const h = 1 / view.zoom; return [view.cx - h, view.cy - h, 2 * h, 2 * h]; }
+function setZoom(z, ax, ay) { // keep the point (ax, ay) in x-space fixed on screen
+  const z0 = view.zoom; z = U.clamp(z, ZMIN, 32);
+  if (ax == null) { ax = view.cx; ay = view.cy; }
+  view.cx = ax - (ax - view.cx) * z0 / z; view.cy = ay - (ay - view.cy) * z0 / z; view.zoom = z;
+  const lim = Math.max(0, 1 - 1 / z); view.cx = U.clamp(view.cx, -lim, lim); view.cy = U.clamp(view.cy, -lim, lim);
+  needRender = true; if (hiRT) hiRT.ok = false;
+}
+const ZMIN = 0.25; // below ×1 the frame shows the network's guesses beyond the square it was trained on
+const targetTex = tex(TS, TS, gl.RGBA8, 'linear');
+let targetPixels = null; // CPU copy for the reference trainer / checks
+function drawTarget() {
+  const g = tgtCanvas.getContext('2d', { willReadFrequently: true });
+  g.save(); g.clearRect(0, 0, TS, TS);
+  const t = state.target;
+  if (t === 'starry') paintStarry(g, TS);
+  else if (t === 'word') paintWord(g, TS, state.word);
+  else if (t === 'owl') paintEmoji(g, TS, '\u{1F989}', '#1b2a3a', '#070a12');
+  else if (t === 'earth') paintEmoji(g, TS, '\u{1F30D}', '#0c1430', '#03040a');
+  else if (t === 'melon') paintEmoji(g, TS, '\u{1F349}', '#2a1830', '#07050c');
+  else if (t === 'card') paintCard(g, TS);
+  else if (t === 'zone') paintZone(g, TS);
+  else if (t === 'draw') g.drawImage(drawCanvas, 0, 0, TS, TS);
+  g.restore();
+  gl.bindTexture(gl.TEXTURE_2D, targetTex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, tgtCanvas);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  targetPixels = null;
+  targetVersion++;
+  if (typeof onTargetChanged === 'function') onTargetChanged();
+}
+let targetVersion = 0;
+function getTargetPixels() { if (!targetPixels) targetPixels = tgtCanvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, TS, TS).data; return targetPixels; }
+// draw-your-own canvas (lives in the deck)
+const drawCanvas = document.createElement('canvas'); drawCanvas.width = drawCanvas.height = 384;
+
+
+/* =====================================================================
+   CPU fallback: when float render targets are missing, a Web Worker runs
+   the same network (the CPU reference above) and streams its weights here.
+   ===================================================================== */
+const cpuTrainer = { worker: null, steps: 0, lastLoss: NaN, t0: 0 };
+function cpuTrainerInit() {
+  if (GPU_TRAIN) return;
+  if (!cpuTrainer.worker) {
+    const src = 'const CPU = (' + CPUNET.toString() + ')();\n' + `
+let net = null, samp = null, lr = 0.004, B = 256, running = true, steps = 0, seed = 1;
+onmessage = (e) => { const m = e.data;
+  if (m.type === 'init') { net = CPU.make(m.spec); net.P.set(m.P); net.M.fill(0); net.V.fill(0); steps = 0; seed = 1; }
+  else if (m.type === 'target') samp = CPU.sampler(m.px, m.N);
+  else if (m.type === 'keep') { if (net && m.keep.length === net.keep.length) net.keep.set(m.keep); }
+  else if (m.type === 'cfg') { lr = m.lr; B = m.B; running = m.running; } };
+function loop() {
+  let n = 0, loss = 0;
+  if (net && samp && running) {
+    const t0 = performance.now(), x = [0, 0];
+    while (performance.now() - t0 < 45) {
+      net.G.fill(0); let l = 0;
+      for (let b = 0; b < B; b++) { CPU.sampleX(b, seed, x); net.forward(x[0], x[1]); l += net.backward(samp(x[0], x[1]), 2 / (3 * B)); }
+      seed++; steps++; net.adam(lr, steps); loss += l / B; n++;
+    }
+    postMessage({ type: 'p', P: net.P.slice(), steps, loss: loss / n });
+  }
+  setTimeout(loop, n ? 0 : 60);
+}
+loop();`;
+    try {
+      cpuTrainer.worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+      cpuTrainer.worker.onmessage = (e) => {
+        const m = e.data; if (!paintNet || m.P.length !== paintNet.spec.WT * paintNet.spec.R * 4) return;
+        paintNet.upload(m.P); paintNet.steps = m.steps; needRender = true;
+        if (!isFinite(m.loss)) { handleDivergence(); return; }
+        train.lastLoss = m.loss; train.mse = m.loss; train.psnr = -10 * Math.log10(Math.max(m.loss, 1e-12));
+        onLesionPsnr(train.psnr, lesion.gen, performance.now());
+        train.history.push([Math.max(1, m.steps - snaps.base), m.loss]);
+        cpuTrainer.sps = cpuTrainer.sps * 0.7 + 0.3 * (m.steps - (cpuTrainer.lastSteps || 0)) / Math.max(0.01, (performance.now() - (cpuTrainer.lastT || performance.now())) / 1000);
+        cpuTrainer.lastSteps = m.steps; cpuTrainer.lastT = performance.now();
+        if (!cpuParams || cpuParams.length !== m.P.length) cpuParams = new Float32Array(m.P.length);
+        cpuParams.set(m.P); cpuParamsVersion = paintNet.version; onParams();
+      };
+      cpuTrainer.worker.onerror = (e) => { e.preventDefault(); ch.toast('The training worker stopped.'); };
+      cpuTrainer.sps = 0;
+      console.info('[learning-machine] float render targets unavailable: training on the CPU in a worker.');
+    } catch (err) { ch.fatal('This chapter needs either float render targets or Web Workers to train its network.', err); return; }
+  }
+  cpuTrainer.worker.postMessage({ type: 'init', spec: paintNet.spec, P: paintNet.initP });
+  cpuTrainer.lastSteps = 0;
+  cpuTrainerTarget();
+  cpuTrainerCfg();
+}
+function cpuTrainerTarget() {
+  if (GPU_TRAIN || !cpuTrainer.worker) return;
+  const N = 256, c = document.createElement('canvas'); c.width = c.height = N;
+  const g = c.getContext('2d'); g.drawImage(tgtCanvas, 0, 0, N, N);
+  cpuTrainer.worker.postMessage({ type: 'target', px: g.getImageData(0, 0, N, N).data, N });
+}
+function cpuTrainerCfg() {
+  if (GPU_TRAIN || !cpuTrainer.worker) return;
+  cpuTrainer.worker.postMessage({ type: 'cfg', lr: state.lr, B: Math.min(256, state.batch), running: !ch.paused && state.mode === 'paint' && performance.now() >= lesion.hold });
+}
+
+/* ---------------------------------------------------------------- nets */
+let paintNet = null;
+function buildPaintNet() {
+  if (paintNet) paintNet.dispose();
+  paintNet = new GPUNet({ depth: state.depth, width: state.width, act: state.act, ff: state.ff, m: MF_DEFAULT, sigma: state.sigma, seed: state.seed });
+  onNetReset(paintNet);
+}
+
+/* --------------------------------------------------------- render targets */
+let OUTRES = 384;
+let mseSrcRT = null, hiRT = null, outRT = null, outPrev = null, outFade = { t0: 0, dur: 60 }, backRT = null, atlasRT = null, statsRT = null, mseRT = null, neuRT = null, snapRT = null;
+function ensureRTs() {
+  // render resolution: about 3.5 ms of GPU time per image (cost ∝ pixels × parameters)
+  const params = paintNet ? paintNet.spec.params : 16771;
+  const want = Math.max(192, Math.min(isSmall() ? 320 : 448, Math.floor(Math.sqrt(3.5 / (params * 1.05e-9)) / 32) * 32));
+  if (!outRT || outRT.w !== want) {
+    [outRT, outPrev].forEach((r) => { if (r) { gl.deleteFramebuffer(r.fbo); gl.deleteTexture(r.tex); } });
+    outRT = rt(want, want, gl.RGBA8, 'linear'); outPrev = rt(want, want, gl.RGBA8, 'linear'); OUTRES = want; needRender = true;
+  }
+  if (!mseRT && GPU_TRAIN) mseRT = rt(16, 16, gl.RGBA32F);
+  if (!snapRT) snapRT = rt(256 * 8, 256, gl.RGBA8, 'linear');
+  if (!neuRT && GPU_TRAIN) neuRT = rt(256, 256, gl.RGBA16F, 'linear');
+}
+function ensureAtlas(net) {
+  const s = net.spec, n = s.L * s.W, cols = 16, rows = Math.ceil(n / cols);
+  const tile = n <= 192 ? 48 : n <= 256 ? 40 : 32;
+  if (!atlasRT || atlasRT.cols !== cols || atlasRT.rows !== rows || atlasRT.tile !== tile) {
+    if (atlasRT) { gl.deleteFramebuffer(atlasRT.fbo); gl.deleteTexture(atlasRT.tex); gl.deleteFramebuffer(statsRT.fbo); gl.deleteTexture(statsRT.tex); }
+    const fmt = GPU_TRAIN ? gl.RGBA16F : gl.RGBA8;
+    atlasRT = rt(cols * tile, rows * tile, fmt, 'nearest'); atlasRT.cols = cols; atlasRT.rows = rows; atlasRT.tile = tile;
+    statsRT = rt(cols, rows, GPU_TRAIN ? gl.RGBA32F : gl.RGBA8, 'nearest');
+  }
+  // slices so that one slice costs about 2 ms of GPU time (cost ∝ pixels × parameters)
+  const est = atlasRT.w * atlasRT.h * s.params * 1.3e-9;
+  atlasRT.chunks = Math.max(2, Math.min(rows, Math.ceil(est / 2)));
+}
+function ensureBack(w, h) {
+  if (!backRT || backRT.w !== w || backRT.h !== h) { if (backRT) { gl.deleteFramebuffer(backRT.fbo); gl.deleteTexture(backRT.tex); } backRT = rt(w, h, gl.RGBA8, 'linear'); }
+}
+
+/* ------------------------------------------------------ display programs */
+const dp = {
+  blit: program(FS_BLIT), frame: program(FS_FRAME), back: program(FS_BACK), mosaic: program(FS_MOSAIC),
+  stats: GPU_TRAIN ? program(HEAD + FS_STATS) : null, mse: GPU_TRAIN ? program(HEAD + FS_MSE) : null,
+};
+
+/* ------------------------------------------------------------ training */
+const rbLoss = GPU_TRAIN ? Readback(64 * 4) : null;
+const rbMse = GPU_TRAIN ? Readback(16 * 16 * 4) : null;
+const rbParams = Readback(1 << 18);
+const rbStats = Readback(16 * 64 * 4);
+let seedCounter = 1;
+const train = { stepsPerSec: 0, spf: 4, lastLoss: NaN, mse: NaN, psnr: NaN, history: [], nanResets: 0, diverged: false };
+function onNetReset(net) {
+  train.history = []; train.mse = NaN; train.psnr = NaN; train.lastLoss = NaN;
+  snaps.filled = 0; snaps.base = 0; snaps.list.forEach((s) => (s.done = false));
+  cpuParams = null; cpuParamsVersion = -1; diag.dirty = true;
+  if (cpuNet && cpuNet.spec !== net.spec) cpuNet = null;
+  paramsReadyAt = 0; needRender = true; if (hiRT) hiRT.ok = false;
+  if (!GPU_TRAIN) cpuTrainerInit();
+  sel.lists = []; sel.lastRank = 0;
+  lesion.ev = null; lesion.marks = []; lesion.hold = 0; lesion.gen++;
+  if (typeof replay !== 'undefined') replay.on = false;
+  if (typeof roLe !== 'undefined') syncLesionUI();
+}
+const snaps = { steps: [10, 30, 100, 300, 1000, 3000, 10000, 30000], list: [], filled: 0, base: 0 };
+function onTargetChanged() {
+  if (!paintNet) return;
+  snaps.base = paintNet.steps; snaps.list.forEach((x) => (x.done = false));
+  replay.on = false;
+  train.history = []; needRender = true; if (hiRT) hiRT.ok = false;
+  cpuTrainerTarget();
+}
+snaps.list = snaps.steps.map((s) => ({ step: s, done: false }));
+
+/* ------------------------------------------------------ CPU param copy */
+let cpuParams = null, cpuParamsVersion = -1, paramsReadyAt = 0, cpuNet = null;
+
+/* =====================================================================
+   Layout (CSS px)
+   ===================================================================== */
+const notesEl = document.querySelector('.cz-notes'), deckEl = document.querySelector('.cz-deck');
+const LY = { W: 0, H: 0, frame: { x: 0, y: 0, s: 100 }, strip: null, mosaic: null, diag: null };
+let lyTarget = null;
+function computeLayout() {
+  const W = window.innerWidth, H = window.innerHeight, sm = isSmall();
+  const cinema = document.body.classList.contains('cz-cinema');
+  const barH = sm ? 50 : 54, footH = sm ? 52 : 58;
+  let top = barH + (sm ? 8 : 70), bottom = H - footH - 10;
+  let right = W - (sm ? 12 : 20);
+  const deckOpen = deckEl.classList.contains('cz-open');
+  if (!cinema && !sm && deckOpen) right = W - 16 - deckEl.offsetWidth - 22;
+  let colL = sm ? 12 : 24;
+  const notesVis = !cinema && getComputedStyle(notesEl).display !== 'none';
+  let notesTop = bottom;
+  if (notesVis) { notesTop = notesEl.offsetTop; if (!sm) colL = notesEl.offsetLeft + notesEl.offsetWidth + 24; }
+  if (cinema) { top = 30; bottom = H - 30; colL = 30; right = W - 30; }
+  if (sm) {
+    const hudH = cinema ? 0 : 66;
+    top = barH + hudH + 4;
+    bottom = (notesVis ? notesTop : H - footH) - 52;
+  }
+  const colW = Math.max(120, right - colL);
+  const availH = bottom - top;
+  const out = { W, H, top, bottom, colL, right, notesTop, sm };
+  const spec = paintNet ? paintNet.spec : { L: 3, W: 64 };
+  const nShow = sel.all ? spec.W : Math.min(sel.n, spec.W);
+  const nL = spec.L, cols = nShow >= 128 ? 16 : nShow >= 32 ? 8 : 4, rows = Math.ceil(nShow / cols), gapB = sm ? 10 : 18;
+  if (sm) {
+    const s = Math.min(colW, availH * 0.6);
+    out.frame = { x: colL + (colW - s) / 2, y: top, s };
+    const cell = s / 8;
+    out.strip = { x: out.frame.x, y: top + s + 10, cell, n: 8, vertical: 0 };
+    const my = top + s + 10 + cell + 36;
+    const pitch = Math.max(4, Math.min((colW - gapB * (nL - 1)) / (nL * cols), (bottom - my) / rows));
+    out.mosaic = { x: colL, y: my, w: colW, h: rows * pitch, cols, rows, pitch, gapB };
+    out.diag = null;
+  } else {
+    const labelH = 40;
+    let pitch = Math.min(64, (colW - gapB * (nL - 1)) / (nL * cols));
+    let s = Math.min(availH - rows * pitch - labelH, (colW - 16) * 8 / 9, 620);
+    if (s < 280) { s = Math.min(280, availH * 0.6); pitch = Math.max(6, Math.min(pitch, (availH - s - labelH) / rows)); }
+    const cell = s / 8, groupW = s + 16 + cell;
+    out.frame = { x: colL + (colW - groupW) / 2, y: top, s };
+    out.strip = { x: out.frame.x + s + 16, y: top, cell, n: 8, vertical: 1 };
+    const mw = nL * cols * pitch + gapB * (nL - 1);
+    out.mosaic = { x: colL + (colW - mw) / 2, y: top + s + labelH, w: mw, h: rows * pitch, cols, rows, pitch, gapB };
+    const dTop = barH + 96, dBottom = (notesVis ? notesTop : bottom) - 22;
+    out.diag = (!cinema && dBottom - dTop > 110 && colL > 300) ? { x: 22, y: dTop, w: colL - 60, h: Math.min(dBottom - dTop, 440) } : null;
+  }
+  // II · the race: a 2 × 2 grid (target + three contenders)
+  { const lab = sm ? 20 : 30, gap = sm ? 8 : 16;
+    let rs = Math.min((colW - gap) / 2, (availH - 2 * lab - gap - (sm ? 0 : 0)) / 2, 350);
+    if (sm) rs = Math.min((colW - gap) / 2, (availH - 2 * lab - gap) / 2);
+    const gw = 2 * rs + gap;
+    out.race = { x: colL + (colW - gw) / 2, y: top + lab, s: rs, gap, lab };
+    const gyEnd = top + 2 * (rs + lab) + gap;
+    out.spec = sm ? (bottom - gyEnd > 110 ? { x: colL, y: gyEnd + 8, w: colW, h: Math.min(170, bottom - gyEnd - 8) } : null) : out.diag;
+  }
+  // III · deciding: one square field
+  if (sm) {
+    const ps = Math.min(colW, availH);
+    out.plot = { x: colL + (colW - ps) / 2, y: top, s: ps };
+    const pyEnd = top + ps + 14;
+    out.ddiag = bottom - pyEnd > 100 ? { x: colL, y: pyEnd + 6, w: colW, h: bottom - pyEnd - 6 } : null;
+  } else {
+    const dh = Math.max(140, Math.min(240, availH * 0.32));
+    const ps = Math.max(240, Math.min(availH - dh - 40, colW, 600));
+    out.plot = { x: colL + (colW - ps) / 2, y: top + 14, s: ps };
+    out.ddiag = { x: colL, y: top + 14 + ps + 30, w: colW, h: Math.max(120, bottom - (top + ps + 44)) };
+  }
+  return out;
+}
+function updateLayout(immediate) {
+  const t = computeLayout();
+  if (typeof modesEl !== 'undefined') modesEl.style.bottom = t.sm ? (t.H - (t.notesTop || t.H) + 8) + 'px' : '';
+  if (immediate || !lyTarget) Object.assign(LY, JSON.parse(JSON.stringify(t)));
+  lyTarget = t;
+}
+function easeLayout(dt) {
+  if (!lyTarget) return;
+  const k = 1 - Math.exp(-dt * 10);
+  const lerpObj = (a, b) => { if (!b) return null; if (!a) return JSON.parse(JSON.stringify(b)); for (const key in b) a[key] = typeof b[key] === 'number' ? (Math.abs(b[key] - a[key]) < 0.3 ? b[key] : a[key] + (b[key] - a[key]) * k) : b[key]; return a; };
+  LY.W = lyTarget.W; LY.H = lyTarget.H;
+  LY.frame = lerpObj(LY.frame, lyTarget.frame); LY.strip = lerpObj(LY.strip, lyTarget.strip);
+  LY.mosaic = lerpObj(LY.mosaic, lyTarget.mosaic); LY.diag = lyTarget.diag ? lerpObj(LY.diag, lyTarget.diag) : null;
+  LY.race = lerpObj(LY.race, lyTarget.race); LY.spec = lyTarget.spec ? lerpObj(LY.spec, lyTarget.spec) : null;
+  LY.plot = lerpObj(LY.plot, lyTarget.plot); LY.ddiag = lyTarget.ddiag ? lerpObj(LY.ddiag, lyTarget.ddiag) : null;
+  LY.sm = lyTarget.sm;
+}
+
+/* =====================================================================
+   Deck
+   ===================================================================== */
+const gT = ch.ui.group('Target');
+const selTarget = gT.select({ id: 'ml-target', label: 'What to paint', options: TARGETS, value: state.target, onChange: (v) => { state.target = v; syncTargetUI(); drawTarget(); ch.toast(TARGETS.find((t) => t.value === v).label); } });
+const txtWord = gT.text({ id: 'ml-word', label: 'Word', value: state.word, maxlength: 18, placeholder: 'Type a word', onInput: (v) => { state.word = v; if (state.target === 'word') drawTarget(); } });
+// Draw your own: a small paint canvas in the deck; the drawing becomes the target on release
+const drawBox = Cosmos.h('div', { class: 'ml-draw' });
+const drawSw = Cosmos.h('div', { class: 'ml-swatches' });
+const BRUSH = ['#ece6d6', '#7ef0ff', '#ffc46b', '#ff5e7a', '#8be36a', '#6b8cff', '#b48cff', '#05060c'];
+let brush = { col: BRUSH[2], size: 18 };
+const swBtns = BRUSH.map((c) => { const b = Cosmos.h('button', { class: 'ml-sw', type: 'button', title: c === '#05060c' ? 'Eraser (background)' : 'Brush colour', style: { background: c }, 'aria-pressed': String(c === brush.col) });
+  b.addEventListener('click', () => { brush.col = c; swBtns.forEach((x) => x.setAttribute('aria-pressed', String(x === b))); }); return b; });
+swBtns.forEach((b) => drawSw.append(b));
+drawBox.append(drawCanvas, drawSw);
+gT.html(drawBox);
+const sldBrush = gT.slider({ id: 'ml-brush', label: 'Brush', min: 4, max: 60, step: 1, value: brush.size, unit: 'px', onInput: (v) => { brush.size = v; } });
+const drawBtns = gT.buttons([{ label: 'Clear', onClick: () => { seedDrawing(true); drawTarget(); } }, { label: 'Doodle', onClick: () => { seedDrawing(false); drawTarget(); } }]);
+function seedDrawing(blank) {
+  const g = drawCanvas.getContext('2d'), S = drawCanvas.width;
+  g.fillStyle = '#05060c'; g.fillRect(0, 0, S, S);
+  if (blank) return;
+  const R = U.rng(Date.now() & 0xffff);
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  // a quick doodle: a sun, hills and a squiggle
+  g.fillStyle = '#ffc46b'; g.beginPath(); g.arc(S * (0.25 + R() * 0.5), S * 0.3, S * 0.11, 0, 7); g.fill();
+  g.fillStyle = '#6b8cff'; g.beginPath(); g.moveTo(0, S); g.lineTo(0, S * 0.72);
+  for (let i = 0; i <= 8; i++) g.lineTo(S * i / 8, S * (0.7 + 0.06 * Math.sin(i * 1.3 + R() * 6)));
+  g.lineTo(S, S); g.fill();
+  g.strokeStyle = '#7ef0ff'; g.lineWidth = S * 0.03; g.beginPath(); g.moveTo(S * 0.1, S * 0.55);
+  for (let i = 1; i <= 12; i++) g.lineTo(S * (0.1 + i * 0.066), S * (0.55 + 0.05 * Math.sin(i * 1.7)));
+  g.stroke();
+  g.fillStyle = '#ff5e7a'; g.beginPath(); g.arc(S * 0.75, S * 0.82, S * 0.06, 0, 7); g.fill();
+}
+seedDrawing(false);
+(function () {
+  let down = false, last = null;
+  const pos = (e) => { const r = drawCanvas.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * drawCanvas.width, (e.clientY - r.top) / r.height * drawCanvas.height]; };
+  const dab = (a, b) => { const g = drawCanvas.getContext('2d'); g.strokeStyle = brush.col; g.lineCap = 'round'; g.lineWidth = brush.size * drawCanvas.width / 272; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); };
+  drawCanvas.addEventListener('pointerdown', (e) => { down = true; last = pos(e); dab(last, last); try { drawCanvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } e.preventDefault(); });
+  drawCanvas.addEventListener('pointermove', (e) => { if (!down) return; const p = pos(e); dab(last, p); last = p; });
+  const up = () => { if (!down) return; down = false; if (state.target === 'draw') drawTarget(); };
+  drawCanvas.addEventListener('pointerup', up); drawCanvas.addEventListener('pointercancel', up);
+})();
+function syncTargetUI() {
+  txtWord.el.style.display = state.target === 'word' ? '' : 'none';
+  const d = state.target === 'draw' ? '' : 'none';
+  drawBox.style.display = d; sldBrush.el.style.display = d; drawBtns[0].el.parentElement.style.display = d;
+}
+syncTargetUI();
+
+const gN = ch.ui.group('Network');
+const selDepth = gN.select({ id: 'ml-depth', label: 'Hidden layers', options: [1, 2, 3, 4].map((n) => ({ value: String(n), label: n + (n === 1 ? ' layer' : ' layers') })), value: String(state.depth), onChange: (v) => { state.depth = +v; rebuild(); } });
+const selWidth = gN.select({ id: 'ml-width', label: 'Neurons per layer', options: [32, 64, 128].map((n) => ({ value: String(n), label: String(n) })), value: String(state.width), onChange: (v) => { state.width = +v; rebuild(); } });
+const selAct = gN.select({ id: 'ml-act', label: 'Activation', options: [{ value: 'relu', label: 'ReLU  max(0, z)' }, { value: 'sine', label: 'Sine (SIREN)  sin(30 z)' }, { value: 'tanh', label: 'tanh z' }], value: state.act, onChange: (v) => { state.act = v; const lr = v === 'sine' ? 1e-4 : v === 'tanh' ? 3e-3 : 4e-3; state.lr = lr; sldLr.set(lr); rebuild(); } });
+const tglFF = gN.toggle({ id: 'ml-ff', label: 'Fourier features γ(x)', value: state.ff, hint: 'Off: the network sees only (x, y) and paints blurry blobs. On: it sees sin and cos of random projections and can paint sharp detail.', onChange: (v) => { state.ff = v; rebuild(); ch.toast(v ? 'Fourier features on: watch the detail arrive' : 'Raw coordinates: spectral bias keeps it blurry'); } });
+const sldSigma = gN.slider({ id: 'ml-sigma', label: 'Fourier scale σ', min: 0.5, max: 40, value: state.sigma, log: true, format: (v) => 'σ = ' + v.toFixed(v < 10 ? 1 : 0), hint: 'Spread of the random frequencies B ~ N(0, σ²). Small σ: smooth. Large σ: sharp, then noisy.', onChange: (v) => { state.sigma = v; if (state.ff) rebuild(); raceRebuildFF(); } });
+const roParams = gN.readouts([{ id: 'params', label: 'Parameters' }, { id: 'arch', label: 'Shape' }]);
+
+const gTr = ch.ui.group('Training');
+const sldLr = gTr.slider({ id: 'ml-lr', label: 'Learning rate η', min: 1e-5, max: 3e-2, value: state.lr, log: true, onInput: (v) => { state.lr = v; } });
+const selBatch = gTr.select({ id: 'ml-batch', label: 'Batch (random pixels per step)', options: [256, 1024, 2048, 4096].map((n) => ({ value: String(n), label: n.toLocaleString('en-US') + ' pixels' })), value: String(state.batch), onChange: (v) => { state.batch = +v; } });
+const sldSpeed = gTr.slider({ id: 'ml-speed', label: 'Steps per frame', min: 1, max: 48, step: 1, value: state.speed, format: (v) => 'up to ' + v, hint: 'The page lowers this automatically if frames start to drop.', onInput: (v) => { state.speed = v; } });
+const btnsTr = gTr.buttons([
+  { label: 'Reset weights', kind: 'primary', onClick: () => { state.seed++; paintNet.reset(state.seed); onNetReset(paintNet); ch.toast('New random weights. Watch it learn from scratch.'); } },
+  { label: 'Pause', id: 'ml-pause', onClick: () => ch.setPaused(!ch.paused) },
+]);
+ch.onPause((p) => btnsTr[1].setLabel(p ? 'Resume' : 'Pause'));
+
+const gLe = ch.ui.group('Lesions');
+gLe.note('Click a neuron tile to silence it (on a phone, press and hold). A silenced neuron always outputs zero. The painting cracks, then the surviving neurons learn to cover for it.');
+const btnsLe = gLe.buttons([
+  { label: 'Silence 25%', kind: 'danger', id: 'ml-lesion', title: 'Silence a random quarter of the living neurons in every layer (L)', onClick: () => lesionRandom(0.25) },
+  { label: 'Restore all', id: 'ml-restore', onClick: () => lesionRestore() },
+]);
+const roLe = gLe.readouts([{ id: 'n', label: 'Silenced' }, { id: 'rec', label: 'Recovery' }]);
+
+const gP = ch.ui.group('Progress');
+const roTr = gP.readouts([{ id: 'step', label: 'Step' }, { id: 'sps', label: 'Steps / s' }, { id: 'psnr', label: 'PSNR' }, { id: 'loss', label: 'Loss (MSE)' }]);
+const lossCv = gP.canvas(120);
+gP.buttons([{ label: 'Replay the learning', id: 'ml-replay', title: 'A time-lapse of the snapshots, from step 10 onward (P)', onClick: () => replayToggle() }]);
+const wCv = gP.canvas(96);
+gP.note('Above: every trainable number, one pixel each. Cyan is positive, amber negative. Rows are neurons, columns their inputs, and the last column is the bias. It looks like static, and it is the whole painting.');
+
+const gV = ch.ui.group('View');
+const sldZoom = gV.slider({ id: 'ml-zoom', label: 'Zoom', min: 0.25, max: 32, value: 1, log: true, format: (v) => '×' + (v < 1 ? v.toFixed(2) : v.toFixed(v < 10 ? 1 : 0)), hint: 'The network is a continuous function, so it paints at any resolution. The target turns into pixels. Below ×1 you see what it paints outside the square it was shown. Scroll over the frame to zoom there.', onInput: (v) => { dive = null; setZoom(v); } });
+const btnDive = gV.buttons([{ label: 'Dive in ×12', id: 'ml-dive', title: 'Fly into the painting (Z)', onClick: () => diveToggle() }, { label: 'Beyond the edge', id: 'ml-beyond', title: 'Zoom out to see what the network paints where it has no data (B)', onClick: () => beyondToggle() }]);
+gV.toggle({ id: 'ml-tint', label: 'Neuron maps in the picture’s colours', value: state.tint, hint: 'On: each tile shows the painting only where that neuron fires. Off: the raw activation, cyan for positive.', onChange: (v) => { state.tint = v; } });
+gV.toggle({ id: 'ml-all', label: 'Show every neuron', value: false, hint: 'Off: the 16 neurons per layer whose maps best match the picture. On: all of them, small.', onChange: (v) => { sel.all = v; updateLayout(true); } });
+gV.toggle({ id: 'ml-back', label: 'Beyond the frame', value: state.backdrop, hint: 'Paint the whole screen with the network. Outside the square it never saw a single pixel.', onChange: (v) => { state.backdrop = v; } });
+
+const hudStep = ch.hud.add('Step', '0');
+const hudSps = ch.hud.add('Speed', '—');
+const hudPsnr = ch.hud.add('PSNR', '—');
+const hudPar = ch.hud.add('Parameters', '—');
+
+function rebuild() {
+  if (hiRT) hiRT.ok = false;
+  atlasReady = false; atlasChunk = -1; sel.lists = []; sel.lastRank = 0;
+  buildPaintNet();
+  syncArch();
+  ensureRTs();
+  updateLayout(true);
+}
+function syncArch() {
+  const s = paintNet.spec;
+  roParams.params.set(s.params.toLocaleString('en-US'));
+  roParams.arch.set((s.ff ? s.K0 : 2) + '→' + (s.L > 2 ? s.L + '×' + s.W : Array(s.L).fill(s.W).join('→')) + '→3');
+  hudPar.set(s.params.toLocaleString('en-US'));
+}
+
+/* =====================================================================
+   Frame loop
+   ===================================================================== */
+let dpr = 1;
+function fitAll() {
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.round(window.innerWidth * dpr), h = Math.round(window.innerHeight * dpr);
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  if (ov.width !== w || ov.height !== h) { ov.width = w; ov.height = h; }
+}
+function vp(x, y, w, h) { // CSS rect → GL viewport on screen
+  gl.viewport(Math.round(x * dpr), Math.round(cv.height - (y + h) * dpr), Math.round(w * dpr), Math.round(h * dpr));
+}
+const gov = { n: 0, acc: 0 }; let frameRaw = 16.7;
+let frameMs = 16.7, spsAcc = 0, spsT = 0, lastParamsReq = 0, lastAtlas = -1e9, lastMse = 0, backCounter = 0;
+let seedBase = 12345;
+
+function govern() {
+  // adapt steps per frame to keep the page smooth (checked every 250 ms)
+  gov.n++; gov.acc += frameRaw;
+  if (gov.acc > 250) {
+    const avg = gov.acc / gov.n; gov.acc = 0; gov.n = 0;
+    const floor = isSmall() ? 1 : 2;
+    if (avg > 22 && train.spf > floor) train.spf = Math.max(floor, train.spf - Math.max(1, Math.round(train.spf * 0.15)));
+    else if (avg < 18 && train.spf < state.speed) train.spf++;
+  }
+  if (train.spf > state.speed) train.spf = state.speed;
+}
+function trainFrame(dt) {
+  if (!GPU_TRAIN || ch.paused || performance.now() < lesion.hold) return 0;
+  gl.disable(gl.BLEND);
+  prof.begin('train');
+  for (let i = 0; i < train.spf; i++) paintNet.step(state.batch, state.lr, targetTex, (seedBase + (seedCounter++)) | 0);
+  prof.end();
+  return train.spf;
+}
+function readbacks(now) {
+  if (!GPU_TRAIN) return;
+  const r1 = rbLoss.poll();
+  if (r1 && r1.tag.net === paintNet) {
+    let s = 0; for (let i = 0; i < 64; i++) s += r1.data[i * 4];
+    const loss = s / r1.tag.B;
+    train.lastLoss = loss;
+    if (!isFinite(loss)) handleDivergence();
+  }
+  const r2 = rbMse.poll();
+  if (r2 && r2.tag.net === paintNet && r2.tag.version === paintNet.version) {
+    let s = 0; for (let i = 0; i < 256; i++) s += r2.data[i * 4];
+    const mse = s / (3 * r2.tag.res * r2.tag.res);
+    if (isFinite(mse)) {
+      train.mse = mse; train.psnr = -10 * Math.log10(Math.max(mse, 1e-12));
+      onLesionPsnr(train.psnr, r2.tag.ko, now);
+      if (r2.tag.step >= snaps.base) train.history.push([Math.max(1, r2.tag.step - snaps.base), mse]);
+      if (train.history.length > 600) train.history.splice(0, train.history.length - 600);
+    }
+  }
+  const r4 = rbStats.poll();
+  if (r4 && r4.tag.net === paintNet && r4.tag.version === paintNet.version) onStats(r4.data);
+  const r3 = rbParams.poll();
+  if (r3 && r3.tag.net === paintNet && r3.tag.version === paintNet.version) {
+    const n = paintNet.spec.WT * paintNet.spec.R * 4;
+    if (!cpuParams || cpuParams.length !== n) cpuParams = new Float32Array(n);
+    cpuParams.set(r3.data.subarray(0, n));
+    cpuParamsVersion = paintNet.version; paramsReadyAt = now;
+    onParams();
+  }
+}
+function handleDivergence() {
+  train.nanResets++;
+  state.lr = Math.max(1e-5, state.lr * 0.3); sldLr.set(state.lr);
+  state.seed++; paintNet.reset(state.seed); onNetReset(paintNet);
+  ch.toast('Training diverged (loss became NaN). Weights reset and η lowered to ' + FMT.sci(state.lr, 2) + '.', 4200);
+}
+
+let paramsFbo = null;
+function requestParams(now) {
+  if (!GPU_TRAIN || rbParams.busy || now - lastParamsReq < 350) return;
+  lastParamsReq = now;
+  const s = paintNet.spec;
+  if (!paramsFbo || paramsFbo.tex !== paintNet.params()) { if (paramsFbo) gl.deleteFramebuffer(paramsFbo); paramsFbo = fboFor([paintNet.params()]); }
+  rbParams.request(paramsFbo, 0, 0, s.WT, s.R, { net: paintNet, version: paintNet.version });
+}
+function onParams() {
+  if (!cpuNet || cpuNet.spec !== paintNet.spec) cpuNet = CPU.make(paintNet.spec);
+  cpuNet.P.set(cpuParams); cpuNet.keep.set(paintNet.keep);
+  diag.dirty = true;
+  drawWeights();
+}
+
+let outFresh = false, needRender = true, lastRender = 0, atlasChunk = -1, lastBack = 0;
+function renderOffscreen(now) {
+  const net = paintNet, s = net.spec;
+  // paused: one render at the full resolution of the screen (the network is a continuous function)
+  if (ch.paused && !(hiRT && hiRT.ok) && hoverNeuron < 0) {
+    const want = Math.min(1024, Math.round(LY.frame.s * dpr / 16) * 16);
+    if (!hiRT || hiRT.w !== want) { if (hiRT) { gl.deleteFramebuffer(hiRT.fbo); gl.deleteTexture(hiRT.tex); } hiRT = rt(want, want, gl.RGBA8, 'linear'); }
+    net.render(hiRT.fbo, 0, 0, want, want, zoomMap()); hiRT.ok = true;
+  }
+  if (!ch.paused && hiRT) hiRT.ok = false;
+  // network → output image, ~20 Hz, cross-faded on screen
+  const interval = ch.paused ? 0 : 50;
+  if (needRender || (!ch.paused && now - lastRender >= interval)) {
+    const t = outPrev; outPrev = outRT; outRT = t;
+    prof.begin('render');
+    if (!DF.norender) net.render(outRT.fbo, 0, 0, OUTRES, OUTRES, zoomMap());
+    prof.end();
+    outFade.dur = needRender ? 1 : Math.min(120, Math.max(30, now - lastRender));
+    outFade.t0 = now; lastRender = now; needRender = false;
+    outFresh = true;
+  }
+  // full-image MSE (async). While zoomed, score a separate ×1 rendering so the PSNR readout keeps working.
+  const zoomed = Math.abs(view.zoom - 1) > 1e-6 || view.cx !== 0 || view.cy !== 0;
+  if ((outFresh || zoomed) && !DF.nomse && GPU_TRAIN && now - lastMse > 200 && !rbMse.busy) {
+    outFresh = false;
+    lastMse = now;
+    let src = outRT, res = OUTRES;
+    if (zoomed) {
+      if (!mseSrcRT) mseSrcRT = rt(256, 256, gl.RGBA8, 'nearest');
+      net.render(mseSrcRT.fbo, 0, 0, 256, 256, [-1, -1, 2, 2]); src = mseSrcRT; res = 256;
+    }
+    const p = dp.mse; gl.useProgram(p);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, mseRT.fbo); gl.viewport(0, 0, 16, 16);
+    ut(p, 'uOut', src.tex, 0); ut(p, 'uT', targetTex, 1); ui(p, 'uRes', res);
+    drawTri();
+    rbMse.request(mseRT.fbo, 0, 0, 16, 16, { net, step: net.steps, version: net.version, ko: lesion.gen, res });
+  }
+  if (GPU_TRAIN && !rbLoss.busy && (backCounter % 5 === 0)) net.batchLoss(rbLoss);
+  // snapshots of the learning history
+  for (let i = 0; i < snaps.list.length; i++) {
+    const sn = snaps.list[i];
+    if (!sn.done && net.steps - snaps.base >= sn.step) { net.render(snapRT.fbo, i * 256, 0, 256, 256, [-1, -1, 2, 2]); sn.done = true; sn.actual = net.steps; chime(i); }
+  }
+  // neuron atlas + per-tile ranges, rendered in three slices over consecutive frames
+  if (!DF.noatlas && GPU_TRAIN) {
+    if (atlasChunk < 0 && now - lastAtlas > (GPU_TRAIN ? 240 : 600)) { lastAtlas = now; atlasChunk = 0; ensureAtlas(net); }
+    if (atlasChunk >= 0) {
+      const rows = atlasRT.rows, per = Math.ceil(rows / atlasRT.chunks), r0 = atlasChunk * per, r1 = Math.min(rows, r0 + per), ATILE = atlasRT.tile;
+      prof.begin('atlas');
+      if (r1 > r0) {
+        const p = net.prog.atlas; gl.useProgram(p);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, atlasRT.fbo); gl.viewport(0, r0 * ATILE, atlasRT.w, (r1 - r0) * ATILE);
+        ut(p, 'uP', net.params(), 0); ut(p, 'uBm', net.Bm, 1); ut(p, 'uKO', net.KO, 6); ui(p, 'uTile', ATILE); ui(p, 'uCols', atlasRT.cols); ui(p, 'uTile0', 0);
+        drawTri();
+      }
+      prof.end();
+      atlasChunk++;
+      if (atlasChunk >= atlasRT.chunks) {
+        atlasChunk = -1;
+        if (dp.stats) {
+          const p = dp.stats; gl.useProgram(p); gl.bindFramebuffer(gl.FRAMEBUFFER, statsRT.fbo); gl.viewport(0, 0, atlasRT.cols, atlasRT.rows); ut(p, 'uA', atlasRT.tex, 0); ut(p, 'uT', targetTex, 1); ui(p, 'uTile', atlasRT.tile); drawTri();
+          if (!rbStats.busy) rbStats.request(statsRT.fbo, 0, 0, atlasRT.cols, atlasRT.rows, { net, version: net.version });
+        }
+        atlasReady = true;
+      }
+    }
+  }
+  // the network's guess beyond the frame
+  if (!DF.noback && state.backdrop && (now - lastBack > (ch.paused ? 400 : 90) || !backRT)) {
+    lastBack = now;
+    const bw = Math.max(32, Math.round(LY.W / 8)), bh = Math.max(32, Math.round(LY.H / 8));
+    ensureBack(bw, bh);
+    const f = LY.frame; // map screen → x such that the frame covers [-1,1]^2 (y up)
+    const fy = LY.H - f.y - f.s;
+    prof.begin('back');
+    const zs = 2 / (f.s * view.zoom), cxg = f.x + f.s / 2, cyg = fy + f.s / 2;
+    net.render(backRT.fbo, 0, 0, bw, bh, [view.cx - cxg * zs, view.cy - cyg * zs, LY.W * zs, LY.H * zs]);
+    prof.end();
+  }
+  backCounter++;
+  if (hoverNeuron >= 0 && neuRT && (now - lastNeu > 80 || hoverNeuron !== lastNeuIdx)) { lastNeu = now; lastNeuIdx = hoverNeuron; net.atlas(neuRT.fbo, 256, 256, 256, 1, hoverNeuron); }
+}
+
+const sel = { lists: [], all: false, lastRank: 0, n: 16 };
+function mosaicList(l) { const s = paintNet.spec; if (sel.all || !sel.lists[l]) { const a = []; for (let j = 0; j < s.W; j++) a.push(j); return sel.all ? a : a.slice(0, Math.min(sel.n, s.W)); } return sel.lists[l]; }
+function onStats(data) {
+  const s = paintNet.spec, cols = atlasRT.cols, n = Math.min(sel.n, s.W), now = performance.now();
+  if (now - sel.lastRank < 1400 && sel.lists.length === s.L) return;
+  sel.lastRank = now;
+  for (let l = 0; l < s.L; l++) {
+    const sd = [];
+    for (let j = 0; j < s.W; j++) { const ti = l * s.W + j, k = ti * 4; const m = data[k + 2], r = data[k + 3]; const dev = Math.sqrt(Math.max(0, r * r - m * m)); sd.push(dev > 1e-5 && isFinite(data[k]) ? data[k] + 0.02 : 0); }
+    const cur = sel.lists[l] && sel.lists[l].length === n ? sel.lists[l].slice() : null;
+    const order = sd.map((v, j) => j).sort((a, b) => sd[b] - sd[a]);
+    if (!cur) { sel.lists[l] = order.slice(0, n).sort((a, b) => a - b); continue; }
+    // hysteresis: swap in an outsider only if clearly stronger than the weakest insider
+    const inSet = new Set(cur);
+    for (const cand of order) {
+      if (inSet.has(cand)) continue;
+      let wi = -1, wv = Infinity; cur.forEach((j, i) => { if (sd[j] < wv) { wv = sd[j]; wi = i; } });
+      if (sd[cand] > wv * 1.35 + 1e-6) { inSet.delete(cur[wi]); cur[wi] = cand; inSet.add(cand); } else break;
+    }
+    sel.lists[l] = cur;
+  }
+}
+const idxBuf = new Int32Array(128);
+let hoverSnap = -1;
+let hoverNeuron = -1, atlasReady = false, lastNeu = 0, lastNeuIdx = -1;
+const eraRGB = U.rgbf(ERA);
+function composite() {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, cv.width, cv.height);
+  gl.clearColor(0.0196, 0.0235, 0.047, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  if (state.mode === 'race') { compositeRace(); return; }
+  if (state.mode !== 'paint') return;
+  const f = LY.frame, s = paintNet.spec;
+  if (state.backdrop && backRT) {
+    const p = dp.back; gl.useProgram(p); gl.viewport(0, 0, cv.width, cv.height);
+    ut(p, 'uA', backRT.tex, 0); u2(p, 'uAsp', LY.W / LY.H, 1); uf(p, 'uDim', 0.2);
+    drawTri();
+  }
+  // hero frame
+  { const p = dp.frame; gl.useProgram(p); vp(f.x, f.y, f.s, f.s);
+    const hi = hiRT && hiRT.ok && ch.paused;
+    ut(p, 'uT', targetTex, 0); ut(p, 'uN', hi ? hiRT.tex : outRT.tex, 1); ut(p, 'uN0', hi ? hiRT.tex : outPrev.tex, 4);
+    uf(p, 'uMix', U.clamp((performance.now() - outFade.t0) / outFade.dur, 0, 1));
+    { const h = 1 / view.zoom; u4(p, 'uZ', (view.cx - h) * 0.5 + 0.5, (view.cy - h) * 0.5 + 0.5, h, h); ui(p, 'uPix', view.zoom > 2.5 ? 1 : 0); }
+    ut(p, 'uSnap', snapRT.tex, 5);
+    if (replay.on) { uf(p, 'uSnapI', replay.i); uf(p, 'uSnapJ', replay.j); uf(p, 'uSnapF', replay.f); }
+    else { uf(p, 'uSnapI', Math.max(0, hoverSnap)); uf(p, 'uSnapJ', Math.max(0, hoverSnap)); uf(p, 'uSnapF', 0); }
+    if (neuRT) ut(p, 'uNeu', neuRT.tex, 2); if (statsRT) ut(p, 'uS', statsRT.tex, 3);
+    uf(p, 'uWipe', state.wipe); ui(p, 'uNeuron', hoverNeuron >= 0 && neuRT ? 1 : (hoverSnap >= 0 || replay.on) ? 2 : 0);
+    if (hoverNeuron >= 0 && atlasRT) { const c = atlasRT.cols; gl.uniform2i(p.uniforms.uStatAt.loc, hoverNeuron % c, Math.floor(hoverNeuron / c)); }
+    ui(p, 'uSigned', s.act === 0 ? 0 : 1); ui(p, 'uTint', state.tint ? 1 : 0); u3(p, 'uEra', eraRGB[0], eraRGB[1], eraRGB[2]); uf(p, 'uFade', 1);
+    drawTri(); }
+  // film strip
+  if (LY.strip) {
+    const p = dp.blit; gl.useProgram(p); ut(p, 'uA', snapRT.tex, 0);
+    for (let i = 0; i < LY.strip.n; i++) {
+      if (!snaps.list[i].done) continue;
+      const r = stripCell(i); vp(r.x, r.y, r.s, r.s);
+      u4(p, 'uUV', i / 8, 0, 1 / 8, 1); uf(p, 'uGain', 1); drawTri();
+    }
+  }
+  // neuron mosaic
+  if (LY.mosaic && atlasRT && atlasReady) {
+    const M = mosaicGeom();
+    const p = dp.mosaic; gl.useProgram(p);
+    ut(p, 'uA', atlasRT.tex, 0); ut(p, 'uS', statsRT.tex, 1); ut(p, 'uT', targetTex, 2); ut(p, 'uKO', paintNet.KO, 6); ui(p, 'uTint', state.tint ? 1 : 0);
+    ui(p, 'uWn', s.W); ui(p, 'uACols', atlasRT.cols); ui(p, 'uATile', atlasRT.tile); ui(p, 'uSigned', s.act === 0 ? 0 : 1);
+    u3(p, 'uEra', eraRGB[0], eraRGB[1], eraRGB[2]); uf(p, 'uFade', 1);
+    for (let l = 0; l < s.L; l++) {
+      const b = M.blocks[l];
+      vp(b.x, b.y, b.w, b.h);
+      const list = mosaicList(l); idxBuf.fill(0); for (let i = 0; i < list.length; i++) idxBuf[i] = list[i];
+      gl.uniform1iv(p.uniforms.uIdx.loc, idxBuf); ui(p, 'uCount', list.length);
+      ui(p, 'uLayer', l); ui(p, 'uCols', M.cols); ui(p, 'uHover', hoverNeuron >= 0 && Math.floor(hoverNeuron / s.W) === l ? hoverNeuron % s.W : -1);
+      u2(p, 'uBlock', b.w * dpr, b.h * dpr); uf(p, 'uPitch', M.pitch * dpr); uf(p, 'uGap', Math.max(1, M.gap * dpr));
+      drawTri();
+    }
+  }
+}
+function mosaicGeom() {
+  const m = LY.mosaic, L = paintNet.spec.L;
+  const bw = m.cols * m.pitch, bh = m.rows * m.pitch, blocks = [];
+  for (let l = 0; l < L; l++) blocks.push({ x: m.x + l * (bw + m.gapB), y: m.y, w: bw, h: bh });
+  return { cols: m.cols, rows: m.rows, pitch: m.pitch, gap: m.pitch > 30 ? 3 : m.pitch > 14 ? 2 : 1, blocks };
+}
+/* ------------------------------------------------------------- overlay */
+const MONO = '"JetBrains Mono", ui-monospace, monospace', DISPLAY = '"Bodoni Moda", "Bodoni 72", Didot, serif';
+function drawOverlay() {
+  const c = ox; c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, LY.W, LY.H);
+  c.textBaseline = 'alphabetic';
+  if (state.mode === 'race') { drawRaceOverlay(c); return; }
+  if (state.mode === 'decide') { drawDecide(c, performance.now()); return; }
+  const f = LY.frame, s = paintNet.spec;
+  // frame hairline and labels
+  c.strokeStyle = 'rgba(236,230,214,0.28)'; c.lineWidth = 1; c.strokeRect(f.x - 0.5, f.y - 0.5, f.s + 1, f.s + 1);
+  c.font = `600 10px ${MONO}`; c.textBaseline = 'alphabetic';
+  c.fillStyle = 'rgba(151,157,178,0.9)';
+  if (replay.on && hoverNeuron < 0) {
+    const k = replay.f < 0.5 ? replay.i : replay.j;
+    c.textAlign = 'left'; c.fillStyle = ERA; c.fillText(`REPLAY · THE NETWORK AT STEP ${stepLabel(snaps.list[k].step)}`, f.x, f.y - 8);
+    c.textAlign = 'right'; c.fillStyle = 'rgba(236,230,214,0.6)'; c.fillText('coarse first, detail last', f.x + f.s, f.y - 8);
+    const r = stripCell(k); c.strokeStyle = ERA; c.lineWidth = 1.5; c.strokeRect(r.x - 2, r.y - 2, r.s + 4, r.s + 4); c.lineWidth = 1;
+  } else if (hoverSnap >= 0) {
+    c.textAlign = 'left'; c.fillStyle = ERA; c.fillText(`THE NETWORK AT STEP ${stepLabel(snaps.list[hoverSnap].step)}`, f.x, f.y - 8);
+    c.textAlign = 'right'; c.fillStyle = 'rgba(236,230,214,0.6)'; c.fillText('a snapshot from the learning', f.x + f.s, f.y - 8);
+  } else if (hoverNeuron < 0) {
+    const wx = f.x + f.s * state.wipe;
+    c.strokeStyle = 'rgba(236,230,214,0.85)'; c.beginPath(); c.moveTo(wx + 0.5, f.y); c.lineTo(wx + 0.5, f.y + f.s); c.stroke();
+    c.fillStyle = 'rgba(5,6,12,0.85)'; c.beginPath(); c.arc(wx, f.y + f.s / 2, 11, 0, 7); c.fill(); c.stroke();
+    c.fillStyle = '#ece6d6'; c.beginPath(); c.moveTo(wx - 7, f.y + f.s / 2); c.lineTo(wx - 3, f.y + f.s / 2 - 4); c.lineTo(wx - 3, f.y + f.s / 2 + 4); c.fill();
+    c.beginPath(); c.moveTo(wx + 7, f.y + f.s / 2); c.lineTo(wx + 3, f.y + f.s / 2 - 4); c.lineTo(wx + 3, f.y + f.s / 2 + 4); c.fill();
+    c.font = `600 10px ${MONO}`; c.fillStyle = 'rgba(236,230,214,0.75)'; c.textAlign = 'left';
+    c.fillText('TARGET', f.x, f.y - 8);
+    c.textAlign = 'right'; c.fillStyle = ERA;
+    c.fillText('NETWORK  f(x, y) → (r, g, b)', f.x + f.s, f.y - 8);
+    if (view.zoom < 0.99) { // the square the network was trained on
+      const hs = f.s * view.zoom, x0 = f.x + f.s / 2 - hs / 2 - view.cx * view.zoom * f.s / 2, y0 = f.y + f.s / 2 - hs / 2 + view.cy * view.zoom * f.s / 2;
+      c.save(); c.setLineDash([4, 4]); c.strokeStyle = 'rgba(126,240,255,0.8)'; c.lineWidth = 1; c.strokeRect(x0 - 0.5, y0 - 0.5, hs + 1, hs + 1); c.restore();
+      if (view.zoom < 0.6) {
+        c.font = `600 9.5px ${MONO}`; c.textAlign = 'left';
+        const t1 = 'TRAINING DATA', t2 = 'OUTSIDE: THE NETWORK\u2019S GUESS', w1 = c.measureText(t1).width, w2 = c.measureText(t2).width;
+        c.fillStyle = 'rgba(5,6,12,0.82)'; c.fillRect(x0 - 1, y0 - 19, w1 + 10, 15); c.fillRect(x0 + hs - w2 - 9, y0 + hs + 4, w2 + 10, 15);
+        c.fillStyle = ERA; c.fillText(t1, x0 + 4, y0 - 8); c.fillStyle = 'rgba(236,230,214,0.85)'; c.fillText(t2, x0 + hs - w2 - 4, y0 + hs + 15);
+      }
+    }
+    if (Math.abs(view.zoom - 1) > 0.01) {
+      const t = `×${view.zoom < 1 ? view.zoom.toFixed(2) : view.zoom.toFixed(view.zoom < 10 ? 1 : 0)} · ${isSmall() ? 'zoom slider to reset' : 'double-click to reset'}`;
+      c.font = `500 10px ${MONO}`; c.textAlign = 'left'; const tw = c.measureText(t).width;
+      c.fillStyle = 'rgba(5,6,12,0.75)'; c.fillRect(f.x + 8, f.y + f.s - 26, tw + 14, 18);
+      c.fillStyle = 'rgba(236,230,214,0.9)'; c.fillText(t, f.x + 15, f.y + f.s - 13);
+    }
+  } else {
+    const l = Math.floor(hoverNeuron / s.W), j = hoverNeuron % s.W;
+    c.textAlign = 'left'; c.fillStyle = ERA; c.fillText(`WHAT NEURON ${l + 1}·${j + 1} SEES`, f.x, f.y - 8);
+    c.textAlign = 'right'; c.fillStyle = 'rgba(236,230,214,0.6)'; c.fillText(`h = ${s.actName === 'relu' ? 'max(0, z)' : s.actName === 'sine' ? 'sin(30 z)' : 'tanh z'}`, f.x + f.s, f.y - 8);
+  }
+  // film strip labels
+  if (LY.strip) {
+    c.font = `500 9px ${MONO}`;
+    for (let i = 0; i < LY.strip.n; i++) {
+      const sn = snaps.list[i], r = stripCell(i);
+      c.strokeStyle = sn.done ? 'rgba(236,230,214,0.22)' : 'rgba(236,230,214,0.09)';
+      c.strokeRect(r.x - 0.5, r.y - 0.5, r.s + 1, r.s + 1);
+      c.textAlign = 'left';
+      if (sn.done) { c.fillStyle = 'rgba(5,6,12,0.7)'; const tw = c.measureText(stepLabel(sn.step)).width; c.fillRect(r.x, r.y + r.s - 13, tw + 8, 13); }
+      c.fillStyle = sn.done ? 'rgba(236,230,214,0.85)' : 'rgba(94,100,121,0.9)';
+      c.fillText(stepLabel(sn.step), r.x + 4, r.y + r.s - 3.5);
+    }
+    c.textAlign = 'left'; c.fillStyle = 'rgba(151,157,178,0.9)'; c.font = `600 10px ${MONO}`;
+    if (LY.strip.vertical) c.fillText('STEP', LY.strip.x, LY.strip.y - 8);
+  }
+  // mosaic labels
+  if (LY.mosaic && atlasRT) {
+    const M = mosaicGeom();
+    c.font = `600 10px ${MONO}`; c.textAlign = 'left';
+    c.fillStyle = 'rgba(236,230,214,0.78)'; c.fillText('WHAT THE NEURONS SEE', M.blocks[0].x, M.blocks[0].y - 22);
+    c.textAlign = 'right'; c.fillStyle = 'rgba(94,100,121,1)'; c.font = `500 10px ${MONO}`;
+    const lb = M.blocks[M.blocks.length - 1];
+    const room = lb.x + lb.w - M.blocks[0].x - c.measureText('WHAT THE NEURONS SEE').width * 1.1 - 24;
+    const hint = isSmall() ? 'tap: look · hold: silence' : ['hover a tile to look through its eyes · click to silence it', 'hover: look through its eyes · click: silence', 'hover: look · click: silence'].find((t) => c.measureText(t).width < room) || 'click: silence';
+    c.fillText(hint, lb.x + lb.w, M.blocks[0].y - 22);
+    c.textAlign = 'left'; c.font = `500 9.5px ${MONO}`;
+    for (let l = 0; l < s.L; l++) { const b = M.blocks[l]; c.fillStyle = 'rgba(151,157,178,0.95)'; c.fillText(sel.all ? `LAYER ${l + 1} · ALL ${s.W}` : `LAYER ${l + 1} · ${mosaicList(l).length} OF ${s.W}`, b.x, b.y - 7); }
+  }
+  if (!GPU_TRAIN && LY.mosaic) {
+    c.font = `500 11px ${MONO}`; c.textAlign = 'center'; c.fillStyle = 'rgba(151,157,178,0.9)';
+    c.fillText('Neuron maps need float render targets.', LY.mosaic.x + LY.mosaic.w / 2, LY.mosaic.y + 20);
+    c.fillStyle = 'rgba(94,100,121,1)'; c.fillText('This device trains the network on the CPU instead.', LY.mosaic.x + LY.mosaic.w / 2, LY.mosaic.y + 38);
+  }
+  // lesion status, inside the frame at the bottom
+  const ls = lesionStatus(performance.now());
+  if (ls && hoverSnap < 0 && !replay.on) {
+    c.font = `500 10px ${MONO}`; c.textAlign = 'left'; const tw = c.measureText(ls.t).width, ly = f.y + f.s - (Math.abs(view.zoom - 1) > 0.01 ? 48 : 26);
+    c.fillStyle = 'rgba(5,6,12,0.8)'; c.fillRect(f.x + 8, ly, Math.min(tw + 14, f.s - 16), 18);
+    c.fillStyle = ls.col; c.fillText(ls.t, f.x + 15, ly + 13, f.s - 30);
+  }
+  // probe marker on the painting (only while it is inside the visible frame)
+  const px = f.x + ((probe.x - view.cx) * view.zoom / 2 + 0.5) * f.s, py = f.y + (0.5 - (probe.y - view.cy) * view.zoom / 2) * f.s;
+  if (px > f.x + 4 && px < f.x + f.s - 4 && py > f.y + 4 && py < f.y + f.s - 4) {
+    c.strokeStyle = 'rgba(255,255,255,0.9)'; c.lineWidth = 1.2; c.beginPath(); c.arc(px, py, 7, 0, 7); c.stroke();
+    c.strokeStyle = 'rgba(5,6,12,0.6)'; c.lineWidth = 1; c.beginPath(); c.arc(px, py, 8.3, 0, 7); c.stroke();
+    c.strokeStyle = 'rgba(255,255,255,0.8)'; c.beginPath();
+    c.moveTo(px - 13, py); c.lineTo(px - 9, py); c.moveTo(px + 9, py); c.lineTo(px + 13, py); c.moveTo(px, py - 13); c.lineTo(px, py - 9); c.moveTo(px, py + 9); c.lineTo(px, py + 13); c.stroke();
+  }
+  drawDiagram(c);
+}
+function stripCell(i) { const st = LY.strip, g = 6; return st.vertical ? { x: st.x, y: st.y + i * st.cell, s: st.cell - g } : { x: st.x + i * st.cell, y: st.y, s: st.cell - g }; }
+function stepLabel(n) { return n >= 1000 ? (n / 1000) + 'k' : String(n); }
+
+
+/* ------------------------------------------------------ network diagram */
+const diag = { cv: document.createElement('canvas'), dirty: true, key: '', cols: null };
+const probe = { x: 0, y: 0, user: false, t: 0 };
+function diagColumns(d, s) {
+  const cols = [];
+  const n = s.L + (s.ff ? 3 : 2);
+  const x0 = d.x + 58, x1 = d.x + d.w - 58;
+  const yTop = d.y + 34, yBot = d.y + d.h - 4, span = yBot - yTop;
+  const colX = (i) => x0 + (x1 - x0) * i / (n - 1);
+  const mk = (kind, count, label, i, pad) => {
+    const ys = [];
+    if (count <= 4) { const g = Math.min(26, span / (count + 1)); const c0 = yTop + span / 2 - g * (count - 1) / 2; for (let k = 0; k < count; k++) ys.push(c0 + k * g); }
+    else { const st = span / count; for (let k = 0; k < count; k++) ys.push(yTop + (k + 0.5) * st); }
+    return { kind, count, label, x: colX(i), ys, step: count > 4 ? span / count : 0 };
+  };
+  let i = 0;
+  cols.push(mk('in', 2, 'x, y', i++));
+  if (s.ff) cols.push(mk('ff', 2 * s.m, 'γ(x)', i++));
+  for (let l = 0; l < s.L; l++) cols.push(mk('h', s.W, 'h' + String.fromCharCode(0x2081 + l), i++));
+  cols.push(mk('out', 3, 'r g b', i++));
+  return cols;
+}
+function rebuildDiagEdges() {
+  const d = LY.diag, s = paintNet.spec;
+  if (!d || !cpuNet) return;
+  const r = dpr, W = Math.round(d.w * r), H = Math.round(d.h * r);
+  if (diag.cv.width !== W || diag.cv.height !== H) { diag.cv.width = W; diag.cv.height = H; }
+  const g = diag.cv.getContext('2d');
+  g.setTransform(r, 0, 0, r, -d.x * r, -d.y * r);
+  g.clearRect(d.x, d.y, d.w, d.h);
+  const cols = (diag.cols = diagColumns(d, s));
+  const P = cpuNet.P, WT = s.WT, KP = paintNet.keep;
+  const curve = (x1, y1, x2, y2) => { const xm = (x1 + x2) / 2; g.moveTo(x1, y1); g.bezierCurveTo(xm, y1, xm, y2, x2, y2); };
+  // fixed Fourier projection: thin neutral fibres
+  let ci = 0;
+  if (s.ff) {
+    const a = cols[0], b = cols[1];
+    g.strokeStyle = 'rgba(151,157,178,0.07)'; g.lineWidth = 0.5; g.beginPath();
+    for (let k = 0; k < b.count; k += 2) for (let q = 0; q < 2; q++) curve(a.x, a.ys[q], b.x, b.ys[k]);
+    g.stroke(); ci = 1;
+  }
+  // trainable layers: the strongest connections
+  for (let l = 0; l <= s.L; l++) {
+    const a = cols[ci + l], b = cols[ci + l + 1];
+    const kin = l === 0 ? (s.ff ? 2 * s.m : 2) : s.W, nout = l < s.L ? s.W : 3;
+    const vals = [];
+    let mx = 1e-9;
+    for (let j = 0; j < nout; j++) { const base = (s.rowOff[l] + j) * WT * 4; for (let i = 0; i < kin; i++) { const w = P[base + i]; vals.push(Math.abs(w)); if (Math.abs(w) > mx) mx = Math.abs(w); } }
+    const keep = l === s.L ? vals.length : Math.min(vals.length, 360);
+    const sorted = vals.slice().sort((x, y) => y - x); const thr = sorted[Math.max(0, keep - 1)];
+    g.lineWidth = 0.6;
+    for (const sign of [1, -1]) {
+      for (const band of [0.15, 0.35, 0.6, 1.0]) {
+        g.beginPath();
+        g.strokeStyle = sign > 0 ? `rgba(126,240,255,${band * 0.55})` : `rgba(255,179,92,${band * 0.55})`;
+        for (let j = 0; j < nout; j++) {
+          const base = (s.rowOff[l] + j) * WT * 4;
+          for (let i = 0; i < kin; i++) {
+            const w = P[base + i], aw = Math.abs(w);
+            if (aw < thr || (w > 0 ? 1 : -1) !== sign) continue;
+            if ((l < s.L && KP[l * s.W + j] < 0.5) || (l > 0 && KP[(l - 1) * s.W + i] < 0.5)) continue; // silenced
+            const rel = aw / mx; const bnd = rel < 0.25 ? 0.15 : rel < 0.5 ? 0.35 : rel < 0.75 ? 0.6 : 1.0;
+            if (bnd !== band) continue;
+            curve(a.x + 3, a.ys[Math.min(i, a.count - 1)], b.x - 3, b.ys[j]);
+          }
+        }
+        g.stroke();
+      }
+    }
+  }
+  diag.key = d.x + ',' + d.y + ',' + d.w + ',' + d.h + ',' + dpr;
+  diag.dirty = false;
+}
+function probeColour(x0, x1) {
+  const px = getTargetPixels();
+  const i = U.clamp(Math.floor((x0 * 0.5 + 0.5) * TS), 0, TS - 1), j = U.clamp(Math.floor((1 - (x1 * 0.5 + 0.5)) * TS), 0, TS - 1);
+  const k = (j * TS + i) * 4; return [px[k] / 255, px[k + 1] / 255, px[k + 2] / 255];
+}
+function drawDiagram(c, now) {
+  const d = LY.diag, s = paintNet.spec;
+  if (!d) return;
+  c.font = `600 10px ${MONO}`; c.textAlign = 'left'; c.fillStyle = 'rgba(236,230,214,0.78)';
+  c.fillText('THE NETWORK, LIVE', d.x, d.y);
+  c.font = `500 9.5px ${MONO}`; c.textAlign = 'right';
+  c.fillStyle = 'rgba(255,179,92,0.95)'; c.fillText('− weight', d.x + d.w, d.y);
+  let tx = d.x + d.w - c.measureText('− weight').width - 10;
+  c.fillStyle = 'rgba(126,240,255,0.9)'; c.fillText('+ weight', tx, d.y); c.textAlign = 'left';
+  if (!cpuNet || cpuNet.spec !== s) { c.fillStyle = 'rgba(94,100,121,1)'; c.textAlign = 'left'; c.fillText('reading the weights…', d.x, d.y + 40); return; }
+  const key = d.x + ',' + d.y + ',' + d.w + ',' + d.h + ',' + dpr;
+  if (diag.dirty || diag.key !== key) rebuildDiagEdges();
+  c.drawImage(diag.cv, d.x, d.y, d.w, d.h);
+  const cols = diag.cols; if (!cols) return;
+  // forward pass at the probe point on the CPU copy of the weights
+  const y = cpuNet.forward(probe.x, probe.y);
+  let ci = 0;
+  // inputs
+  const inp = cols[0];
+  c.textAlign = 'right'; c.font = `500 9.5px ${MONO}`;
+  [probe.x, probe.y].forEach((v, k) => {
+    c.fillStyle = 'rgba(236,230,214,0.9)'; c.beginPath(); c.arc(inp.x, inp.ys[k], 3.2, 0, 7); c.fill();
+    c.fillStyle = 'rgba(151,157,178,0.95)'; c.fillText((k ? 'y ' : 'x ') + (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2), inp.x - 7, inp.ys[k] + 3);
+  });
+  if (s.ff) {
+    const col = cols[1], f = cpuNet.f, h = Math.max(0.8, col.step);
+    for (let k = 0; k < col.count; k++) {
+      const v = f[k];
+      c.fillStyle = v >= 0 ? `rgba(126,240,255,${0.15 + 0.85 * v})` : `rgba(255,179,92,${0.15 - 0.85 * v})`;
+      c.fillRect(col.x - 3, col.ys[k] - h / 2, 6, Math.max(0.7, h - 0.3));
+    }
+    ci = 1;
+  }
+  for (let l = 0; l < s.L; l++) {
+    const col = cols[ci + 1 + l], H = cpuNet.H[l];
+    let mx = 1e-6; for (let j = 0; j < s.W; j++) mx = Math.max(mx, Math.abs(H[j]));
+    const rr = Math.max(1.1, Math.min(2.6, col.step * 0.42));
+    for (let j = 0; j < s.W; j++) {
+      if (paintNet.keep[l * s.W + j] < 0.5) { c.strokeStyle = 'rgba(255,94,122,0.85)'; c.lineWidth = 1; c.beginPath(); c.arc(col.x, col.ys[j], rr + 0.6, 0, 7); c.stroke(); continue; }
+      const v = H[j] / mx, a = Math.abs(v);
+      if (a > 0.35) { c.fillStyle = v >= 0 ? `rgba(126,240,255,${a * 0.22})` : `rgba(255,179,92,${a * 0.22})`; c.beginPath(); c.arc(col.x, col.ys[j], rr * 3.2, 0, 7); c.fill(); }
+      c.fillStyle = a < 0.02 ? 'rgba(94,100,121,0.55)' : v >= 0 ? `rgba(${Math.round(40 + 86 * a + 129 * a * a)},${Math.round(60 + 180 * a)},${Math.round(80 + 175 * a)},1)` : `rgba(${Math.round(80 + 175 * a)},${Math.round(60 + 119 * a)},${Math.round(40 + 52 * a)},1)`;
+      c.beginPath(); c.arc(col.x, col.ys[j], rr, 0, 7); c.fill();
+      if (hoverNeuron === l * s.W + j) { c.strokeStyle = '#fff'; c.lineWidth = 1.2; c.beginPath(); c.arc(col.x, col.ys[j], rr + 3, 0, 7); c.stroke(); }
+    }
+  }
+  const out = cols[cols.length - 1];
+  const rgbCols = ['255,90,90', '90,230,120', '90,150,255'];
+  c.textAlign = 'left';
+  for (let k = 0; k < 3; k++) {
+    const v = y[k];
+    c.fillStyle = `rgba(${rgbCols[k]},${0.2 + 0.8 * v})`; c.beginPath(); c.arc(out.x, out.ys[k], 5, 0, 7); c.fill();
+    c.strokeStyle = `rgba(${rgbCols[k]},0.7)`; c.lineWidth = 1; c.stroke();
+    c.fillStyle = 'rgba(151,157,178,0.95)'; c.fillText(v.toFixed(2), out.x + 9, out.ys[k] + 3);
+  }
+  // predicted vs true colour at the probe
+  const t = probeColour(probe.x, probe.y), sy = out.ys[0] - 6;
+  const toCss = (a) => `rgb(${Math.round(a[0] * 255)},${Math.round(a[1] * 255)},${Math.round(a[2] * 255)})`;
+  const sx = out.x + 38;
+  c.fillStyle = toCss(y); c.fillRect(sx, sy, 14, 14); c.fillStyle = toCss(t); c.fillRect(sx, sy + 18, 14, 14);
+  c.strokeStyle = 'rgba(236,230,214,0.35)'; c.strokeRect(sx - 0.5, sy - 0.5, 15, 15); c.strokeRect(sx - 0.5, sy + 17.5, 15, 15);
+  c.fillStyle = 'rgba(94,100,121,1)'; c.font = `500 8.5px ${MONO}`; c.textAlign = 'left';
+  c.fillText('f', sx + 18, sy + 10); c.fillText('y', sx + 18, sy + 28);
+  // column labels
+  c.font = `500 10px ${MONO}`; c.textAlign = 'center';
+  cols.forEach((col) => { c.fillStyle = col.kind === 'h' ? 'rgba(126,240,255,0.85)' : 'rgba(151,157,178,0.95)'; c.fillText(col.label, col.x, d.y + 22); });
+}
+
+/* ---------------------------------------------------------- loss chart */
+function drawLossChart(cvs, series, o) {
+  const c = cvs, g = c.getContext('2d'), r = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.round(c.clientWidth * r), H = Math.round(c.clientHeight * r);
+  if (!W || !H) return;
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  g.setTransform(r, 0, 0, r, 0, 0); const w = W / r, h = H / r;
+  g.clearRect(0, 0, w, h);
+  const pl = 34, pr = 8, pt = series.length > 1 ? 18 : 10, pb = 18;
+  let maxStep = 10; series.forEach((sr) => { const L = sr.data[sr.data.length - 1]; if (L) maxStep = Math.max(maxStep, L[0]); });
+  const xMax = Math.max(100, Math.pow(10, Math.ceil(Math.log10(maxStep) + 0.0001)));
+  const yLo = o.yLo, yHi = o.yHi;
+  const tx = (s) => pl + (Math.log10(Math.max(1, s)) / Math.log10(xMax)) * (w - pl - pr);
+  const ty = (v) => pt + (1 - (Math.log10(U.clamp(v, yLo, yHi)) - Math.log10(yLo)) / (Math.log10(yHi) - Math.log10(yLo))) * (h - pt - pb);
+  g.font = `500 9px ${MONO}`; g.fillStyle = '#5e6479'; g.strokeStyle = 'rgba(236,230,214,0.08)'; g.lineWidth = 1;
+  g.textAlign = 'right'; g.textBaseline = 'middle';
+  for (let e = Math.round(Math.log10(yLo)); e <= Math.round(Math.log10(yHi)); e++) { const y = ty(Math.pow(10, e)); g.beginPath(); g.moveTo(pl, y); g.lineTo(w - pr, y); g.stroke(); g.fillText('10' + FMT.sup(e), pl - 4, y); }
+  g.textAlign = 'center'; g.textBaseline = 'top';
+  for (let e = 0; Math.pow(10, e) <= xMax; e++) { const x = tx(Math.pow(10, e)); g.beginPath(); g.moveTo(x, pt); g.lineTo(x, h - pb); g.stroke(); g.fillText(stepLabel(Math.pow(10, e)), x, h - pb + 4); }
+  g.textAlign = 'right'; g.fillText(o.xLabel || 'step', w - pr, pt - 1 - (series.length > 1 ? 0 : 0));
+  if (o.marks) {
+    g.setLineDash([2, 3]); g.lineWidth = 1;
+    o.marks.forEach((m) => { if (m.step < 1 || m.step > xMax) return; const x = tx(m.step); g.strokeStyle = m.kind === 'restore' ? 'rgba(236,230,214,0.45)' : 'rgba(255,94,122,0.7)'; g.beginPath(); g.moveTo(x, pt); g.lineTo(x, h - pb); g.stroke(); });
+    g.setLineDash([]);
+  }
+  series.forEach((sr) => {
+    const D = sr.data; if (D.length < 2) return;
+    g.strokeStyle = sr.color; g.lineWidth = 1.6; g.beginPath();
+    D.forEach((p, i) => { const x = tx(p[0]), y = ty(p[1]); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
+    const last = D[D.length - 1]; g.fillStyle = sr.color; g.beginPath(); g.arc(tx(last[0]), ty(last[1]), 2.5, 0, 7); g.fill();
+  });
+  if (series.length > 1) { let lx = pl + 2; g.textAlign = 'left'; g.textBaseline = 'top'; series.forEach((sr) => { g.fillStyle = sr.color; g.fillRect(lx, 5, 8, 2); g.fillText(sr.label, lx + 11, 1); lx += g.measureText(sr.label).width + 20; }); }
+}
+
+/* ------------------------------------------------------------ pointer */
+function updateProbe(dt) {
+  if (probe.user) return;
+  probe.t += dt;
+  probe.x = 0.78 * Math.sin(probe.t * 0.21 + 0.4); probe.y = 0.74 * Math.sin(probe.t * 0.29 + 1.3);
+}
+let pointer = { x: -1, y: -1, in: false, drag: null };
+// touch: tap a tile to pin its view, press and hold to silence it
+const press = { timer: 0, n: -1, long: false, x: 0, y: 0, wasPinned: false };
+let pin = -1;
+ch.stage.addEventListener('pointermove', (e) => {
+  pointer.x = e.clientX; pointer.y = e.clientY; pointer.in = true;
+  if (press.timer && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 12) { clearTimeout(press.timer); press.timer = 0; }
+  if (pointer.drag === 'wipe') { const f = LY.frame; state.wipe = U.clamp((e.clientX - f.x) / f.s, 0, 1); return; }
+  if (e.pointerType === 'mouse') {
+    let n = pickNeuron(e.clientX, e.clientY);
+    if (n < 0) n = pickDiagNode(e.clientX, e.clientY);
+    if (n !== lesion.suppress) lesion.suppress = -1;
+    hoverNeuron = n === lesion.suppress ? -1 : n;
+    ch.stage.style.cursor = n >= 0 ? 'pointer' : '';
+  }
+  hoverSnap = pickSnap(e.clientX, e.clientY);
+  const f = LY.frame;
+  if (state.mode === 'paint' && e.clientX >= f.x && e.clientX <= f.x + f.s && e.clientY >= f.y && e.clientY <= f.y + f.s) {
+    probe.user = true; probe.x = view.cx + ((e.clientX - f.x) / f.s - 0.5) * 2 / view.zoom; probe.y = view.cy + (0.5 - (e.clientY - f.y) / f.s) * 2 / view.zoom;
+  } else probe.user = false;
+});
+ch.stage.addEventListener('pointerdown', (e) => {
+  if (state.mode === 'decide') { if (decAddPoint(e.clientX, e.clientY, e.shiftKey)) e.preventDefault(); return; }
+  if (state.mode !== 'paint') return;
+  const f = LY.frame;
+  if (state.mode === 'paint' && e.clientY > f.y && e.clientY < f.y + f.s && e.clientX > f.x - 14 && e.clientX < f.x + f.s + 14) {
+    pointer.drag = 'wipe'; state.wipe = U.clamp((e.clientX - f.x) / f.s, 0, 1);
+    try { ch.stage.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+  }
+  let n = pickNeuron(e.clientX, e.clientY);
+  if (e.pointerType === 'mouse') {
+    if (n < 0) n = pickDiagNode(e.clientX, e.clientY);
+    if (n >= 0 && e.button === 0) { lesionToggle(n); lesion.suppress = n; hoverNeuron = -1; }
+    return;
+  }
+  hoverSnap = pickSnap(e.clientX, e.clientY);
+  clearTimeout(press.timer); press.timer = 0; press.long = false;
+  if (n >= 0) {
+    press.n = n; press.x = e.clientX; press.y = e.clientY; press.wasPinned = pin === n; hoverNeuron = n;
+    press.timer = setTimeout(() => { press.timer = 0; press.long = true; lesionToggle(n); pin = -1; hoverNeuron = -1; }, 480);
+  } else { press.n = -1; pin = -1; hoverNeuron = -1; }
+});
+const endDrag = (e) => {
+  pointer.drag = null;
+  if (e && e.pointerType !== 'mouse' && press.n >= 0) {
+    const was = press.timer; clearTimeout(press.timer); press.timer = 0;
+    if (!press.long && was) pin = press.wasPinned ? -1 : press.n;
+    hoverNeuron = pin; press.n = -1;
+  }
+};
+ch.stage.addEventListener('pointerup', endDrag); ch.stage.addEventListener('pointercancel', endDrag);
+ch.stage.addEventListener('contextmenu', (e) => { if (state.mode === 'paint' && pickNeuron(e.clientX, e.clientY) >= 0) e.preventDefault(); });
+ch.stage.addEventListener('pointerleave', (e) => { pointer.in = false; probe.user = false; if (e.pointerType === 'mouse') { hoverSnap = -1; ch.stage.style.cursor = ''; } if (!pointer.drag) hoverNeuron = e.pointerType === 'mouse' ? -1 : pin; });
+function pickSnap(x, y) {
+  if (state.mode !== 'paint' || !LY.strip) return -1;
+  for (let i = 0; i < LY.strip.n; i++) { const r = stripCell(i); if (snaps.list[i].done && x >= r.x && x <= r.x + r.s && y >= r.y && y <= r.y + r.s) return i; }
+  return -1;
+}
+ch.stage.addEventListener('wheel', (e) => {
+  if (state.mode !== 'paint') return;
+  const f = LY.frame; if (e.clientX < f.x || e.clientX > f.x + f.s || e.clientY < f.y || e.clientY > f.y + f.s) return;
+  e.preventDefault();
+  const ax = view.cx + ((e.clientX - f.x) / f.s - 0.5) * 2 / view.zoom, ay = view.cy + (0.5 - (e.clientY - f.y) / f.s) * 2 / view.zoom;
+  dive = null; setZoom(view.zoom * Math.exp(-e.deltaY * 0.0015), ax, ay); sldZoom.set(view.zoom);
+}, { passive: false });
+ch.stage.addEventListener('dblclick', () => { if (state.mode === 'paint' && Math.abs(view.zoom - 1) > 0.01) diveTo(1, 0, 0, 900); });
+function pickDiagNode(x, y) {
+  if (state.mode !== 'paint' || !LY.diag || !diag.cols || !atlasRT) return -1;
+  const s = paintNet.spec, off = s.ff ? 2 : 1;
+  for (let l = 0; l < s.L; l++) {
+    const col = diag.cols[off + l]; if (!col || Math.abs(x - col.x) > 6) continue;
+    let best = -1, bd = 1e9; col.ys.forEach((yy, j) => { const d = Math.abs(yy - y); if (d < bd) { bd = d; best = j; } });
+    if (bd <= Math.max(3, col.step)) return l * s.W + best;
+  }
+  return -1;
+}
+function pickNeuron(x, y) {
+  if (state.mode !== 'paint' || !LY.mosaic || !atlasRT) return -1;
+  const M = mosaicGeom(), s = paintNet.spec;
+  for (let l = 0; l < s.L; l++) {
+    const b = M.blocks[l];
+    if (x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) {
+      const cx = Math.floor((x - b.x) / M.pitch), cy = Math.floor((y - b.y) / M.pitch), ci = cy * M.cols + cx, list = mosaicList(l);
+      if (cx < M.cols && ci < list.length) return l * s.W + list[ci];
+    }
+  }
+  return -1;
+}
+
+
+/* =====================================================================
+   II · THE RACE: spectral bias. Three networks, identical batches.
+   ===================================================================== */
+const RACERS = [
+  { key: 'raw', name: 'ReLU on raw (x, y)', short: 'Raw ReLU', col: '#ffb35c', o: { act: 'relu', ff: false }, lr: 4e-3 },
+  { key: 'ff', name: 'ReLU + Fourier features', short: 'Fourier', col: ERA, o: { act: 'relu', ff: true }, lr: 4e-3 },
+  { key: 'siren', name: 'SIREN · sin(30 z)', short: 'SIREN', col: '#b48cff', o: { act: 'sine', ff: false }, lr: 3e-4 },
+];
+const race = { nets: null, out: [], prev: [], mseRT: [], rbMse: [], hist: [[], [], []], mse: [NaN, NaN, NaN], lastRender: 0, fade: { t0: 0, dur: 60 }, lastMse: 0, need: true,
+  specRT: null, rbSpec: null, lastSpec: 0, curves: null, tCurve: null, tCurveV: -1, spf: 2 };
+function ensureRace() {
+  if (race.nets) return;
+  race.nets = RACERS.map((r) => new GPUNet(Object.assign({ depth: 3, width: 64, m: MF_DEFAULT, sigma: state.sigma, seed: 21 }, r.o)));
+  race.out = RACERS.map(() => rt(256, 256, gl.RGBA8, 'linear'));
+  race.prev = RACERS.map(() => rt(256, 256, gl.RGBA8, 'linear'));
+  if (GPU_TRAIN) { race.mseRT = RACERS.map(() => rt(16, 16, gl.RGBA32F)); race.rbMse = RACERS.map(() => Readback(1024)); }
+  race.specRT = rt(128 * 3, 128, gl.RGBA8, 'nearest');
+  race.rbSpec = Readback(128 * 128 * 3 * 4, true);
+  raceRestart();
+}
+function raceRestart() {
+  if (!race.nets) return;
+  race.nets.forEach((n) => n.reset(21));
+  race.hist = [[], [], []]; race.mse = [NaN, NaN, NaN]; race.need = true; race.curves = null;
+}
+function raceRebuildFF() {
+  if (!race.nets) return;
+  race.nets[1].dispose();
+  race.nets[1] = new GPUNet(Object.assign({ depth: 3, width: 64, m: MF_DEFAULT, sigma: state.sigma, seed: 21 }, RACERS[1].o));
+  raceRestart();
+}
+function raceTrain() {
+  if (!GPU_TRAIN || ch.paused) return 0;
+  const n = Math.max(1, Math.round(train.spf / 3));
+  for (let i = 0; i < n; i++) {
+    const seed = (seedBase + (seedCounter++)) | 0;
+    for (let k = 0; k < 3; k++) race.nets[k].step(state.batch, RACERS[k].lr, targetTex, seed);
+  }
+  return n;
+}
+function raceRender(now) {
+  if (race.need || (!ch.paused && now - race.lastRender >= 60)) {
+    for (let k = 0; k < 3; k++) { const t = race.prev[k]; race.prev[k] = race.out[k]; race.out[k] = t; race.nets[k].render(race.out[k].fbo, 0, 0, 256, 256, [-1, -1, 2, 2]); }
+    race.fade.dur = race.need ? 1 : Math.min(140, Math.max(30, now - race.lastRender)); race.fade.t0 = now; race.lastRender = now; race.need = false;
+    if (GPU_TRAIN && now - race.lastMse > 220 && !race.rbMse.some((r) => r.busy)) {
+      race.lastMse = now;
+      const p = dp.mse; gl.useProgram(p);
+      for (let k = 0; k < 3; k++) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, race.mseRT[k].fbo); gl.viewport(0, 0, 16, 16);
+        ut(p, 'uOut', race.out[k].tex, 0); ut(p, 'uT', targetTex, 1); ui(p, 'uRes', 256); drawTri();
+        race.rbMse[k].request(race.mseRT[k].fbo, 0, 0, 16, 16, { net: race.nets[k], version: race.nets[k].version, step: race.nets[k].steps });
+      }
+    }
+  }
+  // spectra: render each contender at 128² and read the bytes back
+  if (LY.spec && now - race.lastSpec > 700 && !race.rbSpec.busy) {
+    race.lastSpec = now;
+    for (let k = 0; k < 3; k++) race.nets[k].render(race.specRT.fbo, k * 128, 0, 128, 128, [-1, -1, 2, 2]);
+    race.rbSpec.request(race.specRT.fbo, 0, 0, 384, 128, { v: race.nets.map((n) => n.version).join(',') });
+  }
+  for (let k = 0; k < 3; k++) {
+    const r = race.rbMse[k] && race.rbMse[k].poll();
+    if (r && r.tag.net === race.nets[k] && r.tag.version === race.nets[k].version) {
+      let sum = 0; for (let i = 0; i < 256; i++) sum += r.data[i * 4];
+      const mse = sum / (3 * 256 * 256);
+      if (isFinite(mse)) { race.mse[k] = mse; race.hist[k].push([Math.max(1, r.tag.step), mse]); if (race.hist[k].length > 600) race.hist[k].shift(); }
+      else { race.nets[k].reset(21 + k); }
+    }
+  }
+  const rs = race.rbSpec.poll();
+  if (rs && rs.tag.v === race.nets.map((n) => n.version).join(',')) {
+    const px = rs.data, lum = new Float64Array(128 * 128);
+    race.curves = [0, 1, 2].map((k) => {
+      for (let j = 0; j < 128; j++) for (let i = 0; i < 128; i++) { const q = (j * 384 + k * 128 + i) * 4; lum[j * 128 + i] = (0.299 * px[q] + 0.587 * px[q + 1] + 0.114 * px[q + 2]) / 255; }
+      return radialSpectrum(lum, 128);
+    });
+  }
+  if (race.tCurveV !== targetVersion) {
+    race.tCurveV = targetVersion;
+    const tp = getTargetPixels(), lum = new Float64Array(128 * 128), f = TS / 128;
+    for (let j = 0; j < 128; j++) for (let i = 0; i < 128; i++) {
+      const q = (Math.floor((127 - j + 0.5) * f) * TS + Math.floor((i + 0.5) * f)) * 4;
+      lum[j * 128 + i] = (0.299 * tp[q] + 0.587 * tp[q + 1] + 0.114 * tp[q + 2]) / 255;
+    }
+    race.tCurve = radialSpectrum(lum, 128);
+  }
+}
+/* 2-D FFT (radix 2) and the radially averaged power spectrum of a Hann-windowed image */
+const fftTmp = { re: new Float64Array(128), im: new Float64Array(128) };
+function fft1(re, im, n) {
+  for (let i = 1, j = 0; i < n; i++) { let bit = n >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit; if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; } }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let k = 0; k < len / 2; k++) {
+        const a = i + k, b = a + len / 2, xr = re[b] * cr - im[b] * ci, xi = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - xr; im[b] = im[a] - xi; re[a] += xr; im[a] += xi;
+        const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t;
+      }
+    }
+  }
+}
+function radialSpectrum(img, n) {
+  const re = new Float64Array(n * n), im = new Float64Array(n * n);
+  let mean = 0; for (let i = 0; i < n * n; i++) mean += img[i]; mean /= n * n;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const w = (0.5 - 0.5 * Math.cos(2 * Math.PI * (i + 0.5) / n)) * (0.5 - 0.5 * Math.cos(2 * Math.PI * (j + 0.5) / n)); re[j * n + i] = (img[j * n + i] - mean) * w; }
+  const R = fftTmp.re, I = fftTmp.im;
+  for (let j = 0; j < n; j++) { for (let i = 0; i < n; i++) { R[i] = re[j * n + i]; I[i] = im[j * n + i]; } fft1(R, I, n); for (let i = 0; i < n; i++) { re[j * n + i] = R[i]; im[j * n + i] = I[i]; } }
+  for (let i = 0; i < n; i++) { for (let j = 0; j < n; j++) { R[j] = re[j * n + i]; I[j] = im[j * n + i]; } fft1(R, I, n); for (let j = 0; j < n; j++) { re[j * n + i] = R[j]; im[j * n + i] = I[j]; } }
+  const bins = new Float64Array(n / 2), cnt = new Float64Array(n / 2);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const kx = i <= n / 2 ? i : i - n, ky = j <= n / 2 ? j : j - n, k = Math.round(Math.hypot(kx, ky));
+    if (k >= 1 && k < n / 2) { bins[k] += re[j * n + i] * re[j * n + i] + im[j * n + i] * im[j * n + i]; cnt[k]++; }
+  }
+  for (let k = 1; k < n / 2; k++) bins[k] = cnt[k] ? bins[k] / cnt[k] : 0;
+  return bins;
+}
+function drawSpectrum(c) {
+  const d = LY.spec; if (!d) return;
+  c.font = `600 10px ${MONO}`; c.textAlign = 'left'; c.fillStyle = 'rgba(236,230,214,0.78)';
+  c.fillText('POWER SPECTRUM OF EACH PAINTING', d.x, d.y);
+  c.font = `500 9.5px ${MONO}`; c.fillStyle = 'rgba(94,100,121,1)';
+  c.fillText('radial average · log–log · detail lives on the right', d.x, d.y + 14);
+  const pl = d.x + 40, pr = d.x + d.w - 8, pt = d.y + 30, pb = d.y + d.h - 34;
+  if (pb - pt < 40) return;
+  const kMin = 1, kMax = 63, tx = (k) => pl + (Math.log(k) - Math.log(kMin)) / (Math.log(kMax) - Math.log(kMin)) * (pr - pl);
+  const all = [race.tCurve].concat(race.curves || []).filter(Boolean);
+  let hi = -Infinity; all.forEach((b) => { for (let k = 1; k < 64; k++) if (b[k] > 0) hi = Math.max(hi, Math.log10(b[k])); });
+  if (!isFinite(hi)) return;
+  hi = Math.ceil(hi); const lo = hi - 7;
+  const ty = (v) => pb - (U.clamp(Math.log10(Math.max(v, 1e-30)), lo, hi) - lo) / (hi - lo) * (pb - pt);
+  c.strokeStyle = 'rgba(236,230,214,0.08)'; c.lineWidth = 1; c.fillStyle = 'rgba(94,100,121,1)'; c.font = `500 9px ${MONO}`;
+  c.textAlign = 'center';
+  [1, 2, 4, 8, 16, 32, 63].forEach((k) => { const x = tx(k); c.beginPath(); c.moveTo(x, pt); c.lineTo(x, pb); c.stroke(); c.fillText(String(k === 63 ? 64 : k), x, pb + 12); });
+  c.fillText('cycles across the image →', (pl + pr) / 2, pb + 25);
+  c.textAlign = 'right';
+  for (let e = lo; e <= hi; e += 2) { const y = ty(Math.pow(10, e)); c.beginPath(); c.moveTo(pl, y); c.lineTo(pr, y); c.stroke(); c.fillText('10' + FMT.sup(e), pl - 4, y + 3); }
+  const line = (b, col, w, dash) => { c.strokeStyle = col; c.lineWidth = w; c.setLineDash(dash || []); c.beginPath(); for (let k = 1; k < 64; k++) { const x = tx(k), y = ty(b[k]); k === 1 ? c.moveTo(x, y) : c.lineTo(x, y); } c.stroke(); c.setLineDash([]); };
+  if (race.tCurve) line(race.tCurve, 'rgba(236,230,214,0.85)', 1.6, [4, 3]);
+  if (race.curves) race.curves.forEach((b, k) => line(b, RACERS[k].col, 1.5));
+  // legend
+  let lx = pl + 4; c.textAlign = 'left'; c.font = `500 9.5px ${MONO}`;
+  [['target', 'rgba(236,230,214,0.85)']].concat(RACERS.map((r) => [r.short, r.col])).forEach(([n, col]) => { c.fillStyle = col; c.fillRect(lx, pt + 4, 10, 2); c.fillText(n, lx + 14, pt + 8); lx += c.measureText(n).width + 26; });
+}
+
+
+/* =====================================================================
+   III · DECIDING: a small classifier learns a boundary in the plane
+   (double precision, full-batch Adam, binary cross-entropy, on the CPU)
+   ===================================================================== */
+const CLS = [{ name: 'amber', col: '#ffb35c', rgb: [255, 179, 92] }, { name: 'cyan', col: ERA, rgb: [126, 240, 255] }];
+const dec = { set: 'spiral', noise: 0.08, depth: 2, width: 8, act: 'tanh', lr: 0.03, add: 1, pts: [], net: null, epoch: 0, loss: NaN, acc: NaN, hist: [],
+  G: 72, grid: null, img: null, imgCv: document.createElement('canvas'), nImg: [], nCv: [], lastN: 0, seed: 3 };
+function decData(kind, noise, seed) {
+  const R = U.rng(seed), g = () => U.gauss(R), pts = [];
+  const N = 220;
+  for (let i = 0; i < N; i++) {
+    let x, y, c;
+    if (kind === 'spiral') { c = i % 2; const t = (i >> 1) / (N / 2) * 3.4 * Math.PI + 0.3, r = 0.06 + 0.88 * (t / (3.4 * Math.PI + 0.3)), a = t + c * Math.PI; x = r * Math.cos(a) + g() * noise; y = r * Math.sin(a) + g() * noise; }
+    else if (kind === 'circle') { c = i % 2; const a = R() * 2 * Math.PI, r = c ? R() * 0.42 : 0.62 + R() * 0.3; x = r * Math.cos(a) + g() * noise; y = r * Math.sin(a) + g() * noise; }
+    else if (kind === 'xor') { x = R() * 1.8 - 0.9; y = R() * 1.8 - 0.9; if (Math.abs(x) < 0.06) x += Math.sign(x || 1) * 0.06; if (Math.abs(y) < 0.06) y += Math.sign(y || 1) * 0.06; c = x * y > 0 ? 1 : 0; x += g() * noise; y += g() * noise; }
+    else { c = i % 2; x = (c ? 0.4 : -0.4) + g() * (0.22 + noise); y = (c ? 0.35 : -0.35) + g() * (0.22 + noise); }
+    pts.push({ x: U.clamp(x, -1, 1), y: U.clamp(y, -1, 1), c });
+  }
+  return pts;
+}
+function decMakeNet() {
+  const sizes = [2]; for (let l = 0; l < dec.depth; l++) sizes.push(dec.width); sizes.push(1);
+  const R = U.rng(dec.seed * 101 + 7), Wm = [], Bv = [];
+  for (let l = 0; l < sizes.length - 1; l++) {
+    const nin = sizes[l], nout = sizes[l + 1], a = Math.sqrt(6 / (nin + nout)) * (dec.act === 'relu' ? Math.SQRT2 : 1);
+    const w = new Float64Array(nin * nout); for (let i = 0; i < w.length; i++) w[i] = (R() * 2 - 1) * a;
+    Wm.push(w); Bv.push(new Float64Array(nout).fill(dec.act === 'relu' ? 0.01 : 0));
+  }
+  const zeros = (arr) => arr.map((a) => new Float64Array(a.length));
+  dec.net = { sizes, W: Wm, B: Bv, mW: zeros(Wm), vW: zeros(Wm), mB: zeros(Bv), vB: zeros(Bv), gW: zeros(Wm), gB: zeros(Bv), t: 0,
+    A: sizes.map((n) => new Float64Array(n)), Zs: sizes.map((n) => new Float64Array(n)), D: sizes.map((n) => new Float64Array(n)) };
+  dec.epoch = 0; dec.hist = []; dec.loss = NaN; dec.acc = NaN; dec.chimed = false;
+}
+const dAct = (z) => (dec.act === 'relu' ? (z > 0 ? z : 0) : Math.tanh(z));
+const dDer = (z, a) => (dec.act === 'relu' ? (z > 0 ? 1 : 0) : 1 - a * a);
+function decForward(x, y) {
+  const n = dec.net, L = n.sizes.length - 1; n.A[0][0] = x; n.A[0][1] = y;
+  for (let l = 0; l < L; l++) {
+    const nin = n.sizes[l], nout = n.sizes[l + 1], w = n.W[l], b = n.B[l], a = n.A[l];
+    for (let j = 0; j < nout; j++) { let z = b[j]; for (let i = 0; i < nin; i++) z += w[j * nin + i] * a[i]; n.Zs[l + 1][j] = z; n.A[l + 1][j] = l === L - 1 ? z : dAct(z); }
+  }
+  const z = n.A[L][0]; return 1 / (1 + Math.exp(-U.clamp(z, -30, 30)));
+}
+function decStep() {
+  const n = dec.net, L = n.sizes.length - 1, P = dec.pts; if (!P.length) return;
+  n.gW.forEach((g) => g.fill(0)); n.gB.forEach((g) => g.fill(0));
+  let loss = 0, ok = 0;
+  for (const p of P) {
+    const q = decForward(p.x, p.y);
+    loss += -(p.c ? Math.log(Math.max(q, 1e-12)) : Math.log(Math.max(1 - q, 1e-12)));
+    if ((q > 0.5 ? 1 : 0) === p.c) ok++;
+    n.D[L][0] = (q - p.c) / P.length; // dBCE/dz for a sigmoid output
+    for (let l = L - 1; l >= 0; l--) {
+      const nin = n.sizes[l], nout = n.sizes[l + 1], w = n.W[l], gw = n.gW[l], gb = n.gB[l], a = n.A[l], d = n.D[l + 1];
+      for (let j = 0; j < nout; j++) { gb[j] += d[j]; for (let i = 0; i < nin; i++) gw[j * nin + i] += d[j] * a[i]; }
+      if (l > 0) for (let i = 0; i < nin; i++) { let s = 0; for (let j = 0; j < nout; j++) s += w[j * nin + i] * d[j]; n.D[l][i] = s * dDer(n.Zs[l][i], a[i]); }
+    }
+  }
+  n.t++;
+  const b1 = 0.9, b2 = 0.999, c1 = 1 - Math.pow(b1, n.t), c2 = 1 - Math.pow(b2, n.t);
+  const upd = (p, g, m, v) => { for (let i = 0; i < p.length; i++) { m[i] = b1 * m[i] + (1 - b1) * g[i]; v[i] = b2 * v[i] + (1 - b2) * g[i] * g[i]; p[i] -= dec.lr * (m[i] / c1) / (Math.sqrt(v[i] / c2) + 1e-8); } };
+  for (let l = 0; l < L; l++) { upd(n.W[l], n.gW[l], n.mW[l], n.vW[l]); upd(n.B[l], n.gB[l], n.mB[l], n.vB[l]); }
+  dec.loss = loss / P.length; dec.acc = ok / P.length; dec.epoch++;
+  if (dec.acc >= 0.99 && !dec.chimed) { dec.chimed = true; chime(5, 0.1); }
+  if (!isFinite(dec.loss)) { dec.seed++; decMakeNet(); ch.toast('The classifier diverged. Weights reset.'); }
+}
+function decFields(now) {
+  const G = dec.G, n = dec.net;
+  if (!dec.img || dec.img.width !== G) { dec.imgCv.width = dec.imgCv.height = G; dec.img = dec.imgCv.getContext('2d').createImageData(G, G); dec.grid = new Float32Array(G * G); }
+  const d = dec.img.data, A = CLS[0].rgb, B = CLS[1].rgb;
+  for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) {
+    const x = (i + 0.5) / G * 2 - 1, y = 1 - (j + 0.5) / G * 2, q = decForward(x, y), k = (j * G + i) * 4;
+    dec.grid[j * G + i] = q;
+    const t = Math.abs(q - 0.5) * 2, c = q > 0.5 ? B : A, e = 0.03 + 0.2 * Math.pow(t, 1.3);
+    d[k] = 6 + c[0] * e; d[k + 1] = 7 + c[1] * e; d[k + 2] = 14 + c[2] * e; d[k + 3] = 255;
+  }
+  dec.imgCv.getContext('2d').putImageData(dec.img, 0, 0);
+  // what each neuron sees, at 24² (plus the two inputs and the output)
+  if (now - dec.lastN < 90) return;
+  dec.lastN = now;
+  const S = 24, L = n.sizes.length - 1; let idx = 0;
+  const need = n.sizes.reduce((a, b) => a + b, 0);
+  while (dec.nCv.length < need) { const cv = document.createElement('canvas'); cv.width = cv.height = S; dec.nCv.push(cv); dec.nImg.push(cv.getContext('2d').createImageData(S, S)); }
+  const vals = new Float64Array(need * S * S);
+  for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+    const x = (i + 0.5) / S * 2 - 1, y = 1 - (j + 0.5) / S * 2; decForward(x, y);
+    let o = 0; for (let l = 0; l <= L; l++) for (let u = 0; u < n.sizes[l]; u++) { vals[(o++) * S * S + j * S + i] = l === L ? 1 / (1 + Math.exp(-n.A[l][u])) - 0.5 : n.A[l][u]; }
+  }
+  for (let u = 0; u < need; u++) {
+    let mx = 1e-6; for (let q = 0; q < S * S; q++) mx = Math.max(mx, Math.abs(vals[u * S * S + q]));
+    const im = dec.nImg[u].data;
+    for (let q = 0; q < S * S; q++) { const v = vals[u * S * S + q] / mx, c = v >= 0 ? B : A, e = 0.06 + 0.8 * Math.pow(Math.abs(v), 0.9); im[q * 4] = 6 + c[0] * e; im[q * 4 + 1] = 7 + c[1] * e; im[q * 4 + 2] = 14 + c[2] * e; im[q * 4 + 3] = 255; }
+    dec.nCv[u].getContext('2d').putImageData(dec.nImg[u], 0, 0);
+  }
+}
+function drawDecide(c, now) {
+  const P = LY.plot; if (!P) return;
+  // field
+  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+  c.drawImage(dec.imgCv, P.x, P.y, P.s, P.s);
+  c.strokeStyle = 'rgba(236,230,214,0.28)'; c.lineWidth = 1; c.strokeRect(P.x - 0.5, P.y - 0.5, P.s + 1, P.s + 1);
+  // faint axes
+  c.strokeStyle = 'rgba(236,230,214,0.07)'; c.beginPath();
+  for (let k = -1; k <= 1; k += 0.5) { const x = P.x + (k * 0.5 + 0.5) * P.s, y = P.y + (0.5 - k * 0.5) * P.s; c.moveTo(x, P.y); c.lineTo(x, P.y + P.s); c.moveTo(P.x, y); c.lineTo(P.x + P.s, y); }
+  c.stroke();
+  // decision boundary p = 0.5 (marching squares on the grid)
+  const G = dec.G, gr = dec.grid, cell = P.s / G;
+  if (gr) {
+    c.strokeStyle = 'rgba(255,255,255,0.9)'; c.lineWidth = 1.4; c.beginPath();
+    const lerp = (a, b) => (0.5 - a) / (b - a);
+    for (let j = 0; j < G - 1; j++) for (let i = 0; i < G - 1; i++) {
+      const a = gr[j * G + i], b = gr[j * G + i + 1], d2 = gr[(j + 1) * G + i], e = gr[(j + 1) * G + i + 1];
+      const pts = [];
+      if ((a > 0.5) !== (b > 0.5)) pts.push([i + lerp(a, b), j]);
+      if ((b > 0.5) !== (e > 0.5)) pts.push([i + 1, j + lerp(b, e)]);
+      if ((d2 > 0.5) !== (e > 0.5)) pts.push([i + lerp(d2, e), j + 1]);
+      if ((a > 0.5) !== (d2 > 0.5)) pts.push([i, j + lerp(a, d2)]);
+      for (let k = 0; k + 1 < pts.length; k += 2) { c.moveTo(P.x + (pts[k][0] + 0.5) * cell, P.y + (pts[k][1] + 0.5) * cell); c.lineTo(P.x + (pts[k + 1][0] + 0.5) * cell, P.y + (pts[k + 1][1] + 0.5) * cell); }
+    }
+    c.stroke();
+  }
+  // points
+  for (const p of dec.pts) {
+    const x = P.x + (p.x * 0.5 + 0.5) * P.s, y = P.y + (0.5 - p.y * 0.5) * P.s;
+    c.fillStyle = CLS[p.c].col; c.strokeStyle = 'rgba(5,6,12,0.9)'; c.lineWidth = 1.5;
+    c.beginPath(); c.arc(x, y, p.user ? 5 : 3.6, 0, 7); c.fill(); c.stroke();
+    if (p.user) { c.strokeStyle = 'rgba(255,255,255,0.8)'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, 7.5, 0, 7); c.stroke(); }
+  }
+  // labels
+  c.font = `600 10px ${MONO}`; c.textAlign = 'left'; c.fillStyle = 'rgba(236,230,214,0.78)';
+  c.fillText('DECISION FIELD  p(cyan | x, y)', P.x, P.y - 8);
+  c.textAlign = 'right'; c.fillStyle = 'rgba(94,100,121,1)'; c.font = `500 9.5px ${MONO}`;
+  const hint = isSmall() ? 'tap to add a point' : 'click adds a point · shift-click the other colour';
+  if (c.measureText(hint).width < P.s - 200) c.fillText(hint, P.x + P.s, P.y - 8);
+  drawDecDiagram(c);
+}
+function drawDecDiagram(c) {
+  const d = LY.ddiag, n = dec.net; if (!d || !n || !dec.nCv.length) return;
+  const L = n.sizes.length - 1, ncol = L + 1;
+  c.font = `600 10px ${MONO}`; c.textAlign = 'left'; c.fillStyle = 'rgba(236,230,214,0.78)'; c.fillText('NEURON BY NEURON', d.x, d.y);
+  c.font = `500 9.5px ${MONO}`; c.fillStyle = 'rgba(94,100,121,1)'; c.fillText('each square: one neuron, whole plane', d.x, d.y + 14);
+  const top = d.y + 30, h = d.h - 50, x0 = d.x, x1 = d.x + d.w;
+  const vert = d.w > d.h * 1.6; // wide, short region: layers run top to bottom
+  const maxN = Math.max.apply(null, n.sizes);
+  let T, pos;
+  if (vert) {
+    const rowH = (h + 16) / ncol;
+    T = Math.max(10, Math.min(34, rowH * 0.52, (d.w - 6 * (maxN - 1)) / (maxN * 1.35)));
+    pos = n.sizes.map((cnt, l) => { const y = top + l * rowH; const gap = T + Math.min(14, T * 0.5); const x0r = d.x + d.w / 2 - (gap * (cnt - 1) + T) / 2; return Array.from({ length: cnt }, (_, k) => [x0r + k * gap, y]); });
+  } else {
+    T = Math.max(10, Math.min(34, (h - 4 * (maxN - 1)) / maxN, (x1 - x0) / ncol * 0.62));
+    pos = n.sizes.map((cnt, l) => { const x = x0 + (x1 - x0 - T) * (l / (ncol - 1)); const gap = Math.min(T + 8, (h - T) / Math.max(1, cnt - 1)); const y0 = top + h / 2 - (gap * (cnt - 1) + T) / 2; return Array.from({ length: cnt }, (_, k) => [x, y0 + k * gap]); });
+  }
+  // edges
+  for (let l = 0; l < L; l++) {
+    const nin = n.sizes[l], nout = n.sizes[l + 1], w = n.W[l]; let mx = 1e-6; for (let i = 0; i < w.length; i++) mx = Math.max(mx, Math.abs(w[i]));
+    for (let j = 0; j < nout; j++) for (let i = 0; i < nin; i++) {
+      const v = w[j * nin + i] / mx, a = pos[l][i], b = pos[l + 1][j];
+      const av = Math.abs(v), al = 0.05 + 0.6 * Math.pow(av, 1.5);
+      c.strokeStyle = v >= 0 ? `rgba(126,240,255,${al})` : `rgba(255,179,92,${al})`;
+      c.lineWidth = 0.4 + 1.8 * av;
+      c.beginPath();
+      if (vert) { const ax = a[0] + T / 2, ay = a[1] + T, bx = b[0] + T / 2, by = b[1], ym = (ay + by) / 2; c.moveTo(ax, ay); c.bezierCurveTo(ax, ym, bx, ym, bx, by); }
+      else { const ax = a[0] + T, ay = a[1] + T / 2, bx = b[0], by = b[1] + T / 2, xm = (ax + bx) / 2; c.moveTo(ax, ay); c.bezierCurveTo(xm, ay, xm, by, bx, by); }
+      c.stroke();
+    }
+  }
+  // neuron tiles
+  c.imageSmoothingEnabled = true;
+  let u = 0;
+  n.sizes.forEach((cnt, l) => { for (let k = 0; k < cnt; k++) { const [x, y] = pos[l][k]; const tcv = dec.nCv[u++]; if (tcv) c.drawImage(tcv, x, y, T, T); c.strokeStyle = l === L ? 'rgba(236,230,214,0.6)' : 'rgba(236,230,214,0.2)'; c.lineWidth = 1; c.strokeRect(x - 0.5, y - 0.5, T + 1, T + 1); } });
+  c.fillStyle = 'rgba(151,157,178,0.95)'; c.font = `500 9.5px ${MONO}`; c.textAlign = 'center';
+  n.sizes.forEach((cnt, l) => { const lab = l === 0 ? 'x, y' : l === L ? 'output' : 'layer ' + l;
+    if (vert) { const p0 = pos[l][0]; c.textAlign = 'right'; c.fillText(lab, p0[0] - 10, p0[1] + T / 2 + 3); }
+    else { const [x] = pos[l][0]; c.fillText(lab, x + T / 2, top + h + 4); } });
+}
+function decAddPoint(clientX, clientY, other) {
+  const P = LY.plot;
+  const x = ((clientX - P.x) / P.s) * 2 - 1, y = 1 - ((clientY - P.y) / P.s) * 2;
+  if (Math.abs(x) > 1 || Math.abs(y) > 1) return false;
+  dec.pts.push({ x, y, c: other ? 1 - dec.add : dec.add, user: true });
+  return true;
+}
+
+
+/* ------------------------------------------------------ race: display */
+function raceCell(k) { const R = LY.race; return { x: R.x + (k % 2) * (R.s + R.gap), y: R.y + Math.floor(k / 2) * (R.s + R.gap + R.lab), s: R.s }; }
+function compositeRace() {
+  if (!race.nets) return;
+  const p = dp.frame; gl.useProgram(p);
+  const mix = U.clamp((performance.now() - race.fade.t0) / race.fade.dur, 0, 1);
+  ui(p, 'uNeuron', 0); ui(p, 'uTint', 0); uf(p, 'uFade', 1); u3(p, 'uEra', eraRGB[0], eraRGB[1], eraRGB[2]); u4(p, 'uZ', 0, 0, 1, 1); ui(p, 'uPix', 0);
+  ut(p, 'uT', targetTex, 0); if (neuRT) ut(p, 'uNeu', neuRT.tex, 2); if (statsRT) ut(p, 'uS', statsRT.tex, 3);
+  for (let k = 0; k < 4; k++) {
+    const c = raceCell(k); vp(c.x, c.y, c.s, c.s);
+    if (k === 0) { uf(p, 'uWipe', 1.01); ut(p, 'uN', race.out[0].tex, 1); ut(p, 'uN0', race.prev[0].tex, 4); }
+    else { uf(p, 'uWipe', -0.01); ut(p, 'uN', race.out[k - 1].tex, 1); ut(p, 'uN0', race.prev[k - 1].tex, 4); uf(p, 'uMix', mix); }
+    drawTri();
+  }
+}
+function drawRaceOverlay(c) {
+  if (!race.nets) return;
+  for (let k = 0; k < 4; k++) {
+    const r = raceCell(k), col = k ? RACERS[k - 1].col : '#ece6d6';
+    c.strokeStyle = k ? col : 'rgba(236,230,214,0.35)'; c.globalAlpha = k ? 0.55 : 1; c.lineWidth = 1; c.strokeRect(r.x - 0.5, r.y - 0.5, r.s + 1, r.s + 1); c.globalAlpha = 1;
+    c.font = `600 10px ${MONO}`; c.textAlign = 'left'; c.fillStyle = col;
+    c.fillText(k ? RACERS[k - 1].name.toUpperCase() : 'TARGET', r.x, r.y - 8);
+    if (k) {
+      const m = race.mse[k - 1]; c.textAlign = 'right'; c.fillStyle = 'rgba(236,230,214,0.8)'; c.font = `500 10px ${MONO}`;
+      c.fillText(isFinite(m) ? (-10 * Math.log10(m)).toFixed(1) + ' dB' : '—', r.x + r.s, r.y - 8);
+    } else {
+      c.textAlign = 'right'; c.fillStyle = 'rgba(94,100,121,1)'; c.font = `500 10px ${MONO}`;
+      c.fillText('step ' + race.nets[0].steps.toLocaleString('en-US'), r.x + r.s, r.y - 8);
+    }
+  }
+  drawSpectrum(c);
+}
+
+/* ------------------------------------------------------------ lesions */
+// Silencing neurons multiplies their output by zero in every forward pass and their gradient by zero in
+// every backward pass. Training pauses briefly so the damage is visible, then the survivors re-learn.
+function applyKeep(keep, kind) {
+  const net = paintNet, now = performance.now();
+  net.setKeep(keep);
+  if (cpuNet && cpuNet.keep.length === keep.length) cpuNet.keep.set(keep);
+  if (!GPU_TRAIN && cpuTrainer.worker) cpuTrainer.worker.postMessage({ type: 'keep', keep: Float32Array.from(keep) });
+  lesion.gen++;
+  needRender = true; if (hiRT) hiRT.ok = false; diag.dirty = true; lastAtlas = -1e9;
+  lesion.hold = now + (kind === 'one' ? 1100 : 1700);
+  const ev = lesion.ev;
+  if (!ev || ev.done || ev.kind !== kind) lesion.ev = { kind, before: ev && !ev.done && isFinite(ev.before) ? ev.before : train.psnr, worst: Infinity, step: net.steps, t: now, done: false };
+  else { ev.step = net.steps; ev.worst = Infinity; }
+  lesion.marks.push({ step: net.steps, kind });
+  if (lesion.marks.length > 40) lesion.marks.shift();
+  chime(kind === 'restore' ? 4 : 0, 0.09);
+  syncLesionUI();
+}
+function lesionToggle(idx) {
+  if (state.mode !== 'paint' || !paintNet) return;
+  const s = paintNet.spec, keep = paintNet.keep.slice();
+  const l = Math.floor(idx / s.W), j = idx % s.W, off = keep[idx] < 0.5;
+  if (!off) { let alive = 0; for (let k = 0; k < s.W; k++) alive += keep[l * s.W + k] > 0.5 ? 1 : 0; if (alive <= 1) { ch.toast('That is the last living neuron in layer ' + (l + 1) + '.'); return; } }
+  keep[idx] = off ? 1 : 0;
+  applyKeep(keep, off ? 'restore' : 'one');
+  if (!isSmall()) ch.toast(off ? `Neuron ${l + 1}·${j + 1} is back.` : `Neuron ${l + 1}·${j + 1} silenced. Move off the tile to see what it did.`, 2200);
+  else ch.toast(off ? `Neuron ${l + 1}·${j + 1} is back.` : `Neuron ${l + 1}·${j + 1} silenced.`, 1800);
+}
+function lesionRandom(frac) {
+  if (state.mode !== 'paint' || !paintNet) return;
+  const s = paintNet.spec, keep = paintNet.keep.slice(), R = U.rng(((Date.now() & 0xffff) ^ (lesion.gen * 977)) + 7);
+  let cut = 0;
+  for (let l = 0; l < s.L; l++) {
+    const alive = []; for (let j = 0; j < s.W; j++) if (keep[l * s.W + j] > 0.5) alive.push(j);
+    let n = Math.min(Math.round(s.W * frac), alive.length - 4);
+    for (; n > 0; n--) { const k = Math.floor(R() * alive.length); keep[l * s.W + alive[k]] = 0; alive.splice(k, 1); cut++; }
+  }
+  if (!cut) { ch.toast('Every layer is already down to its last four neurons.'); return; }
+  applyKeep(keep, 'cut');
+  hoverNeuron = -1; pin = -1;
+  ch.toast(`${cut} neurons silenced. Watch the painting crack, then heal.`, 3000);
+}
+function lesionRestore() {
+  if (state.mode !== 'paint' || !paintNet) return;
+  if (!paintNet.silenced()) { ch.toast('Every neuron is already alive.'); return; }
+  applyKeep(new Float32Array(paintNet.keep.length).fill(1), 'restore');
+  ch.toast('All neurons back. The others had rewired without them, so their return is a fresh shock.', 3600);
+}
+function onLesionPsnr(psnr, gen, now) {
+  const ev = lesion.ev; if (!ev || ev.done || gen !== lesion.gen) return;
+  if (now < lesion.hold + 150) { ev.worst = Math.min(ev.worst, psnr); return; }
+  ev.worst = Math.min(ev.worst, psnr);
+  if (!isFinite(ev.before) || !isFinite(ev.worst)) return;
+  const lost = ev.before - ev.worst;
+  // "healed" once 90 % of the lost decibels are back (fewer neurons may never quite reach the old score)
+  if ((lost > 0.4 && psnr >= ev.worst + 0.9 * lost) || (lost <= 0.4 && now > lesion.hold + 900)) {
+    ev.done = true; ev.doneT = now; ev.healSteps = paintNet.steps - ev.step; ev.healMs = now - lesion.hold; ev.after = psnr;
+    if (lost > 0.4) {
+      ch.toast(`Healed: ${psnr.toFixed(1)} dB again after ${ev.healSteps.toLocaleString('en-US')} steps (${(ev.healMs / 1000).toFixed(1)} s). It fell to ${ev.worst.toFixed(1)}.`, 3600);
+      chime(6, 0.08);
+    }
+  }
+}
+function lesionStatus(now) {
+  const s = paintNet.spec, n = paintNet.silenced(), tot = s.L * s.W, ev = lesion.ev;
+  if (ev && now < lesion.hold) return { col: '#ff5e7a', t: ev.kind === 'restore' ? `SURGERY · ${n ? n + ' OF ' + tot + ' SILENCED' : 'ALL ' + tot + ' NEURONS RESTORED'} · TRAINING PAUSED` : `SURGERY · ${n} OF ${tot} NEURONS SILENCED · TRAINING PAUSED` };
+  if (ev && !ev.done && isFinite(ev.before)) {
+    const w = isFinite(ev.worst) ? ev.worst.toFixed(1) : '…', c = isFinite(train.psnr) ? train.psnr.toFixed(1) : '…';
+    return { col: ERA, t: `HEALING · ${ev.before.toFixed(1)} dB → ${w} → ${c} dB` };
+  }
+  if (ev && ev.done && now - ev.doneT < 7000 && ev.before - ev.worst > 0.4) return { col: '#ece6d6', t: `90% HEALED IN ${ev.healSteps.toLocaleString('en-US')} STEPS · ${ev.before.toFixed(1)} → ${ev.worst.toFixed(1)} → ${ev.after.toFixed(1)} dB` };
+  if (n) return { col: 'rgba(255,94,122,0.85)', t: `${n} OF ${tot} NEURONS SILENCED` };
+  return null;
+}
+function syncLesionUI() {
+  if (!paintNet) return;
+  const s = paintNet.spec, n = paintNet.silenced(), ev = lesion.ev;
+  roLe.n.set(`${n} of ${s.L * s.W}`);
+  roLe.rec.set(!ev ? '—' : ev.done ? (ev.before - ev.worst > 0.4 ? ev.healSteps.toLocaleString('en-US') + ' steps' : 'no visible damage') : performance.now() < lesion.hold ? 'paused' : 'healing…');
+}
+
+/* ------------------------------------------------------------ replay */
+// a time-lapse of the film strip in the hero frame: each snapshot dissolves into the next
+const replay = { on: false, t0: 0, n: 0, i: 0, j: 0, f: 0, per: 900 };
+function replayToggle() {
+  if (state.mode !== 'paint') return;
+  if (replay.on) { replay.on = false; return; }
+  const n = snaps.list.filter((x) => x.done).length;
+  if (n < 3) { ch.toast('Let it learn a little longer: the replay needs a few snapshots.'); return; }
+  Object.assign(replay, { on: true, t0: performance.now(), n });
+}
+function stepReplay(now) {
+  if (!replay.on) return;
+  const u = (now - replay.t0) / replay.per, last = replay.n - 1;
+  if (u >= last + 1.2 || state.mode !== 'paint') { replay.on = false; return; }
+  const k = Math.min(last, Math.floor(u)), fr = u - k, e = U.smoothstep(0.55, 1, fr);
+  replay.i = k; replay.j = Math.min(last, k + 1); replay.f = k >= last ? 0 : e;
+}
+
+/* ------------------------------------------------------------ dive */
+let dive = null;
+const DIVE_AT = { starry: [0.12, -0.6], word: [-0.1, 0.02], owl: [-0.12, 0.2], earth: [0.05, 0.1], melon: [0, 0.05], card: [-0.05, 0.02], zone: [0.5, 0.5], draw: [0, 0] };
+const DIVE_Z = 12;
+function diveTo(z1, cx1, cy1, dur) {
+  dive = { t0: performance.now(), dur: dur || 2600, z0: view.zoom, z1, c0: [view.cx, view.cy], c1: [cx1, cy1] };
+}
+function beyondToggle() {
+  if (state.mode !== 'paint') return;
+  if (view.zoom < 0.9 || (dive && dive.z1 < 1)) { diveTo(1, 0, 0, 1400); return; }
+  state.wipe = 0.5; diveTo(ZMIN, 0, 0, 2400);
+  ch.toast('The bright square is all it was ever shown. Everything around it, the network makes up.', 4600);
+}
+function diveToggle() {
+  if (state.mode !== 'paint') return;
+  if (view.zoom > 1.5 || (dive && dive.z1 > 1) || view.zoom < 0.9) { diveTo(1, 0, 0, 1400); return; }
+  const a = DIVE_AT[state.target] || [0, 0];
+  state.wipe = Math.max(state.wipe, 0.5);
+  diveTo(DIVE_Z, a[0], a[1], 2800);
+  ch.toast('×12. The target is a grid of pixels. The network is a formula, so it has an answer for every point between them.', 4400);
+}
+function stepDive(now) {
+  if (!dive) return;
+  const u = U.clamp((now - dive.t0) / dive.dur, 0, 1), e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+  const z = Math.exp(Math.log(dive.z0) + (Math.log(dive.z1) - Math.log(dive.z0)) * e);
+  // zooming in: the destination point glides in a straight line on screen to the middle of the frame
+  view.zoom = z;
+  for (let k = 0; k < 2; k++) view[k ? 'cy' : 'cx'] = dive.z1 > dive.z0 ? dive.c1[k] - (dive.c1[k] - dive.c0[k]) * dive.z0 * (1 - e) / z : dive.c0[k] + (dive.c1[k] - dive.c0[k]) * e;
+  const lim = Math.max(0, 1 - 1 / z); view.cx = U.clamp(view.cx, -lim, lim); view.cy = U.clamp(view.cy, -lim, lim);
+  needRender = true; if (hiRT) hiRT.ok = false;
+  sldZoom.set(view.zoom);
+  if (u >= 1) dive = null;
+}
+
+/* ------------------------------------------------------- the whole mind */
+// every trainable number of the painter, drawn as one pixel: rows are neurons, columns their inputs (last: bias)
+const wv = { img: null, cv: document.createElement('canvas'), last: 0 };
+function drawWeights(force) {
+  const now = performance.now();
+  if (!cpuParams || !paintNet || (!force && now - wv.last < 240)) return;
+  if (!wCv.clientWidth) return;
+  wv.last = now;
+  const s = paintNet.spec, P = cpuParams, WT = s.WT, gap = 3;
+  const blocks = []; let totW = 0, maxH = 0;
+  for (let l = 0; l <= s.L; l++) { const kin = l === 0 ? (s.ff ? 2 * s.m : 2) : s.W, nout = l < s.L ? s.W : 3; blocks.push({ l, kin, nout, x: totW }); totW += kin + 1 + gap; maxH = Math.max(maxH, nout); }
+  totW -= gap;
+  if (!wv.img || wv.img.width !== totW || wv.img.height !== maxH) { wv.cv.width = totW; wv.cv.height = maxH; wv.img = wv.cv.getContext('2d').createImageData(totW, maxH); }
+  const d = wv.img.data; d.fill(0);
+  for (const b of blocks) {
+    let ss = 0, n = 0;
+    for (let j = 0; j < b.nout; j++) { const base = (s.rowOff[b.l] + j) * WT * 4; for (let i = 0; i < b.kin; i++) { const w = P[base + i]; ss += w * w; n++; } }
+    const sc = 1 / (2.2 * Math.sqrt(ss / Math.max(1, n)) + 1e-9);
+    for (let j = 0; j < b.nout; j++) {
+      const base = (s.rowOff[b.l] + j) * WT * 4, dead = b.l < s.L && paintNet.keep[b.l * s.W + j] < 0.5;
+      for (let i = 0; i <= b.kin; i++) {
+        const w = i < b.kin ? P[base + i] : P[base + s.kin4[b.l] * 4];
+        const v = U.clamp(w * sc, -1, 1), a = Math.pow(Math.abs(v), 0.7), q = ((j + (b.nout === 3 ? Math.floor((maxH - 3) / 2) : 0)) * totW + b.x + i) * 4;
+        if (dead) { d[q] = 70; d[q + 1] = 18; d[q + 2] = 30; }
+        else if (v >= 0) { d[q] = 6 + 120 * a; d[q + 1] = 8 + 232 * a; d[q + 2] = 16 + 239 * a; }
+        else { d[q] = 6 + 249 * a; d[q + 1] = 8 + 171 * a; d[q + 2] = 16 + 76 * a; }
+        d[q + 3] = 255;
+      }
+    }
+  }
+  wv.cv.getContext('2d').putImageData(wv.img, 0, 0);
+  const c = wCv, g = c.getContext('2d'), r = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.round(c.clientWidth * r), H = Math.round(c.clientHeight * r);
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  g.setTransform(r, 0, 0, r, 0, 0); const w = W / r, h = H / r; g.clearRect(0, 0, w, h);
+  const pad = 8;
+  const want = Math.round(pad + 14 + (w - 2 * pad) * maxH / totW + 16 + pad);
+  if (Math.abs(c.clientHeight - want) > 2) c.style.height = want + 'px';
+  g.font = `600 9px ${MONO}`; g.fillStyle = 'rgba(236,230,214,0.78)'; g.textAlign = 'left'; g.textBaseline = 'top';
+  g.fillText(`THE WHOLE NETWORK · ${s.params.toLocaleString('en-US')} NUMBERS`, pad, pad);
+  const top = pad + 14, bh = h - top - 16 - pad, scl = Math.min((w - 2 * pad) / totW, bh / maxH);
+  const ox = (w - totW * scl) / 2;
+  g.imageSmoothingEnabled = false; g.drawImage(wv.cv, ox, top, totW * scl, maxH * scl);
+  g.font = `500 8.5px ${MONO}`; g.fillStyle = 'rgba(151,157,178,0.9)'; g.textAlign = 'center';
+  blocks.forEach((b) => g.fillText(b.l === s.L ? 'rgb' : b.l === 0 ? (s.ff ? 'γ → h₁' : 'xy → h₁') : 'h' + String.fromCharCode(0x2080 + b.l) + ' → h' + String.fromCharCode(0x2081 + b.l), ox + (b.x + (b.kin + 1) / 2) * scl, top + maxH * scl + 3));
+}
+
+/* ------------------------------------------------------------ modes */
+const MODES = [['paint', 'I', 'Learning to paint'], ['race', 'II', 'The race'], ['decide', 'III', 'Deciding']];
+const modeBtns = {};
+const modesEl = Cosmos.h('nav', { class: 'ml-modes', 'aria-label': 'Chapter mode' }, MODES.map(([m, n, l]) => (modeBtns[m] = Cosmos.h('button', { class: 'ml-mode', type: 'button', 'aria-pressed': String(m === state.mode), title: l + ' (' + (MODES.findIndex((x) => x[0] === m) + 1) + ')', onclick: () => setMode(m) }, Cosmos.h('b', { text: n }), l))));
+document.body.append(modesEl);
+// the shared toast appears where the mode switch sits: step aside while it is showing
+(function () {
+  const t = document.querySelector('.cz-toast'); if (!t || typeof MutationObserver === 'undefined') return;
+  const sync = () => modesEl.classList.toggle('ml-hide', t.classList.contains('on') && !isSmall());
+  new MutationObserver(sync).observe(t, { attributes: true, attributeFilter: ['class'] }); sync();
+})();
+
+// race deck
+const gR = ch.ui.group('The race');
+gR.note('Three networks of the same size, 3 × 64 neurons, trained on exactly the same random pixels for the same number of steps. Only how each one sees (x, y) differs.');
+gR.buttons([{ label: 'Restart the race', kind: 'primary', onClick: () => { raceRestart(); ch.toast('Three fresh networks. Same data, same steps. Go.'); } }, { label: 'Zone plate', title: 'Race on a pattern whose frequency rises from the centre outward', onClick: () => { selTarget.set('zone', true); raceRestart(); } }]);
+const roRace = gR.readouts([{ id: 'raw', label: 'Raw ReLU' }, { id: 'ff', label: 'Fourier' }, { id: 'siren', label: 'SIREN' }, { id: 'step', label: 'Step' }]);
+const raceCv = gR.canvas(130);
+gR.note('<span class="ml-legend"><span><i style="background:#ffb35c"></i>ReLU on (x, y)</span><span><i style="background:#7ef0ff"></i>ReLU + γ(x)</span><span><i style="background:#b48cff"></i>SIREN</span></span>');
+
+// decide deck
+const gD1 = ch.ui.group('Dataset');
+const selSet = gD1.select({ id: 'ml-set', label: 'Two classes to separate', options: [{ value: 'spiral', label: 'Two spirals' }, { value: 'circle', label: 'Circle in a ring' }, { value: 'xor', label: 'Exclusive or (XOR)' }, { value: 'blobs', label: 'Two clouds' }], value: dec.set, onChange: (v) => { dec.set = v; dec.pts = decData(v, dec.noise, dec.seed); dec.seed++; decMakeNet(); } });
+gD1.slider({ id: 'ml-noise', label: 'Noise', min: 0, max: 0.3, step: 0.01, value: dec.noise, digits: 2, onChange: (v) => { dec.noise = v; dec.pts = decData(dec.set, v, dec.seed); } });
+const addBtns = gD1.buttons([
+  { label: 'Click adds amber', pressed: dec.add === 0, onClick: () => { dec.add = 0; addBtns[0].setPressed(true); addBtns[1].setPressed(false); } },
+  { label: 'Click adds cyan', pressed: dec.add === 1, onClick: () => { dec.add = 1; addBtns[0].setPressed(false); addBtns[1].setPressed(true); } },
+]);
+gD1.buttons([{ label: 'New data', onClick: () => { dec.seed++; dec.pts = decData(dec.set, dec.noise, dec.seed); } }, { label: 'Clear points', onClick: () => { dec.pts = []; } }]);
+const gD2 = ch.ui.group('Classifier');
+gD2.select({ id: 'ml-ddepth', label: 'Hidden layers', options: [1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) })), value: String(dec.depth), onChange: (v) => { dec.depth = +v; decMakeNet(); } });
+gD2.slider({ id: 'ml-dwidth', label: 'Neurons per layer', min: 1, max: 10, step: 1, value: dec.width, onChange: (v) => { dec.width = v; decMakeNet(); } });
+gD2.select({ id: 'ml-dact', label: 'Activation', options: [{ value: 'tanh', label: 'tanh z' }, { value: 'relu', label: 'ReLU  max(0, z)' }], value: dec.act, onChange: (v) => { dec.act = v; decMakeNet(); } });
+gD2.slider({ id: 'ml-dlr', label: 'Learning rate η', min: 1e-3, max: 0.3, value: dec.lr, log: true, onInput: (v) => { dec.lr = v; } });
+gD2.buttons([{ label: 'Reset weights', kind: 'primary', onClick: () => { dec.seed++; decMakeNet(); } }]);
+const gD3 = ch.ui.group('Progress');
+const roDec = gD3.readouts([{ id: 'epoch', label: 'Epoch' }, { id: 'loss', label: 'Loss (cross-entropy)' }, { id: 'acc', label: 'Accuracy' }, { id: 'n', label: 'Points' }]);
+const decCv = gD3.canvas(110);
+
+const groupsFor = { paint: [gT, gN, gTr, gLe, gP, gV], race: [gT, gR], decide: [gD1, gD2, gD3] };
+const allGroups = [gT, gN, gTr, gLe, gP, gV, gR, gD1, gD2, gD3];
+const hudLabel = (row, t) => { row.el.firstChild.textContent = t; };
+function setMode(m, quiet) {
+  if (!groupsFor[m]) return;
+  if (m === 'race' && !GPU_TRAIN) { ch.toast('The race trains three networks at once and needs float render targets, which this device lacks.', 4000); return; }
+  state.mode = m;
+  MODES.forEach(([k]) => modeBtns[k].setAttribute('aria-pressed', String(k === m)));
+  allGroups.forEach((g) => { g.el.style.display = groupsFor[m].indexOf(g) >= 0 ? '' : 'none'; });
+  hoverNeuron = -1; probe.user = false;
+  if (m === 'race') ensureRace();
+  if (m === 'decide' && !dec.net) { dec.pts = decData(dec.set, dec.noise, dec.seed); decMakeNet(); }
+  hudLabel(hudStep, m === 'decide' ? 'Epoch' : 'Step'); hudLabel(hudPsnr, m === 'decide' ? 'Accuracy' : 'PSNR'); hudLabel(hudPar, 'Parameters');
+  syncTargetUI();
+  updateLayout(false);
+  if (!quiet) ch.toast(m === 'paint' ? 'Learning to paint: one network, one picture' : m === 'race' ? 'Spectral bias: which network sees the detail?' : 'Deciding: a tiny network draws a boundary');
+}
+ch.onKey('r', () => {
+  if (state.mode === 'paint') { state.seed++; paintNet.reset(state.seed); onNetReset(paintNet); ch.toast('New random weights. Watch it learn from scratch.'); }
+  else if (state.mode === 'race') { raceRestart(); ch.toast('Three fresh networks. Same data, same steps. Go.'); }
+  else { dec.seed++; decMakeNet(); }
+}, 'Reset the weights and learn again');
+ch.onKey('l', () => { if (state.mode === 'paint') lesionRandom(0.25); }, 'Silence a quarter of the neurons (lesion)');
+ch.onKey('z', () => diveToggle(), 'Dive into the painting ×12, or back out');
+ch.onKey('b', () => beyondToggle(), 'Zoom out beyond the edge of the training data');
+ch.onKey('p', () => replayToggle(), 'Replay the learning as a time-lapse of snapshots');
+ch.onKey('1', () => setMode('paint'), 'Mode I · learning to paint');
+ch.onKey('2', () => setMode('race'), 'Mode II · the race');
+ch.onKey('3', () => setMode('decide'), 'Mode III · deciding');
+
+
+/* ------------------------------------------------------------ sound */
+// The sound of learning: a soft chord behind a low-pass filter that opens as the network improves.
+const snd = { nodes: null };
+function soundStart() {
+  const ctx = ch.sound.ensure(); if (!ctx || snd.nodes) return;
+  const out = ctx.createGain(); out.gain.value = 0; out.connect(ch.sound.out);
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 220; lp.Q.value = 3; lp.connect(out);
+  const oscs = [[110, 'sawtooth', 0.10], [164.81, 'triangle', 0.16], [220, 'sawtooth', 0.06], [246.94, 'triangle', 0.08], [329.63, 'sine', 0.06]].map(([f, type, g], i) => {
+    const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = (i - 2) * 4;
+    const gn = ctx.createGain(); gn.gain.value = g; o.connect(gn).connect(lp); o.start(); return o;
+  });
+  const lfo = ctx.createOscillator(); lfo.frequency.value = 0.07; const lg = ctx.createGain(); lg.gain.value = 60; lfo.connect(lg).connect(lp.frequency); lfo.start();
+  out.gain.setTargetAtTime(0.22, ctx.currentTime, 1.2);
+  snd.nodes = { out, lp, oscs: oscs.concat([lfo]) };
+}
+function soundStop() {
+  if (!snd.nodes) return; const ctx = ch.sound.ctx, n = snd.nodes; snd.nodes = null;
+  n.out.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+  setTimeout(() => { n.oscs.forEach((o) => { try { o.stop(); } catch (e) { /* already stopped */ } }); n.out.disconnect(); }, 1500);
+}
+function soundUpdate() {
+  if (!snd.nodes || !ch.sound.enabled) return;
+  const ctx = ch.sound.ctx; let q = 0;
+  if (state.mode === 'paint') q = isFinite(train.psnr) ? U.clamp((train.psnr - 12) / 16, 0, 1) : 0;
+  else if (state.mode === 'race') q = isFinite(race.mse[1]) ? U.clamp((-10 * Math.log10(race.mse[1]) - 12) / 16, 0, 1) : 0;
+  else q = isFinite(dec.acc) ? U.clamp((dec.acc - 0.5) * 2, 0, 1) : 0;
+  snd.nodes.lp.frequency.setTargetAtTime(160 * Math.pow(2, q * 4.6), ctx.currentTime, 0.4);
+  snd.nodes.out.gain.setTargetAtTime(ch.paused ? 0.05 : 0.22, ctx.currentTime, 0.4);
+}
+const PENTA = [440, 493.88, 554.37, 659.25, 739.99, 880, 987.77, 1108.73];
+function chime(i, vol) {
+  if (!snd.nodes || !ch.sound.enabled) return;
+  const ctx = ch.sound.ctx, t = ctx.currentTime, f = PENTA[i % PENTA.length];
+  [1, 2.76].forEach((m, k) => {
+    const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.value = f * m;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime((vol || 0.12) / (k ? 4 : 1), t + 0.01); g.gain.exponentialRampToValueAtTime(0.0005, t + (k ? 0.6 : 1.6));
+    o.connect(g).connect(ch.sound.out); o.start(t); o.stop(t + 1.7);
+  });
+}
+ch.onSound((on) => (on ? soundStart() : soundStop()));
+
+/* ------------------------------------------------------------- start */
+drawTarget();
+buildPaintNet(); syncArch();
+ensureRTs();
+updateLayout(true);
+setMode(state.mode, true);
+// a gentle introduction
+let touched = false;
+window.addEventListener('pointerdown', () => { touched = true; }, { once: true });
+window.addEventListener('keydown', () => { touched = true; }, { once: true });
+window.addEventListener('wheel', () => { touched = true; }, { once: true, passive: true });
+setTimeout(() => { if (state.mode === 'paint') ch.toast(paintNet.spec.params.toLocaleString('en-US') + ' random numbers are learning to paint this picture. Hover anything.', 3600); }, 1100);
+setTimeout(() => { if (!touched && state.mode === 'paint') { modeBtns.race.classList.add('ml-hint'); modeBtns.decide.classList.add('ml-hint'); } }, 16000);
+// if nobody has touched anything yet, stage one experiment: silence a quarter of the brain and let it heal
+setTimeout(() => {
+  if (touched || state.mode !== 'paint' || ch.paused || document.hidden || paintNet.silenced() || !isFinite(train.psnr) || /nodemo/.test(location.hash)) return;
+  lesionRandom(0.25);
+  ch.toast('Experiment: a quarter of the neurons just went silent. Watch the rest heal the painting. (Restore all is in the deck.)', 5200);
+}, 21000);
+ch.onResize(() => { updateLayout(false); ensureRTs(); });
+setInterval(() => updateLayout(false), 300);
+if (document.fonts && document.fonts.load) {
+  Promise.all([document.fonts.load('italic 600 100px "Bodoni Moda"'), document.fonts.load('600 20px "JetBrains Mono"')]).then(() => { if (state.target === 'word' || state.target === 'card') drawTarget(); }).catch(() => {});
+}
+
+let lastNow = performance.now(), roT = 0;
+const cpuT = Cosmos.debug.cpuT = {};
+const tm = (k, t0) => { cpuT[k] = (cpuT[k] || 0) * 0.95 + (performance.now() - t0) * 0.05; };
+ch.loop((dt, t) => {
+  const now = performance.now();
+  const raw = now - lastNow; lastNow = now;
+  frameMs = frameMs * 0.9 + Math.min(100, raw) * 0.1; frameRaw = Math.min(100, raw);
+  fitAll(); easeLayout(Math.min(0.1, raw / 1000));
+  let done = 0;
+  if (!ch.paused) govern();
+  { const q = performance.now(); rbPump(); tm('pump', q); }
+  if (state.mode === 'paint') {
+    updateProbe(raw / 1000);
+    stepDive(now); stepReplay(now);
+    let t0 = performance.now();
+    if (!DF.notrain) done = trainFrame(dt);
+    tm('train', t0); t0 = performance.now();
+    if (!DF.norb) { const q0 = performance.now(); readbacks(now); tm('poll', q0); const q1 = performance.now(); requestParams(now); tm('req', q1); }
+    tm('rb', t0); t0 = performance.now();
+    if (!DF.nooff) renderOffscreen(now);
+    tm('off', t0);
+  } else if (state.mode === 'race') {
+    done = raceTrain();
+    raceRender(now);
+  } else if (state.mode === 'decide') {
+    if (!ch.paused) { const k = Math.max(1, Math.min(3, train.spf)); for (let i = 0; i < k; i++) decStep(); done = k; if (dec.epoch % 10 < k) dec.hist.push([dec.epoch, dec.loss]); if (dec.hist.length > 500) dec.hist.splice(0, 100); }
+    decFields(now);
+  }
+  let t1 = performance.now();
+  prof.begin('composite');
+  if (!DF.nocomp) composite();
+  prof.end();
+  prof.poll();
+  tm('comp', t1); t1 = performance.now();
+  if (!DF.noov) drawOverlay();
+  tm('ov', t1);
+  spsAcc += done; spsT += raw / 1000;
+  if (spsT > 0.5) { train.stepsPerSec = spsAcc / spsT; spsAcc = 0; spsT = 0; }
+  roT += raw;
+  if (roT > 200) {
+    roT = 0;
+    cpuTrainerCfg();
+    soundUpdate();
+    if (!GPU_TRAIN) train.stepsPerSec = cpuTrainer.sps || 0;
+    const sps = ch.paused ? '—' : Math.round(train.stepsPerSec).toLocaleString('en-US');
+    hudSps.set(ch.paused ? 'paused' : sps + (state.mode === 'decide' ? ' epochs/s' : state.mode === 'race' ? ' steps/s × 3' : ' steps/s'));
+    if (state.mode === 'paint') {
+      const st = paintNet.steps;
+      hudStep.set(st.toLocaleString('en-US')); roTr.step.set(st.toLocaleString('en-US'));
+      roTr.sps.set(sps);
+      hudPsnr.set(isFinite(train.psnr) ? train.psnr.toFixed(1) + ' dB' : '—'); roTr.psnr.set(isFinite(train.psnr) ? train.psnr.toFixed(1) + ' dB' : '—');
+      roTr.loss.set(isFinite(train.mse) ? FMT.sci(train.mse, 3) : '—');
+      hudPar.set(paintNet.spec.params.toLocaleString('en-US'));
+      drawLossChart(lossCv, [{ data: train.history, color: ERA, label: 'MSE' }], { yLo: 1e-4, yHi: 1e-1, xLabel: 'step', marks: lesion.marks.map((m) => ({ step: m.step - snaps.base, kind: m.kind })) });
+      syncLesionUI();
+      { const out = view.zoom > 1.5 || (dive && dive.z1 > 1); if (btnDive.out !== out) { btnDive.out = out; btnDive[0].setLabel(out ? 'Back out to ×1' : 'Dive in ×12'); }
+        const bey = view.zoom < 0.9 || (dive && dive.z1 < 1); if (btnDive.bey !== bey) { btnDive.bey = bey; btnDive[1].setLabel(bey ? 'Back to the square' : 'Beyond the edge'); } }
+    } else if (state.mode === 'race' && race.nets) {
+      const st = race.nets[0].steps, pv = (k) => (isFinite(race.mse[k]) ? (-10 * Math.log10(race.mse[k])).toFixed(1) + ' dB' : '—');
+      hudStep.set(st.toLocaleString('en-US'));
+      hudPsnr.set(RACERS.map((r, k) => pv(k)).join(' · '));
+      hudPar.set(race.nets.map((n) => n.spec.params.toLocaleString('en-US')).join(' · '));
+      roRace.raw.set(pv(0)); roRace.ff.set(pv(1)); roRace.siren.set(pv(2)); roRace.step.set(st.toLocaleString('en-US'));
+      drawLossChart(raceCv, race.hist.map((h, k) => ({ data: h, color: RACERS[k].col, label: RACERS[k].short })), { yLo: 1e-4, yHi: 1e-1, xLabel: 'step' });
+    } else if (state.mode === 'decide' && dec.net) {
+      hudStep.set(dec.epoch.toLocaleString('en-US'));
+      hudPsnr.set(isFinite(dec.acc) ? (dec.acc * 100).toFixed(1) + ' %' : '—');
+      let np = 0; dec.net.W.forEach((w) => (np += w.length)); dec.net.B.forEach((b) => (np += b.length));
+      hudPar.set(String(np));
+      roDec.epoch.set(dec.epoch.toLocaleString('en-US')); roDec.loss.set(isFinite(dec.loss) ? dec.loss.toFixed(3) : '—');
+      roDec.acc.set(isFinite(dec.acc) ? (dec.acc * 100).toFixed(1) + ' %' : '—'); roDec.n.set(String(dec.pts.length));
+      drawLossChart(decCv, [{ data: dec.hist, color: ERA, label: 'loss' }], { yLo: 1e-3, yHi: 1, xLabel: 'epoch' });
+    }
+  }
+}, { always: true });
+
+/* ------------------------------------------------------------- debug */
+Cosmos.debug.state = () => ({
+  mode: state.mode, gpuTrain: GPU_TRAIN, step: paintNet.steps, stepsPerSec: Math.round(train.stepsPerSec), spf: train.spf,
+  batchLoss: train.lastLoss, mse: train.mse, psnr: train.psnr, params: paintNet.spec.params, arch: roParams.arch ? paintNet.spec.K0 + '/' + paintNet.spec.L + 'x' + paintNet.spec.W + ' ' + paintNet.spec.actName : '',
+  target: state.target, lr: state.lr, batch: state.batch, frameMs: +frameMs.toFixed(2), nanResets: train.nanResets, zoom: +view.zoom.toFixed(3),
+  silenced: paintNet.silenced(), lesion: lesion.ev ? { kind: lesion.ev.kind, before: +(+lesion.ev.before).toFixed(2), worst: +(+lesion.ev.worst).toFixed(2), done: lesion.ev.done, healSteps: lesion.ev.healSteps || null } : null, replay: replay.on,
+  race: race.nets ? { step: race.nets[0].steps, psnr: race.mse.map((m) => +(-10 * Math.log10(m)).toFixed(2)) } : null,
+  decide: dec.net ? { epoch: dec.epoch, loss: +dec.loss.toFixed(4), acc: dec.acc, points: dec.pts.length, set: dec.set } : null,
+});
+// gradient check: GPU batch gradient vs the CPU reference on the same random batch
+Cosmos.debug.gradCheck = (B, lesionFrac) => {
+  B = B || 256;
+  const net = new GPUNet({ depth: state.depth, width: state.width, act: state.act, ff: state.ff, m: MF_DEFAULT, sigma: state.sigma, seed: 77 });
+  const s = net.spec, seed = 4242;
+  const keep = new Float32Array(s.L * s.W).fill(1), KR = U.rng(9);
+  if (lesionFrac) for (let i = 0; i < keep.length; i++) if (KR() < lesionFrac) keep[i] = 0;
+  net.setKeep(keep);
+  net.step(B, 0, targetTex, seed); // lr = 0: params unchanged, gradient left in net.G
+  const G = new Float32Array(SPLITS * s.WT * s.R * 4);
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, net.G.fbo); gl.readPixels(0, 0, SPLITS * s.WT, s.R, gl.RGBA, gl.FLOAT, G); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+  const Dout = new Float32Array(B * 4);
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, net.Dout.fbo); gl.readPixels(0, 0, 1, B, gl.RGBA, gl.FLOAT, Dout); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+  const gpu = new Float32Array(s.WT * s.R * 4);
+  for (let r = 0; r < s.R; r++) for (let c = 0; c < s.WT; c++) for (let k = 0; k < 4; k++) { let a = 0; for (let sp = 0; sp < SPLITS; sp++) a += G[(r * SPLITS * s.WT + sp * s.WT + c) * 4 + k]; gpu[(r * s.WT + c) * 4 + k] = a; }
+  const cpu = CPU.make(s); cpu.P.set(net.initP); cpu.keep.set(keep);
+  const samp = CPU.sampler(getTargetPixels(), TS), x = [0, 0];
+  let lossC = 0, lossG = 0;
+  for (let b = 0; b < B; b++) { CPU.sampleX(b, seed, x); cpu.forward(x[0], x[1]); lossC += cpu.backward(samp(x[0], x[1]), 2 / (3 * B)); lossG += Dout[b * 4 + 3]; }
+  let num = 0, den = 0, maxRel = 0;
+  for (let i = 0; i < gpu.length; i++) { const d = gpu[i] - cpu.G[i]; num += d * d; den += cpu.G[i] * cpu.G[i]; }
+  net.dispose();
+  return { B, relErr: Math.sqrt(num / Math.max(den, 1e-30)), lossCPU: lossC / B, lossGPU: lossG / B, gradNorm: Math.sqrt(den) };
+};
+// hyper-parameter experiment: train a throwaway net synchronously, return full-image PSNR at checkpoints
+Cosmos.debug.experiment = (o) => {
+  o = Object.assign({ depth: state.depth, width: state.width, act: state.act, ff: state.ff, m: MF_DEFAULT, sigma: state.sigma, seed: 5, lr: state.lr, batch: state.batch, steps: 1000, checks: [100, 300, 1000] }, o);
+  const net = new GPUNet(o); const res = { cfg: o.act + ' ff=' + o.ff + ' s=' + o.sigma + ' lr=' + o.lr + ' B=' + o.batch + ' ' + o.depth + 'x' + o.width };
+  const tmp = rt(256, 256, gl.RGBA8, 'nearest'); const px = new Uint8Array(256 * 256 * 4);
+  const tp = getTargetPixels(); const t0 = performance.now();
+  const psnr = () => { net.render(tmp.fbo, 0, 0, 256, 256, [-1, -1, 2, 2]); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, tmp.fbo); gl.readPixels(0, 0, 256, 256, gl.RGBA, gl.UNSIGNED_BYTE, px); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+    let se = 0; for (let j = 0; j < 256; j++) for (let i = 0; i < 256; i++) { const ty = TS - 1 - Math.floor((j + 0.5) / 256 * TS), tx = Math.floor((i + 0.5) / 256 * TS); for (let k = 0; k < 3; k++) { const e = (px[(j * 256 + i) * 4 + k] - tp[(ty * TS + tx) * 4 + k]) / 255; se += e * e; } }
+    return +(-10 * Math.log10(se / (3 * 65536))).toFixed(2); };
+  for (let i = 1; i <= o.steps; i++) { net.step(o.batch, o.lr, targetTex, 1000 + i); if (o.checks.indexOf(i) >= 0) res['s' + i] = psnr(); }
+  res.ms = Math.round(performance.now() - t0);
+  gl.deleteFramebuffer(tmp.fbo); gl.deleteTexture(tmp.tex); net.dispose();
+  return JSON.stringify(res);
+};
+// lesion experiment: train, silence a random fraction per layer, keep training; PSNR before, after the cut and while healing
+Cosmos.debug.lesionTrial = (frac, seed, pre) => {
+  const net = new GPUNet({ depth: state.depth, width: state.width, act: state.act, ff: state.ff, m: MF_DEFAULT, sigma: state.sigma, seed: seed || 5 });
+  const tmp = rt(256, 256, gl.RGBA8, 'nearest'), px = new Uint8Array(256 * 256 * 4), tp = getTargetPixels();
+  const psnr = () => { net.render(tmp.fbo, 0, 0, 256, 256, [-1, -1, 2, 2]); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, tmp.fbo); gl.readPixels(0, 0, 256, 256, gl.RGBA, gl.UNSIGNED_BYTE, px); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+    let se = 0; for (let j = 0; j < 256; j++) for (let i = 0; i < 256; i++) { const ty = TS - 1 - Math.floor((j + 0.5) / 256 * TS), tx = Math.floor((i + 0.5) / 256 * TS); for (let k = 0; k < 3; k++) { const e = (px[(j * 256 + i) * 4 + k] - tp[(ty * TS + tx) * 4 + k]) / 255; se += e * e; } }
+    return +(-10 * Math.log10(se / (3 * 65536))).toFixed(2); };
+  let st = 0; const tr = (n) => { for (let i = 0; i < n; i++) net.step(state.batch, state.lr, targetTex, 5000 + (st++)); };
+  tr(pre || 3000); const res = { before: psnr() };
+  const s = net.spec, keep = new Float32Array(s.L * s.W).fill(1), R = U.rng((seed || 5) * 31);
+  for (let l = 0; l < s.L; l++) { const alive = []; for (let j = 0; j < s.W; j++) alive.push(j); for (let n = Math.round(s.W * frac); n > 0; n--) { const k = Math.floor(R() * alive.length); keep[l * s.W + alive[k]] = 0; alive.splice(k, 1); } }
+  net.setKeep(keep); res.cut = psnr();
+  let done = 0; [100, 300, 1000, 2000, 4000].forEach((c) => { tr(c - done); done = c; res['h' + c] = psnr(); });
+  net.setKeep(new Float32Array(s.L * s.W).fill(1)); res.restored = psnr();
+  gl.deleteFramebuffer(tmp.fbo); gl.deleteTexture(tmp.tex); net.dispose();
+  return JSON.stringify(res);
+};
+Cosmos.debug.decTrial = (width, depth, epochs, seeds) => {
+  const out = [], keep = { w: dec.width, d: dec.depth, s: dec.seed, n: dec.net };
+  for (let k = 0; k < seeds; k++) { dec.width = width; dec.depth = depth; dec.seed = 100 + k; decMakeNet(); for (let e = 0; e < epochs; e++) decStep(); out.push(+dec.acc.toFixed(3)); }
+  dec.width = keep.w; dec.depth = keep.d; dec.seed = keep.s; decMakeNet();
+  return out.join(' ');
+};
+Cosmos.debug.profile = (on) => { prof.on = on !== false; prof.acc = {}; return 'ok'; };
+Cosmos.debug.profileResult = () => { const o = {}; for (const k in prof.acc) o[k] = +(prof.acc[k].ms / prof.acc[k].n).toFixed(3); o.spf = train.spf; return o; };
+Cosmos.debug.bench = (n) => {
+  n = n || 50;
+  const pf = new Float32Array(4), pb = new Uint8Array(4);
+  const syncF = (fbo) => { gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fbo); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.FLOAT, pf); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); };
+  const syncB = (fbo) => { gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fbo); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pb); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); };
+  const res = {};
+  syncB(outRT.fbo); let t0 = performance.now();
+  for (let i = 0; i < n; i++) paintNet.step(state.batch, state.lr, targetTex, 99 + i);
+  syncF(paintNet.adamFbo[paintNet.cur]); res.msPerStep = (performance.now() - t0) / n;
+  t0 = performance.now();
+  for (let i = 0; i < 10; i++) paintNet.render(outRT.fbo, 0, 0, OUTRES, OUTRES, [-1, -1, 2, 2]);
+  syncB(outRT.fbo); res.msPerRender = (performance.now() - t0) / 10; res.res = OUTRES;
+  ensureAtlas(paintNet); t0 = performance.now();
+  for (let i = 0; i < 3; i++) paintNet.atlas(atlasRT.fbo, atlasRT.w, atlasRT.h, atlasRT.tile, atlasRT.cols, 0);
+  syncF(atlasRT.fbo); res.msAtlas = (performance.now() - t0) / 3;
+  t0 = performance.now(); syncB(outRT.fbo); res.msEmptySync = performance.now() - t0;
+  return res;
+};
+})();
+</script>
+</body>
+</html>

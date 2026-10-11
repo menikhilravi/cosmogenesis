@@ -1,0 +1,1987 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quantum Foam · Cosmogenesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="cosmos.css">
+<style>
+  /* ---- chapter 01 · Quantum Foam ---- */
+  #qf-overlay { pointer-events: none; z-index: 2; }
+  .qf-cap {
+    position: fixed; z-index: 12; pointer-events: none; text-align: center;
+    left: 50%; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 12px); width: min(560px, calc(100vw - 32px));
+    transform: translate(-50%, -6px); opacity: 0; display: grid; gap: 6px; justify-items: center;
+    transition: opacity .9s var(--ease), transform .9s var(--ease);
+    text-shadow: 0 2px 18px rgba(0,0,0,.95), 0 0 2px rgba(0,0,0,.8);
+  }
+  .qf-cap.on { opacity: 1; transform: translate(-50%, 0); }
+  .qf-cap.on.hush, .qf-cap.on.qf-hide { opacity: 0; }
+  .qf-cap.qf-narrow b { font-size: 17px; }
+  .qf-cap small { font: 600 10.5px/1.3 var(--f-mono); letter-spacing: .2em; text-transform: uppercase; color: var(--era); }
+  .qf-cap b { font: italic 500 clamp(19px, 2vw, 26px)/1.2 var(--f-display); color: var(--star); text-wrap: balance; }
+  .qf-cap a { pointer-events: auto; font: 500 12px/1.3 var(--f-mono); letter-spacing: .08em; color: var(--dust); text-decoration: none; border-bottom: 1px solid var(--line-strong); padding-bottom: 2px; }
+  .qf-cap a:hover { color: #ffd37a; border-color: #ffd37a; }
+  .qf-cap .qf-next { opacity: 0; transition: opacity 1.2s var(--ease) .6s; }
+  .qf-cap.show-next .qf-next { opacity: 1; }
+  .qf-links { display: flex; flex-wrap: wrap; gap: 10px 18px; justify-content: center; align-items: center; margin-top: 4px; }
+  .qf-act { pointer-events: none; display: none; font: 500 12px/1 var(--f-mono); letter-spacing: .06em; color: #1a1030; background: linear-gradient(180deg, #ffe2a8, #f3c77a);
+    border: 0; border-radius: 999px; padding: 9px 16px 9px 14px; cursor: pointer; box-shadow: 0 0 0 1px rgba(255,226,168,.35), 0 0 28px rgba(255,211,122,.35); text-shadow: none;
+    opacity: 0; transition: opacity 1.2s var(--ease) .9s, transform .2s var(--ease), box-shadow .2s var(--ease); }
+  .qf-act::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #1a1030; margin-right: 9px; vertical-align: 1px; animation: qfPulse 1.8s ease-in-out infinite; }
+  .qf-cap.show-act .qf-act { display: inline-block; pointer-events: auto; opacity: 1; }
+  .qf-act:hover { transform: translateY(-1px); box-shadow: 0 0 0 1px rgba(255,226,168,.6), 0 0 36px rgba(255,211,122,.55); }
+  .qf-act:focus-visible { outline: 2px solid #ffe2a8; outline-offset: 3px; }
+  @keyframes qfPulse { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
+  .qf-webclock { position: fixed; z-index: 12; pointer-events: none; font: 500 11px/1.4 var(--f-mono); letter-spacing: .08em; color: var(--dust); text-align: center; opacity: 0; transition: opacity .8s var(--ease); text-shadow: 0 1px 10px rgba(0,0,0,.9); }
+  .qf-webclock.on { opacity: 1; }
+  .qf-webclock > span { display: block; }
+  .qf-webclock b { display: block; margin: 6px 0 4px; font: italic 500 24px/1.1 var(--f-display); color: var(--star); letter-spacing: 0; }
+  @media (prefers-reduced-motion: reduce) { .qf-act::before { animation: none; } }
+  canvas.qf-inset { height: 176px; }
+  canvas.qf-nsr { height: 128px; }
+  canvas.qf-mode { height: 104px; }
+  .qf-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 500 10px/1.3 var(--f-mono); color: var(--dust); letter-spacing: .04em; }
+  .qf-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .qf-legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  @media (max-width: 760px) {
+    .qf-cap { top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 96px); }
+    .qf-cap b { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+<script src="cosmos.js"></script>
+<script>
+(function () {
+'use strict';
+
+/* =====================================================================================
+   COSMOGENESIS 01 · QUANTUM FOAM — cosmic inflation.
+   Physics: the inflaton φ obeys φ'' + (3H + Γ)φ' + V'(φ) = 0 with
+   H² = (φ'²/2 + V + ρ_r)/3 in reduced Planck units (M_p = 1), time in units of 1/√V₀.
+   The rolling field drives everything on screen: the zoom rate is d ln(aH)/dt, so the
+   endless dive slows to a halt exactly when ε_H = 1 (ä = 0) and inflation ends.
+   Visual: a sum of ~24 band-limited Gaussian random fields ("layers"), one every
+   0.3 e-folds in wavenumber. Each layer is a de Sitter mode: inside the Hubble radius it
+   oscillates, u ∝ (1 − i k/aH) e^{i k/aH}; outside it freezes.
+   Finale: "Let gravity act" grows the final plate for 13.8 Gyr with the Zel'dovich approximation
+   (GPU particles read the same frozen layers; ΛCDM growth factor and clock).
+   ===================================================================================== */
+
+const U = Cosmos.util, FMT = Cosmos.fmt;
+const isSmall = () => window.matchMedia('(max-width: 760px)').matches;
+const SMALL = isSmall();
+
+/* ------------------------------------------------------------------ physics */
+const S23 = Math.sqrt(2 / 3);
+const MP_GEV = 2.435e18;                 // reduced Planck mass, GeV
+const T_MP = 6.582e-25 / MP_GEV;         // ħ / (M_p c²) in seconds
+const A_S = 2.1e-9;                      // Planck 2018 scalar amplitude
+const N_TOTAL = 60;                      // e-folds of the run
+const N_PIVOT = 55;                      // CMB pivot exits 55 e-folds before the end
+const GAMMA_FRAC = 0.03;                 // inflaton decay rate Γ = 0.03 m
+
+const POTS = {
+  staro: {
+    key: 'staro', label: 'Starobinsky R²', short: 'R²',
+    formula: '= V₀(1 − e^−√⅔φ)²',
+    f: (p) => { const e = Math.exp(-S23 * p); return (1 - e) * (1 - e); },
+    fp: (p) => { const e = Math.exp(-S23 * p); return 2 * (1 - e) * S23 * e; },
+    fpp: (p) => { const e = Math.exp(-S23 * p); return (4 / 3) * e * (2 * e - 1); },
+    min: 0, bracket: [3, 8], more: +1,
+    view: (phi, zoom) => [U.lerp(-1.25, -0.75, zoom), U.lerp(6.3, 1.1, zoom), U.lerp(1.2, 0.5, zoom)],
+  },
+  chaotic: {
+    key: 'chaotic', label: 'Chaotic ½m²φ²', short: 'φ²',
+    formula: '= ½ m²φ²',
+    f: (p) => 0.5 * p * p, fp: (p) => p, fpp: () => 1,
+    min: 0, bracket: [10, 20], more: +1,
+    view: (phi, zoom, pre) => { const x1 = U.lerp(pre ? 20 : Math.max(3.2, phi * 1.1 + 1.2), 2.4, zoom); const x0 = U.lerp(-3.2, -2.4, zoom); return [x0, x1, 0.5 * x1 * x1 * 1.04]; },
+  },
+  hilltop: {
+    key: 'hilltop', label: 'Hilltop [1 − (φ/μ)⁴]²', short: 'hilltop',
+    formula: '= V₀[1 − (φ/μ)⁴]²',
+    f: (p) => { const x = p * p * p * p; return (1 - x) * (1 - x); },
+    fp: (p) => { const x = p * p * p * p; return -8 * p * p * p * (1 - x); },
+    fpp: (p) => { const x = p * p * p * p; return 32 * x * p * p - 24 * p * p * (1 - x); },
+    min: 1, bracket: [0.004, 0.3], more: -1,
+    view: (phi, zoom) => [U.lerp(-1.32, 0.35, zoom), U.lerp(1.36, 1.3, zoom), U.lerp(1.22, 0.9, zoom)],
+  },
+};
+
+/** One RK4 step of the background equations. s = {phi, pi, rr, N, tau} */
+function makeStepper(P, Gam) {
+  const d = new Float64Array(4);
+  const der = (phi, pi, rr) => {
+    const h = Math.sqrt(Math.max(1e-300, (0.5 * pi * pi + P.f(phi) + rr) / 3));
+    d[0] = pi; d[1] = -(3 * h + Gam) * pi - P.fp(phi); d[2] = -4 * h * rr + Gam * pi * pi; d[3] = h;
+    return d;
+  };
+  const k = [new Float64Array(4), new Float64Array(4), new Float64Array(4), new Float64Array(4)];
+  return function step(s, dt) {
+    k[0].set(der(s.phi, s.pi, s.rr));
+    k[1].set(der(s.phi + dt / 2 * k[0][0], s.pi + dt / 2 * k[0][1], s.rr + dt / 2 * k[0][2]));
+    k[2].set(der(s.phi + dt / 2 * k[1][0], s.pi + dt / 2 * k[1][1], s.rr + dt / 2 * k[1][2]));
+    k[3].set(der(s.phi + dt * k[2][0], s.pi + dt * k[2][1], s.rr + dt * k[2][2]));
+    s.phi += dt / 6 * (k[0][0] + 2 * k[1][0] + 2 * k[2][0] + k[3][0]);
+    s.pi += dt / 6 * (k[0][1] + 2 * k[1][1] + 2 * k[2][1] + k[3][1]);
+    s.rr = Math.max(0, s.rr + dt / 6 * (k[0][2] + 2 * k[1][2] + 2 * k[2][2] + k[3][2]));
+    s.N += dt / 6 * (k[0][3] + 2 * k[1][3] + 2 * k[2][3] + k[3][3]);
+    s.tau += dt;
+  };
+}
+const hubble = (P, s) => Math.sqrt(Math.max(1e-300, (0.5 * s.pi * s.pi + P.f(s.phi) + s.rr) / 3));
+const epsH = (P, s) => { const h = hubble(P, s); return (s.pi * s.pi + (4 / 3) * s.rr) / (2 * h * h); };
+const maxDt = (P, s) => 0.02 / (Math.sqrt(Math.abs(P.fpp(s.phi))) + hubble(P, s) + 1e-3);
+
+/** Solve for the starting field that gives exactly N_TOTAL e-folds, then record the model's numbers. */
+function calibrate(P) {
+  const m = Math.sqrt(P.fpp(P.min)), Gam = GAMMA_FRAC * m;
+  const step = makeStepper(P, Gam);
+  const init = (phi0) => { const h = Math.sqrt(P.f(phi0) / 3); return { phi: phi0, pi: -P.fp(phi0) / (3 * h), rr: 0, N: 0, tau: 0 }; };
+  const runToEnd = (phi0, rec) => {
+    const s = init(phi0);
+    for (let i = 0; i < 400000; i++) {
+      step(s, maxDt(P, s));
+      if (rec) rec(s);
+      if (epsH(P, s) >= 1) return s;
+    }
+    return s;
+  };
+  let lo = P.bracket[0], hi = P.bracket[1];
+  for (let i = 0; i < 48; i++) {
+    const mid = P.more > 0 ? 0.5 * (lo + hi) : Math.sqrt(lo * hi);
+    const N = runToEnd(mid).N;
+    if ((N > N_TOTAL) === (P.more > 0)) hi = mid; else lo = mid;
+  }
+  const phi0 = P.more > 0 ? 0.5 * (lo + hi) : Math.sqrt(lo * hi);
+  const trace = [];
+  const end = runToEnd(phi0, (s) => trace.push([s.N, s.phi, s.pi]));
+  // horizon exit of the pivot (55 e-folds before the end)
+  let star = trace[0];
+  for (const t of trace) { if (end.N - t[0] >= N_PIVOT) star = t; else break; }
+  const phiS = star[1], fS = P.f(phiS), fpS = P.fp(phiS), fppS = P.fpp(phiS);
+  const epsV = 0.5 * (fpS / fS) ** 2, etaV = fppS / fS;
+  const hS = Math.sqrt((0.5 * star[2] * star[2] + fS) / 3), epsHS = star[2] * star[2] / (2 * hS * hS);
+  const V0 = A_S * 8 * Math.PI * Math.PI * epsHS / (hS * hS); // P_ζ = H²/(8π² ε) = A_s at the pivot
+  const h0 = Math.sqrt(P.f(phi0) / 3), hEnd = hubble(P, end);
+  return {
+    P, m, Gam, phi0, h0, hEnd, tauEnd: end.tau, phiEnd: end.phi, phiStar: phiS, NEnd: end.N,
+    ns: 1 - 6 * epsV + 2 * etaV, r: 16 * epsV, V0, sqrtV0: Math.sqrt(V0),
+    HstarGeV: hS * Math.sqrt(V0) * MP_GEV, V14GeV: Math.pow(V0 * fS, 0.25) * MP_GEV,
+    t0: 0.5 / (h0 * Math.sqrt(V0)) * T_MP, // radiation-era convention before inflation: t = 1/(2H)
+  };
+}
+const MODELS = {};
+for (const k in POTS) MODELS[k] = calibrate(POTS[k]);
+
+/* ------------------------------------------------------------------ writing */
+const NOTES = `
+<p>You are inside a patch of space about 10<sup>−27</sup> metres across, about a trillion times smaller than a proton. It is filled with the <strong>inflaton</strong>, a field whose energy makes space push itself apart. The thin ring is the <em>Hubble radius</em>: the farthest a signal can travel while space grows by a factor of e.</p>
+<p>The field rolls slowly down its potential, shown as the glowing ball in the controls. While it rolls, space grows exponentially. Each <em>e-fold</em> multiplies every length by 2.718. Sixty of them stretch the patch by 10<sup>26</sup>, from far smaller than a proton to the size of a grapefruit, in about 10<sup>−36</sup> seconds.</p>
+<p>Quantum physics never lets the field sit still. On scales smaller than the ring it jitters: the bright foam. When expansion stretches a ripple past the ring, it can no longer oscillate. It freezes into a permanent crease, cooler and darker. New foam boils up to replace it and freezes in turn, so the dive never ends. The same thing happens at every scale.</p>
+<p>When the ball reaches the steep part of the slope, inflation stops. The field sloshes, decays into particles and heats the universe into a plasma. The frozen ripples survive as differences in density of a few parts in 100,000. Gravity will grow them into every galaxy.</p>
+<p>At the end, press <strong>Let gravity act</strong>. Up to a quarter of a million particles start on the final plate and fall toward its peaks for 13.8 billion years. Voids empty, matter piles into sheets and filaments, and the highest peaks become knots of galaxies. The pattern you watched freeze in the first 10<sup>−36</sup> seconds becomes the cosmic web.</p>
+<h4>Try this</h4>
+<ul>
+<li>Wait for the zoom-out (or press <kbd>E</kbd> to skip ahead), then press <kbd>G</kbd>. Drag <strong>Cosmic time</strong> back and forth to watch the web form and unform.</li>
+<li>Switch the potential to <strong>½m²φ²</strong>. The ball starts high, H falls twelvefold and the dive slows before it stops. Its gravitational-wave signal is ruled out.</li>
+<li>Drag <strong>n<sub>s</sub></strong> to 0.90 for big blobs, then to 1.05 for fine grain. Planck measured 0.965.</li>
+<li>Drag the ball in the potential lower, so inflation lasts under 50 e-folds. At the end the smooth patch is smaller than the sky we see, and the horizon problem is back.</li>
+</ul>`;
+
+const fmtE = (x, d = 2) => { const e = Math.floor(Math.log10(Math.abs(x))); const m = x / Math.pow(10, e); return m.toFixed(d) + '×10<sup>' + e + '</sup>'; };
+const MS = MODELS.staro, MC = MODELS.chaotic, MH = MODELS.hilltop;
+const SCIENCE = `
+<h4>Expansion</h4>
+<p>The Friedmann equation ties the expansion rate to the energy density. With a nearly constant density, the scale factor grows exponentially and we count growth in e-folds.</p>
+<span class="eq">H² = (8πG/3) ρ = ρ / (3M<sub>p</sub>²),&nbsp;&nbsp; a ∝ e<sup>N</sup>,&nbsp;&nbsp; N = ∫ H dt ≈ 60</span>
+<p>Here M<sub>p</sub> = (8πG)<sup>−1/2</sup> = 2.435×10<sup>18</sup> GeV is the reduced Planck mass. A patch 10<sup>−27</sup> m across grows by e<sup>60</sup> = 1.14×10<sup>26</sup> to 0.11 m. After reheating it grows by roughly another 10<sup>28</sup> and becomes our whole observable universe, 8.8×10<sup>26</sup> m across (the exact factor depends on the reheating temperature).</p>
+<h4>The inflaton</h4>
+<span class="eq">φ̈ + 3Hφ̇ + V′(φ) = 0,&nbsp;&nbsp; H² = (½φ̇² + V) / 3M<sub>p</sub>²</span>
+<span class="eq">ε = (M<sub>p</sub>²/2)(V′/V)²,&nbsp;&nbsp; η = M<sub>p</sub>² V″/V,&nbsp;&nbsp; N ≈ M<sub>p</sub><sup>−2</sup>∫ V/V′ dφ</span>
+<p>Inflation lasts while the slow-roll parameters are small. It ends exactly when ε<sub>H</sub> = −Ḣ/H² reaches 1, where the expansion stops accelerating (ä = 0). ε<sub>H</sub> ≈ ε in slow roll. The inset integrates the full equation with RK4, in units where M<sub>p</sub> = 1 and time is measured in 1/√V₀. The starting field is solved for so that N = 60 exactly at ε<sub>H</sub> = 1, and V₀ is fixed so that P<sub>ζ</sub> = 2.1×10<sup>−9</sup> at the pivot scale, 55 e-folds before the end.</p>
+<p>The zoom on screen is driven by the comoving Hubble scale, d ln(aH)/dt = H(1 − ε<sub>H</sub>). It stops by itself when ε<sub>H</sub> = 1, so each potential makes a different show:</p>
+<ul>
+<li><strong>Starobinsky R²</strong>, V = V₀(1 − e<sup>−√(2/3)φ/M<sub>p</sub></sup>)²: φ starts at ${MS.phi0.toFixed(2)} M<sub>p</sub>, H ≈ ${fmtE(MS.HstarGeV, 1)} GeV, V<sup>1/4</sup> ≈ ${fmtE(MS.V14GeV, 1)} GeV, n<sub>s</sub> = ${MS.ns.toFixed(3)}, r = ${MS.r.toFixed(4)}. Inside the Planck contour.</li>
+<li><strong>Chaotic</strong>, V = ½m²φ²: φ starts at ${MC.phi0.toFixed(1)} M<sub>p</sub>, m = ${fmtE(Math.sqrt(MC.V0) * MP_GEV, 1)} GeV, n<sub>s</sub> = ${MC.ns.toFixed(3)}, r = ${MC.r.toFixed(2)}. Excluded by r &lt; 0.036.</li>
+<li><strong>Hilltop</strong>, V = V₀[1 − (φ/μ)⁴]² with μ = M<sub>p</sub>: φ starts at ${MH.phi0.toFixed(3)} M<sub>p</sub>, H ≈ ${fmtE(MH.HstarGeV, 1)} GeV, n<sub>s</sub> = ${MH.ns.toFixed(3)}, r ≈ ${fmtE(MH.r, 0)}. Its tilt is too red for Planck.</li>
+</ul>
+<h4>Quantum seeds</h4>
+<p>Each Fourier mode of the field fluctuation behaves like a quantum oscillator. In de Sitter space its mode function is exact:</p>
+<span class="eq">δφ<sub>k</sub> = (H/√(2k³)) (1 − i k/aH) e<sup>i k/aH</sup></span>
+<p>Inside the horizon (k ≫ aH) it oscillates with amplitude ∝ k/aH. Outside (k ≪ aH) it freezes at δφ = H/2π per e-fold. Every layer on screen follows this behaviour. The “one ripple” plot in the controls draws the real part of the exact function, with its growth inside the horizon compressed so the whole curve fits, and each layer on screen as a dot. The frozen field sets the curvature perturbation ζ = −(H/φ̇)δφ, and later the density contrast.</p>
+<span class="eq">P<sub>ζ</sub>(k) = H² / (8π² ε M<sub>p</sub>²) ∝ k<sup>n<sub>s</sub>−1</sup>,&nbsp;&nbsp; n<sub>s</sub> − 1 = −6ε + 2η,&nbsp;&nbsp; r = 16ε</span>
+<p>Planck 2018 measured n<sub>s</sub> = 0.9649 ± 0.0042 and A<sub>s</sub> = 2.1×10<sup>−9</sup>. BICEP/Keck 2021 found r &lt; 0.036 (95%). The fluctuations are Gaussian and adiabatic, and they are correlated on scales that were outside the horizon at recombination, all as inflation predicts.</p>
+<h4>Why inflate at all</h4>
+<p><strong>Horizon problem:</strong> the cosmic microwave background has the same temperature to 1 part in 10<sup>5</sup> across regions that could never have exchanged light in a universe without inflation. <strong>Flatness problem:</strong> |Ω − 1| ∝ (aH)<sup>−2</sup> grows after inflation, so it must have started absurdly close to zero. Sixty e-folds shrink the comoving Hubble radius by about e<sup>60</sup>, solving both. You can test this: drag the ball lower so inflation lasts fewer e-folds. The zoom-out at the end then stops at the edge of the smoothed patch, which is smaller than the sky we see.</p>
+<h4>Sizes today</h4>
+<p>The ladder and scale bar convert to today's sizes with one factor for all expansion after inflation, ≈7.7×10<sup>27</sup>, chosen so that a 60-e-fold run turns the starting patch into today's observable universe. A ripple's comoving size maps to the mass it will gather, M = (π/6) ρ̄<sub>m</sub> d³ with ρ̄<sub>m</sub> ≈ 3.9×10<sup>10</sup> M<sub>☉</sub> Mpc<sup>−3</sup>: a Milky Way (1.3×10<sup>12</sup> M<sub>☉</sub>) grows from a region about 4 Mpc across, a rich cluster from about 37 Mpc. The final plate is about 30 Mpc wide, and the marked peaks are its highest regions, typically 2 to 4σ above the mean in the smoothed field. Rare high peaks like these collapse first and host the most massive galaxies.</p>
+<h4>Where the seeds go</h4>
+<p><strong>Let gravity act</strong> moves matter with the Zel’dovich approximation. Each particle starts at its Lagrangian position <b>q</b> on the final plate and travels in a straight line:</p>
+<span class="eq"><b>x</b> = <b>q</b> + D(t) <b>ψ</b>(<b>q</b>),&nbsp;&nbsp; ∇·<b>ψ</b> = −δ<sub>lin</sub>,&nbsp;&nbsp; <b>ψ</b><sub>k</sub> = i<b>k</b> δ<sub>k</sub> / k²</span>
+<p>The particles read the same frozen layers that paint the plate, so the web is that plate's own future. Where streams cross, they pile into sheets, filaments and knots (caustics). The clock is flat ΛCDM with Ω<sub>m</sub> = 0.315, Ω<sub>Λ</sub> = 0.685 and H₀ = 67.4 km s<sup>−1</sup> Mpc<sup>−1</sup>:</p>
+<span class="eq">t(a) = (2 / 3H₀√Ω<sub>Λ</sub>) arsinh(√(Ω<sub>Λ</sub>/Ω<sub>m</sub>) a<sup>3/2</sup>),&nbsp;&nbsp; D(a) ∝ a g(a)</span>
+<p>t(1) = 13.8 Gyr. The growth factor uses the Carroll, Press &amp; Turner fit for g(a), which falls below 1 once dark energy takes over, so growth slows in the last few billion years. The preview runs from 100 Myr (z ≈ 30) to today.</p>
+<h4>What is simplified</h4>
+<p>This is a 2D slice of a 3D field. Each layer is a band-limited Gaussian random field made by FFT, 0.3 e-folds wide in wavenumber, and about 20 layers are drawn at once. Time is compressed: 60 e-folds take about 28 s. The oscillation rate and amplitude of the sub-horizon foam are compressed for the eye. On screen the tilt is magnified 8× (switch it off to see the true, subtle tilt), and seed amplitudes follow the power law set by the n<sub>s</sub> slider, which defaults to the potential's prediction. The decay rate Γ = 0.03 m is chosen so reheating finishes in about five oscillations; real models usually decay far more slowly.</p>
+<p>“Time since the Big Bang” assumes a radiation era before inflation (t₀ = 1/2H) and depends on the energy scale. The popular range of 10<sup>−36</sup> to 10<sup>−32</sup> s fits low-scale inflation. At Starobinsky's H ≈ 1.5×10<sup>13</sup> GeV, 60 e-folds take only about 3×10<sup>−36</sup> s.</p>
+<p>The gravity preview is a 2D toy. The Zel’dovich approximation is exact only until streams cross: real matter then forms bound halos, while these particles stream on through each other, so knots stay fuzzy. The cold-dark-matter transfer function is approximated by δ ∝ λ<sup>−0.28</sup> so that small ripples collapse first, and the overall amplitude is chosen by eye so that ripples about 10 Mpc across are just turning nonlinear today, as they are in our universe (σ<sub>8</sub> ≈ 0.81). The growth factor D sets the pace on screen, so the clock races through the last billions of years.</p>
+<p>Inflation is well supported but not proven. The decisive test would be primordial gravitational waves (r), which have not yet been seen.</p>
+<span class="cite">Starobinsky, A. A. (1980). A new type of isotropic cosmological models without singularity. Phys. Lett. B 91, 99.</span>
+<span class="cite">Guth, A. H. (1981). Inflationary universe: a possible solution to the horizon and flatness problems. Phys. Rev. D 23, 347.</span>
+<span class="cite">Mukhanov, V. F. &amp; Chibisov, G. V. (1981). Quantum fluctuations and a nonsingular universe. JETP Lett. 33, 532.</span>
+<span class="cite">Linde, A. D. (1982). A new inflationary universe scenario. Phys. Lett. B 108, 389.</span>
+<span class="cite">Albrecht, A. &amp; Steinhardt, P. J. (1982). Cosmology for grand unified theories with radiatively induced symmetry breaking. Phys. Rev. Lett. 48, 1220.</span>
+<span class="cite">Planck Collaboration (2020). Planck 2018 results. X. Constraints on inflation. A&amp;A 641, A10.</span>
+<span class="cite">BICEP/Keck Collaboration (2021). Improved constraints on primordial gravitational waves. Phys. Rev. Lett. 127, 151301.</span>
+<span class="cite">Zel’dovich, Ya. B. (1970). Gravitational instability: an approximate theory for large density perturbations. A&amp;A 5, 84.</span>
+<span class="cite">Carroll, S. M., Press, W. H. &amp; Turner, E. L. (1992). The cosmological constant. ARA&amp;A 30, 499.</span>`;
+
+const ch = Cosmos.chapter({ id: 'inflation', notes: NOTES, science: SCIENCE });
+const ERA = U.rgbf(ch.meta.accent);
+
+/* ------------------------------------------------------------------ WebGL */
+const canvas = ch.canvas('qf-gl');
+const gl = Cosmos.gl.context(canvas);
+if (!gl) { ch.fatal('This chapter needs WebGL2, which this browser or device does not provide.'); return; }
+canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); ch.fatal('The graphics context was lost. Reload the page to restart the simulation.'); });
+const overlay = ch.canvas('qf-overlay');
+const octx = overlay.getContext('2d');
+
+/* ---- band-limited Gaussian random field texture (FFT) ---- */
+const TEX_N = SMALL ? 256 : 512;
+const K0 = TEX_N / 16;           // 16 texels per wavelength
+function fft1(re, im, n, inv) {
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = (inv ? 2 : -2) * Math.PI / len, half = len >> 1;
+    for (let k = 0; k < half; k++) {
+      const wr = Math.cos(ang * k), wi = Math.sin(ang * k);
+      for (let i = k; i < n; i += len) {
+        const b = i + half;
+        const xr = re[b] * wr - im[b] * wi, xi = re[b] * wi + im[b] * wr;
+        re[b] = re[i] - xr; im[b] = im[i] - xi; re[i] += xr; im[i] += xi;
+      }
+    }
+  }
+}
+function fft2(re, im, n) {
+  const tr = new Float64Array(n), ti = new Float64Array(n);
+  for (let y = 0; y < n; y++) { const o = y * n; for (let x = 0; x < n; x++) { tr[x] = re[o + x]; ti[x] = im[o + x]; } fft1(tr, ti, n, true); for (let x = 0; x < n; x++) { re[o + x] = tr[x]; im[o + x] = ti[x]; } }
+  for (let x = 0; x < n; x++) { for (let y = 0; y < n; y++) { tr[y] = re[y * n + x]; ti[y] = im[y * n + x]; } fft1(tr, ti, n, true); for (let y = 0; y < n; y++) { re[y * n + x] = tr[y]; im[y * n + x] = ti[y]; } }
+}
+function makeNoise(n, seed) {
+  const rng = U.rng(seed), out = new Float32Array(n * n * 4);
+  const sig = 0.2;
+  for (let pair = 0; pair < 2; pair++) {
+    const re = new Float64Array(n * n), im = new Float64Array(n * n);
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const kx = x < n / 2 ? x : x - n, ky = y < n / 2 ? y : y - n, k = Math.hypot(kx, ky);
+      const L = k > 0 ? Math.log(k / K0) : -99;
+      const w = Math.exp(-(L * L) / (2 * sig * sig));
+      re[y * n + x] = w * U.gauss(rng); im[y * n + x] = w * U.gauss(rng);
+    }
+    fft2(re, im, n);
+    let sr = 0, si = 0;
+    for (let i = 0; i < n * n; i++) { sr += re[i] * re[i]; si += im[i] * im[i]; }
+    sr = 1 / Math.sqrt(sr / (n * n)); si = 1 / Math.sqrt(si / (n * n));
+    for (let i = 0; i < n * n; i++) { out[i * 4 + pair * 2] = re[i] * sr; out[i * 4 + pair * 2 + 1] = im[i] * si; }
+  }
+  return out;
+}
+const NOISE = makeNoise(TEX_N, 1981);
+const noiseTex = (() => {
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  let n = TEX_N, data = NOISE, level = 0;
+  for (;;) {
+    gl.texImage2D(gl.TEXTURE_2D, level, gl.RGBA16F, n, n, 0, gl.RGBA, gl.FLOAT, data);
+    if (n === 1) break;
+    const m = n >> 1, next = new Float32Array(m * m * 4);
+    for (let y = 0; y < m; y++) for (let x = 0; x < m; x++) for (let c = 0; c < 4; c++) {
+      const a = ((2 * y) * n + 2 * x) * 4 + c;
+      next[(y * m + x) * 4 + c] = 0.25 * (data[a] + data[a + 4] + data[a + n * 4] + data[a + n * 4 + 4]);
+    }
+    data = next; n = m; level++;
+  }
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  return t;
+})();
+/** Bilinear CPU sample of the noise pair (A,B) at tile coords (u,v). */
+function noiseAt(u, v, pair, out) {
+  const n = TEX_N;
+  let x = (u - Math.floor(u)) * n - 0.5, y = (v - Math.floor(v)) * n - 0.5;
+  const x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
+  const X0 = (x0 + n) % n, X1 = (x0 + 1 + n) % n, Y0 = (y0 + n) % n, Y1 = (y0 + 1 + n) % n;
+  const c = pair * 2;
+  for (let k = 0; k < 2; k++) {
+    const a = NOISE[(Y0 * n + X0) * 4 + c + k], b = NOISE[(Y0 * n + X1) * 4 + c + k], cc = NOISE[(Y1 * n + X0) * 4 + c + k], d = NOISE[(Y1 * n + X1) * 4 + c + k];
+    out[k] = (a * (1 - fx) + b * fx) * (1 - fy) + (cc * (1 - fx) + d * fx) * fy;
+  }
+  return out;
+}
+
+/* ---- shaders ---- */
+const NLMAX = 28;
+const FIELD_FS = `#version 300 es
+precision highp float;
+in vec2 vUv; out vec4 o;
+uniform sampler2D uNoise;
+uniform vec2 uCenter;
+uniform int uNL;
+uniform vec4 uM[${NLMAX}];   // per layer: rotation × scale (texture tiles per device px)
+uniform vec4 uO[${NLMAX}];   // offset.xy, channel pair, -
+uniform vec4 uK[${NLMAX}];   // young frozen (A,B), live foam (A,B) coefficients
+uniform vec4 uK2[${NLMAX}];  // old frozen (A,B), -
+uniform vec2 uFsub;          // centre values removed from the largest layers (young, old)
+uniform vec4 uGain;          // gains: young, old, all frozen, live
+uniform float uFoam, uFrozen, uPlasma, uContour, uTime, uOut, uPulse, uDim;
+uniform vec4 uTune;          // ridge sharpness, crest, sparkle, foam brightness
+uniform float uSpark;        // particle creation during reheating (0..1)
+uniform vec2 uFoamX;         // filament core sharpness and brightness
+float hash(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
+void main(){
+  vec2 p = gl_FragCoord.xy - uCenter;
+  float Y = 0.0, Od = 0.0, L = 0.0;
+  for (int i = 0; i < ${NLMAX}; i++) {
+    if (i >= uNL) break;
+    vec4 m = uM[i];
+    vec2 uv = vec2(m.x*p.x + m.y*p.y, m.z*p.x + m.w*p.y) + uO[i].xy;
+    vec4 n = texture(uNoise, uv);
+    vec2 ab = mix(n.xy, n.zw, uO[i].z);
+    Y += dot(uK[i].xy, ab);
+    L += dot(uK[i].zw, ab);
+    Od += dot(uK2[i].xy, ab);
+  }
+  Y -= uFsub.x; Od -= uFsub.y;
+  float F = (Y + Od) * uGain.z;     // total frozen density contrast, in σ
+  float Fy = Y * uGain.x, Fo = Od * uGain.y;
+  L *= uGain.w;
+
+  // ---- inflation: old frozen modes deep and cool, young frozen modes lilac, live foam violet-white
+  vec3 col = vec3(0.007, 0.006, 0.018);
+  vec3 old = vec3(0.036, 0.030, 0.120) * smoothstep(-2.4, 1.2, Fo)
+           + vec3(0.10, 0.085, 0.36) * pow(smoothstep(-0.3, 2.4, Fo), 1.5);
+  vec3 young = vec3(0.20, 0.18, 0.62) * pow(smoothstep(-0.4, 2.4, Fy), 1.4)
+             + vec3(0.55, 0.55, 1.00) * pow(smoothstep(1.3, 3.0, Fy), 2.2);
+  col += (old + young * (0.55 + 0.45 * smoothstep(-1.5, 1.5, Fo))) * uFrozen;
+  float ridge = exp(-L * L * uTune.x);
+  float core = exp(-L * L * uTune.x * uFoamX.x);
+  float crest = smoothstep(1.0, 3.0, abs(L));
+  float sparkle = smoothstep(2.8, 3.8, L);
+  vec3 foam = vec3(0.80, 0.60, 1.0) * ridge * uTune.w + vec3(1.0, 0.86, 1.0) * core * uFoamX.y
+            + vec3(0.72, 0.50, 1.0) * crest * 0.3 * uTune.y + vec3(1.3, 1.15, 1.35) * sparkle * uTune.z;
+  col += foam * uFoam * (0.7 + 0.3 * smoothstep(-1.5, 1.5, F));
+
+  // ---- hot plasma after reheating: brightness is the frozen density contrast.
+  // The mean sits in a deep violet so that voids read as dark and peaks burn white-gold.
+  float d = F;
+  vec3 pl = vec3(0.010, 0.007, 0.030);
+  pl = mix(pl, vec3(0.060, 0.034, 0.170), smoothstep(-2.5, -0.9, d));
+  pl = mix(pl, vec3(0.210, 0.120, 0.520), smoothstep(-1.0, 0.45, d));
+  pl = mix(pl, vec3(0.580, 0.440, 1.000), smoothstep(0.25, 1.45, d));
+  pl = mix(pl, vec3(1.100, 0.940, 0.950), smoothstep(1.25, 2.35, d));
+  pl = mix(pl, vec3(1.750, 1.220, 0.560), smoothstep(2.05, 3.25, d));
+  // young (small-scale) seeds add a fine grain on top of the big ripples
+  pl *= 0.86 + 0.28 * smoothstep(-1.6, 1.6, Fy + 0.5 * Fo);
+  pl *= 0.94 + 0.06 * sin(uTime * 1.3 + F * 1.7);
+  col = mix(col, pl, uPlasma);
+  col += vec3(0.8, 0.72, 1.0) * uPulse * (0.3 + 0.7 * smoothstep(-1.0, 2.0, F));
+  if (uSpark > 0.0) {
+    // new particles: brief pinpricks of light scattered at random, more of them as the radiation share grows
+    vec2 g = gl_FragCoord.xy / 7.0;
+    vec2 cell = floor(g);
+    float tq = floor(uTime * 12.0 + hash(cell * 0.71) * 7.0);
+    float h1 = hash(cell + tq * 1.37);
+    float on = step(1.0 - 0.07 * uSpark * (0.5 + 0.5 * smoothstep(-1.0, 1.5, F)), h1);
+    vec2 off = vec2(hash(cell + tq * 2.13), hash(cell + tq * 3.71)) - 0.5;
+    vec2 f = fract(g) - 0.5 - off * 0.55;
+    float sz = mix(14.0, 46.0, hash(cell + tq * 5.31));
+    vec3 sc = mix(vec3(1.0, 0.80, 0.58), vec3(0.86, 0.84, 1.25), hash(cell + tq * 7.07));
+    col += sc * on * exp(-dot(f, f) * sz) * 1.9 * uSpark;
+  }
+  col *= uDim;
+
+  // ---- iso-density contours, like an astronomical plate
+  if (uContour > 0.0) {
+    float q = F / 0.75;
+    float w = fwidth(q);
+    float line = 1.0 - smoothstep(0.0, 1.25 * w, abs(fract(q + 0.5) - 0.5));
+    col += mix(vec3(0.55, 0.48, 0.95), vec3(1.0, 0.85, 0.55), step(0.5, q)) * line * (0.3 + 0.12 * uPlasma) * uContour;
+  }
+  o = vec4(col * uOut, 1.0);
+}`;
+const BRIGHT_FS = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+uniform sampler2D uSrc; uniform vec2 uTexel; uniform float uIn;
+void main(){
+  vec3 c = texture(uSrc, vUv + uTexel*vec2(-1.0,-1.0)).rgb + texture(uSrc, vUv + uTexel*vec2(1.0,-1.0)).rgb
+         + texture(uSrc, vUv + uTexel*vec2(-1.0,1.0)).rgb + texture(uSrc, vUv + uTexel*vec2(1.0,1.0)).rgb;
+  c *= 0.25 * uIn;
+  float l = max(max(c.r, c.g), c.b);
+  o = vec4(c * smoothstep(0.22, 0.9, l), 1.0);
+}`;
+const BLUR_FS = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+uniform sampler2D uSrc; uniform vec2 uDir;
+void main(){
+  vec3 c = texture(uSrc, vUv).rgb * 0.227027;
+  c += (texture(uSrc, vUv + uDir*1.3846).rgb + texture(uSrc, vUv - uDir*1.3846).rgb) * 0.316216;
+  c += (texture(uSrc, vUv + uDir*3.2308).rgb + texture(uSrc, vUv - uDir*3.2308).rgb) * 0.070270;
+  o = vec4(c, 1.0);
+}`;
+const COMP_FS = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+uniform sampler2D uScene, uBloom; uniform vec2 uC, uRes; uniform float uZB, uFlash, uTime, uIn, uBloomK, uExpo;
+float hash(vec2 p){ p = fract(p*vec2(443.897, 441.423)); p += dot(p, p.yx+19.19); return fract((p.x+p.y)*p.x); }
+void main(){
+  vec2 d = vUv - uC;
+  vec3 acc = vec3(0.0); float ws = 0.0;
+  for (int i = 0; i < 10; i++) {
+    float t = float(i) / 9.0;
+    float w = 1.0 - 0.6 * t;
+    acc += texture(uScene, uC + d * (1.0 - uZB * t)).rgb * w; ws += w;
+  }
+  vec3 col = acc / ws * uIn;
+  col += texture(uBloom, vUv).rgb * uBloomK;
+  col += uFlash * vec3(1.0, 0.95, 0.9) * 2.6;
+  col = 1.0 - exp(-col * uExpo);
+  vec2 q = (vUv - 0.5) * vec2(uRes.x / uRes.y, 1.0);
+  col *= mix(0.62, 1.0, smoothstep(1.15, 0.28, length(q)));
+  col += (hash(gl_FragCoord.xy + fract(uTime) * 91.7) - 0.5) * (2.2 / 255.0);
+  o = vec4(max(col, 0.0), 1.0);
+}`;
+/* Gravity preview (Zel'dovich 1970): one particle per grid cell at Lagrangian position q moves to
+   x = q + D(t) ψ(q), with ∇·ψ = −δ. For a band-limited layer of wavelength λ, ψ = ∇δ_layer (λ/2π)².
+   Every particle reads the same frozen layers as the field shader, so the web is the plate's own future. */
+const WEB_VS = `#version 300 es
+precision highp float;
+uniform sampler2D uNoise;
+uniform vec2 uCenter, uRes, uOrigin, uPsi0;
+uniform int uNL, uCols;
+uniform vec4 uM[${NLMAX}], uO[${NLMAX}], uK[${NLMAX}], uK2[${NLMAX}];
+uniform float uSp, uD, uGainT, uBeta, uLref, uLmin, uPt, uBright, uMod, uK0;
+out vec3 vCol;
+out float vA;
+float h11(float n){ return fract(sin(n) * 43758.5453123); }
+void main(){
+  int id = gl_VertexID;
+  int ix = id % uCols, iy = id / uCols;
+  float fi = float(id);
+  vec2 jit = vec2(h11(fi * 0.1234 + 1.7), h11(fi * 0.5731 + 9.3)) - 0.5;
+  vec2 q = uOrigin + (vec2(float(ix), float(iy)) + 0.5 + jit * 0.92) * uSp;
+  vec2 p = q - uCenter;
+  float del = 0.0; vec2 psi = vec2(0.0);
+  float hh = 0.125 / uK0;
+  for (int i = 0; i < ${NLMAX}; i++) {
+    if (i >= uNL) break;
+    vec4 m = uM[i];
+    float lam = 1.0 / (uK0 * length(m.xy));
+    float wl = smoothstep(uLmin, uLmin * 1.7, lam);
+    if (wl <= 0.0) continue;
+    vec2 uv = vec2(dot(m.xy, p), dot(m.zw, p)) + uO[i].xy;
+    float pr = uO[i].z;
+    vec4 n0 = textureLod(uNoise, uv, 0.0), nx = textureLod(uNoise, uv + vec2(hh, 0.0), 0.0), ny = textureLod(uNoise, uv + vec2(0.0, hh), 0.0);
+    vec2 k = uK[i].xy + uK2[i].xy;
+    float L0 = dot(k, mix(n0.xy, n0.zw, pr));
+    vec2 g = vec2(dot(k, mix(nx.xy, nx.zw, pr)) - L0, dot(k, mix(ny.xy, ny.zw, pr)) - L0) / hh;
+    vec2 gp = vec2(g.x * m.x + g.y * m.z, g.x * m.y + g.y * m.w);
+    float T = pow(lam / uLref, -uBeta) * wl;          // CDM-like transfer: small scales collapse first
+    del += L0 * T;
+    psi += gp * (lam * lam * 0.025330296) * T;        // (λ/2π)²
+  }
+  del *= uGainT;
+  vec2 x = q + uD * (psi * uGainT - uPsi0);
+  gl_Position = vec4(x / uRes * 2.0 - 1.0, 0.0, 1.0);
+  gl_PointSize = uPt;
+  float hot = smoothstep(-0.3, 2.2, del);
+  vCol = mix(vec3(0.46, 0.34, 1.0), vec3(1.25, 0.92, 0.55), hot * hot) * (0.8 + 0.5 * hot);
+  vA = uBright * max(0.0, 1.0 + uMod * del);
+}`;
+const WEB_FS = `#version 300 es
+precision highp float;
+in vec3 vCol; in float vA; out vec4 o;
+uniform float uOut;
+void main(){ o = vec4(vCol * vA * uOut, 1.0); }`;
+/* Density → light: a contrast curve around a pivot darkens the mean-density grain and lifts filaments and knots. */
+const WEBCOMP_FS = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+uniform sampler2D uWeb; uniform vec2 uTexel; uniform float uIn, uOut, uPivot, uGamma;
+void main(){
+  vec3 c = (texture(uWeb, vUv + uTexel * vec2(-0.35, -0.35)).rgb + texture(uWeb, vUv + uTexel * vec2(0.35, -0.35)).rgb
+          + texture(uWeb, vUv + uTexel * vec2(-0.35, 0.35)).rgb + texture(uWeb, vUv + uTexel * vec2(0.35, 0.35)).rgb) * 0.25 * uIn;
+  float l = max(max(c.r, c.g), c.b);
+  vec3 m = l > 1e-6 ? c * pow(l / uPivot, uGamma - 1.0) : vec3(0.0);
+  o = vec4(min(m, vec3(40.0)) * uOut, 1.0);
+}`;
+let progField, progBright, progBlur, progComp, progWeb = null, progWebComp = null;
+try {
+  progField = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, FIELD_FS);
+  progBright = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, BRIGHT_FS);
+  progBlur = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, BLUR_FS);
+  progComp = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, COMP_FS);
+} catch (e) { ch.fatal('A shader failed to compile on this GPU.', e); return; }
+try { progWeb = Cosmos.gl.program(gl, WEB_VS, WEB_FS); progWebComp = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, WEBCOMP_FS); }
+catch (e) { progWeb = null; console.info('[ch01] gravity preview unavailable on this GPU'); }
+const webVAO = gl.createVertexArray();
+const drawTri = Cosmos.gl.quad(gl);
+
+/* ---- render targets (half-float if renderable, else 8-bit with headroom) ---- */
+let HDR = !/[?&]ldr\b/.test(location.search);   // ?ldr forces the 8-bit fallback (for testing)
+function makeTarget(w, h) {
+  if (HDR) {
+    try { return Cosmos.gl.target(gl, { w, h, internal: gl.RGBA16F, filter: 'linear', wrap: 'clamp' }); }
+    catch (e) { HDR = false; }
+  }
+  return Cosmos.gl.target(gl, { w, h, internal: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE, filter: 'linear', wrap: 'clamp' });
+}
+let RT = null;
+function ensureTargets() {
+  const w = canvas.width, h = canvas.height;
+  if (RT && RT.w === w && RT.h === h) return;
+  if (RT) [RT.scene, RT.b1, RT.b2, RT.web].forEach((t) => { if (t) { gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fbo); } });
+  const bw = Math.max(1, Math.round(w / 4)), bh = Math.max(1, Math.round(h / 4));
+  RT = { w, h, bw, bh, scene: makeTarget(w, h), b1: makeTarget(bw, bh), b2: makeTarget(bw, bh), web: null };
+}
+/** The particle density buffer is only allocated once the gravity preview is first shown. */
+function ensureWebTarget() { if (!RT.web) RT.web = makeTarget(RT.w, RT.h); return RT.web; }
+
+/* ------------------------------------------------------------------ layers */
+const DELTA = 0.3;               // e-folds between layers
+const JOFF = 96, JN = 768;       // layer index j ∈ [−JOFF, JN − JOFF)
+const Lc = new Float64Array(JN), Ls = new Float64Array(JN);      // rotation
+const Lox = new Float64Array(JN), Loy = new Float64Array(JN);    // offsets (tile units)
+const Lth = new Float64Array(JN), Lsmax = new Float64Array(JN);  // phase, largest k/aH ratio reached
+let layerSeed = 1;
+function seedLayers(seed) {
+  const r = U.rng(seed * 7919 + 17);
+  for (let i = 0; i < JN; i++) {
+    const a = r() * Math.PI * 2; Lc[i] = Math.cos(a); Ls[i] = Math.sin(a);
+    Lox[i] = r(); Loy[i] = r(); Lth[i] = r() * Math.PI * 2; Lsmax[i] = 0;
+  }
+}
+const uM = new Float32Array(NLMAX * 4), uO = new Float32Array(NLMAX * 4), uK = new Float32Array(NLMAX * 4), uK2 = new Float32Array(NLMAX * 4);
+const tmp2 = [0, 0];
+
+/* ------------------------------------------------------------------ state */
+const sim = {
+  model: MODELS.staro, P: POTS.staro, step: null, phi0: MODELS.staro.phi0, Ntot: 60, tauTot: MODELS.staro.tauEnd, h0: MODELS.staro.h0, t0: MODELS.staro.t0, tooShort: false,
+  s: { phi: 0, pi: 0, rr: 0, N: 0, tau: 0 },
+  phase: 'pre', phaseT: 0, wallT: 0, endWall: 0, autoStart: 1.5,
+  h: 0, eps: 0, Nv: 0, lnh0: 0,
+  foamVis: 1, frozenVis: 1, plasma: 0, flash: 0, pulse: 0, zOff: 0, zOffT: 0, panX: 0, panY: 0, panVX: 0, panVY: 0,
+  boost: 1, crossSign: 0, crossings: 0, TrhGeV: 0, Or: 0, flashT: -1, pullFrom: 0, pullTo: 0, spark: 0, freeze: false,
+  fps: 60, trail: [], hist: [], lastHist: -1,
+  // gravity preview (after the zoom-out): webOn = requested, webMix = visual cross-fade, webU = growth progress 0..1
+  webOn: false, webMix: 0, webU: 0, webPlay: false, webD: 0, webA: 0, webT: 0,
+};
+const NV_GALAXY = 6.9;    // view whose width today is ≈ 30 Mpc: ripples ≈ Milky-Way seeds
+const nAt = (metres) => Math.log(metres / 1e-27);   // e-fold at which the 10⁻²⁷ m patch reaches a size
+const MILESTONES = [
+  [0, 'The inflaton rolls, and space grows exponentially'],
+  [3.6, 'Ripples freezing now will become the spots in the cosmic microwave background', 1],
+  [7.8, 'Ripples freezing now will become the seeds of galaxies', 1],
+  [13, 'Ripples larger than the ring stop oscillating and freeze'],
+  [nAt(1e-19), 'Space multiplies by e every Hubble time, and new foam boils up'],
+  [nAt(1.7e-15), 'The patch is now as big as a proton'],
+  [33.5, 'Every ripple the ring lets go is frozen for good'],
+  [nAt(1.06e-10), 'The patch is now as big as an atom'],
+  [nAt(1e-7), 'Now it could hold a virus'],
+  [nAt(8e-6), 'Now it is as big as a red blood cell'],
+  [nAt(5e-4), 'Now it is as big as a grain of sand'],
+  [nAt(1.5e-2), 'Now it is the size of a marble'],
+];
+/** Art-direction constants (display only; the physics lives in the integrator and the layer weights). */
+const TUNE = { blur: 0.35, bloom: 0.7, expo: 1.25, foam: 1, frozen: 1, env: 0.0, sparkle: 0.6, crest: 2.4, ridge: 10, fPeak: -0.6, fW: 0.8, fFloor: 0.3, fz0: 1.2, fz1: 4.0, sb0: 0.5, sb1: 2.5, lfPow: 6, foamB: 0.36, young: 3.6, rh: 0.028, coreK: 5, coreB: 0.18 };
+
+/** Integrate from a starting field to the end of inflation: total e-folds and duration. */
+function runInfo(P, M, phi0) {
+  if (Math.abs(phi0 - M.phi0) < 1e-9) return { N: M.NEnd, tau: M.tauEnd };
+  const step = makeStepper(P, M.Gam);
+  const h = Math.sqrt(P.f(phi0) / 3);
+  const st = { phi: phi0, pi: -P.fp(phi0) / (3 * h), rr: 0, N: 0, tau: 0 };
+  for (let i = 0; i < 900000; i++) { step(st, maxDt(P, st)); if (epsH(P, st) >= 1) break; }
+  return { N: st.N, tau: st.tau };
+}
+/** Range of starting fields that give between 25 and 90 e-folds (found once per potential). */
+function startRange(M) {
+  if (M.range) return M.range;
+  const P = M.P, lo0 = P.more > 0 ? M.phiEnd * 1.02 : 1e-3, hi0 = P.more > 0 ? M.phi0 * 2.2 : M.phiEnd * 0.98;
+  const solve = (Nt) => {
+    let lo = lo0, hi = hi0;
+    for (let i = 0; i < 26; i++) {
+      const mid = P.more > 0 ? 0.5 * (lo + hi) : Math.sqrt(lo * hi);
+      const N = runInfo(P, M, mid).N;
+      if ((N > Nt) === (P.more > 0)) hi = mid; else lo = mid;
+    }
+    return 0.5 * (lo + hi);
+  };
+  const a = solve(25), b = solve(90);
+  M.range = [Math.min(a, b), Math.max(a, b)];
+  return M.range;
+}
+function resetRun(autoDelay) {
+  const M = sim.model, P = sim.P;
+  sim.step = makeStepper(P, M.Gam);
+  const info = runInfo(P, M, sim.phi0);
+  sim.Ntot = info.N; sim.tauTot = info.tau;
+  const h0 = Math.sqrt(P.f(sim.phi0) / 3);
+  sim.h0 = h0; sim.t0 = 0.5 / (h0 * M.sqrtV0) * T_MP;
+  Object.assign(sim.s, { phi: sim.phi0, pi: -P.fp(sim.phi0) / (3 * h0), rr: 0, N: 0, tau: 0 });
+  sim.h = h0; sim.eps = epsH(P, sim.s); sim.Nv = 0; sim.lnh0 = Math.log(h0);
+  sim.phase = 'pre'; sim.phaseT = 0; sim.autoStart = autoDelay;
+  sim.foamVis = 1; sim.frozenVis = 1; sim.plasma = 0; sim.flash = 0; sim.pulse = 0;
+  sim.zOff = 0; sim.zOffT = 0; sim.panVX = sim.panVY = 0; sim.boost = 1;
+  sim.crossSign = 0; sim.crossings = 0; sim.TrhGeV = 0; sim.Or = 0; sim.flashT = -1; sim.tooShort = false;
+  sim.trail.length = 0; sim.hist.length = 0; sim.lastHist = -1;
+  sim.webOn = false; sim.webMix = 0; sim.webU = 0; sim.webPlay = false; sim.webD = 0;
+  webSlider.set(T_WEB0);
+  layerSeed = (layerSeed * 48271 + 11) % 2147483647;
+  seedLayers(layerSeed);
+  histChart && histChart.clear();
+  setCaption('I · Before inflation', 'A patch 10⁻²⁷ m across boils with quantum jitter');
+  syncButtons();
+}
+
+function startInflation() {
+  if (sim.phase !== 'pre') return;
+  sim.phase = 'inflate'; sim.phaseT = 0;
+  setCaption('II · Inflation', 'The inflaton rolls, and space grows exponentially');
+  syncButtons();
+}
+
+/* ------------------------------------------------------------------ gravity preview: ΛCDM clock + Zel'dovich growth */
+// Planck 2018 background: Ω_m = 0.315, Ω_Λ = 0.685, H₀ = 67.4 km/s/Mpc (Hubble time 14.51 Gyr).
+const COSMO = { Om: 0.315, OL: 0.685, tH: 977.8 / 67.4 };
+const COSMO_K = 3 * Math.sqrt(COSMO.OL) / (2 * COSMO.tH), COSMO_R = Math.sqrt(COSMO.OL / COSMO.Om);
+const ageOfA = (a) => Math.asinh(COSMO_R * Math.pow(a, 1.5)) / COSMO_K;           // Gyr, flat ΛCDM, matter + Λ
+const aOfAge = (t) => Math.pow(Math.sinh(COSMO_K * t) / COSMO_R, 2 / 3);
+/** Linear growth factor D(a) (Carroll, Press & Turner 1992 fit), normalised to 1 today. */
+const growthRaw = (a) => { const om = COSMO.Om / (COSMO.Om + COSMO.OL * a * a * a), ol = 1 - om; return a * 2.5 * om / (Math.pow(om, 4 / 7) - ol + (1 + om / 2) * (1 + ol / 70)); };
+const G_TODAY = growthRaw(1);
+const growth = (a) => growthRaw(a) / G_TODAY;
+const T_WEB0 = 0.1, T_WEB1 = ageOfA(1);         // the preview runs from 100 Myr (z ≈ 30) to today
+/** Art-direction constants for the web (display only). */
+const WEB = { beta: 0.28, lminCss: 8.5, Dmax: 1.15, pt: 2, bright: 0.34, pivot: 0.3, gamma: 1.6, count: SMALL ? 70000 : 240000, T: 15 };
+function aOfGrowth(g) { let lo = 1e-3, hi = 1; for (let i = 0; i < 40; i++) { const m = 0.5 * (lo + hi); if (growth(m) < g) lo = m; else hi = m; } return 0.5 * (lo + hi); }
+function setWebFromAge(tGyr) {
+  const t = U.clamp(tGyr, T_WEB0, T_WEB1);
+  const a = aOfAge(t), g0 = growth(aOfAge(T_WEB0));
+  sim.webA = a; sim.webT = t;
+  const gf = U.clamp((growth(a) - g0) / (1 - g0), 0, 1);
+  sim.webU = 1 - Math.pow(1 - gf, 1 / 1.45);
+  sim.webD = growth(a);
+}
+function setWebFromU(u) {
+  const g0 = growth(aOfAge(T_WEB0));
+  const g = U.lerp(g0, 1, 1 - Math.pow(1 - u, 1.45));   // brisk start, gentle arrival at today
+  const a = aOfGrowth(g);
+  sim.webU = u; sim.webD = g; sim.webA = a; sim.webT = ageOfA(a);
+}
+function fmtAge(t) { return t < 1 ? Math.round(t * 1000) + ' million years' : t.toFixed(t < 10 ? 1 : 1) + ' billion years'; }
+function webCaption() {
+  if (sim.webU >= 0.999) setCaption('VII · Today, 13.8 billion years on', 'The tallest ripples became knots of galaxies, strung along filaments around empty voids', true);
+  else setCaption('VII · Gravity takes over', 'Matter slides off the voids into sheets, filaments and knots', true);
+}
+function startWeb(fromStart) {
+  if (sim.phase !== 'rest' || sim.tooShort) { ch.toast(sim.tooShort ? 'This patch inflated too little to hold a sky of galaxies. Press Again.' : 'Gravity takes over once the zoom-out has finished. Press E to skip ahead.'); return false; }
+  if (!progWeb) { ch.toast('The gravity preview needs a GPU feature this device lacks'); return false; }
+  sim.webOn = true;
+  if (fromStart || sim.webU >= 0.999) setWebFromU(0);
+  sim.webPlay = true;
+  webCaption();
+  syncButtons();
+  return true;
+}
+function stopWeb() {
+  sim.webOn = false; sim.webPlay = false;
+  if (sim.phase === 'rest') restCaption();
+  syncButtons();
+}
+
+/* ------------------------------------------------------------------ UI */
+const inflGroup = ch.ui.group('The inflaton');
+const potCanvas = inflGroup.canvas(176); potCanvas.classList.add('qf-inset');
+inflGroup.note('Drag the ball to choose where the field starts. More height, more e-folds.');
+const potSel = inflGroup.select({
+  id: 'qf-pot', label: 'Potential V(φ)', value: 'staro',
+  options: [{ value: 'staro', label: 'Starobinsky R² (default)' }, { value: 'chaotic', label: 'Chaotic ½m²φ²' }, { value: 'hilltop', label: 'Hilltop [1 − (φ/μ)⁴]²' }],
+  onChange: (v) => choosePotential(v),
+});
+const infRO = inflGroup.readouts([{ id: 'phi', label: 'Field φ' }, { id: 'epsV', label: 'Epsilon (V)' }, { id: 'eta', label: 'Eta (V)' }, { id: 'epsH', label: 'Epsilon (H)' }]);
+const btns = inflGroup.buttons([
+  { id: 'qf-inflate', label: 'Inflate', kind: 'primary', onClick: () => { if (sim.phase === 'pre') startInflation(); else { resetRun(0.6); } } },
+  { id: 'qf-skip', label: 'Skip ahead', title: 'Race to the last e-folds (E)', onClick: () => skipAhead() },
+  { id: 'qf-restart', label: 'Restart', title: 'New patch, new quantum dice (R)', onClick: () => { resetRun(1.0); ch.toast('A new patch of false vacuum'); } },
+]);
+let webBtns = null;
+function syncButtons() {
+  const b = btns[0];
+  if (sim.phase === 'pre') b.setLabel('Inflate'); else b.setLabel('Again');
+  btns[1].el.disabled = sim.phase !== 'inflate' && sim.phase !== 'pre';
+  btns[1].el.style.opacity = btns[1].el.disabled ? 0.4 : 1;
+  if (!webBtns) return;
+  const ready = sim.phase === 'rest' && !sim.tooShort;
+  webBtns[0].setLabel(!sim.webOn ? 'Let gravity act' : sim.webPlay ? 'Pause gravity' : sim.webU >= 0.999 ? 'Watch it again' : 'Resume gravity');
+  webBtns[0].el.style.opacity = ready ? 1 : 0.45;
+  webBtns[1].el.disabled = !sim.webOn; webBtns[1].el.style.opacity = sim.webOn ? 1 : 0.4;
+}
+
+const specGroup = ch.ui.group('Primordial ripples');
+const nsSlider = specGroup.slider({
+  id: 'qf-ns', label: 'Spectral tilt n_s', min: 0.90, max: 1.05, step: 0.001, value: +MODELS.staro.ns.toFixed(3), digits: 3, format: (v) => v.toFixed(3),
+  hint: 'Power ∝ k<sup>n<sub>s</sub>−1</sup>. Below 1 (red): big blobs win. Above 1 (blue): fine grain wins.',
+  onInput: () => { drawNsr(); },
+});
+const ampSlider = specGroup.slider({
+  id: 'qf-amp', label: 'Fluctuation amplitude', min: 0.3, max: 2.5, step: 0.01, value: 1, digits: 2,
+  format: (v) => '√A_s × ' + v.toFixed(2),
+  hint: 'Contrast of the frozen seeds. The real amplitude is δ ≈ 5×10<sup>−5</sup>.',
+});
+const magToggle = specGroup.toggle({ id: 'qf-mag', label: 'Magnify tilt 8× on screen', value: true, hint: 'Off shows the true tilt: a 2% change in amplitude per e-fold.' });
+const modeCanvas = specGroup.canvas(104); modeCanvas.classList.add('qf-mode');
+const nsrCanvas = specGroup.canvas(128); nsrCanvas.classList.add('qf-nsr');
+
+const showGroup = ch.ui.group('View');
+showGroup.html(Cosmos.h('div', { class: 'qf-legend', html:
+  '<span><i style="background:#d9a8ff"></i>live foam, inside the horizon</span>' +
+  '<span><i style="background:#8f8cf0"></i>just frozen</span>' +
+  '<span><i style="background:#3b2f8f"></i>frozen long ago</span>' +
+  '<span><i style="background:transparent;border:1px solid rgba(236,230,214,.7)"></i>Hubble radius</span>' }));
+const REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (REDUCED) TUNE.blur = 0;
+const speedSlider = showGroup.slider({ id: 'qf-speed', label: 'Speed', min: 0.25, max: 4, value: REDUCED ? 0.6 : 1, log: true, format: (v) => v.toFixed(2) + '×' });
+const ringToggle = showGroup.toggle({ id: 'qf-ring', label: 'Hubble radius ring', value: true });
+const ladderToggle = showGroup.toggle({ id: 'qf-ladder', label: 'Scale ladder', value: true });
+const contourToggle = showGroup.toggle({ id: 'qf-contour', label: 'Density contours', value: false });
+const pullToggle = showGroup.toggle({ id: 'qf-pull', label: 'Zoom out after reheating', value: true, hint: 'Pull back 50 e-folds to the ripples that become galaxies.' });
+showGroup.note('Drag to steer the dive. Scroll or pinch to look at larger frozen ripples. Double-click to recentre.');
+
+const webGroup = ch.ui.group('Gravity (preview)');
+webGroup.note('After the zoom-out, let 13.8 billion years of gravity act on the seeds you watched freeze.');
+webBtns = webGroup.buttons([
+  { id: 'qf-web', label: 'Let gravity act', kind: 'primary', title: 'Grow the seeds into the cosmic web (G)', onClick: () => { if (sim.webOn && sim.webPlay) { sim.webPlay = false; syncButtons(); } else if (sim.webOn && sim.webU < 0.999) { sim.webPlay = true; syncButtons(); } else startWeb(true); } },
+  { id: 'qf-seeds', label: 'Back to the seeds', onClick: () => stopWeb() },
+]);
+const webSlider = webGroup.slider({
+  id: 'qf-age', label: 'Cosmic time', min: T_WEB0, max: T_WEB1, value: T_WEB0, log: true,
+  format: (v) => (v < 1 ? Math.round(v * 1000) + ' Myr' : v.toFixed(1) + ' Gyr') + ' · z = ' + (1 / aOfAge(v) - 1).toFixed(v < 1 ? 0 : 1),
+  hint: 'Drag through time. Growth follows the ΛCDM growth factor D(a).',
+  onInput: (v) => {
+    if (sim.phase !== 'rest' || sim.tooShort) { startWeb(); webSlider.set(T_WEB0); return; }
+    if (!sim.webOn) { if (!startWeb()) return; }
+    sim.webPlay = false; setWebFromAge(v); webCaption(); syncButtons();
+  },
+});
+
+const histGroup = ch.ui.group('History');
+const histChart = histGroup.chart({ height: 100, series: [{ label: 'ε_H' }, { label: 'H / H_start', color: '#979db2' }], log: true, yMin: 1e-5, yMax: 2, xMin: 0, xMax: 62, xLabel: 'N (e-folds)', yFormat: (v) => FMT.sci(v, 1), maxPoints: 400 });
+const physRO = histGroup.readouts([{ id: 'H', label: 'Hubble rate' }, { id: 'V14', label: 'Energy V¼' }, { id: 'ns', label: 'Model tilt' }, { id: 'r', label: 'Tensor ratio' }, { id: 'T', label: 'Reheat temp.' }, { id: 'Or', label: 'Radiation share' }]);
+
+const hud = {
+  N: ch.hud.add('E-folds', 'N = 0.00'),
+  a: ch.hud.add('Scale', 'a = 1'),
+  H: ch.hud.add('Hubble', 'H = —'),
+  eps: ch.hud.add('Slow roll', 'ε = —'),
+  t: ch.hud.add('Age', 't = —'),
+};
+
+/* ---- caption ---- */
+const capAct = Cosmos.h('button', { class: 'qf-act', type: 'button', text: 'Let gravity act · 13.8 billion years' });
+const cap = Cosmos.h('div', { class: 'qf-cap', 'aria-live': 'polite' }, Cosmos.h('small'), Cosmos.h('b'),
+  Cosmos.h('div', { class: 'qf-links' }, capAct, Cosmos.h('a', { class: 'qf-next', href: ch.next ? ch.next.file : 'index.html', text: 'Next · ' + (ch.next ? ch.next.title : 'the timeline') + ' →' })));
+document.body.append(cap);
+const clock = Cosmos.h('div', { class: 'qf-webclock', 'aria-hidden': 'true' }, Cosmos.h('span', { text: 'COSMIC TIME' }), Cosmos.h('b'), Cosmos.h('span'));
+document.body.append(clock);
+capAct.addEventListener('click', () => { if (sim.webOn && sim.webU >= 0.999) startWeb(true); else if (!sim.webOn) startWeb(true); });
+const toastEl = document.querySelector('.cz-toast');
+if (toastEl && window.MutationObserver) new MutationObserver(() => cap.classList.toggle('hush', toastEl.classList.contains('on'))).observe(toastEl, { attributes: true, attributeFilter: ['class'] });
+let capKey = '';
+function setCaption(kicker, line, showNext, showAct) {
+  const key = kicker + '|' + line;
+  cap.classList.toggle('show-next', !!showNext);
+  const act = !!showAct || (sim.webOn && sim.webU >= 0.999);
+  cap.classList.toggle('show-act', act);
+  capAct.textContent = sim.webOn ? 'Watch it again' : 'Let gravity act · 13.8 billion years';
+  if (key === capKey) return;
+  capKey = key;
+  cap.classList.remove('on');
+  clearTimeout(setCaption.t);
+  setCaption.t = setTimeout(() => { cap.children[0].textContent = kicker; cap.children[1].textContent = line; cap.classList.add('on'); }, capKey ? 380 : 0);
+}
+
+function choosePotential(key) {
+  sim.P = POTS[key]; sim.model = MODELS[key]; sim.phi0 = sim.model.phi0;
+  if (potSel.value !== key) potSel.set(key);
+  nsSlider.set(+sim.model.ns.toFixed(3));
+  resetRun(0.9);
+  drawNsr();
+  const M = sim.model;
+  const verdict = key === 'staro' ? 'inside the Planck contour' : key === 'chaotic' ? 'ruled out: r > 0.036' : 'too red for Planck';
+  ch.toast(`${POTS[key].label}: n_s = ${M.ns.toFixed(3)}, r = ${M.r < 1e-3 ? FMT.sci(M.r, 2) : M.r.toFixed(3)} · ${verdict}`, 4200);
+}
+function skipAhead() {
+  if (sim.phase === 'pre') startInflation();
+  if (sim.phase === 'inflate') { sim.boost = 7; ch.toast('Racing to the last e-folds'); }
+}
+
+/* ------------------------------------------------------------------ interaction */
+const stage = ch.stage;
+stage.classList.add('cz-grab');
+const ptrs = new Map(); let pinch0 = 0, lastX = 0, lastY = 0, dragMoved = 0;
+stage.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0 && e.pointerType === 'mouse') return;
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  try { stage.setPointerCapture(e.pointerId); } catch (_) { /* capture unsupported */ }
+  lastX = e.clientX; lastY = e.clientY; dragMoved = 0;
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); }
+});
+stage.addEventListener('pointermove', (e) => {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (ptrs.size === 2) {
+    const [a, b] = [...ptrs.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (pinch0 > 0 && d > 0) nudgeZoom(Math.log(d / pinch0));
+    pinch0 = d; return;
+  }
+  const dx = e.clientX - lastX, dy = e.clientY - lastY; lastX = e.clientX; lastY = e.clientY;
+  dragMoved += Math.abs(dx) + Math.abs(dy);
+  panBy(dx, dy);
+  sim.panVX = dx * 60; sim.panVY = dy * 60;
+});
+const up = (e) => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch0 = 0; if (!ptrs.size && dragMoved < 4) { sim.panVX = sim.panVY = 0; } };
+stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+stage.addEventListener('wheel', (e) => { e.preventDefault(); nudgeZoom(-e.deltaY * 0.0025); }, { passive: false });
+stage.addEventListener('dblclick', () => { sim.zOffT = sim.phase === 'rest' || sim.phase === 'pullback' ? sim.pullTo : 0; sim.panVX = sim.panVY = 0; });
+function nudgeZoom(d) {
+  if (sim.phase === 'pullback') return;
+  const minZ = -Math.max(0, sim.Nv - 1.2);
+  sim.zOffT = U.clamp(sim.zOffT + d, minZ, 1.2);
+}
+/** Move the field with the pointer: every layer's offset shifts by its own texture scale. */
+function panBy(dxCss, dyCss) {
+  const r = canvas.width / Math.max(1, canvas.clientWidth);
+  const dx = dxCss * r, dy = -dyCss * r;
+  const lamCross = 2 * Math.PI * view.RHpx * Math.exp(sim.zOff);
+  for (let i = 0; i < JN; i++) {
+    const j = i - JOFF;
+    const lnS = sim.Nv - j * DELTA;
+    if (lnS > 14 || lnS < -9) continue;
+    const lam = lamCross * Math.exp(lnS);
+    const sc = 1 / (K0 * lam);
+    const ux = sc * (Lc[i] * dx - Ls[i] * dy), uy = sc * (Ls[i] * dx + Lc[i] * dy);
+    Lox[i] = (Lox[i] - ux) % 1; Loy[i] = (Loy[i] - uy) % 1;
+  }
+}
+ch.onKey('i', () => { if (sim.phase === 'pre') startInflation(); else resetRun(0.6); }, 'Inflate / again');
+ch.onKey('r', () => resetRun(1.0), 'Restart with a new patch');
+ch.onKey('e', () => skipAhead(), 'Skip ahead to the end of inflation');
+ch.onKey('1', () => choosePotential('staro'), 'Starobinsky potential');
+ch.onKey('2', () => choosePotential('chaotic'), 'Chaotic φ² potential');
+ch.onKey('3', () => choosePotential('hilltop'), 'Hilltop potential');
+ch.onKey('z', () => { sim.zOffT = 0; sim.panVX = sim.panVY = 0; }, 'Reset the view');
+ch.onKey('g', () => { if (sim.webOn && sim.webU < 0.999) { sim.webPlay = !sim.webPlay; syncButtons(); } else startWeb(true); }, 'Let gravity act on the seeds');
+
+/* ------------------------------------------------------------------ layout */
+const view = { W: 1, H: 1, fx: 0.5, fy: 0.5, tfx: 0.5, tfy: 0.5, RH: 40, RHpx: 60, ladY: 0, ladX0: 0, ladX1: 0, compact: false };
+function measure() {
+  const W = window.innerWidth, H = window.innerHeight;
+  view.W = W; view.H = H;
+  const deck = document.querySelector('.cz-deck'), notes = document.querySelector('.cz-notes'), foot = document.querySelector('.cz-foot');
+  const footTop = foot ? foot.getBoundingClientRect().top : H - 58;
+  let x0 = 16, x1 = W - 16;
+  const small = isSmall();
+  const nr = notes && getComputedStyle(notes).display !== 'none' && !document.body.classList.contains('cz-cinema') ? notes.getBoundingClientRect() : null;
+  const dr = deck && deck.classList.contains('cz-open') && !document.body.classList.contains('cz-cinema') ? deck.getBoundingClientRect() : null;
+  let ladY = footTop - 30;
+  if (!small) {
+    if (nr && nr.width > 0) x0 = Math.max(x0, nr.right + 18);
+    if (dr && dr.width > 0) x1 = Math.min(x1, dr.left - 18);
+    if (x1 - x0 < 150) {
+      // panels overlap the middle (tablets): use the column left of the deck, above the notes
+      x0 = 16; x1 = dr && dr.width > 0 && dr.left - 18 > 330 ? dr.left - 18 : W - 16;
+    }
+  } else {
+    let top = footTop;
+    if (nr && nr.height > 0) top = Math.min(top, nr.top);
+    if (dr && dr.height > 0) top = Math.min(top, dr.top);
+    ladY = top - 26;
+  }
+  // phones: when a panel covers most of the screen, keep only the ring
+  view.compact = small && ladY < H * 0.62;
+  cap.classList.toggle('qf-hide', view.compact);
+  view.ladY = ladY; view.ladX0 = x0; view.ladX1 = x1;
+  view.tfx = (x0 + x1) / 2;
+  const topY = (small ? 150 : 110), botY = ladY - 40;
+  view.tfy = U.clamp((topY + botY) / 2, H * 0.3, H * 0.62);
+  view.RH = U.clamp(TUNE.rh * Math.sqrt(W * H), 18, 44);
+  cap.style.left = view.tfx + 'px';
+  const span = x1 - x0;
+  cap.style.width = (small ? Math.min(560, W - 24) : U.clamp(span - 16, 220, 560)) + 'px';
+  cap.classList.toggle('qf-narrow', !small && span < 440);
+  const hudEl = document.querySelector('.cz-hud');
+  const hr = hudEl && getComputedStyle(hudEl).display !== 'none' ? hudEl.getBoundingClientRect() : null;
+  // keep the caption clear of the HUD when the free column starts at the left edge (tablets)
+  const capW = parseFloat(cap.style.width) || 560;
+  cap.style.top = !small && hr && hr.width > 0 && view.tfx - capW / 2 < hr.right + 8 ? (hr.bottom + 16) + 'px' : '';
+  view.hud = hr && hr.width > 0 ? { x: hr.left + hr.width * 0.42, y: hr.top + hr.height / 2, rx: hr.width * 0.85 + 40, ry: hr.height * 0.9 + 34 } : null;
+  const cb = cap.getBoundingClientRect();
+  view.capBottom = cb.bottom;
+  view.capRect = cb.width > 0 ? { x: cb.left + cb.width / 2, y: cb.top + cb.height / 2, rx: cb.width * 0.62 + 30, ry: Math.max(48, cb.height * 0.85) } : null;
+  // cosmic clock for the gravity preview: above the ladder's left end (desktop) or above the ladder (phones)
+  clock.style.left = (small ? view.tfx : x0 + 24) + 'px';
+  clock.style.top = (small ? ladY - 186 : ladY - 170) + 'px';
+  clock.style.transform = small ? 'translateX(-50%)' : 'none';
+  clock.style.textAlign = small ? 'center' : 'left';
+}
+measure();
+view.fx = view.tfx; view.fy = view.tfy;
+ch.onResize(measure);
+setInterval(measure, 400);
+
+/* ------------------------------------------------------------------ frame: physics */
+function stepPhysics(dt) {
+  const M = sim.model, P = sim.P, s = sim.s;
+  sim.phaseT += dt; sim.wallT += dt;
+  let dtau = 0;
+  if (sim.phase === 'pre') {
+    if (sim.phaseT > sim.autoStart) startInflation();
+  }
+  if (sim.phase === 'inflate' || sim.phase === 'reheat') {
+    const kInf = sim.tauTot / (28 * U.clamp(sim.Ntot / 60, 0.5, 1.35));   // 60 e-folds in ≈ 28 s at speed 1
+    const kPost = (2 * Math.PI / M.m) / 0.8;             // one oscillation ≈ 0.8 s
+    let k = kInf;
+    if (sim.phase === 'inflate') k *= 0.12 + 0.88 * U.smoothstep(0, 1.2, sim.phaseT);   // ease into the dive
+    if (sim.phase === 'reheat') k = U.lerp(kInf, kPost, U.smoothstep(0, 1.4, sim.phaseT));
+    dtau = sim.freeze ? 0 : k * speedSlider.value * sim.boost * dt;
+  }
+  const N0 = s.N;
+  if (dtau > 0) {
+    let left = dtau, guard = 0;
+    while (left > 1e-12 && guard++ < 4000) {
+      const h = Math.min(left, maxDt(P, s));
+      sim.step(s, h); left -= h;
+      if (sim.phase === 'inflate' && epsH(P, s) >= 1) { endInflation(); }
+    }
+    if (!isFinite(s.phi) || !isFinite(s.pi) || !isFinite(s.N)) { console.info('[ch01] integrator reset after non-finite state'); resetRun(1.0); return 0; }
+  }
+  sim.h = hubble(P, s);
+  sim.eps = epsH(P, s);
+  sim.Nv = s.N + Math.log(sim.h) - sim.lnh0;
+  const dN = s.N - N0;
+  if (sim.phase === 'inflate' && sim.boost > 1 && sim.eps > 0.08) sim.boost = 1;
+
+  if (sim.phase === 'reheat') {
+    const d = s.phi - P.min, sg = d > 0 ? 1 : -1;
+    if (sim.crossSign && sg !== sim.crossSign) { sim.crossings++; sim.pulse = Math.min(1, sim.pulse + 0.35); if (snd.nodes) snd.thump(Math.min(1, Math.abs(s.pi) * 2 + 0.2)); }
+    sim.crossSign = sg;
+    const rhoTot = 3 * sim.h * sim.h; sim.Or = s.rr / rhoTot;
+    sim.foamVis = Math.max(0, sim.foamVis - dt * 0.6);
+    if ((sim.Or >= 0.5 || sim.phaseT > 9) && sim.flashT < 0) triggerFlash();
+  }
+  if (sim.flashT >= 0) {
+    sim.flashT += dt;
+    if (sim.phase === 'reheat' && sim.flashT > 0.12) {
+      sim.phase = 'plasma'; sim.phaseT = 0;
+      setCaption('IV · The hot Big Bang', 'A plasma at ' + FMT.sci(sim.TrhGeV, 2) + ' GeV (' + FMT.sci(sim.TrhGeV * 1.1605e13, 2) + ' K). Its glow traces the frozen ripples');
+      syncButtons();
+    }
+  }
+  sim.flash = sim.flashT < 0 ? 0 : sim.flashT < 0.1 ? sim.flashT / 0.1 : Math.exp(-(sim.flashT - 0.1) / 0.45);
+  sim.pulse *= Math.exp(-dt * 3.2);
+  if (sim.phase === 'reheat' && sim.flashT < 0) sim.plasma = 0.45 * U.smoothstep(0.02, 0.5, sim.Or);
+  sim.spark = sim.phase === 'reheat' ? U.smoothstep(0.0, 0.35, sim.Or) : Math.max(0, sim.spark - dt * 1.5);
+  if (sim.flashT >= 0) { sim.plasma = Math.max(sim.plasma, U.smoothstep(0.05, 0.9, sim.flashT)); sim.foamVis = Math.max(0, sim.foamVis - dt * 2); }
+  if (sim.phase === 'plasma' && sim.phaseT > 0.9) {
+    if (pullToggle.value) {
+      // aim for a view ≈ 30 Mpc wide today; if inflation was too short, stop at the edge of the inflated patch
+      const target = Math.log(L_TODAY_START() / 9.26e23);
+      sim.tooShort = target < 0.8;
+      sim.phase = 'pullback'; sim.phaseT = 0; sim.pullFrom = sim.zOff; sim.pullTo = Math.max(0.8, target) - sim.Nv;
+      setCaption('V · Zoom out', sim.tooShort ? 'Pull back to the edge of the inflated patch' : 'Pull back fifty e-folds: the first ripples to freeze are now the largest');
+    } else { sim.phase = 'rest'; sim.phaseT = 0; restCaption(); }
+  }
+  if (sim.phase === 'pullback') {
+    const T = 13;
+    const u = U.clamp(sim.phaseT / T, 0, 1);
+    const e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+    sim.zOffT = sim.zOff = U.lerp(sim.pullFrom, sim.pullTo, e);
+    if (u >= 1) { sim.phase = 'rest'; sim.phaseT = 0; restCaption(); syncButtons(); }
+  }
+  // gravity preview: the growth factor advances at a steady pace, so the clock races through the late Gyr
+  if (sim.phase === 'rest' && sim.webOn && sim.webPlay) {
+    const u = Math.min(1, sim.webU + dt * speedSlider.value / WEB.T);
+    setWebFromU(u);
+    webSlider.set(sim.webT);
+    if (u >= 1) { sim.webPlay = false; webCaption(); syncButtons(); if (snd.nodes) snd.chime(); }
+  }
+  const webTarget = sim.phase === 'rest' && sim.webOn ? 1 : 0;
+  sim.webMix += (webTarget - sim.webMix) * Math.min(1, dt * (webTarget ? 1.6 : 2.4));
+  if (sim.webMix < 1e-3 && !webTarget) sim.webMix = 0;
+  // milestones during inflation: the caption follows the physics
+  if (sim.phase === 'inflate') {
+    const N = s.N;
+    let cap = MILESTONES[0];
+    for (const m of MILESTONES) { const at = m[0] + (m[2] ? sim.Ntot - 60 : 0); if (N >= at && at >= 0.5) cap = m; }
+    if (sim.eps > 0.1) setCaption('II · Inflation', 'The ball reaches the steep slope. ε climbs toward 1');
+    else setCaption('II · Inflation', cap[1]);
+  }
+  // history
+  if (sim.phase === 'inflate' || sim.phase === 'reheat') {
+    if (s.N - sim.lastHist > 0.12 || sim.lastHist < 0) {
+      sim.lastHist = s.N;
+      sim.hist.push([s.N, U.clamp(sim.eps, 1e-5, 2), sim.h / sim.h0]);
+      if (sim.hist.length > 700) sim.hist.shift();
+    }
+  }
+  // trail of the ball
+  sim.trail.push(s.phi); if (sim.trail.length > 36) sim.trail.shift();
+  return dN;
+}
+function endInflation() {
+  sim.phase = 'reheat'; sim.phaseT = 0; sim.boost = 1;
+  sim.crossSign = (sim.s.phi - sim.P.min) > 0 ? 1 : -1;
+  setCaption('III · Reheating', 'Inflation ends. The inflaton sloshes, and every swing makes particles');
+  syncButtons();
+}
+function triggerFlash() {
+  sim.flashT = 0;
+  const s = sim.s, M = sim.model;
+  const rho = s.rr * M.V0; // in M_p⁴
+  const gstar = 106.75;
+  sim.TrhGeV = Math.pow(30 * rho / (Math.PI * Math.PI * gstar), 0.25) * MP_GEV;
+  if (snd.nodes) snd.boom();
+}
+function restCaption() {
+  if (sim.tooShort) setCaption('VI · Too little inflation', 'After ' + sim.Ntot.toFixed(0) + ' e-folds this smooth patch is only ' + fmtLen(L_TODAY_START()) + ' across today. Beyond it, nothing could have evened out the sky', true);
+  else if (sim.webOn) webCaption();
+  else setCaption('VI · Seeds', 'These ripples become galaxies', true, true);
+}
+
+
+/* ------------------------------------------------------------------ frame: layers → uniforms */
+const LMIN = 8.5;   // smallest wavelength drawn, device px
+const uniformsOut = { nl: 0, fsubY: 0, fsubO: 0, gY: 1, gO: 1, gT: 1, gL: 1, sF: 0, lamCross: 1 };
+function buildLayers(dN, dt) {
+  const r = canvas.width / Math.max(1, canvas.clientWidth);
+  view.RHpx = view.RH * r;
+  const lamCross = 2 * Math.PI * view.RHpx * Math.exp(sim.zOff);   // on-screen wavelength of a mode at horizon exit
+  const halfDiag = 0.5 * Math.hypot(canvas.width, canvas.height);
+  const lmin = LMIN * (1 + 1.2 * sim.plasma) * r / 1.5;           // in the plasma, diffusion erases the finest ripples
+  const LMAX = halfDiag * TUNE.fz1 * 1.05;
+  const Nv = sim.Nv;
+  const X = magToggle.value ? 8 : 1;
+  const tiltK = X * (nsSlider.value - 1) / 2;
+  const idle = sim.phase === 'pre' ? 1.1 : sim.phase === 'inflate' ? 0.12 : 0;
+  // phases and horizon memory for every layer that exists
+  for (let i = 0; i < JN; i++) {
+    const j = i - JOFF;
+    const lnS = Nv - j * DELTA;
+    if (lnS > 16) continue;
+    const s = Math.exp(lnS);
+    if ((sim.phase === 'pre' || sim.phase === 'inflate') && s > Lsmax[i]) Lsmax[i] = s;
+    const se = Math.max(s, Lsmax[i]);
+    // de Sitter mode: phase advances by k/aH per e-fold (compressed), and stops outside the horizon
+    const W = Math.pow(se, -0.55) / (1 + Math.pow(se, 1.45));
+    Lth[i] += W * (Math.max(0, dN) + idle * dt);
+  }
+  const lnsLo = Math.log(lmin / lamCross), lnsHi = Math.log(LMAX / lamCross);
+  let jLo = Math.ceil((Nv - lnsHi) / DELTA), jHi = Math.floor((Nv - lnsLo) / DELTA);
+  if (jHi - jLo + 1 > NLMAX) jLo = jHi - NLMAX + 1;
+  let n = 0, fsubY = 0, fsubO = 0, sY = 0, sO = 0, sT = 0, sL = 0, sFnow = 0;
+  for (let j = jHi; j >= jLo; j--) {
+    const i = j + JOFF;
+    if (i < 0 || i >= JN) continue;
+    const lnS = Nv - j * DELTA, s = Math.exp(lnS);
+    const lam = lamCross * s;
+    const wv = U.smoothstep(lmin, lmin * 1.9, lam) * (1 - U.smoothstep(halfDiag * TUNE.fz0, halfDiag * TUNE.fz1, lam));
+    if (wv <= 0) continue;
+    const smax = Math.max(s, Lsmax[i]);
+    const lf = 1 / (1 + Math.pow(smax, TUNE.lfPow));        // live (sub-horizon) fraction
+    const seeded = j >= 0 ? 1 : 0;                           // no seeds from before inflation began
+    const lq = (Math.log(smax) - TUNE.fPeak) / TUNE.fW;
+    const dwL = TUNE.fFloor + (1 - TUNE.fFloor) * Math.exp(-0.5 * lq * lq);   // foam emphasis near the horizon scale
+    const tpl = Math.exp(tiltK * (j * DELTA - Nv));          // P ∝ k^(n_s−1), magnified for the eye
+    const yw = 1 / (1 + Math.pow(s / TUNE.young, 3));   // young (recently frozen) share: depends on the mode's age only
+    const aT = (1 - lf) * tpl * wv;
+    const aY = aT * yw * seeded, aO = aT * (1 - yw) * seeded;
+    const aL = lf * tpl * dwL * wv;
+    const c = Math.cos(Lth[i]), sn = -Math.sin(Lth[i]);
+    const sc = 1 / (K0 * lam);
+    const b4 = n * 4;
+    uM[b4] = sc * Lc[i]; uM[b4 + 1] = -sc * Ls[i]; uM[b4 + 2] = sc * Ls[i]; uM[b4 + 3] = sc * Lc[i];
+    const pair = (j & 1);
+    uO[b4] = Lox[i] - Math.floor(Lox[i]); uO[b4 + 1] = Loy[i] - Math.floor(Loy[i]); uO[b4 + 2] = pair; uO[b4 + 3] = 0;
+    uK[b4] = aY * c; uK[b4 + 1] = aY * sn; uK[b4 + 2] = aL * c; uK[b4 + 3] = aL * sn;
+    uK2[b4] = aO * c; uK2[b4 + 1] = aO * sn; uK2[b4 + 2] = 0; uK2[b4 + 3] = 0;
+    // the largest layers are nearly uniform across the screen: remove their centre value so they fade out unseen
+    const bsub = U.smoothstep(halfDiag * TUNE.sb0, halfDiag * TUNE.sb1, lam);
+    if (bsub > 0 && aT > 0) {
+      noiseAt(uO[b4], uO[b4 + 1], pair, tmp2);
+      const v = c * tmp2[0] + sn * tmp2[1];
+      fsubY += bsub * aY * v; fsubO += bsub * aO * v;
+    }
+    const keep = 1 - 0.85 * bsub;
+    sY += (aT * yw * keep) ** 2; sO += (aT * (1 - yw) * keep) ** 2; sT += (aT * keep) ** 2;
+    sFnow += (aT * keep * seeded) ** 2;
+    sL += aL * aL;
+    n++;
+    if (n >= NLMAX) break;
+  }
+  uniformsOut.nl = n; uniformsOut.fsubY = fsubY; uniformsOut.fsubO = fsubO;
+  uniformsOut.gY = 1 / Math.sqrt(Math.max(sY, 1e-9));
+  uniformsOut.gO = 1 / Math.sqrt(Math.max(sO, 1e-9));
+  uniformsOut.gT = 1 / Math.sqrt(Math.max(sT, 1e-9));
+  uniformsOut.gL = 1 / Math.sqrt(Math.max(sL, 1e-9));
+  uniformsOut.sF = Math.sqrt(sFnow / Math.max(sT, 1e-9));
+  uniformsOut.lamCross = lamCross;
+}
+
+/* ------------------------------------------------------------------ gravity preview: GPU particles */
+const webState = { gain: 1, lmin: 1, lref: 1, psi0: [0, 0], cols: 0, rows: 0, sp: 1 };
+const psiTmp = [0, 0], psiOut = [0, 0, 0];
+/** CPU twin of WEB_VS: raw displacement ψ (device px, GL axes) and δ at a device-px offset from the view centre. */
+function psiAtDev(px, py, out) {
+  const hh = 0.125 / K0, lmin = webState.lmin, lref = webState.lref;
+  let sx = 0, sy = 0, dl = 0;
+  for (let n = 0; n < uniformsOut.nl; n++) {
+    const b4 = n * 4, m0 = uM[b4], m1 = uM[b4 + 1], m2 = uM[b4 + 2], m3 = uM[b4 + 3];
+    const lam = 1 / (K0 * Math.hypot(m0, m1));
+    const wl = U.smoothstep(lmin, lmin * 1.7, lam);
+    if (wl <= 0) continue;
+    const u = m0 * px + m1 * py + uO[b4], v = m2 * px + m3 * py + uO[b4 + 1], pair = uO[b4 + 2];
+    const k0 = uK[b4] + uK2[b4], k1 = uK[b4 + 1] + uK2[b4 + 1];
+    noiseAt(u, v, pair, psiTmp); const L0 = k0 * psiTmp[0] + k1 * psiTmp[1];
+    noiseAt(u + hh, v, pair, psiTmp); const Lx = k0 * psiTmp[0] + k1 * psiTmp[1];
+    noiseAt(u, v + hh, pair, psiTmp); const Ly = k0 * psiTmp[0] + k1 * psiTmp[1];
+    const gx = (Lx - L0) / hh, gy = (Ly - L0) / hh;
+    const T = Math.pow(lam / lref, -WEB.beta) * wl;
+    dl += L0 * T;
+    sx += (gx * m0 + gy * m2) * lam * lam * 0.025330296 * T;
+    sy += (gx * m1 + gy * m3) * lam * lam * 0.025330296 * T;
+  }
+  out[0] = sx; out[1] = sy; out[2] = dl;
+  return out;
+}
+/** Normalise the transferred field to unit variance and remove the bulk flow at the view centre. */
+function updateWebState(W, H, r, amp) {
+  const lmin = WEB.lminCss * r;
+  webState.lmin = lmin; webState.lref = lmin * 1.7;
+  let sW = 0;
+  for (let n = 0; n < uniformsOut.nl; n++) {
+    const b4 = n * 4;
+    const lam = 1 / (K0 * Math.hypot(uM[b4], uM[b4 + 1]));
+    const wl = U.smoothstep(lmin, lmin * 1.7, lam);
+    if (wl <= 0) continue;
+    const a = Math.hypot(uK[b4] + uK2[b4], uK[b4 + 1] + uK2[b4 + 1]);
+    const T = Math.pow(lam / webState.lref, -WEB.beta) * wl;
+    sW += (a * T) * (a * T);
+  }
+  webState.gain = amp / Math.sqrt(Math.max(sW, 1e-12));
+  psiAtDev(0, 0, psiOut);
+  webState.psi0[0] = psiOut[0] * webState.gain; webState.psi0[1] = psiOut[1] * webState.gain;
+  const sp = Math.sqrt(W * H * 1.12 * 1.12 / WEB.count);
+  webState.sp = sp; webState.cols = Math.ceil(W * 1.12 / sp); webState.rows = Math.ceil(H * 1.12 / sp);
+}
+/** Screen displacement (css px) of a point after growth D, for the markers that ride along with the flow. */
+function webShiftCss(xc, yc, out) {
+  const r = canvas.width / Math.max(1, canvas.clientWidth);
+  psiAtDev((xc - view.fx) * r, (view.fy - yc) * r, psiOut);
+  const D = WEB.Dmax * sim.webD * sim.webMix;
+  out[0] = D * (psiOut[0] * webState.gain - webState.psi0[0]) / r;
+  out[1] = -D * (psiOut[1] * webState.gain - webState.psi0[1]) / r;
+  return out;
+}
+function drawWeb(W, H, r, cx, cy, OUT, amp) {
+  updateWebState(W, H, r, amp);
+  const ws = webState, n = ws.cols * ws.rows;
+  const D = WEB.Dmax * sim.webD;
+  const pt = Math.max(1.5, Math.min(2.5, WEB.pt * r / 1.5));
+  const tgt = ensureWebTarget();
+  tgt.bind();
+  gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  gl.useProgram(progWeb);
+  Cosmos.gl.uniforms(gl, progWeb, {
+    uNoise: noiseTex, uCenter: [cx, cy], uRes: [W, H], uOrigin: [-0.06 * W, -0.06 * H], uPsi0: ws.psi0,
+    uNL: uniformsOut.nl, uCols: ws.cols, uM, uO, uK, uK2,
+    uSp: ws.sp, uD: D, uGainT: ws.gain, uBeta: WEB.beta, uLref: ws.lref, uLmin: ws.lmin, uPt: pt, uK0: K0,
+    uBright: WEB.bright * sim.webMix * (ws.sp / 3.3) * (ws.sp / 3.3) * (2 / pt) * (2 / pt),
+    uMod: 0.55 * (1 - U.smoothstep(0.05, 0.4, sim.webD)), uOut: OUT,
+  });
+  gl.bindVertexArray(webVAO);
+  gl.drawArrays(gl.POINTS, 0, n);
+  gl.bindVertexArray(null);
+  // add the tone-shaped density onto the scene
+  RT.scene.bind();
+  gl.useProgram(progWebComp);
+  Cosmos.gl.uniforms(gl, progWebComp, { uWeb: tgt.tex, uTexel: [1 / W, 1 / H], uIn: 1 / OUT, uOut: OUT, uPivot: WEB.pivot, uGamma: WEB.gamma });
+  drawTri();
+  gl.disable(gl.BLEND);
+}
+
+/* ------------------------------------------------------------------ frame: render */
+let prevZoomN = 0;
+function render(dt, t) {
+  Cosmos.gl.fit(canvas, 1.5, quality.scale);
+  ensureTargets();
+  const W = canvas.width, H = canvas.height;
+  const r = W / Math.max(1, canvas.clientWidth);
+  const cx = view.fx * r, cy = (view.H - view.fy) * r;
+  // zoom blur: how far the view expanded this frame (ln), shown as radial motion blur
+  const zoomN = sim.Nv + sim.zOff;
+  const dz = zoomN - prevZoomN; prevZoomN = zoomN;
+  // a fixed 1/55 s shutter: slow frames must not smear the dive more than fast ones
+  const shutter = dt > 0 ? Math.min(1, (1 / 55) / dt) : 0;
+  const zb = U.clamp(dz * shutter * TUNE.blur * (sim.phase === 'pullback' ? 0.45 : 1), -0.12, 0.12);
+
+  const hFac = sim.h / sim.h0;
+  const foam = sim.foamVis * (0.45 + 0.55 * Math.min(1, Math.sqrt(hFac))) * (0.25 + 0.75 * Math.pow(Math.min(1, Math.exp(sim.zOff)), 1.5));
+  const OUT = HDR ? 1 : 0.25;
+  const amp = ampSlider.value;
+
+  gl.disable(gl.BLEND);
+  RT.scene.bind();
+  gl.useProgram(progField);
+  Cosmos.gl.uniforms(gl, progField, {
+    uNoise: noiseTex, uCenter: [cx, cy], uNL: uniformsOut.nl, uM, uO, uK, uK2, uFsub: [uniformsOut.fsubY, uniformsOut.fsubO],
+    uGain: [uniformsOut.gY * amp, uniformsOut.gO * amp, uniformsOut.gT * amp, uniformsOut.gL], uFoam: foam * TUNE.foam, uFrozen: sim.frozenVis * TUNE.frozen,
+    uTune: [TUNE.ridge, TUNE.crest, TUNE.sparkle, TUNE.foamB], uFoamX: [TUNE.coreK, TUNE.coreB], uPlasma: sim.plasma,
+    uContour: contourToggle.value ? 1 : 0, uTime: t, uOut: OUT, uPulse: sim.pulse * 0.55, uSpark: sim.spark,
+    uDim: 1 - 0.96 * sim.webMix * U.smoothstep(0.06, 0.42, sim.webD),
+  });
+  drawTri();
+  if (sim.webMix > 0.002 && progWeb) drawWeb(W, H, r, cx, cy, OUT, amp);
+  // bloom
+  RT.b1.bind();
+  gl.useProgram(progBright);
+  Cosmos.gl.uniforms(gl, progBright, { uSrc: RT.scene.tex, uTexel: [1 / W, 1 / H], uIn: 1 / OUT });
+  drawTri();
+  for (let k = 0; k < 2; k++) {
+    RT.b2.bind(); gl.useProgram(progBlur);
+    Cosmos.gl.uniforms(gl, progBlur, { uSrc: RT.b1.tex, uDir: [1.6 / RT.bw, 0] }); drawTri();
+    RT.b1.bind(); gl.useProgram(progBlur);
+    Cosmos.gl.uniforms(gl, progBlur, { uSrc: RT.b2.tex, uDir: [0, 1.6 / RT.bh] }); drawTri();
+  }
+  Cosmos.gl.screen(gl);
+  gl.useProgram(progComp);
+  Cosmos.gl.uniforms(gl, progComp, {
+    uScene: RT.scene.tex, uBloom: RT.b1.tex, uC: [cx / W, cy / H], uRes: [W, H], uZB: zb, uFlash: sim.flash,
+    uTime: t, uIn: 1 / OUT, uBloomK: TUNE.bloom + sim.plasma * 0.1, uExpo: TUNE.expo * (1 - 0.12 * sim.plasma),
+  });
+  drawTri();
+}
+
+/* ------------------------------------------------------------------ overlay: ring, ladder, scale bar */
+const MONO = '"JetBrains Mono", ui-monospace, Menlo, monospace';
+const DISPLAY = '"Bodoni Moda", "Bodoni 72", Didot, serif';
+const RUNGS_PATCH = [
+  [1.6e-35, 'Planck length'], [1e-27, 'the patch at the start'], [1e-19, 'finest LHC probe'], [1.7e-15, 'a proton'],
+  [1.2e-12, 'a gamma-ray wave'], [1.06e-10, 'an atom'], [1e-7, 'a virus'], [8e-6, 'a red blood cell'], [7e-5, 'a human hair'],
+  [5e-4, 'a grain of sand'], [1.5e-2, 'a marble'], [1.1e-1, 'a grapefruit'], [1.7, 'a person'],
+];
+const RUNGS_TODAY = [
+  [1.7, 'a person'], [8.8e3, 'Everest'], [1.27e7, 'Earth'], [1.39e9, 'the Sun'], [3e11, 'Earth’s orbit'], [9e12, 'the Solar System'],
+  [9.46e15, 'a light-year'], [4e16, 'to the nearest star'], [1.1e21, 'globular cluster seed'], [1.1e22, 'dwarf galaxy seed'],
+  [1.2e23, 'Milky Way seed'], [1.1e24, 'galaxy cluster seed'], [3.1e24, 'cosmic web'], [8.8e26, 'observable universe'],
+];
+// Growth after inflation (reheating to today), normalised so a 60-e-fold run turns the 10⁻²⁷ m patch into
+// today's observable universe (8.8 × 10²⁶ m): G = 8.8e26 / (1e-27 · e⁶⁰) ≈ 7.7 × 10²⁷.
+const G_AFTER = 8.8e26 / (1e-27 * Math.exp(60));
+const L_TODAY_START = () => 1e-27 * Math.exp(sim.Ntot) * G_AFTER;   // today's size of the starting view
+function drawOverlay(t) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = view.W, H = view.H;
+  if (overlay.width !== Math.round(W * dpr) || overlay.height !== Math.round(H * dpr)) { overlay.width = Math.round(W * dpr); overlay.height = Math.round(H * dpr); }
+  const c = octx;
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, W, H);
+  const cinema = document.body.classList.contains('cz-cinema');
+  if (!cinema) drawScrims(c, W, H);
+  // ---- Hubble ring
+  const ringA = (ringToggle.value ? 1 : 0) * (1 - sim.plasma);
+  if (ringA > 0.01) {
+    const R = view.RH * Math.exp(sim.zOff);
+    const x = view.fx, y = view.fy;
+    c.save();
+    c.globalAlpha = ringA;
+    c.strokeStyle = 'rgba(236,230,214,0.62)'; c.lineWidth = 1;
+    c.beginPath(); c.arc(x, y, R, 0, Math.PI * 2); c.stroke();
+    c.strokeStyle = 'rgba(205,184,255,0.18)'; c.lineWidth = 5;
+    c.beginPath(); c.arc(x, y, R + 0.5, 0, Math.PI * 2); c.stroke();
+    // label with a leader line, on whichever side has room
+    const below = isSmall() || (x + R + 250 > view.ladX1 && x - R - 250 < view.ladX0);
+    const right = !below && x + R + 250 < view.ladX1;
+    const dir = right ? 1 : -1;
+    const a = right ? -Math.PI / 4 : -3 * Math.PI / 4;
+    const lx0 = x + Math.cos(a) * (R + 3), ly0 = y + Math.sin(a) * (R + 3);
+    const lx1 = lx0 + 24 * dir, ly1 = ly0 - 24;
+    c.strokeStyle = 'rgba(236,230,214,0.45)'; c.lineWidth = 1;
+    let tx = lx1 + 14 * dir, ty = ly1;
+    if (below) { tx = x; ty = y + R + 18; c.beginPath(); c.moveTo(x, y + R + 3); c.lineTo(x, y + R + 9); c.stroke(); }
+    else { c.beginPath(); c.moveTo(lx0, ly0); c.lineTo(lx1, ly1); c.lineTo(lx1 + 10 * dir, ly1); c.stroke(); }
+    c.textAlign = below ? 'center' : right ? 'left' : 'right'; c.textBaseline = 'middle';
+    c.shadowColor = 'rgba(0,0,0,0.95)'; c.shadowBlur = 7;
+    c.font = `600 10px ${MONO}`; c.fillStyle = 'rgba(236,230,214,0.9)';
+    c.fillText('HUBBLE RADIUS  c/H', tx, ty - 1);
+    const Hphys = sim.h * sim.model.sqrtV0 * MP_GEV;
+    const RHm = 1.973e-16 / Hphys; // ħc/H in metres (ħc = 1.973×10⁻¹⁶ GeV·m)
+    c.font = `italic 400 13px ${DISPLAY}`; c.fillStyle = 'rgba(205,184,255,0.92)';
+    c.fillText('≈ ' + FMT.sci(RHm, 2) + ' m', tx, ty + 14);
+    c.font = `500 9px ${MONO}`; c.fillStyle = 'rgba(151,157,178,0.85)';
+    c.fillText('ripples bigger than this freeze', tx, ty + 29);
+    c.restore();
+  }
+  // ---- scale ladder (a tape measure racing past a fixed marker)
+  const busy = cinema || view.compact;
+  if (ladderToggle.value && !busy) drawLadder(c, t);
+  if ((sim.phase === 'pullback' || sim.phase === 'rest') && !busy && !(isSmall() && sim.webMix > 0.05)) drawScaleBar(c);
+  if (sim.phase === 'rest' && !busy && !sim.tooShort) drawPeaks(c, t);
+}
+/** Soft darkening behind the HUD, the caption and the ladder, so text stays legible over the bright plasma. */
+function drawScrims(c, W, H) {
+  const k = 0.42 + 0.58 * Math.max(sim.plasma, sim.flash * 0.5, sim.webMix);
+  const blob = (x, y, rx, ry, a) => {
+    if (a <= 0.01 || rx <= 0 || ry <= 0) return;
+    c.save(); c.translate(x, y); c.scale(rx / ry, 1);
+    const g = c.createRadialGradient(0, 0, 0, 0, 0, ry);
+    g.addColorStop(0, `rgba(5,6,12,${a})`); g.addColorStop(0.55, `rgba(5,6,12,${a * 0.6})`); g.addColorStop(1, 'rgba(5,6,12,0)');
+    c.fillStyle = g; c.fillRect(-ry, -ry, 2 * ry, 2 * ry); c.restore();
+  };
+  if (view.hud) blob(view.hud.x, view.hud.y, view.hud.rx, view.hud.ry, 0.55 * k);
+  if (cap.classList.contains('on') && !view.compact) {
+    const cr = view.capRect;
+    if (cr) blob(cr.x, cr.y, cr.rx, cr.ry, 0.5 * k);
+  }
+  if (clock.classList.contains('on')) {
+    const b = clock.getBoundingClientRect();
+    if (b.width > 0) blob(b.left + b.width / 2, b.top + b.height / 2, b.width * 0.75 + 30, b.height * 0.9 + 20, 0.5 * k);
+  }
+  if (!view.compact && (ladderToggle.value || sim.phase === 'rest' || sim.phase === 'pullback')) {
+    const cx = (view.ladX0 + view.ladX1) / 2, span = Math.min(700, view.ladX1 - view.ladX0);
+    blob(cx, view.ladY - 36, span * 0.62, 88, 0.62 * k);
+  }
+}
+function ladderState() {
+  if (sim.phase === 'pullback' || sim.phase === 'rest') {
+    const w = L_TODAY_START() * Math.exp(-(sim.Nv + sim.zOff));
+    return { val: w, rungs: RUNGS_TODAY, title: 'VIEW WIDTH TODAY', mix: 1 };
+  }
+  return { val: 1e-27 * Math.exp(sim.s.N), rungs: RUNGS_PATCH, title: 'THE PATCH', mix: 0 };
+}
+const SUPD = (e) => FMT.sup(String(e));
+function fmtLen(m) {
+  if (m >= 3.086e22 * 0.5) return FMT.sci(m / 3.086e22, 2) + ' Mpc';
+  if (m >= 9.46e15 * 0.5) return FMT.sci(m / 9.46e15, 2) + ' ly';
+  if (m >= 1.496e11) return FMT.sci(m / 1.496e11, 2) + ' AU';
+  if (m >= 1e3) return FMT.sci(m / 1e3, 2) + ' km';
+  return FMT.sci(m, 2) + ' m';
+}
+function drawLadder(c, t) {
+  const st = ladderState();
+  const x0 = view.ladX0, x1 = view.ladX1, y = view.ladY;
+  const width = Math.min(620, x1 - x0 - 10);
+  if (width < 180) return;
+  const cx = (x0 + x1) / 2, L = cx - width / 2, R = cx + width / 2;
+  const ppd = isSmall() ? 54 : 70;                  // pixels per decade
+  const lv = Math.log10(st.val);
+  const fade = (x) => { const d = Math.abs(x - cx) / (width / 2); return 1 - U.smoothstep(0.62, 1, d); };
+  c.save();
+  c.shadowColor = 'rgba(0,0,0,0.95)'; c.shadowBlur = 8;
+  // baseline
+  const g = c.createLinearGradient(L, 0, R, 0);
+  g.addColorStop(0, 'rgba(236,230,214,0)'); g.addColorStop(0.2, 'rgba(236,230,214,0.35)'); g.addColorStop(0.8, 'rgba(236,230,214,0.35)'); g.addColorStop(1, 'rgba(236,230,214,0)');
+  c.strokeStyle = g; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(L, y + 0.5); c.lineTo(R, y + 0.5); c.stroke();
+  // decade ticks
+  const dLo = Math.floor(lv - width / 2 / ppd) - 1, dHi = Math.ceil(lv + width / 2 / ppd) + 1;
+  c.font = `500 9px ${MONO}`; c.textAlign = 'center'; c.textBaseline = 'top';
+  for (let d = dLo; d <= dHi; d++) {
+    for (let sub = 1; sub < 10; sub++) {
+      const x = cx + (d + Math.log10(sub) - lv) * ppd;
+      if (x < L || x > R) continue;
+      const a = fade(x);
+      c.strokeStyle = `rgba(236,230,214,${(sub === 1 ? 0.55 : 0.16) * a})`;
+      c.beginPath(); c.moveTo(x + 0.5, y); c.lineTo(x + 0.5, y + (sub === 1 ? 7 : 3)); c.stroke();
+      if (sub === 1 && d % 2 === 0) { c.fillStyle = `rgba(151,157,178,${0.9 * a})`; c.fillText('10' + SUPD(d), x, y + 10); }
+    }
+  }
+  // rungs
+  c.textBaseline = 'alphabetic';
+  const lanes = [-1e9, -1e9, -1e9];
+  for (const [m, name] of st.rungs) {
+    const x = cx + (Math.log10(m) - lv) * ppd;
+    const dd = Math.abs(Math.log10(m) - lv);
+    if (x < L - 60 || x > R + 60) continue;
+    const a = fade(x);
+    const hot = dd < 0.35;
+    c.font = hot ? `italic 500 13px ${DISPLAY}` : `italic 400 12px ${DISPLAY}`;
+    const w = c.measureText(name).width;
+    let lane = -1;
+    for (let k = 0; k < 3; k++) if (x - w / 2 > lanes[k] + 8) { lane = k; break; }
+    c.strokeStyle = hot ? `rgba(205,184,255,${a})` : `rgba(236,230,214,${0.4 * a})`;
+    if (lane < 0) { c.beginPath(); c.moveTo(x + 0.5, y - 1); c.lineTo(x + 0.5, y - 8); c.stroke(); continue; }
+    lanes[lane] = x + w / 2;
+    const ly = y - 16 - lane * 15;
+    c.beginPath(); c.moveTo(x + 0.5, y - 1); c.lineTo(x + 0.5, y - 12 - lane * 15); c.stroke();
+    c.fillStyle = hot ? `rgba(205,184,255,${a})` : `rgba(210,205,190,${0.72 * a})`;
+    c.fillText(name, x, ly);
+  }
+  // marker
+  c.fillStyle = 'rgba(205,184,255,1)';
+  c.shadowColor = 'rgba(205,184,255,0.9)'; c.shadowBlur = 12;
+  c.beginPath(); c.arc(cx, y + 0.5, 3.2, 0, Math.PI * 2); c.fill();
+  c.shadowColor = 'rgba(0,0,0,0.95)'; c.shadowBlur = 8;
+  c.strokeStyle = 'rgba(205,184,255,0.7)';
+  c.beginPath(); c.moveTo(cx + 0.5, y - 72); c.lineTo(cx + 0.5, y - 62); c.stroke();
+  c.font = `600 9.5px ${MONO}`; c.fillStyle = 'rgba(151,157,178,0.95)'; c.textAlign = 'center';
+  c.fillText(st.title, cx, y - 92);
+  c.font = `500 13px ${MONO}`; c.fillStyle = 'rgba(236,230,214,1)';
+  c.fillText(fmtLen(st.val), cx, y - 77);
+  c.restore();
+}
+/* ---- density peaks on the final plate: the CPU evaluates the same layer sum on a coarse grid ---- */
+const peaks = { list: [], t: -1, a: 0 };
+function fieldAtCss(xc, yc, minLam) {
+  const r = canvas.width / Math.max(1, canvas.clientWidth);
+  const px = (xc - view.fx) * r, py = (view.fy - yc) * r;
+  let F = 0;
+  for (let n = 0; n < uniformsOut.nl; n++) {
+    const b4 = n * 4;
+    const sc = Math.hypot(uM[b4], uM[b4 + 1]);
+    if (1 / (K0 * sc) < minLam) continue;
+    const u = uM[b4] * px + uM[b4 + 1] * py + uO[b4], v = uM[b4 + 2] * px + uM[b4 + 3] * py + uO[b4 + 1];
+    noiseAt(u, v, uO[b4 + 2], tmp2);
+    F += (uK[b4] + uK2[b4]) * tmp2[0] + (uK[b4 + 1] + uK2[b4 + 1]) * tmp2[1];
+  }
+  return (F - uniformsOut.fsubY - uniformsOut.fsubO) * uniformsOut.gT * ampSlider.value;
+}
+function findPeaks() {
+  const x0 = view.ladX0 + 30, x1 = view.ladX1 - 30, y0 = Math.max(isSmall() ? 250 : 150, (view.capBottom || 0) + 46), y1 = view.ladY - (isSmall() ? 215 : 130);
+  const st = 16, nx = Math.max(2, Math.floor((x1 - x0) / st)), ny = Math.max(2, Math.floor((y1 - y0) / st));
+  const r = canvas.width / Math.max(1, canvas.clientWidth);
+  const g = new Float32Array(nx * ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) g[j * nx + i] = fieldAtCss(x0 + i * st, y0 + j * st, 40 * r);
+  const cand = [];
+  for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) {
+    const v = g[j * nx + i];
+    if (v < 1.6) continue;
+    let top = true;
+    for (let dj = -1; dj <= 1 && top; dj++) for (let di = -1; di <= 1; di++) if ((di || dj) && g[(j + dj) * nx + i + di] > v) { top = false; break; }
+    if (top) cand.push([x0 + i * st, y0 + j * st, v]);
+  }
+  cand.sort((a, b) => b[2] - a[2]);
+  const out = [];
+  for (const c of cand) { if (out.every((o) => Math.hypot(o[0] - c[0], o[1] - c[1]) > 110)) out.push(c); if (out.length >= 4) break; }
+  return out;
+}
+const shiftTmp = [0, 0];
+function drawPeaks(c, t) {
+  if (peaks.t < 0 || t - peaks.t > 0.3) { peaks.list = findPeaks(); peaks.t = t; }
+  peaks.a = Math.min(1, peaks.a + 0.01);
+  const a = U.smoothstep(0.2, 1, sim.phaseT / 2.5) * (1 - 0.35 * sim.webMix);
+  if (a <= 0) return;
+  const grown = sim.webMix > 0.01 && sim.webD > 0.25;
+  const clockBox = clock.classList.contains('on') ? clock.getBoundingClientRect() : null;
+  c.save();
+  c.shadowColor = 'rgba(0,0,0,0.95)'; c.shadowBlur = 6; c.lineWidth = 1;
+  // seeds that fall into the same knot merge: keep the strongest marker, drop the others
+  const shown = [];
+  peaks.list.forEach((p, k) => {
+    let [x, y, v] = p;
+    if (sim.webMix > 0.001) { webShiftCss(x, y, shiftTmp); x += shiftTmp[0]; y += shiftTmp[1]; }
+    if (shown.some((q) => Math.hypot(q[0] - x, q[1] - y) < 90)) return;
+    if (clockBox && x > clockBox.left - 30 && x < clockBox.right + 30 && y > clockBox.top - 40 && y < clockBox.bottom + 20) return;
+    shown.push([x, y]);
+    const R = k === 0 ? 20 : 13;
+    c.strokeStyle = `rgba(255,224,170,${0.75 * a})`;
+    c.beginPath(); c.arc(x, y, R, 0, Math.PI * 2); c.stroke();
+    const flip = x + (k === 0 ? 200 : 90) > Math.min(view.W - 8, view.ladX1 + 10) ? -1 : 1;
+    const ex = x + flip * R * 0.72, ey = y - R * 0.72;
+    c.beginPath(); c.moveTo(ex, ey); c.lineTo(ex + flip * 14, ey - 14); c.stroke();
+    c.textAlign = flip > 0 ? 'left' : 'right'; c.textBaseline = 'middle';
+    c.font = `500 10px ${MONO}`; c.fillStyle = `rgba(255,224,170,${0.95 * a})`;
+    c.fillText(v.toFixed(1) + 'σ ' + (grown ? 'seed' : 'peak'), ex + flip * 18, ey - 15);
+    if (k === 0) { c.font = `italic 400 12px ${DISPLAY}`; c.fillStyle = `rgba(236,230,214,${0.9 * a})`; c.fillText(grown ? (sim.webU >= 0.999 ? 'a massive galaxy sits here today' : 'collapsing into a galaxy') : 'a massive galaxy forms here', ex + flip * 18, ey - 1); }
+  });
+  c.restore();
+}
+function drawScaleBar(c) {
+  const wToday = L_TODAY_START() * Math.exp(-(sim.Nv + sim.zOff));
+  const pxPerM = view.W / wToday;
+  const opts = [[1, '1 m'], [1e3, '1 km'], [1.5e11, '1 AU'], [9.46e15, '1 light-year'], [3.086e16, '1 pc'], [3.086e19, '1 kpc'], [3.086e22, '1 Mpc'], [3.086e23, '10 Mpc'], [3.086e24, '100 Mpc']];
+  let pick = null;
+  for (const o of opts) { const px = o[0] * pxPerM; if (px >= 50 && px <= 220) pick = [px, o[1]]; }
+  if (!pick) return;
+  const x1 = view.ladX1 - 12, x0 = x1 - pick[0], y = view.ladY - (isSmall() ? 118 : 96);
+  c.save();
+  c.shadowColor = 'rgba(0,0,0,0.95)'; c.shadowBlur = 8;
+  c.strokeStyle = 'rgba(236,230,214,0.8)'; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(x0, y - 4); c.lineTo(x0, y + 0.5); c.lineTo(x1, y + 0.5); c.lineTo(x1, y - 4); c.stroke();
+  c.font = `500 10px ${MONO}`; c.fillStyle = 'rgba(236,230,214,0.9)'; c.textAlign = 'right'; c.textBaseline = 'bottom';
+  c.fillText(pick[1] + ' today', x1, y - 6);
+  c.restore();
+}
+
+/* ------------------------------------------------------------------ deck insets */
+const potCtx = potCanvas.getContext('2d');
+const potMap = { pl: 1, pr: 1, W: 2, x0: 0, x1: 1 };
+const potDrag = { on: false, phi: 0, N: 0, last: NaN };
+potCanvas.style.touchAction = 'none'; potCanvas.style.cursor = 'ew-resize';
+function potPhiAt(clientX) {
+  const rect = potCanvas.getBoundingClientRect();
+  const M = sim.model, P = sim.P, rg = startRange(M);
+  const u = (clientX - rect.left) / Math.max(1, rect.width);
+  const plF = potMap.pl / potMap.W, prF = potMap.pr / potMap.W;
+  let phi = potMap.x0 + (u - plF) / (1 - plF - prF) * (potMap.x1 - potMap.x0);
+  // when the allowed range is only a few pixels wide (the hilltop), the whole width spans it
+  if ((rg[1] - rg[0]) / (potMap.x1 - potMap.x0) < 0.3) {
+    const q = U.clamp((u - 0.1) / 0.8, 0, 1);
+    phi = P.more > 0 ? rg[0] + q * (rg[1] - rg[0]) : rg[0] * Math.pow(rg[1] / rg[0], q);
+  }
+  return U.clamp(phi, rg[0], rg[1]);
+}
+function potUpdate(e) {
+  const phi = potPhiAt(e.clientX);
+  if (!(Math.abs(phi - potDrag.last) < 1e-4 * Math.abs(phi))) { potDrag.N = runInfo(sim.P, sim.model, phi).N; potDrag.last = phi; }
+  potDrag.phi = phi;
+}
+potCanvas.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0 && e.pointerType === 'mouse') return;
+  potDrag.on = true; potDrag.last = NaN;
+  try { potCanvas.setPointerCapture(e.pointerId); } catch (_) { /* capture unsupported */ }
+  potUpdate(e);
+});
+potCanvas.addEventListener('pointermove', (e) => { if (potDrag.on) potUpdate(e); });
+const potUp = () => {
+  if (!potDrag.on) return;
+  potDrag.on = false;
+  sim.phi0 = potDrag.phi;
+  resetRun(0.8);
+  const N = sim.Ntot;
+  if (N < 55) ch.toast(`Only ${N.toFixed(0)} e-folds from φ = ${sim.phi0.toPrecision(3)} M_p: the smooth patch will end up smaller than the sky we see`, 5200);
+  else ch.toast(`φ = ${sim.phi0.toPrecision(3)} M_p gives ${N.toFixed(0)} e-folds. Today's ripples are unchanged: they froze in the last 55`, 5200);
+};
+potCanvas.addEventListener('pointerup', potUp); potCanvas.addEventListener('pointercancel', potUp);
+const pv = { x0: -1.25, x1: 6.3, y1: 1.2, init: false };
+function drawPot() {
+  const c = potCanvas, dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.round(c.clientWidth * dpr), H = Math.round(c.clientHeight * dpr);
+  if (!W || !H) return;
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  const x = potCtx, P = sim.P, M = sim.model, s = sim.s;
+  const zoom = sim.phase === 'inflate' ? 0 : sim.phase === 'pre' ? 0 : 1;
+  const tv = P.view(s.phi, U.smoothstep(0, 1, zoom), sim.phase === 'pre' || potDrag.on);
+  if (!pv.init || pv.key !== P.key) { pv.x0 = tv[0]; pv.x1 = tv[1]; pv.y1 = tv[2]; pv.init = true; pv.key = P.key; }
+  const k = 0.08;
+  pv.x0 += (tv[0] - pv.x0) * k; pv.x1 += (tv[1] - pv.x1) * k; pv.y1 += (tv[2] - pv.y1) * k;
+  const y0 = -0.07 * pv.y1;
+  const pl = 10 * dpr, pr = 10 * dpr, pt = 40 * dpr, pb = 20 * dpr;
+  const X = (p) => pl + (p - pv.x0) / (pv.x1 - pv.x0) * (W - pl - pr);
+  const Y = (v) => H - pb - (v - y0) / (pv.y1 - y0) * (H - pt - pb);
+  potMap.pl = pl; potMap.pr = pr; potMap.W = W; potMap.x0 = pv.x0; potMap.x1 = pv.x1;
+  x.clearRect(0, 0, W, H);
+  // axes
+  x.strokeStyle = 'rgba(236,230,214,0.10)'; x.lineWidth = dpr;
+  x.beginPath(); x.moveTo(pl, Y(0)); x.lineTo(W - pr, Y(0)); x.stroke();
+  // ε = 1 end marker and pivot marker
+  const mark = (phi, label, col, dash) => {
+    const xx = X(phi); if (xx < pl || xx > W - pr) return;
+    x.save(); x.setLineDash(dash); x.strokeStyle = col; x.beginPath(); x.moveTo(xx, pt - 6 * dpr); x.lineTo(xx, H - pb); x.stroke(); x.restore();
+    x.fillStyle = col; x.font = `500 ${9 * dpr}px ${MONO}`; x.textAlign = xx < W * 0.2 ? 'left' : xx > W * 0.8 ? 'right' : 'center'; x.fillText(label, xx + (x.textAlign === 'left' ? -4 * dpr : x.textAlign === 'right' ? 4 * dpr : 0), pt - 9 * dpr);
+  };
+  mark(M.phiEnd, 'ε_H = 1', 'rgba(255,196,107,0.55)', [3 * dpr, 3 * dpr]);
+  mark(M.phiStar, 'CMB exits', 'rgba(205,184,255,0.45)', [1 * dpr, 3 * dpr]);
+  // curve + fill (clipped to the plot area)
+  x.save(); x.beginPath(); x.rect(0, pt - 4 * dpr, W, H - pt + 4 * dpr); x.clip();
+  const n = 220;
+  x.beginPath();
+  for (let i = 0; i <= n; i++) { const p = pv.x0 + (pv.x1 - pv.x0) * i / n; const v = Math.min(P.f(p), pv.y1 * 1.4); const xx = X(p), yy = Y(v); i ? x.lineTo(xx, yy) : x.moveTo(xx, yy); }
+  x.save();
+  x.lineTo(X(pv.x1), Y(0)); x.lineTo(X(pv.x0), Y(0)); x.closePath();
+  const grd = x.createLinearGradient(0, pt, 0, H - pb);
+  grd.addColorStop(0, 'rgba(205,184,255,0.16)'); grd.addColorStop(1, 'rgba(205,184,255,0.0)');
+  x.fillStyle = grd; x.fill();
+  x.restore();
+  x.beginPath();
+  for (let i = 0; i <= n; i++) { const p = pv.x0 + (pv.x1 - pv.x0) * i / n; const v = Math.min(P.f(p), pv.y1 * 1.4); const xx = X(p), yy = Y(v); i ? x.lineTo(xx, yy) : x.moveTo(xx, yy); }
+  x.strokeStyle = 'rgba(205,184,255,0.95)'; x.lineWidth = 1.5 * dpr; x.stroke();
+  x.restore();
+  // trail
+  for (let i = 0; i < sim.trail.length; i++) {
+    const p = sim.trail[i], a = (i + 1) / sim.trail.length;
+    x.fillStyle = `rgba(236,230,214,${0.25 * a * a})`;
+    x.beginPath(); x.arc(X(p), Y(P.f(p)), (1 + 2 * a) * dpr, 0, Math.PI * 2); x.fill();
+  }
+  // ball
+  const bx = X(U.clamp(s.phi, pv.x0 - 1, pv.x1 + 1)), by = Y(Math.min(P.f(s.phi), pv.y1 * 1.3));
+  const glow = x.createRadialGradient(bx, by, 0, bx, by, 16 * dpr);
+  const warm = sim.phase === 'reheat' || sim.phase === 'plasma' ? 1 : 0;
+  glow.addColorStop(0, warm ? 'rgba(255,240,220,0.95)' : 'rgba(240,232,255,0.95)'); glow.addColorStop(0.3, 'rgba(205,184,255,0.45)'); glow.addColorStop(1, 'rgba(205,184,255,0)');
+  x.fillStyle = glow; x.beginPath(); x.arc(bx, by, 16 * dpr, 0, Math.PI * 2); x.fill();
+  x.fillStyle = '#fff'; x.beginPath(); x.arc(bx, by, 3.4 * dpr, 0, Math.PI * 2); x.fill();
+  // ghost ball while choosing a starting field
+  if (potDrag.on) {
+    const gx = X(potDrag.phi), gy = Y(Math.min(P.f(potDrag.phi), pv.y1 * 1.3));
+    const few = potDrag.N < 55;
+    const col = few ? 'rgba(255,196,107,0.95)' : 'rgba(205,184,255,0.95)';
+    x.save(); x.setLineDash([2 * dpr, 2 * dpr]); x.strokeStyle = col; x.lineWidth = 1.2 * dpr;
+    x.beginPath(); x.arc(gx, gy, 7 * dpr, 0, Math.PI * 2); x.stroke(); x.restore();
+    x.font = `600 ${10 * dpr}px ${MONO}`; x.fillStyle = col;
+    x.textAlign = gx > W * 0.6 ? 'right' : 'left';
+    x.fillText('N = ' + potDrag.N.toFixed(0) + (few ? '  too few' : ' e-folds'), gx + (gx > W * 0.6 ? -12 : 12) * dpr, gy + 20 * dpr);
+  }
+  // labels
+  x.fillStyle = 'rgba(236,230,214,0.92)'; x.font = `italic 500 ${14 * dpr}px ${DISPLAY}`; x.textAlign = 'left';
+  x.fillText('V(φ)', pl, 16 * dpr);
+  const vw = x.measureText('V(φ) ').width;
+  x.fillStyle = 'rgba(205,184,255,0.9)'; x.font = `500 ${10 * dpr}px ${MONO}`;
+  x.fillText(P.formula, pl + vw, 15 * dpr);
+  x.textAlign = 'right'; x.fillStyle = 'rgba(151,157,178,0.9)'; x.font = `500 ${9 * dpr}px ${MONO}`;
+  const stage = sim.phase === 'pre' ? 'at rest' : sim.phase === 'inflate' ? 'slow roll' : sim.phase === 'reheat' ? 'oscillating' : 'decayed';
+  x.fillText(stage, W - pr, 15 * dpr);
+  // e-fold counter inside the plot
+  x.textAlign = 'right'; x.fillStyle = 'rgba(236,230,214,0.9)'; x.font = `500 ${15 * dpr}px ${MONO}`;
+  x.fillText('N ' + s.N.toFixed(1), W - pr - 12 * dpr, H - pb - 10 * dpr);
+  x.fillStyle = 'rgba(151,157,178,0.85)'; x.font = `500 ${9 * dpr}px ${MONO}`;
+  x.fillText('ε_H ' + (sim.eps < 0.01 ? sim.eps.toExponential(1) : sim.eps.toFixed(2)), W - pr - 12 * dpr, H - pb - 28 * dpr);
+  x.textAlign = 'right'; x.fillText('φ / M_p', W - pr, H - 5 * dpr);
+  x.textAlign = 'left';
+  const ticks = []; const span = pv.x1 - pv.x0; const stp = span > 12 ? 5 : span > 4 ? 1 : 0.5;
+  for (let p = Math.ceil(pv.x0 / stp) * stp; p <= pv.x1; p += stp) ticks.push(p);
+  x.fillStyle = 'rgba(94,100,121,1)';
+  for (const p of ticks) { const xx = X(p); if (xx > W - 50 * dpr) continue; x.fillText(String(+p.toFixed(1)), xx - 3 * dpr, H - 5 * dpr); }
+  // radiation gauge during reheating
+  if (sim.phase !== 'pre' && sim.phase !== 'inflate') {
+    const gx = W - pr - 6 * dpr, gy0 = pt + 4 * dpr, gy1 = H - pb - 4 * dpr;
+    x.strokeStyle = 'rgba(236,230,214,0.25)'; x.strokeRect(gx, gy0, 5 * dpr, gy1 - gy0);
+    const f = U.clamp(sim.Or, 0, 1);
+    x.fillStyle = 'rgba(255,211,122,0.9)'; x.fillRect(gx, gy1 - (gy1 - gy0) * f, 5 * dpr, (gy1 - gy0) * f);
+    x.fillStyle = 'rgba(255,211,122,0.9)'; x.textAlign = 'right'; x.fillText('ρ_rad', gx - 4 * dpr, gy0 + 8 * dpr);
+  }
+}
+/** The life of one ripple: the exact de Sitter mode function Re δφ_k against ln(aH/k),
+ *  with every layer on screen drawn as a dot at its own k/aH. Dots slide right as space inflates. */
+const modeCtx = modeCanvas.getContext('2d');
+function drawMode() {
+  const c = modeCanvas, dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.round(c.clientWidth * dpr), H = Math.round(c.clientHeight * dpr);
+  if (!W || !H) return;
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  const x = modeCtx;
+  x.clearRect(0, 0, W, H);
+  const X0 = -3.2, X1 = 2.6, pl = 8 * dpr, pr = 8 * dpr, pt = 20 * dpr, pb = 16 * dpr;
+  const PX = (X) => pl + (X - X0) / (X1 - X0) * (W - pl - pr);
+  const ymid = pt + (H - pt - pb) / 2, yA = (H - pt - pb) / 2 * 0.92;
+  // compressed display: amplitude √(1 + (k/aH)²) → its 0.35 power, like the foam on screen
+  const val = (X) => { const q = Math.exp(-X); const re = Math.cos(q) + q * Math.sin(q); const m = Math.sqrt(1 + q * q); return re / m * Math.pow(m, 0.25) / Math.pow(Math.exp(-X0), 0.25); };
+  const PY = (v) => ymid - v * yA;
+  // horizon line
+  x.strokeStyle = 'rgba(236,230,214,0.35)'; x.lineWidth = dpr; x.setLineDash([2 * dpr, 3 * dpr]);
+  x.beginPath(); x.moveTo(PX(0), pt - 4 * dpr); x.lineTo(PX(0), H - pb + 2 * dpr); x.stroke(); x.setLineDash([]);
+  x.strokeStyle = 'rgba(236,230,214,0.1)'; x.beginPath(); x.moveTo(pl, ymid); x.lineTo(W - pr, ymid); x.stroke();
+  // curve, coloured pink inside the horizon and blue outside
+  const n = 260;
+  for (let pass = 0; pass < 2; pass++) {
+    x.beginPath();
+    let started = false;
+    for (let i = 0; i <= n; i++) {
+      const X = X0 + (X1 - X0) * i / n;
+      if (pass === 0 ? X > 0.02 : X < -0.02) continue;
+      const px = PX(X), py = PY(val(X));
+      if (!started) { x.moveTo(px, py); started = true; } else x.lineTo(px, py);
+    }
+    x.strokeStyle = pass === 0 ? 'rgba(232,170,255,0.9)' : 'rgba(150,160,255,0.95)'; x.lineWidth = 1.4 * dpr; x.stroke();
+  }
+  // layers on screen
+  if (sim.phase === 'pre' || sim.phase === 'inflate' || sim.phase === 'reheat') {
+    for (let j = Math.floor((sim.Nv + 3.2) / DELTA); j >= Math.ceil((sim.Nv - 2.6) / DELTA); j--) {
+      const X = sim.Nv - j * DELTA;
+      if (X < X0 || X > X1) continue;
+      const live = X < 0;
+      x.fillStyle = live ? 'rgba(248,210,255,0.95)' : 'rgba(190,196,255,0.95)';
+      x.beginPath(); x.arc(PX(X), PY(val(X)), (live ? 2.4 : 2.2) * dpr, 0, Math.PI * 2); x.fill();
+    }
+  }
+  x.font = `500 ${9 * dpr}px ${MONO}`; x.textBaseline = 'alphabetic';
+  x.fillStyle = 'rgba(236,230,214,0.85)'; x.textAlign = 'left';
+  x.fillText('ONE RIPPLE · Re δφ_k', pl, 12 * dpr);
+  x.textAlign = 'right'; x.fillStyle = 'rgba(151,157,178,0.9)';
+  x.fillText('ln(aH/k) →', W - pr, 12 * dpr);
+  x.textAlign = 'center'; x.fillStyle = 'rgba(232,170,255,0.8)';
+  x.fillText('oscillates', PX(-1.6), H - 4 * dpr);
+  x.fillStyle = 'rgba(150,160,255,0.9)';
+  x.fillText('frozen', PX(1.3), H - 4 * dpr);
+  x.fillStyle = 'rgba(236,230,214,0.7)';
+  x.fillText('ring', PX(0), H - 4 * dpr);
+}
+const nsrCtx = nsrCanvas.getContext('2d');
+function drawNsr() {
+  const c = nsrCanvas, dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.round(c.clientWidth * dpr), H = Math.round(c.clientHeight * dpr);
+  if (!W || !H) return;
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  const x = nsrCtx;
+  x.clearRect(0, 0, W, H);
+  const nx0 = 0.925, nx1 = 1.0, ry0 = 0, ry1 = 0.18;
+  const pl = 30 * dpr, pr = 10 * dpr, pt = 12 * dpr, pb = 20 * dpr;
+  const X = (v) => pl + (v - nx0) / (nx1 - nx0) * (W - pl - pr);
+  const Y = (v) => H - pb - (v - ry0) / (ry1 - ry0) * (H - pt - pb);
+  x.font = `500 ${9 * dpr}px ${MONO}`;
+  // allowed region (approximate Planck + BICEP/Keck 95%)
+  x.save();
+  x.beginPath();
+  x.ellipse(X(0.9649), Y(0), X(0.9649 + 0.0084) - X(0.9649), Y(0) - Y(0.036), 0, Math.PI, 2 * Math.PI);
+  x.fillStyle = 'rgba(125,227,160,0.16)'; x.fill();
+  x.strokeStyle = 'rgba(125,227,160,0.55)'; x.lineWidth = dpr; x.stroke();
+  x.beginPath();
+  x.ellipse(X(0.9649), Y(0), X(0.9649 + 0.0042) - X(0.9649), Y(0) - Y(0.02), 0, Math.PI, 2 * Math.PI);
+  x.fillStyle = 'rgba(125,227,160,0.2)'; x.fill();
+  x.restore();
+  // axes
+  x.strokeStyle = 'rgba(236,230,214,0.14)'; x.lineWidth = dpr;
+  x.beginPath(); x.moveTo(pl, Y(0)); x.lineTo(W - pr, Y(0)); x.moveTo(pl, pt); x.lineTo(pl, Y(0)); x.stroke();
+  x.fillStyle = 'rgba(94,100,121,1)'; x.textAlign = 'center';
+  [0.93, 0.95, 0.97].forEach((v) => x.fillText(v.toFixed(2), X(v), H - 6 * dpr));
+  x.textAlign = 'right';
+  [0, 0.1].forEach((v) => x.fillText(v.toFixed(1), pl - 4 * dpr, Y(v) + 3 * dpr));
+  x.save(); x.translate(9 * dpr, (pt + Y(0)) / 2); x.rotate(-Math.PI / 2); x.textAlign = 'center'; x.fillText('r', 0, 0); x.restore();
+  x.textAlign = 'right'; x.fillStyle = 'rgba(151,157,178,0.95)'; x.fillText('n_s', W - pr, H - 6 * dpr);
+  // slider value
+  const nsx = X(U.clamp(nsSlider.value, nx0, nx1));
+  x.save(); x.setLineDash([2 * dpr, 3 * dpr]); x.strokeStyle = 'rgba(205,184,255,0.6)'; x.beginPath(); x.moveTo(nsx, pt); x.lineTo(nsx, Y(0)); x.stroke(); x.restore();
+  // models, each with a leader to its label
+  const LBL = { staro: [-26, -30, 'R²'], chaotic: [-30, 2, 'φ²'], hilltop: [6, -24, 'hilltop'] };
+  for (const k in MODELS) {
+    const M = MODELS[k], cur = M === sim.model;
+    const px = X(M.ns), py = Y(Math.min(M.r, ry1));
+    const [ox, oy, name] = LBL[k];
+    const lx = px + ox * dpr, ly = py + oy * dpr;
+    x.strokeStyle = cur ? 'rgba(205,184,255,0.7)' : 'rgba(151,157,178,0.5)'; x.lineWidth = dpr;
+    x.beginPath(); x.moveTo(px, py); x.lineTo(lx + (ox < 0 ? 4 : -2) * dpr, ly + 3 * dpr); x.stroke();
+    x.fillStyle = cur ? '#cdb8ff' : 'rgba(236,230,214,0.6)';
+    x.beginPath(); x.arc(px, py, (cur ? 3.6 : 2.6) * dpr, 0, Math.PI * 2); x.fill();
+    if (cur) { x.strokeStyle = 'rgba(205,184,255,0.5)'; x.beginPath(); x.arc(px, py, 7 * dpr, 0, Math.PI * 2); x.stroke(); }
+    x.textAlign = ox < 0 ? 'right' : 'left';
+    x.fillStyle = cur ? '#cdb8ff' : 'rgba(151,157,178,0.95)';
+    x.fillText(name, lx, ly);
+  }
+  x.textAlign = 'right'; x.fillStyle = 'rgba(125,227,160,0.85)';
+  x.fillText('Planck + BICEP/Keck', W - pr, Y(0.1));
+  x.fillStyle = 'rgba(125,227,160,0.6)';
+  x.fillText('allowed (95%)', W - pr, Y(0.1) + 12 * dpr);
+}
+
+/* ------------------------------------------------------------------ sound */
+const snd = { nodes: null };
+function makeSound() {
+  const ac = ch.sound.ensure(); if (!ac) return;
+  if (snd.nodes) return;
+  const out = ac.createGain(); out.gain.value = 0; out.connect(ch.sound.out);
+  out.gain.setTargetAtTime(1, ac.currentTime, 0.4);
+  // drone: two detuned saws and a sub sine through a low-pass
+  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; lp.Q.value = 2.5;
+  const dg = ac.createGain(); dg.gain.value = 0.0; lp.connect(dg).connect(out);
+  const o1 = ac.createOscillator(), o2 = ac.createOscillator(), sub = ac.createOscillator();
+  o1.type = 'sawtooth'; o2.type = 'sawtooth'; sub.type = 'sine';
+  o2.detune.value = 9; o1.detune.value = -9;
+  const og = ac.createGain(); og.gain.value = 0.35;
+  o1.connect(og); o2.connect(og); og.connect(lp);
+  const sg = ac.createGain(); sg.gain.value = 0.5; sub.connect(sg).connect(lp);
+  // foam hiss
+  const len = ac.sampleRate * 2, buf = ac.createBuffer(1, len, ac.sampleRate), ch0 = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) ch0[i] = Math.random() * 2 - 1;
+  const ns = ac.createBufferSource(); ns.buffer = buf; ns.loop = true;
+  const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3200; bp.Q.value = 0.7;
+  const hg = ac.createGain(); hg.gain.value = 0; ns.connect(bp).connect(hg).connect(out);
+  [o1, o2, sub, ns].forEach((n) => n.start());
+  snd.nodes = { ac, out, lp, dg, o1, o2, sub, ns, bp, hg, noise: buf };
+}
+function killSound() {
+  if (!snd.nodes) return;
+  const n = snd.nodes, t = n.ac.currentTime;
+  n.out.gain.setTargetAtTime(0, t, 0.15);
+  setTimeout(() => { try { [n.o1, n.o2, n.sub, n.ns].forEach((o) => o.stop()); n.out.disconnect(); } catch (_) { /* already stopped */ } }, 600);
+  snd.nodes = null;
+}
+snd.frame = function () {
+  const n = snd.nodes; if (!n) return;
+  const t = n.ac.currentTime, N = sim.s.N;
+  const pre = sim.phase === 'pre', after = sim.phase === 'plasma' || sim.phase === 'pullback' || sim.phase === 'rest';
+  // pitch follows the e-fold count; during the zoom-out it follows the view, so it falls back down the scales
+  const pitchN = sim.phase === 'pullback' || sim.phase === 'rest' ? U.clamp(sim.Nv + sim.zOff, 0, 62) : Math.min(N, 62);
+  const f = 36 * Math.pow(2, pitchN / 26);
+  n.o1.frequency.setTargetAtTime(f, t, 0.08); n.o2.frequency.setTargetAtTime(f * 1.5, t, 0.08); n.sub.frequency.setTargetAtTime(f / 2, t, 0.08);
+  n.lp.frequency.setTargetAtTime(sim.webMix > 0.01 ? 260 + 900 * sim.webD * sim.webMix : 180 + pitchN * 14 + (after ? 300 : 0), t, 0.2);
+  n.dg.gain.setTargetAtTime(pre ? 0.05 : after ? 0.035 + 0.03 * sim.webMix * (sim.webPlay ? 1 : 0.4) : 0.09, t, 0.3);
+  const foam = sim.foamVis * (0.5 + 0.5 * Math.random());
+  n.hg.gain.setTargetAtTime(0.03 * foam, t, 0.05);
+  n.bp.frequency.setTargetAtTime(2400 + 2400 * Math.min(1, sim.h / sim.h0), t, 0.3);
+};
+snd.thump = function (a) {
+  const n = snd.nodes; if (!n) return;
+  const ac = n.ac, t = ac.currentTime;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.25);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25 * a + 0.02, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+  o.connect(g).connect(n.out); o.start(t); o.stop(t + 0.45);
+};
+/** A soft, bell-like chord when the web reaches today. */
+snd.chime = function () {
+  const n = snd.nodes; if (!n) return;
+  const ac = n.ac, t = ac.currentTime;
+  [261.6, 392.0, 523.3, 784.0].forEach((f, i) => {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    const t0 = t + i * 0.09;
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.08 / (1 + i * 0.4), t0 + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 3.2);
+    o.connect(g).connect(n.out); o.start(t0); o.stop(t0 + 3.3);
+  });
+};
+snd.boom = function () {
+  const n = snd.nodes; if (!n) return;
+  const ac = n.ac, t = ac.currentTime;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(96, t); o.frequency.exponentialRampToValueAtTime(26, t + 2.6);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.75, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 4.2);
+  o.connect(g).connect(n.out); o.start(t); o.stop(t + 4.3);
+  const src = ac.createBufferSource(); src.buffer = n.noise;
+  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(2400, t); lp.frequency.exponentialRampToValueAtTime(120, t + 2.2);
+  const ng = ac.createGain(); ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(0.5, t + 0.015); ng.gain.exponentialRampToValueAtTime(0.0001, t + 2.8);
+  src.connect(lp).connect(ng).connect(n.out); src.start(t); src.stop(t + 2.9);
+};
+ch.onSound((on) => { if (on) makeSound(); else killSound(); });
+const soundLevel = () => { const n = snd.nodes; if (!n) return; n.out.gain.setTargetAtTime(document.hidden ? 0 : ch.paused ? 0.25 : 1, n.ac.currentTime, 0.2); };
+document.addEventListener('visibilitychange', soundLevel);
+ch.onPause(soundLevel);
+
+/* ------------------------------------------------------------------ readouts */
+let roT = 0;
+function updateReadouts(dt) {
+  roT += dt; if (roT < 0.1) return; roT = 0;
+  const s = sim.s, M = sim.model, P = sim.P;
+  const Hgev = sim.h * M.sqrtV0 * MP_GEV;
+  hud.N.set('N = ' + s.N.toFixed(2) + (sim.phase === 'pre' ? '  · about to inflate' : ''));
+  hud.a.set('a = eᴺ = ' + FMT.sci(Math.exp(s.N), 3));
+  hud.H.set('H = ' + FMT.sci(Hgev, 3) + ' GeV');
+  const post = sim.phase !== 'pre' && sim.phase !== 'inflate';
+  hud.eps.set('ε = ' + (sim.eps < 1e-3 ? FMT.sci(sim.eps, 2) : sim.eps.toFixed(3)) + (sim.phase === 'inflate' && sim.eps > 0.3 ? '  → 1 ends inflation' : post ? '  · inflation over' : ''));
+  const tS = sim.t0 + s.tau * T_MP / M.sqrtV0;
+  const webClock = sim.webMix > 0.05;
+  if (webClock) {
+    const z = 1 / sim.webA - 1;
+    hud.t.set('t = ' + (sim.webT < 1 ? Math.round(sim.webT * 1000) + ' Myr' : sim.webT.toFixed(2) + ' Gyr') + ' · z = ' + (z < 10 ? z.toFixed(2) : z.toFixed(0)));
+    clock.children[1].textContent = fmtAge(sim.webT);
+    clock.children[2].textContent = 'z = ' + (z < 10 ? z.toFixed(2) : z.toFixed(1)) + ' · D = ' + sim.webD.toFixed(3);
+  } else hud.t.set('t = ' + FMT.sci(tS, 3) + ' s');
+  clock.classList.toggle('on', webClock && !view.compact && !document.body.classList.contains('cz-cinema'));
+  const f = P.f(s.phi), fp = P.fp(s.phi), fpp = P.fpp(s.phi);
+  const eV = 0.5 * (fp / f) ** 2, eta = fpp / f;
+  const osc = sim.phase !== 'pre' && sim.phase !== 'inflate';
+  infRO.phi.set(s.phi.toFixed(3) + ' M_p');
+  infRO.epsV.set(osc || !isFinite(eV) ? '—' : eV < 1e-3 ? FMT.sci(eV, 2) : eV.toFixed(3));
+  infRO.eta.set(osc || !isFinite(eta) ? '—' : Math.abs(eta) < 1e-3 ? FMT.sci(eta, 2) : eta.toFixed(3));
+  infRO.epsH.set(sim.eps < 1e-3 ? FMT.sci(sim.eps, 2) : sim.eps.toFixed(3));
+  physRO.H.set(FMT.sci(Hgev, 2) + ' GeV');
+  physRO.ns.set('n_s = ' + M.ns.toFixed(3));
+  physRO.r.set('r = ' + (M.r < 1e-3 ? FMT.sci(M.r, 2) : M.r.toFixed(3)));
+  physRO.V14.set(FMT.sci(M.V14GeV, 2) + ' GeV');
+  physRO.T.set(sim.TrhGeV ? FMT.sci(sim.TrhGeV, 2) + ' GeV' : '—');
+  physRO.Or.set(sim.phase === 'pre' || sim.phase === 'inflate' ? '0' : (100 * U.clamp(sim.Or, 0, 1)).toFixed(0) + '%');
+  if (sim.hist.length) {
+    histChart.setXY(0, sim.hist.map((p) => [p[0], p[1]]));
+    histChart.setXY(1, sim.hist.map((p) => [p[0], p[2]]));
+    histChart.draw();
+  }
+}
+
+/* ------------------------------------------------------------------ main loop */
+resetRun(1.5);
+drawNsr();
+let fpsAcc = 0, fpsN = 0;
+/** Adaptive resolution: drop the render scale if frames stay slow, restore it when there is headroom. */
+const quality = { scale: 1, slow: 0, fast: 0 };
+function adaptQuality(dt) {
+  if (dt <= 0) return;
+  if (dt > 1 / 38) { quality.slow++; quality.fast = 0; } else if (dt < 1 / 55) { quality.fast++; quality.slow = Math.max(0, quality.slow - 1); }
+  if (quality.slow > 90 && quality.scale > 0.6) { quality.scale = Math.max(0.6, quality.scale * 0.85); quality.slow = 0; }
+  if (quality.fast > 600 && quality.scale < 1) { quality.scale = Math.min(1, quality.scale / 0.85); quality.fast = 0; }
+}
+const PROF = { on: false, n: 0, layers: 0, gl: 0, overlay: 0, insets: 0, rest: 0 };
+ch.loop((dt, t) => {
+  const dN = stepPhysics(dt);
+  // view easing and panning inertia
+  view.fx += (view.tfx - view.fx) * Math.min(1, dt * 3);
+  view.fy += (view.tfy - view.fy) * Math.min(1, dt * 3);
+  if (sim.phase !== 'pullback') sim.zOff += (sim.zOffT - sim.zOff) * Math.min(1, dt * 4);
+  if (!ptrs.size && (Math.abs(sim.panVX) + Math.abs(sim.panVY) > 0.5)) {
+    panBy(sim.panVX * dt, sim.panVY * dt);
+    const k = Math.exp(-dt * 2.2); sim.panVX *= k; sim.panVY *= k;
+  }
+  const P0 = PROF.on ? performance.now() : 0;
+  buildLayers(dN, dt);
+  const P1 = PROF.on ? performance.now() : 0;
+  render(dt, t);
+  const P2 = PROF.on ? performance.now() : 0;
+  drawOverlay(t);
+  const P3 = PROF.on ? performance.now() : 0;
+  drawPot();
+  drawMode();
+  const P4 = PROF.on ? performance.now() : 0;
+  updateReadouts(dt);
+  snd.frame();
+  if (PROF.on) { PROF.n++; PROF.layers += P1 - P0; PROF.gl += P2 - P1; PROF.overlay += P3 - P2; PROF.insets += P4 - P3; PROF.rest += performance.now() - P4; }
+  fpsAcc += dt; fpsN++; if (fpsAcc > 1) { sim.fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
+  adaptQuality(dt);
+}, { always: false });
+// keep the deck inset alive on pause
+ch.onPause(() => drawPot());
+
+Cosmos.debug.state = () => ({
+  phase: sim.phase, potential: sim.P.key, N: +sim.s.N.toFixed(3), a: Math.exp(sim.s.N), phi: +sim.s.phi.toFixed(5),
+  epsH: sim.eps, H_GeV: sim.h * sim.model.sqrtV0 * MP_GEV, t_s: sim.t0 + sim.s.tau * T_MP / sim.model.sqrtV0, Ntot: +sim.Ntot.toFixed(2), phi0: +sim.phi0.toFixed(4), tooShort: sim.tooShort,
+  Nv: +sim.Nv.toFixed(3), zOff: +sim.zOff.toFixed(3), layers: uniformsOut.nl, frozenFill: +(uniformsOut.sF || 0).toFixed(3),
+  Or: +sim.Or.toFixed(3), TrhGeV: sim.TrhGeV, ns: nsSlider.value, hdr: HDR, fps: Math.round(sim.fps), renderScale: +quality.scale.toFixed(2),
+  web: { on: sim.webOn, mix: +sim.webMix.toFixed(3), u: +sim.webU.toFixed(3), tGyr: +sim.webT.toFixed(3), z: sim.webA ? +(1 / sim.webA - 1).toFixed(2) : null, D: +sim.webD.toFixed(4), particles: webState.cols * webState.rows },
+  models: Object.fromEntries(Object.entries(MODELS).map(([k, M]) => [k, { phi0: +M.phi0.toFixed(4), NEnd: +M.NEnd.toFixed(3), ns: +M.ns.toFixed(4), r: M.r, H: M.HstarGeV, tauEnd: +M.tauEnd.toFixed(2) }])),
+});
+Cosmos.debug.sim = sim;
+Cosmos.debug.tune = TUNE;
+Cosmos.debug.prof = () => { if (!PROF.on) { PROF.on = true; return 'started'; } const o = {}; for (const k of ['layers', 'gl', 'overlay', 'insets', 'rest']) o[k] = +(PROF[k] / Math.max(1, PROF.n)).toFixed(3); o.frames = PROF.n; return o; };
+Cosmos.debug.pot = { potPhiAt, potMap, potDrag, startRange: () => startRange(sim.model) };
+Cosmos.debug.setStart = (phi) => { sim.phi0 = phi; resetRun(0.3); return sim.Ntot; };
+Cosmos.debug.measure = () => { measure(); view.fx = view.tfx; view.fy = view.tfy; };
+Cosmos.debug.freeze = (b) => { sim.freeze = !!b; return sim.freeze; };
+Cosmos.debug.noBlur = () => { TUNE.blur = 0; };
+/** Test helper: integrate straight to e-fold N (or the end of inflation). */
+Cosmos.debug.jump = (N) => {
+  if (sim.phase === 'pre') startInflation();
+  let g = 0;
+  while (sim.phase === 'inflate' && sim.s.N < N && g++ < 2e6) { const h = maxDt(sim.P, sim.s); sim.step(sim.s, h); if (epsH(sim.P, sim.s) >= 1) endInflation(); }
+  sim.h = hubble(sim.P, sim.s); sim.Nv = sim.s.N + Math.log(sim.h) - sim.lnh0; prevZoomN = sim.Nv + sim.zOff;
+  return sim.s.N;
+};
+Cosmos.debug.choose = choosePotential;
+/** Test helper: run the simulation forward by `sec` seconds of wall time without rendering. */
+Cosmos.debug.ff = (sec) => { const n = Math.round(sec * 30); for (let i = 0; i < n; i++) { const dN = stepPhysics(1 / 30); buildLayers(dN, 1 / 30); if (sim.phase !== 'pullback') sim.zOff += (sim.zOffT - sim.zOff) * 0.13; } prevZoomN = sim.Nv + sim.zOff; return sim.phase; };
+/** Test helper: show the gravity preview at progress u (0..1), paused. */
+Cosmos.debug.web = (u) => { if (!sim.webOn && !startWeb(true)) return 'not ready'; sim.webPlay = false; setWebFromU(u); sim.webMix = 1; webSlider.set(sim.webT); webCaption(); syncButtons(); return { t: sim.webT, a: sim.webA, D: sim.webD }; };
+Cosmos.debug.WEB = WEB;
+Cosmos.debug.skip = skipAhead;
+})();
+</script>
+</body>
+</html>

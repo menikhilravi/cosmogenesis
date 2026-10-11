@@ -1,0 +1,2052 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Pale Blue Dot · Cosmogenesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="cosmos.css">
+<style>
+  /* ---- chapter 9: The Pale Blue Dot ---- */
+  .pbd-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .cz-stage.pbd-grab { cursor: grab; }
+  .cz-stage.pbd-grab.pbd-dragging { cursor: grabbing; }
+  .cz-stage.pbd-sunmode { cursor: crosshair; }
+
+  /* the deep-time ribbon (main scrubber, on the stage) */
+  .pbd-ribbon {
+    position: fixed; z-index: 21; left: 470px; right: 340px; bottom: 70px; height: 78px;
+    padding: 0; touch-action: none; user-select: none; -webkit-user-select: none;
+    transition: opacity .5s var(--ease), transform .5s var(--ease);
+  }
+  .pbd-ribbon canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: ew-resize; }
+  .pbd-ribbon::before {
+    content: ""; position: absolute; inset: -8px -10px -6px; border-radius: 12px;
+    background: linear-gradient(to top, rgba(5,6,12,.62), rgba(5,6,12,.28));
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    border: 1px solid rgba(236,230,214,.07); pointer-events: none;
+  }
+  body.cz-cinema .pbd-ribbon { opacity: 0; transform: translateY(10px); pointer-events: none; }
+
+  /* epoch caption: a plate title, top centre on desktop */
+  .pbd-cap {
+    position: fixed; z-index: 21; left: 50%; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 4px);
+    transform: translateX(-50%); width: min(620px, calc(100vw - 32px)); text-align: center; pointer-events: none;
+    text-shadow: 0 1px 14px rgba(0,0,0,.95), 0 0 2px rgba(0,0,0,.8);
+    transition: opacity .5s var(--ease);
+  }
+  .pbd-cap .k { font: 600 10.5px/1.2 var(--f-mono); letter-spacing: .2em; text-transform: uppercase; color: var(--era); }
+  .pbd-cap .k b { color: var(--star); font-weight: 600; }
+  .pbd-cap .t { font: italic 500 clamp(24px, 2.6vw, 34px)/1.08 var(--f-display); color: var(--star); margin: 3px 0 4px; letter-spacing: -.01em; }
+  .pbd-cap .d { font: 400 13px/1.45 var(--f-ui); color: #cfc9bb; max-width: 56ch; margin: 0 auto; text-wrap: balance; }
+  .pbd-cap .a { font: 500 10.5px/1.4 var(--f-mono); color: var(--dust); margin-top: 5px; letter-spacing: .04em; }
+  .pbd-cap .a i { font-style: normal; color: var(--faint); letter-spacing: .16em; text-transform: uppercase; margin-right: 8px; }
+  .pbd-cap.swap .t, .pbd-cap.swap .d { animation: pbd-in .7s var(--ease) both; }
+  @keyframes pbd-in { from { opacity: 0; transform: translateY(4px); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
+  body.cz-cinema .pbd-cap { opacity: 0; }
+
+  /* the deck scrubber chart */
+  .pbd-deckscrub { cursor: ew-resize; touch-action: none; }
+  .pbd-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 500 10px/1.3 var(--f-mono); color: var(--dust); margin-top: -4px; }
+  .pbd-legend span::before { content: ""; display: inline-block; width: 10px; height: 2px; margin-right: 6px; vertical-align: middle; background: var(--c); }
+  .pbd-alive { font: 400 12px/1.45 var(--f-ui); color: #cfc9bb; border-left: 2px solid var(--era); padding: 2px 0 2px 10px; }
+  .pbd-alive b { display: block; font: 600 9.5px/1.3 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); margin-bottom: 2px; }
+
+  /* the view from the ground (deck) */
+  .pbd-sky { border-radius: 6px; background: #05060c; image-rendering: auto; }
+  .pbd-skynote { font: 400 11.5px/1.45 var(--f-ui); color: var(--dust); margin-top: -2px; }
+  .pbd-skynote b { color: #cfc9bb; font-weight: 500; }
+
+  /* phones: caption above the ribbon at the bottom */
+  @media (max-width: 760px) {
+    .pbd-ribbon { left: 12px; right: 12px; height: 66px; }
+    .pbd-cap { top: auto; text-align: left; left: 12px; transform: none; width: calc(100vw - 24px); }
+    .pbd-cap .t { font-size: 22px; margin: 2px 0 2px; }
+    .pbd-cap .d { display: none; }
+    .pbd-cap .a { margin-top: 2px; font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<script src="cosmos.js"></script>
+<script>
+(function () {
+'use strict';
+
+/* =====================================================================
+   09 · THE PALE BLUE DOT
+   A ray-traced Earth through 4.5 billion years: single-scattering
+   Rayleigh + Mie atmosphere (Nishita et al. 1993), illustrative plate
+   motion on the sphere, and a keyframed history of the planet.
+   ===================================================================== */
+
+const NOTES = `
+<p>This is Earth, drawn live by tracing a ray of light through every pixel. The blue edge of the planet, the orange band along the line between day and night and the thin bright rim all come from one equation. Air molecules scatter blue light about five to six times more strongly than red, and the model follows sunlight through the air to your eye.</p>
+<p>The ribbon at the bottom is 4.5 billion years long. At the start the planet is a glowing magma ocean and the newborn Moon hangs close. Scrub forward and the steam rains out into the first ocean. An orange haze hides a strange water world, oxygen turns the sky blue, ice swallows the planet twice, plants green the land, and the continents gather into Pangaea and drift apart again.</p>
+<p>The window in the controls stands you on the ground at 30° north, looking east, while the planet turns. Dawn, day, dusk and night come round at the pace of that epoch’s day.</p>
+<p>The readouts are real estimates from rocks, fossils and physics: the length of the day read from tidal layers in old sediments, the Moon’s distance, the dimmer young Sun, the oxygen and carbon dioxide in the air. The oldest values are uncertain, sometimes by a lot. The Science tab says where each one comes from.</p>
+<h4>Try this</h4>
+<ul>
+<li>Drag the ribbon slowly from the magma ocean to today and watch the colour of the planet’s edge.</li>
+<li>Press <strong>Theia impact</strong> <kbd>T</kbd> to see the collision that made the Moon, then <strong>Chicxulub</strong> <kbd>K</kbd> to end the age of dinosaurs.</li>
+<li>Watch <strong>Standing on the surface</strong> in the controls. It is the same light calculation seen from the ground: a hazy orange dawn in the Archean, a blue sky after the Great Oxidation, and a Moon several times wider than today’s low over the magma ocean.</li>
+<li>Let the tour run to the end, or drag the planet round to the night side. Only the last sliver of the ribbon has city lights. Hold <kbd>Shift</kbd> and drag to move the Sun.</li>
+</ul>`;
+
+const SCIENCE = `
+<h4>Why the sky is blue</h4>
+<p>Molecules much smaller than a wavelength scatter light with a strength that rises as the inverse fourth power of wavelength. The model uses the standard sea-level coefficients for air, and each species thins out exponentially with height:</p>
+<span class="eq">β<sub>R</sub>(λ) ∝ λ<sup>−4</sup></span>
+<p>At sea level β<sub>R</sub> = (5.8, 13.5, 33.1) × 10<sup>−6</sup> m<sup>−1</sup> for red, green and blue light (680, 550 and 440 nm).</p>
+<span class="eq">ρ(h) = e<sup>−h/H</sup>, &nbsp; H<sub>R</sub> = 8 km, &nbsp; H<sub>M</sub> = 1.2 km</span>
+<p>(680/440)<sup>4</sup> ≈ 5.7, which is why the blue coefficient is 5.7 times the red one. Aerosols (Mie scattering) are grey, with β<sub>M</sub> = 21 × 10<sup>−6</sup> m<sup>−1</sup> and a strong forward lobe. For every pixel the shader integrates single scattering along the view ray, as in Nishita et al. (1993):</p>
+<span class="eq">L(λ) = ∫ I<sub>☉</sub> T(P→☉) [β<sub>R</sub>ρ<sub>R</sub>P<sub>R</sub>(θ) + β<sub>M</sub>ρ<sub>M</sub>P<sub>M</sub>(θ)] T(P→eye) ds</span>
+<span class="eq">T = exp(−∫ β<sub>e</sub> ρ ds), &nbsp; P<sub>R</sub> = <sup>3</sup>⁄<sub>16π</sub>(1 + cos²θ)</span>
+<p>P<sub>M</sub> is the Cornette–Shanks phase function with g = 0.76. The view ray is cut into 8 to 32 segments, and within each segment the densities and the attenuated integrand are treated as exponentials, which is exact for an exponential atmosphere between the sample points. The optical depth toward the Sun from each point uses the Chapman grazing-incidence function in closed form, so the planet’s own shadow falls on its atmosphere. Long, low sunlight loses its blue on the way in, and that gives the orange terminator. Surfaces reflect as Lambertian (albedo/π) plus a GGX sun glint on water.</p>
+
+<h4>The faint young Sun</h4>
+<span class="eq">L(t) = L<sub>☉</sub> / [1 + 0.4 (1 − t/t<sub>☉</sub>)], &nbsp; t<sub>☉</sub> = 4.57 Gyr</span>
+<p>Gough’s fit to solar models gives 72% of today’s luminosity 4.5 billion years ago, 75% at 3.8 Ga and 83% at 2.4 Ga. The shader dims the Sun by exactly this factor. With today’s air, that Sun could not keep the oceans liquid before about 2 Ga, yet zircons show liquid water by 4.4 Ga (Wilde et al. 2001). Stronger greenhouse warming from CO₂ and methane is the usual answer. This is the faint young Sun paradox (Sagan &amp; Mullen 1972).</p>
+
+<h4>Oxygen, haze and the Great Oxidation Event</h4>
+<p>Before about 2.4 Ga, sulfur isotopes show that O₂ was below about 10<sup>−5</sup> of today’s level. Methane from microbes could then build an organic haze like Titan’s, which absorbs blue light and scatters orange: a “pale orange dot” (Arney et al. 2016). The model adds it as an extra aerosol layer (scale height 25 km) with blue-heavy extinction and an orange single-scattering albedo. Around 2.4–2.1 Ga, oxygen from cyanobacteria overwhelmed its sinks. The haze collapsed, iron rusted out of the oceans into banded iron formations, and red beds appeared on land. Oxygen then stayed low, perhaps 0.1–1% of today, until it rose again late in the Neoproterozoic (Lyons, Reinhard &amp; Planavsky 2014).</p>
+
+<h4>Snowball Earth</h4>
+<p>Twice, in the Sturtian (717–660 Ma) and Marinoan (about 650–635 Ma) glaciations, ice reached the equator. Ice reflects sunlight, which cools the planet and grows more ice, a runaway feedback. With the ocean sealed, volcanic CO₂ built up for millions of years until a greenhouse of order 0.1 bar melted everything fast, leaving cap carbonates on top of the glacial deposits (Hoffman et al. 1998).</p>
+
+<h4>Tides and the length of the day</h4>
+<p>The Moon raises tides, and friction drags the tidal bulge ahead of the Moon. That bulge pulls the Moon forward, so the Moon climbs outward while Earth’s spin slows. Lunar laser ranging measures the recession today at 3.8 cm per year. The total angular momentum stays fixed, which ties the day length to the Moon’s distance:</p>
+<span class="eq">C ω + M<sub>☾</sub> √(G M a) = constant, &nbsp; S<sub>0</sub> = 5.86 × 10<sup>33</sup>, &nbsp; L<sub>orb,0</sub> = 2.89 × 10<sup>34</sup> kg m² s<sup>−1</sup></span>
+<p>The model sets the day length from geological data and computes the distance from this relation. It gives 341,000 km at 1.4 Ga, where cyclostratigraphy gives 18.7 h days and about 341,000 km (Meyers &amp; Malinverno 2018), and 370,000 km at 620 Ma, where tidal rhythmites give 21.9 h and 58.2 Earth radii (Williams 2000). A 5.5 h day puts the newborn Moon near 39,000 km, about six Earth radii. Solar tides and the ocean’s changing response are ignored, and some work suggests the day stalled near 19 h for a billion years in the Proterozoic.</p>
+
+<h4>Plate tectonics and the Wilson cycle</h4>
+<p>Each rigid plate rotates about its own Euler pole, so a point on it moves at v = ω × r, a few centimetres a year. The continents gather into a supercontinent and break up again roughly every 500–700 million years: Columbia (Nuna), Rodinia and Pangaea. Here seven continental plates follow</p>
+<span class="eq">R<sub>k</sub>(t) = Rot(ê<sub>2k</sub>, B<sub>k</sub> sin φ) · Rot(ê<sub>1k</sub>, A<sub>k</sub>(1 − cos φ)), &nbsp; φ = 2π (270 Ma − t) / 750 Myr</span>
+<p>and the continental noise is evaluated in each plate’s own rotated frame, so coastlines ride with their plate. Where two continents overlap, the shader raises a mountain belt. The assemblies fall at 270 Ma, 1.02 Ga, 1.77 Ga and 2.52 Ga, close to Pangaea, Rodinia, Columbia and Kenorland. The geography itself is illustrative, not a reconstruction.</p>
+
+<h4>Aurorae</h4>
+<p>The faint green ovals on the night side are aurorae, near 67° magnetic latitude and centred on the magnetic poles, which sit about 9° from the spin axis. Solar-wind particles funnelled down by the magnetic field make oxygen atoms glow at 557.7 nm around 100–150 km up, with a fainter red 630.0 nm fringe higher still. They fade in around 3.5 Ga, close to the oldest well-dated evidence for a geodynamo, 3.4–3.45 Ga (Tarduno et al. 2010).</p>
+
+<h4>Standing on the surface</h4>
+<p>The window in the controls runs the same shader a second time, from a camera 1.5 km above the ground at 30° N, looking east. Sun, Moon and stars stay fixed in space while the planet turns under the camera, so sunrise, sunset and the stars come from geometry, not animation. The colours come from the same integral: a long, low path strips the blue from sunrise, the Archean haze turns the whole sky orange, and a snowball planet lies white under a blue sky. Stars fade when the sky outshines them, as they would for a camera. The Moon’s apparent width is</p>
+<span class="eq">θ<sub>☾</sub> = 2 arcsin(R<sub>☾</sub> / d), &nbsp; R<sub>☾</sub> = 1,737 km</span>
+<p>which gives 0.52° today and about 5° for a Moon 6 Earth radii away. Clouds are left out of this view, because in the model they are painted on the sphere. One day of the epoch takes 20 s (5.5 h) to 40 s (24 h).</p>
+
+<h4>The Pale Blue Dot</h4>
+<p>On 14 February 1990, Voyager 1 turned back from about 6 billion km and photographed Earth as a speck less than a pixel wide, sitting in a band of scattered sunlight. Sagan called it “a mote of dust suspended in a sunbeam.”</p>
+
+<h4>What is simplified</h4>
+<p>Earth’s radius is one unit (6,371 km) and the air is drawn to scale, so from this distance the 8 km scale height is under a pixel. The <em>Atmosphere scale</em> control stretches the scale heights by a factor k and divides the coefficients by k, which keeps the vertical optical depth (and so the colours) unchanged while making the shell visible. Scattering is single-scattering only, so twilight is slightly too dark. Clouds, terrain and colours are procedural; the brightest glows (magma, the debris disk, the fireball) are compressed, since true blackbody ratios would saturate any screen. Distances, temperatures and gas levels before 541 Ma are uncertain by large factors, and early values (Hadean temperature, CO₂) are model estimates. The planet spins at a visible rate scaled to the day length (24 h ≈ 40 s), and the Moon is placed where you can see it, at its true distance for the epoch. Clouds are a single layer with shading from a sample taken toward the Sun, not a true volume. City lights are drawn on a procedural population field in the style of NASA’s Black Marble composites, not on real cities. In the Pale Blue Dot view the camera stops at 17 million km, where Earth is about a pixel wide in this wide lens; Voyager’s telephoto camera saw it at 0.12 pixel from 6 billion km.</p>
+<span class="cite">Nishita, T., Sirai, T., Tadamura, K. &amp; Nakamae, E. (1993). Display of the Earth taking into account atmospheric scattering. Proc. SIGGRAPH ’93, 175–182.</span>
+<span class="cite">Gough, D. O. (1981). Solar interior structure and luminosity variations. Solar Physics 74, 21–34.</span>
+<span class="cite">Lyons, T. W., Reinhard, C. T. &amp; Planavsky, N. J. (2014). The rise of oxygen in Earth’s early ocean and atmosphere. Nature 506, 307–315.</span>
+<span class="cite">Hoffman, P. F., Kaufman, A. J., Halverson, G. P. &amp; Schrag, D. P. (1998). A Neoproterozoic snowball Earth. Science 281, 1342–1346.</span>
+<span class="cite">Williams, G. E. (2000). Geological constraints on the Precambrian history of Earth’s rotation and the Moon’s orbit. Rev. Geophys. 38, 37–59.</span>
+<span class="cite">Meyers, S. R. &amp; Malinverno, A. (2018). Proterozoic Milankovitch cycles and the history of the solar system. PNAS 115, 6363–6368.</span>
+<span class="cite">Wilde, S. A., Valley, J. W., Peck, W. H. &amp; Graham, C. M. (2001). Evidence from detrital zircons for the existence of continental crust and oceans on the Earth 4.4 Gyr ago. Nature 409, 175–178.</span>
+<span class="cite">Sagan, C. &amp; Mullen, G. (1972). Earth and Mars: evolution of atmospheres and surface temperatures. Science 177, 52–56.</span>
+<span class="cite">Wilson, J. T. (1966). Did the Atlantic close and then re-open? Nature 211, 676–681.</span>
+<span class="cite">Arney, G. et al. (2016). The pale orange dot: the spectrum and habitability of hazy Archean Earth. Astrobiology 16, 873–899.</span>
+<span class="cite">Canup, R. M. &amp; Asphaug, E. (2001). Origin of the Moon in a giant impact near the end of the Earth’s formation. Nature 412, 708–712.</span>
+<span class="cite">Tarduno, J. A. et al. (2010). Geodynamo, solar wind, and magnetopause 3.4 to 3.45 billion years ago. Science 327, 1238–1240.</span>
+<span class="cite">Sagan, C. (1994). Pale Blue Dot: A Vision of the Human Future in Space. Random House.</span>`;
+
+const ch = Cosmos.chapter({ id: 'earth', notes: NOTES, science: SCIENCE });
+const U = Cosmos.util;
+const small = () => window.matchMedia('(max-width: 760px)').matches;
+
+/* =====================================================================
+   1. DEEP TIME: the ribbon mapping (position 0..1 ↔ age in Ma)
+   Eons get space in proportion to what happens in them; the Quaternary
+   tail is stretched so the Last Glacial Maximum and "now" can be reached.
+   ===================================================================== */
+const MAP = [[0, 4500], [0.12, 4000], [0.33, 2500], [0.60, 541], [0.955, 2.58], [0.975, 0.02], [0.99, 0.0117], [0.996, 0.0002], [1, 0]];
+function ageAt(pos) {
+  pos = U.clamp(pos, 0, 1);
+  for (let i = 0; i < MAP.length - 1; i++) {
+    const a = MAP[i], b = MAP[i + 1];
+    if (pos <= b[0]) return a[1] + (b[1] - a[1]) * (pos - a[0]) / (b[0] - a[0]);
+  }
+  return 0;
+}
+function posAt(age) {
+  age = U.clamp(age, 0, 4500);
+  for (let i = 0; i < MAP.length - 1; i++) {
+    const a = MAP[i], b = MAP[i + 1];
+    if (age >= b[1]) return a[0] + (b[0] - a[0]) * (a[1] - age) / (a[1] - b[1]);
+  }
+  return 1;
+}
+const EONS = [
+  { name: 'Hadean', from: 4500, to: 4000, col: '#c2471f' },
+  { name: 'Archean', from: 4000, to: 2500, col: '#c98a3a' },
+  { name: 'Proterozoic', from: 2500, to: 541, col: '#7f9aa6' },
+  { name: 'Phanerozoic', from: 541, to: 0, col: '#5cc8ff' },
+];
+function eonOf(age) { for (const e of EONS) if (age <= e.from && age >= e.to) return e; return EONS[3]; }
+function periodOf(age) {
+  const P = [[4500, 'Hadean'], [4000, 'Eoarchean'], [3600, 'Paleoarchean'], [3200, 'Mesoarchean'], [2800, 'Neoarchean'], [2500, 'Paleoproterozoic'], [1600, 'Mesoproterozoic'], [1000, 'Tonian'], [720, 'Cryogenian'], [635, 'Ediacaran'],
+    [541, 'Cambrian'], [485.4, 'Ordovician'], [443.8, 'Silurian'], [419.2, 'Devonian'], [358.9, 'Carboniferous'], [298.9, 'Permian'], [251.9, 'Triassic'], [201.4, 'Jurassic'], [145, 'Cretaceous'], [66, 'Paleogene'], [23.03, 'Neogene'], [2.58, 'Quaternary']];
+  let n = P[0][1]; for (const [a, name] of P) if (age <= a) n = name; return n;
+}
+
+/* =====================================================================
+   2. KEYFRAMES: what the planet looks like (shader parameters)
+   Each row overrides only what changes; values carry forward.
+   ice/seaIce: latitude (deg) poleward of which land / sea is ice-covered.
+   ===================================================================== */
+const KF_RAW = [
+  [4500, { magma: 1, crack: 0, water: 0, sea: 0, cont: 0, isl: 0, ice: 95, seaIce: 95, veg: 0, mats: 0, red: 0, bif: 0, coal: 0, desert: 0, ferrous: 0, cloud: 0.18, storm: 0.7, press: 2.2, mie: 3, haze: 0, steam: 0.55, lava: 1 }],
+  [4470, { magma: 0.55, crack: 1 }],
+  [4430, { magma: 0.08, crack: 0.8, steam: 0.7, cloud: 0.35 }],
+  [4400, { magma: 0, crack: 0.25, water: 1, sea: 0.34, cont: 0.07, isl: 0.75, cloud: 0.55, storm: 1, press: 1.8, mie: 2, steam: 0.3, lava: 0.8, ferrous: 0.6 }],
+  [4000, { crack: 0.1, sea: 0.3, cont: 0.2, isl: 0.55, lava: 0.5, steam: 0.08, press: 1.5, mie: 1.5, cloud: 0.45, storm: 0.8, ferrous: 0.85 }],
+  [3700, { haze: 0.35, mats: 0.4 }],
+  [3400, { crack: 0, haze: 0.85, mats: 0.9, sea: 0.22, cont: 0.42, isl: 0.35, lava: 0.3, steam: 0, press: 1.3, mie: 1.2, cloud: 0.4, ferrous: 1 }],
+  [2750, { haze: 1, cont: 0.66, isl: 0.2, sea: 0.12 }],
+  [2500, { haze: 0.75, cont: 0.76, lava: 0.15 }],
+  [2420, { haze: 0.15, red: 0.25, bif: 1, ice: 48, seaIce: 50, cloud: 0.35 }],
+  [2300, { haze: 0, red: 0.7, bif: 0.7, ice: 58, seaIce: 60, ferrous: 0.45, mats: 0.6, press: 1.15, mie: 1 }],
+  [2150, { ice: 95, seaIce: 95, bif: 0.35 }],
+  [1900, { red: 1, bif: 0.5, ferrous: 0.3, cont: 0.85, sea: 0.08, isl: 0.12, cloud: 0.42 }],
+  [1400, { bif: 0.1, ferrous: 0.25, lava: 0.08 }],
+  [1000, { cont: 0.9, sea: 0.05, ferrous: 0.15, bif: 0 }],
+  [722, { ice: 68, seaIce: 72, press: 1.05 }],
+  [712, { ice: -30, seaIce: -30, cloud: 0.16, storm: 0.1 }],
+  [663, { ice: -30, seaIce: -30 }],
+  [656, { ice: 95, seaIce: 95, cloud: 0.62, storm: 1, mats: 0.5 }],
+  [650, { ice: 60, seaIce: 62, cloud: 0.4, storm: 0.5 }],
+  [645, { ice: -30, seaIce: -30, cloud: 0.16, storm: 0.1 }],
+  [637, { ice: -30, seaIce: -30 }],
+  [630, { ice: 95, seaIce: 95, cloud: 0.62, storm: 1 }],
+  [575, { cloud: 0.44, storm: 0.6, ferrous: 0 }],
+  [541, { mats: 0.35, red: 0.9, press: 1, isl: 0.1, lava: 0.05 }],
+  [470, { veg: 0.18, red: 0.75 }],
+  [420, { veg: 0.45, red: 0.5 }],
+  [360, { veg: 0.85, red: 0.3, mats: 0.1 }],
+  [305, { veg: 1, coal: 1, ice: 56, seaIce: 60, desert: 0 }],
+  [255, { veg: 0.55, coal: 0, desert: 1, ice: 95, seaIce: 95, cloud: 0.36, red: 0.5 }],
+  [200, { desert: 0.8, veg: 0.65 }],
+  [100, { veg: 0.95, desert: 0.35, sea: 0.1, cloud: 0.45, red: 0.25 }],
+  [66, { sea: 0.08 }],
+  [34, { ice: 72, seaIce: 76, sea: 0.03 }],
+  [2.6, { ice: 64, seaIce: 68, sea: 0.01 }],
+  [0.02, { ice: 44, seaIce: 52, sea: -0.035, desert: 0.55, veg: 0.7, cloud: 0.38 }],
+  [0.0117, { ice: 64, seaIce: 68, sea: 0, desert: 0.3, veg: 0.95, cloud: 0.4 }],
+  [0, { ice: 66, seaIce: 70, veg: 0.95, desert: 0.3, cloud: 0.38, storm: 0.6 }],
+];
+const KF_KEYS = Object.keys(KF_RAW[0][1]);
+const KF = (() => { let cur = {}; return KF_RAW.map(([age, o]) => { cur = Object.assign({}, cur, o); return { age, v: cur }; }); })();
+const S = {}; // interpolated shader state
+function sampleKF(age) {
+  let i = 0; while (i < KF.length - 2 && age < KF[i + 1].age) i++;
+  const a = KF[i], b = KF[i + 1];
+  let u = U.clamp((a.age - age) / (a.age - b.age), 0, 1);
+  u = u * u * (3 - 2 * u);
+  for (const k of KF_KEYS) S[k] = a.v[k] + (b.v[k] - a.v[k]) * u;
+  S.city = 1 - U.smoothstep(0, 0.00016, age);
+}
+
+/* =====================================================================
+   3. READOUT DATA: day length (h), O2 (fraction of present), pCO2 (bar),
+   mean surface temperature (deg C), sea level vs today (m; null = unknown)
+   ===================================================================== */
+const RD = [
+  // age,   day,  O2 PAL,  pCO2 bar,  T degC, sea m
+  [4500, 5.5, 1e-9, 100, 1600, null],
+  [4470, 6.4, 1e-9, 80, 900, null],
+  [4430, 7.6, 1e-9, 40, 230, null],
+  [4400, 8.2, 1e-8, 10, 100, null],
+  [4200, 9.6, 1e-8, 3, 70, null],
+  [4000, 10.6, 1e-7, 1, 50, null],
+  [3500, 12.1, 1e-6, 0.15, 32, null],
+  [3200, 13.0, 1e-6, 0.1, 30, null],
+  [2700, 15.5, 1e-6, 0.05, 25, null],
+  [2450, 17.0, 3e-6, 0.03, 16, null],
+  [2400, 17.2, 1e-4, 0.025, 6, null],
+  [2300, 17.6, 0.01, 0.02, 8, null],
+  [2200, 18.0, 0.1, 0.02, 18, null],
+  [2000, 18.6, 0.02, 0.015, 20, null],
+  [1800, 18.7, 0.005, 0.01, 19, null],
+  [1400, 18.7, 0.005, 0.006, 18, null],
+  [1000, 19.0, 0.008, 0.004, 18, null],
+  [722, 20.4, 0.01, 0.002, 16, null],
+  [712, 20.5, 0.01, 0.003, -45, null],
+  [663, 20.8, 0.01, 0.1, -40, null],
+  [656, 20.8, 0.02, 0.06, 45, null],
+  [650, 20.9, 0.02, 0.01, 18, null],
+  [645, 21.0, 0.02, 0.01, -45, null],
+  [637, 21.1, 0.03, 0.1, -40, null],
+  [630, 21.5, 0.05, 0.05, 45, null],
+  [620, 21.9, 0.06, 0.02, 30, null],
+  [541, 21.9, 0.2, 0.005, 25, 50],
+  [470, 21.9, 0.6, 0.004, 25, 200],
+  [380, 22.0, 0.8, 0.002, 22, 150],
+  [305, 22.3, 1.45, 0.0004, 14, 40],
+  [252, 22.6, 0.8, 0.002, 30, 0],
+  [200, 22.9, 0.75, 0.0015, 22, 50],
+  [100, 23.3, 1.1, 0.001, 25, 200],
+  [70, 23.5, 1.05, 0.0008, 23, 120],
+  [66, 23.5, 1.0, 0.0008, 23, 100],
+  [34, 23.7, 1.0, 0.0008, 18, 50],
+  [2.6, 23.99, 1.0, 0.0003, 15, 20],
+  [0.02, 24.0, 1.0, 0.000185, 7.8, -125],
+  [0.0117, 24.0, 1.0, 0.00026, 13.5, -60],
+  [0.0002, 24.0, 1.0, 0.00028, 13.9, 0],
+  [0, 24.0, 1.0, 0.00042, 15.1, 0],
+];
+const R = {};
+function sampleRD(age) {
+  let i = 0; while (i < RD.length - 2 && age < RD[i + 1][0]) i++;
+  const a = RD[i], b = RD[i + 1];
+  const u = U.clamp((a[0] - age) / (a[0] - b[0]), 0, 1);
+  const lin = (j) => a[j] + (b[j] - a[j]) * u;
+  const lg = (j) => Math.exp(Math.log(a[j]) + (Math.log(b[j]) - Math.log(a[j])) * u);
+  R.day = lin(1); R.o2 = lg(2); R.co2 = lg(3); R.temp = lin(4);
+  R.sea = a[5] == null || b[5] == null ? null : lin(5);
+  // Earth–Moon angular momentum is conserved: C·ω + M☾·sqrt(G·M·a) = const
+  const S0 = 5.86e33, LORB0 = 2.89e34, LTOT = S0 + LORB0;
+  const lorb = Math.max(1e33, LTOT - S0 * 24 / R.day);
+  R.moonKm = 384400 * Math.pow(lorb / LORB0, 2);
+  R.moonRe = R.moonKm / 6371;
+  // Gough (1981) luminosity of the young Sun
+  const t = 4.57 - age / 1000;
+  R.lum = 1 / (1 + 0.4 * (1 - t / 4.57));
+}
+
+/* =====================================================================
+   4. EVENTS (captions + ribbon markers) and what's alive
+   ===================================================================== */
+const EVENTS = [
+  { age: 4500, mark: 'Theia', title: 'A world of molten rock', desc: 'A Mars-sized body has just hit the young Earth. The mantle is a magma ocean, the air is steam and rock vapour, and the new Moon is only a few Earth radii away.' },
+  { age: 4440, mark: '', title: 'The steam rains out', desc: 'As the crust cools, the steam atmosphere condenses into a hot global ocean under a heavy blanket of CO₂. It may have rained for thousands of years.' },
+  { age: 4400, mark: 'Zircons', title: 'The first oceans', desc: 'Zircon crystals from the Jack Hills of Australia record liquid water 4.4 billion years ago. A global sea, dark basalt islands, lightning in the storms.' },
+  { age: 3750, mark: 'Haze', title: 'The orange world', desc: 'A methane haze, like Titan’s, tints the sky orange. The young Sun gives three-quarters of today’s light. Microbial mats line the shallows.' },
+  { age: 2420, mark: 'GOE', title: 'The Great Oxidation Event', desc: 'Oxygen from cyanobacteria overwhelms its sinks. The haze collapses, the sky turns blue, and iron rusts out of the sea in red bands.' },
+  { age: 1800, mark: 'Boring billion', title: 'A billion quiet years', desc: 'Oxygen stays low, the day lasts about 19 hours, and complex cells with nuclei appear.' },
+  { age: 1060, mark: 'Rodinia', title: 'Rodinia', desc: 'The continents crowd together into a supercontinent. Land is bare rock, stained red by the new oxygen.' },
+  { age: 717, mark: 'Sturtian', title: 'Snowball Earth', desc: 'Ice reaches the equator and stays for 57 million years. Volcanic CO₂ builds up under the frozen sky until a greenhouse melts it all.' },
+  { age: 650, mark: 'Marinoan', title: 'The second snowball', desc: 'The Marinoan glaciation freezes the planet again. It ends in a hothouse that paints cap carbonates over the glacial rubble.' },
+  { age: 575, mark: '', title: 'The Ediacaran', desc: 'Oxygen rises in the oceans. Large, soft, quilted organisms spread across the sea floor.' },
+  { age: 541, mark: 'Cambrian', title: 'The Cambrian explosion', desc: 'Animals with eyes, shells and legs appear in the fossil record within about 20 million years.' },
+  { age: 470, mark: 'Plants', title: 'Plants move ashore', desc: 'Liverwort-like plants spread from wet coasts. The continents start to turn green.' },
+  { age: 305, mark: 'Coal', title: 'The coal forests', desc: 'Giant club mosses bury so much carbon that oxygen climbs to about 30% of the air, and ice returns to the southern pole.' },
+  { age: 270, mark: 'Pangaea', title: 'Pangaea', desc: 'All the continents in one. Its heart is a hot desert. At 252 Ma the worst mass extinction kills most species in the sea.' },
+  { age: 180, mark: '', title: 'Pangaea breaks up', desc: 'Rifts open new oceans. Dinosaurs spread across every continent while it splits.' },
+  { age: 66, mark: 'Chicxulub', title: 'The end of the Cretaceous', desc: 'A 10 km asteroid strikes Yucatán at about 20 km/s. Soot and sulfate darken the sky and three-quarters of species vanish.' },
+  { age: 34, mark: '', title: 'Antarctica freezes', desc: 'As CO₂ falls, ice sheets grow on Antarctica. The world cools into the ice ages.' },
+  { age: 0.02, mark: 'LGM', title: 'Last Glacial Maximum', desc: 'Ice sheets up to 3 km thick cover the northern continents. Sea level is about 125 m lower than today.' },
+  { age: 0.0117, mark: '', title: 'The Holocene', desc: 'The ice retreats, the climate steadies, and people begin to farm.' },
+  { age: 0.00016, mark: 'Now', title: 'The pale blue dot', desc: 'Eight billion people. The night side glows with the lights of their cities.' },
+];
+const ALIVE = [
+  [4500, 'Nothing. The surface is molten rock.'],
+  [4400, 'No known life. Liquid water and prebiotic chemistry.'],
+  [3950, 'Perhaps the first cells (disputed traces, 3.7–4.1 Ga).'],
+  [3500, 'Microbial mats and stromatolites; methane-making archaea.'],
+  [2900, 'Cyanobacteria begin splitting water and releasing oxygen.'],
+  [2400, 'Cyanobacteria; oxygen-breathing microbes spread.'],
+  [1800, 'The first eukaryotes: cells with nuclei.'],
+  [1050, 'Red algae (Bangiomorpha) and early sexual reproduction.'],
+  [717, 'Algae and microbes survive in meltwater and under thin ice.'],
+  [575, 'Ediacaran biota: soft-bodied, quilted organisms.'],
+  [541, 'Trilobites and the first animals with eyes.'],
+  [470, 'The first land plants; jawless fish in the seas.'],
+  [380, 'Forests, and the first four-limbed animals.'],
+  [305, 'Coal-swamp forests, giant insects, early reptiles.'],
+  [252, 'Survivors of the end-Permian extinction.'],
+  [200, 'Dinosaurs, and small early mammals.'],
+  [66, 'Dinosaurs, until the impact kills about 75% of species.'],
+  [65.9, 'Mammals and birds inherit the planet.'],
+  [0.3, 'Homo sapiens appears in Africa.'],
+  [0.02, 'Mammoths, woolly rhinos and human hunter-gatherers.'],
+  [0.0117, 'Farming and the first villages.'],
+  [0.00016, '8 billion people; about 8.7 million species of eukaryote.'],
+];
+function lastBefore(list, age, key) { let r = list[0]; for (const e of list) { if ((key ? e[key] : e[0]) >= age - 1e-9) r = e; } return r; }
+
+/* =====================================================================
+   5. PLATES: seven continental plates + five oceanic ones on the sphere.
+   R_k(t) = Rot(e2, B sin φ) · Rot(e1, A (1 − cos φ)),  φ = 2π (270 − t)/750
+   All continents gather at φ = 0 (every 750 Myr): Pangaea, Rodinia, ...
+   ===================================================================== */
+const V3 = {
+  norm: (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; },
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  add: (a, b, s = 1) => [a[0] + b[0] * s, a[1] + b[1] * s, a[2] + b[2] * s],
+  scale: (a, s) => [a[0] * s, a[1] * s, a[2] * s],
+};
+/** axis-angle → row-major 3×3 */
+function rotM(ax, ang) {
+  const [x, y, z] = ax, c = Math.cos(ang), s = Math.sin(ang), t = 1 - c;
+  return [t * x * x + c, t * x * y - s * z, t * x * z + s * y, t * x * y + s * z, t * y * y + c, t * y * z - s * x, t * x * z - s * y, t * y * z + s * x, t * z * z + c];
+}
+function mulM(a, b) { const o = new Array(9); for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) o[i * 3 + j] = a[i * 3] * b[j] + a[i * 3 + 1] * b[3 + j] + a[i * 3 + 2] * b[6 + j]; return o; }
+function mulMV(m, v) { return [m[0] * v[0] + m[1] * v[1] + m[2] * v[2], m[3] * v[0] + m[4] * v[1] + m[5] * v[2], m[6] * v[0] + m[7] * v[1] + m[8] * v[2]]; }
+const T_ASSEMBLY = 270, T_WILSON = 750;
+const PLATES = (() => {
+  const rng = U.rng(9091);
+  const Sd = V3.norm([0.25, 0.22, 0.94]);
+  const u = V3.norm(V3.cross([0, 1, 0], Sd)), v = V3.cross(Sd, u);
+  const at = (ox, oy) => { const l = Math.hypot(ox, oy); if (l < 1e-6) return Sd; const d = V3.add(V3.scale(u, ox / l), v, oy / l); return V3.norm(V3.add(V3.scale(Sd, Math.cos(l)), d, Math.sin(l))); };
+  // continents at assembly (Pangaea-like cluster): offsets in radians, radius
+  const C = [[0, 0, 0.50], [0.66, 0.12, 0.44], [-0.62, 0.28, 0.46], [0.12, 0.72, 0.40], [-0.18, -0.68, 0.47], [0.60, -0.55, 0.38], [-0.78, -0.40, 0.36]];
+  const list = C.map(([ox, oy, rad], k) => {
+    const c = at(ox, oy);
+    let e1 = V3.cross(Sd, c); e1 = Math.hypot(...e1) < 1e-4 ? v : V3.norm(e1);
+    const e2 = V3.norm([rng() * 2 - 1, rng() * 2 - 1, rng() * 2 - 1]);
+    return { c, rad, e1, e2, A: 0.42 + rng() * 0.3, B: (rng() < 0.5 ? -1 : 1) * (0.2 + rng() * 0.35), cont: true };
+  });
+  // oceanic plates on the far side (Panthalassa), slowly spreading
+  for (let k = 0; k < 5; k++) {
+    const ang = (k / 5) * Math.PI * 2 + rng() * 0.5;
+    const c = V3.norm(V3.add(V3.scale(Sd, -0.35), V3.add(V3.scale(u, Math.cos(ang)), v, Math.sin(ang))));
+    list.push({ c, rad: 0, e1: V3.norm([rng() - 0.5, 1, rng() - 0.5]), e2: V3.norm([rng() - 0.5, rng() - 0.5, rng() - 0.5]), A: 0.25 + rng() * 0.2, B: 0.3 * (rng() - 0.5), cont: false });
+  }
+  return list;
+})();
+const plateRT = new Float32Array(12 * 9), plateC = new Float32Array(12 * 3), contRad = new Float32Array(7);
+PLATES.forEach((p, k) => { if (k < 7) contRad[k] = p.rad; });
+function plateRot(p, age) {
+  const phi = 2 * Math.PI * (T_ASSEMBLY - age) / T_WILSON;
+  return mulM(rotM(p.e2, p.B * Math.sin(phi)), rotM(p.e1, p.A * (1 - Math.cos(phi))));
+}
+function updatePlates(age) {
+  PLATES.forEach((p, k) => {
+    const Rm = plateRot(p, age);
+    // GLSL reads column-major, so passing R row-major yields R^T (body → plate frame)
+    for (let i = 0; i < 9; i++) plateRT[k * 9 + i] = Rm[i];
+    const c = mulMV(Rm, p.c); plateC[k * 3] = c[0]; plateC[k * 3 + 1] = c[1]; plateC[k * 3 + 2] = c[2];
+  });
+}
+/** mean continental drift speed (cm/yr) at an age, from the model */
+function plateSpeed(age) {
+  let s = 0;
+  for (let k = 0; k < 7; k++) {
+    const p = PLATES[k], a = mulMV(plateRot(p, age), p.c), b = mulMV(plateRot(p, age - 1), p.c);
+    s += Math.acos(U.clamp(V3.dot(a, b), -1, 1));
+  }
+  return (s / 7) * 6371 * 0.1; // rad/Myr → km/Myr → cm/yr
+}
+function supercontinent(age) {
+  const n = Math.round((age - T_ASSEMBLY) / T_WILSON);
+  const d = Math.abs(age - (T_ASSEMBLY + n * T_WILSON));
+  const names = ['Pangaea', 'Rodinia', 'Columbia (Nuna)', 'Kenorland', 'Vaalbara?', 'early cratons'];
+  if (n < 0 || n > 5) return 'dispersed';
+  if (d < 70) return names[n] + ' (assembled)';
+  if (d < 170) return names[n] + (age > T_ASSEMBLY + n * T_WILSON ? ' (gathering)' : ' (rifting)');
+  return 'dispersed';
+}
+
+/* =====================================================================
+   6. THE SCENE SHADER: stars, Moon, Theia, Earth, atmosphere, disk
+   Units: 1 = Earth radius (6,371 km). World frame: y up; the planet
+   spins inside uSpin (body → world).
+   ===================================================================== */
+const SCENE_FS = `#version 300 es
+precision highp float;
+precision highp int;
+out vec4 fragColor;
+uniform vec2 uRes, uCenter;
+uniform float uFocal, uTime, uJit;
+uniform vec3 uCamPos;
+uniform mat3 uCamRot, uSpin;
+uniform vec3 uSun;
+uniform float uSunI;
+uniform mat3 uPlateRT[12];
+uniform vec3 uPlateC[12];
+uniform float uContRad[7];
+uniform float uMagma, uCrack, uWater, uSea, uCont, uIsl, uIceLat, uSeaIceLat, uVeg, uMats, uRed, uBif, uCoal, uDesert, uFerrous, uCloud, uStorm, uLava, uCity;
+uniform float uPress, uMie, uAtmTop;
+uniform vec3 uAerK, uAerAlb, uAerP;
+uniform float uPlates, uCloudsOn, uAtmOn, uTonemap, uExposure;
+uniform vec4 uMoon; uniform mat3 uMoonRot; uniform float uMoonGlow;
+uniform vec4 uTheia; uniform float uTheiaGlow;
+uniform vec4 uDisk; uniform vec3 uDiskN; uniform float uDiskRot;
+uniform vec4 uImp; uniform vec3 uImpDir;
+uniform vec4 uBolide;
+uniform vec3 uEra;
+uniform float uAtmK;
+uniform float uDbg;
+uniform float uAurora;
+uniform float uStarK, uStarMask, uGlare;
+float gFoot = 0.004;   // world units per pixel at the current hit
+
+const float PI = 3.14159265;
+const float INV_PI = 0.31830989;
+const vec3 BR0 = vec3(5.8e-6, 13.5e-6, 33.1e-6) * 6.371e6;  // Rayleigh, per Earth radius
+const float BM0 = 21e-6 * 6.371e6;                           // Mie scattering
+float HR = 8.0 / 6371.0, HM = 1.2 / 6371.0;   // scaled by uAtmK in main()
+
+/* ---------- hashing & noise ---------- */
+vec3 hash33(vec3 p3) { p3 = fract(p3 * vec3(.1031, .1030, .0973)); p3 += dot(p3, p3.yxz + 33.33); return fract((p3.xxy + p3.yxx) * p3.zyx); }
+float hash13(vec3 p3) { p3 = fract(p3 * .1031); p3 += dot(p3, p3.zyx + 31.32); return fract((p3.x + p3.y) * p3.z); }
+// integer lattice hashes (no periodic artefacts at high frequency)
+const uvec3 UI3 = uvec3(1597334673u, 3812015801u, 2798796415u);
+const float UIF = 1.0 / 4294967295.0;
+vec3 ih33(vec3 p) { uvec3 q = uvec3(ivec3(p)) * UI3; q = (q.x ^ q.y ^ q.z) * UI3; return vec3(q) * UIF; }
+float ih13(vec3 p) { uvec3 q = uvec3(ivec3(p)) * UI3; uint n = (q.x ^ q.y ^ q.z) * UI3.x; return float(n) * UIF; }
+float gnoise(vec3 x) {
+  vec3 i = floor(x), w = fract(x), u = w * w * (3.0 - 2.0 * w);
+  #define GR(o) dot(ih33(i + o) * 2.0 - 1.0, w - o)
+  float a = GR(vec3(0,0,0)), b = GR(vec3(1,0,0)), c = GR(vec3(0,1,0)), d = GR(vec3(1,1,0));
+  float e = GR(vec3(0,0,1)), f = GR(vec3(1,0,1)), g = GR(vec3(0,1,1)), h = GR(vec3(1,1,1));
+  return mix(mix(mix(a, b, u.x), mix(c, d, u.x), u.y), mix(mix(e, f, u.x), mix(g, h, u.x), u.y), u.z);
+}
+float vnoise(vec3 x) {
+  vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(ih13(i), ih13(i + vec3(1,0,0)), f.x), mix(ih13(i + vec3(0,1,0)), ih13(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(ih13(i + vec3(0,0,1)), ih13(i + vec3(1,0,1)), f.x), mix(ih13(i + vec3(0,1,1)), ih13(i + vec3(1,1,1)), f.x), f.y), f.z);
+}
+// gradient noise with analytic derivatives (value, d/dx, d/dy, d/dz)
+vec4 noised(vec3 x) {
+  vec3 i = floor(x), w = fract(x);
+  vec3 u = w * w * w * (w * (w * 6.0 - 15.0) + 10.0);
+  vec3 du = 30.0 * w * w * (w * (w - 2.0) + 1.0);
+  vec3 ga = ih33(i) * 2.0 - 1.0, gb = ih33(i + vec3(1,0,0)) * 2.0 - 1.0, gc = ih33(i + vec3(0,1,0)) * 2.0 - 1.0, gd = ih33(i + vec3(1,1,0)) * 2.0 - 1.0;
+  vec3 ge = ih33(i + vec3(0,0,1)) * 2.0 - 1.0, gf = ih33(i + vec3(1,0,1)) * 2.0 - 1.0, gg = ih33(i + vec3(0,1,1)) * 2.0 - 1.0, gh = ih33(i + vec3(1,1,1)) * 2.0 - 1.0;
+  float va = dot(ga, w), vb = dot(gb, w - vec3(1,0,0)), vc = dot(gc, w - vec3(0,1,0)), vd = dot(gd, w - vec3(1,1,0));
+  float ve = dot(ge, w - vec3(0,0,1)), vf = dot(gf, w - vec3(1,0,1)), vg = dot(gg, w - vec3(0,1,1)), vh = dot(gh, w - vec3(1,1,1));
+  float v = va + u.x * (vb - va) + u.y * (vc - va) + u.z * (ve - va) + u.x * u.y * (va - vb - vc + vd) + u.y * u.z * (va - vc - ve + vg) + u.z * u.x * (va - vb - ve + vf) + u.x * u.y * u.z * (-va + vb + vc - vd + ve - vf - vg + vh);
+  vec3 d = ga + u.x * (gb - ga) + u.y * (gc - ga) + u.z * (ge - ga) + u.x * u.y * (ga - gb - gc + gd) + u.y * u.z * (ga - gc - ge + gg) + u.z * u.x * (ga - gb - ge + gf) + u.x * u.y * u.z * (-ga + gb + gc - gd + ge - gf - gg + gh)
+         + du * (vec3(vb - va, vc - va, ve - va) + u.yzx * vec3(va - vb - vc + vd, va - vc - ve + vg, va - vb - ve + vf) + u.zxy * vec3(va - vb - ve + vf, va - vb - vc + vd, va - vc - ve + vg) + u.yzx * u.zxy * (-va + vb + vc - vd + ve - vf - vg + vh));
+  return vec4(v, d);
+}
+const mat3 M3 = mat3(0.00, 0.80, 0.60, -0.80, 0.36, -0.48, -0.60, -0.48, 0.64);
+float fbmG(vec3 p, int oct) { float s = 0.0, a = 0.5; for (int i = 0; i < 8; i++) { if (i >= oct) break; s += a * gnoise(p); p = M3 * p * 2.03; a *= 0.5; } return s; }
+float fbmV(vec3 p, int oct) { float s = 0.0, a = 0.5; for (int i = 0; i < 8; i++) { if (i >= oct) break; s += a * (vnoise(p) - 0.5); p = M3 * p * 2.03; a *= 0.5; } return s; }
+vec4 fbmD(vec3 p, int oct) {
+  float s = 0.0, a = 0.5; vec3 d = vec3(0.0); mat3 m = mat3(1.0);
+  for (int i = 0; i < 8; i++) { if (i >= oct) break; vec4 n = noised(p); s += a * n.x; d += a * (transpose(m) * n.yzw); p = M3 * p * 2.03; m = 2.03 * M3 * m; a *= 0.5; }
+  return vec4(s, d);
+}
+vec2 cell(vec3 x) {
+  vec3 i = floor(x), f = fract(x); float d1 = 8.0, d2 = 8.0;
+  for (int k = -1; k <= 1; k++) for (int j = -1; j <= 1; j++) for (int m = -1; m <= 1; m++) {
+    vec3 g = vec3(float(m), float(j), float(k)); vec3 r = g + ih33(i + g) - f; float d = dot(r, r);
+    if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d;
+  }
+  return sqrt(vec2(d1, d2));
+}
+// blackbody at 610 / 550 / 465 nm, scaled so 1800 K ≈ 1 in green
+vec3 glow(float T) { T = max(T, 300.0); return vec3(11.84, 19.87, 46.0) / (exp(min(vec3(23587.0, 26160.0, 30942.0) / T, 80.0)) - 1.0) * 1.0e5; }
+
+vec3 glowC(float T, float k) { vec3 g = glow(T); return g / max(g.r, 1e-6) * k * pow(T / 1800.0, 1.5); }
+vec2 sph(vec3 ro, vec3 rd, vec3 c, float r) {
+  vec3 oc = ro - c; float b = dot(oc, rd); vec3 q = oc - b * rd; float h = r * r - dot(q, q);
+  if (h < 0.0) return vec2(-1.0); h = sqrt(h); return vec2(-b - h, -b + h);
+}
+
+/* ---------- atmosphere ---------- */
+float chap(float x, float cz) {   // Chapman grazing-incidence function, x = (R+h)/H
+  float c = sqrt(1.5707963 * x);
+  if (cz >= 0.0) return c / ((c - 1.0) * cz + 1.0);
+  float s = sqrt(max(0.0, 1.0 - cz * cz)), x0 = x * s, c0 = sqrt(1.5707963 * x0);
+  return 2.0 * c0 * exp(min(x - x0, 70.0)) - c / ((c - 1.0) * (-cz) + 1.0);
+}
+float column(float h, float cz, float H) { return H * exp(-h / H) * chap((1.0 + h) / H, cz); }
+float aH() { return uAerP.y * uAtmK; }
+vec3 aerB() { return uAerK * (uAerP.x / aH()); }
+vec3 sunTrans(float h, float cz) {
+  if (uAtmOn < 0.5) return vec3(smoothstep(-0.02, 0.03, cz));
+  if (cz < 0.0 && (1.0 + h) * sqrt(1.0 - cz * cz) < 1.0) return vec3(0.0);   // ray into the ground
+  vec3 tau = BR0 * uPress / uAtmK * column(h, cz, HR) + (BM0 * uMie / 0.9 / uAtmK) * column(h, cz, HM) + aerB() * column(h, cz, aH());
+  return exp(-tau);
+}
+// log-mean of two samples of an exponential, given their logarithms: the exact segment average
+float lmL(float a, float b, float la, float lb) { float d = la - lb; return abs(d) < 1e-3 ? 0.5 * (a + b) : (a - b) / d; }
+vec3 lmL3(vec3 a, vec3 b, vec3 la, vec3 lb) { return vec3(lmL(a.x, b.x, la.x, lb.x), lmL(a.y, b.y, la.y, lb.y), lmL(a.z, b.z, la.z, lb.z)); }
+void scatter(vec3 ro, vec3 rd, float t0, float t1, vec3 L, float jit, out vec3 ins, out vec3 tr) {
+  // Single scattering (Nishita et al. 1993). The view ray is cut into N segments; along each
+  // segment the densities and the attenuated integrand are treated as exponentials
+  // (log-space trapezoid), exact for an exponential atmosphere between sample points.
+  int N = int(clamp((t1 - t0) / 0.006, 8.0, 32.0));
+  float dt = (t1 - t0) / float(N);
+  float mu = dot(rd, L);
+  float pR = 0.0596831 * (1.0 + mu * mu);
+  const float g = 0.76; const float g2 = g * g;
+  float pM = 0.1193662 * (1.0 - g2) * (1.0 + mu * mu) / ((2.0 + g2) * pow(1.0 + g2 - 2.0 * g * mu, 1.5));
+  float ga = uAerP.z; float pA = 0.0795775 * (1.0 - ga * ga) / pow(1.0 + ga * ga - 2.0 * ga * mu, 1.5);
+  vec3 bR = BR0 * uPress / uAtmK; float bMs = BM0 * uMie / uAtmK, bMe = bMs / 0.9; vec3 bA = aerB(); float HA = aH();
+  vec3 invH = 1.0 / vec3(HR, HM, HA);
+  vec3 sR = vec3(0.0), sM = vec3(0.0), sA = vec3(0.0);
+  vec3 od = vec3(0.0);            // view-ray columns: (Rayleigh, Mie, aerosol)
+  vec3 rhoP = vec3(0.0), lrP = vec3(0.0);
+  vec3 fRp = vec3(0.0), fMp = vec3(0.0), fAp = vec3(0.0), ltP = vec3(0.0);
+  for (int i = 0; i <= 32; i++) {
+    if (i > N) break;
+    float t = t0 + float(i) * dt;
+    vec3 pos = ro + rd * t; float r = length(pos); float h = max(r - 1.0, 0.0);
+    vec3 lr = -h * invH; vec3 rho = exp(lr);
+    if (i > 0) od += dt * vec3(lmL(rhoP.x, rho.x, lrP.x, lr.x), lmL(rhoP.y, rho.y, lrP.y, lr.y), lmL(rhoP.z, rho.z, lrP.z, lr.z));
+    float cz = dot(pos, L) / r;
+    vec3 tau = vec3(80.0);
+    if (!(cz < 0.0 && r * sqrt(1.0 - cz * cz) < 1.0))
+      tau = min(bR * (od.x + column(h, cz, HR)) + bMe * (od.y + column(h, cz, HM)) + bA * (od.z + column(h, cz, HA)), vec3(80.0));
+    vec3 T = exp(-tau);
+    vec3 fR = T * rho.x, fM = T * rho.y, fA = T * rho.z;
+    if (i > 0) {
+      sR += dt * lmL3(fRp, fR, -ltP + lrP.x, -tau + lr.x);
+      sM += dt * lmL3(fMp, fM, -ltP + lrP.y, -tau + lr.y);
+      sA += dt * lmL3(fAp, fA, -ltP + lrP.z, -tau + lr.z);
+    }
+    rhoP = rho; lrP = lr; fRp = fR; fMp = fM; fAp = fA; ltP = tau;
+  }
+  ins = uSunI * (sR * bR * pR + sM * bMs * pM + sA * bA * uAerAlb * pA);
+  tr = exp(-(bR * od.x + bMe * od.y + bA * od.z));
+}
+
+/* ---------- terrain: continents carried by rotating plates ---------- */
+struct Terr { float e; float ec; float coll; float bnd; float d; vec3 g; };
+Terr terrain(vec3 p) {
+  Terr T;
+  float best = -3.0, sec = -3.0; int bk = -1;
+  for (int k = 0; k < 7; k++) {
+    float rad = uContRad[k] * uCont;
+    if (rad < 0.012) continue;
+    float ang = acos(clamp(dot(p, uPlateC[k]), -1.0, 1.0));
+    if (ang > rad * 1.9 + 0.16) continue;
+    vec3 q = uPlateRT[k] * p;                    // domain-rotate into the plate's frame
+    float f = (1.0 - ang / rad) * 0.6 + fbmG(q * 2.1, 3) * 0.95;
+    if (f > best) { sec = best; best = f; bk = k; } else if (f > sec) sec = f;
+  }
+  vec3 q = p; mat3 RT = mat3(1.0);
+  if (bk >= 0) { RT = uPlateRT[bk]; q = RT * p; }
+  float ec = clamp(best, -1.2, 1.0);
+  float coll = bk >= 0 ? smoothstep(-0.12, 0.22, sec) * smoothstep(-0.1, 0.2, best) : 0.0;
+  vec3 w = vec3(gnoise(q * 2.7), gnoise(q * 2.7 + 17.1), gnoise(q * 2.7 + 31.7));
+  int oct = int(clamp(log2(0.45 / (5.0 * gFoot)) + 1.0, 2.0, 7.0));
+  vec4 D = fbmD(q * 5.0 + w * 0.6, oct);
+  float amp = 0.28 + 0.4 * coll;
+  // ridged mountain ranges (analytic gradients so the relief shades correctly)
+  float mm = smoothstep(0.02, 0.35, ec) * (0.3 + 1.2 * coll);
+  vec4 r1 = noised(q * 7.0 + w * 1.2), r2 = noised(q * 16.0 + w * 1.8 + 3.0);
+  float a1 = 1.0 - abs(r1.x), a2 = 1.0 - abs(r2.x);
+  vec3 g1 = -2.0 * a1 * sign(r1.x) * r1.yzw * 7.0, g2 = -2.0 * a2 * sign(r2.x) * r2.yzw * 16.0;
+  float e = ec * 0.8 + 0.05 + D.x * amp + mm * (0.3 * a1 * a1 + 0.13 * a2 * a2);
+  // volcanic islands (Hadean / Archean): hotspots in the body frame
+  if (uIsl > 0.001) {
+    float isl = smoothstep(0.04, 0.3, gnoise(p * 6.0 + 11.0) + 0.5 * D.x - (1.0 - uIsl) * 0.6);
+    e = mix(e, max(e, uSea + 0.06 + D.x * 0.35 + 0.15 * isl), isl);
+  }
+  // plate boundaries (Voronoi over all twelve plates) → mid-ocean ridges
+  float d1 = -2.0, d2 = -2.0;
+  for (int k = 0; k < 12; k++) { float d = dot(p, uPlateC[k]); if (d > d1) { d2 = d1; d1 = d; } else if (d > d2) d2 = d; }
+  float bnd = (d1 - d2) + gnoise(p * 9.0) * 0.012;
+  if (e < -0.5) e += (1.0 - smoothstep(0.0, 0.03, bnd)) * 0.15;
+  T.e = e - uSea; T.ec = ec - uSea; T.coll = coll; T.bnd = bnd; T.d = D.x;
+  T.g = transpose(RT) * (D.yzw * 5.0 * amp + mm * (0.3 * g1 + 0.13 * g2) * 0.35);
+  return T;
+}
+
+/* ---------- clouds: two moving noise layers, zonal winds, cyclones ---------- */
+vec3 swirl(vec3 q) {
+  // six mid-latitude cyclones: rotate the noise domain about each centre (spiral arms)
+  for (int k = 0; k < 6; k++) {
+    float fk = float(k);
+    float hs = (k - (k / 2) * 2) == 0 ? 1.0 : -1.0;
+    float la = hs * (0.62 + 0.3 * fract(fk * 0.618 + 0.2));
+    float lo = fk * 2.39996 + 0.7 + uTime * 0.004 * hs;
+    vec3 c = vec3(cos(la) * cos(lo), sin(la), cos(la) * sin(lo));
+    float d = 1.0 - dot(q, c);
+    float a = hs * (0.95 + 1.25 * fract(fk * 0.37)) * exp(-d * (30.0 + 16.0 * fract(fk * 0.73)));
+    float ca = cos(a), sa = sin(a);
+    q = q * ca + cross(c, q) * sa + c * dot(c, q) * (1.0 - ca);
+  }
+  return q;
+}
+float clouds(vec3 p, int oct) {
+  float lat = asin(clamp(p.y, -1.0, 1.0));
+  float wind = uTime * (0.010 - 0.022 * cos(2.2 * lat));      // trade winds / westerlies
+  float ca = cos(wind), sa = sin(wind);
+  vec3 q = vec3(ca * p.x - sa * p.z, p.y, sa * p.x + ca * p.z);
+  q = swirl(q);
+  vec3 w = vec3(fbmV(q * 2.2 + 1.7, 2), fbmV(q * 2.2 + 9.2, 2), fbmV(q * 2.2 + 4.4, 2));
+  // stretch along latitude circles: jet-stream streaks
+  vec3 qs = q * vec3(1.0, 1.45, 1.0);
+  float n = fbmV(qs * 3.4 + w * 1.7 + vec3(0.0, 0.0, uTime * 0.004), min(oct, 4));
+  // detail is added before thresholding, so edges are fractal at every scale
+  if (oct > 3) {
+    n += 0.36 * fbmV(q * 11.0 + w * 2.2 + vec3(uTime * 0.012, 0.0, -uTime * 0.008), 3);
+    // finer octaves fade in with the pixel footprint (no LOD seams)
+    float f1 = smoothstep(0.011, 0.006, gFoot), f2 = smoothstep(0.0036, 0.002, gFoot);
+    if (f1 > 0.0) n += 0.17 * f1 * fbmV(q * 34.0 + w * 4.0 + vec3(0.0, uTime * 0.02, 0.0), 2);
+    if (f2 > 0.0) n += 0.085 * f2 * fbmV(q * 110.0 + w * 5.0, 2);
+    // cumulus: Worley cells give puffy, crisp-edged cloud streets near the edges
+    if (f1 > 0.0) n += 0.085 * f1 * (0.42 - cell(q * 58.0 + w * 4.0).x);
+  }
+  float band = 0.10 * exp(-lat * lat * 60.0) - 0.11 * exp(-pow((abs(lat) - 0.47) * 6.0, 2.0)) + 0.09 * exp(-pow((abs(lat) - 1.0) * 4.0, 2.0));
+  float cov = uCloud + band + 0.04;
+  float lo = 0.655 - 0.33 * cov;
+  float d = smoothstep(lo, lo + (oct > 3 ? mix(0.08, 0.16, smoothstep(0.002, 0.008, gFoot)) : 0.16), n + 0.5);
+  d *= d * (3.0 - 2.0 * d) * 0.35 + 0.65;
+  return d;
+}
+
+/* ---------- surface ---------- */
+vec3 shadePlanet(vec3 pw, vec3 rdw, vec3 Lw) {
+  mat3 ws = transpose(uSpin);
+  vec3 p = normalize(ws * pw), L = ws * Lw, V = -(ws * rdw);
+  float lat = asin(clamp(p.y, -1.0, 1.0)), alat = abs(lat);
+  float cz = dot(p, L);
+  vec3 sunC = uSunI * sunTrans(0.0, cz);
+  vec3 skyTint = mix(vec3(0.20, 0.42, 1.0), uAerAlb * vec3(1.0, 0.8, 0.6), clamp(uAerP.x * 0.5, 0.0, 1.0));
+  vec3 amb = uSunI * 0.045 * skyTint * sqrt(uPress) * smoothstep(-0.22, 0.45, cz) * (uAtmOn > 0.5 ? 1.0 : 0.2);
+  float night = smoothstep(0.06, -0.12, cz);
+
+  Terr T = terrain(p);
+  float iceN = gnoise(p * 5.0) * 0.07 + gnoise(p * 17.0) * 0.03 + gnoise(p * 41.0) * 0.012;
+  float cw = clamp(gFoot * 1.8, 0.0006, 0.02);
+  float land = uWater < 0.5 ? 1.0 : smoothstep(-cw, cw, T.e);
+  vec3 alb = vec3(0.0), emis = vec3(0.0), n = p;
+  float spec = 0.0, rough = 0.9, arid = 0.0, iceL = 0.0;
+  if (uDbg > 0.5) return vec3(land * 3.0, T.ec > 0.0 ? 1.5 : 0.0, clamp(T.coll, 0.0, 1.0) * 3.0);
+  if (land > 0.0) {
+    float e = max(T.e, 0.0);
+    float n2 = gnoise(p * 23.0), n3 = gnoise(p * 6.5);
+    // bare rock → microbial mats → oxidised red beds → banded-iron coasts
+    // early crust is dark basalt; pale granitic continents grow through time
+    vec3 rockD = vec3(0.05, 0.047, 0.045), rockL = mix(vec3(0.085, 0.08, 0.075), vec3(0.24, 0.21, 0.18), smoothstep(0.15, 0.6, uCont));
+    vec3 a = mix(rockD, rockL, smoothstep(-0.25, 0.45, T.d + 0.4 * e));
+    a = mix(a, vec3(0.16, 0.115, 0.09), uMats * 0.7 * smoothstep(0.14, 0.0, e));
+    a = mix(a, vec3(0.37, 0.18, 0.10), uRed * 0.6 * smoothstep(-0.4, 0.3, n2 + T.d));
+    a = mix(a, vec3(0.52, 0.14, 0.07), uBif * smoothstep(0.07, 0.0, e));
+    // climate: Hadley-cell deserts at 15–35°, dry continental interiors, wet tropics
+    float inland = smoothstep(0.05, 0.6, T.ec);
+    float subtrop = smoothstep(0.17, 0.30, alat) * smoothstep(0.66, 0.46, alat);
+    arid = clamp(subtrop * (0.35 + 0.65 * inland) + uDesert * inland * 1.1 + 0.28 * n3 + 0.12 * n2 - 0.16, 0.0, 1.0);
+    arid *= 1.0 - 0.7 * smoothstep(0.16, 0.0, alat);
+    vec3 veg = mix(vec3(0.045, 0.085, 0.030), vec3(0.090, 0.125, 0.055), smoothstep(0.25, 0.6, alat));
+    veg = mix(veg, vec3(0.045, 0.070, 0.040), smoothstep(0.85, 1.0, alat));
+    veg = mix(veg, vec3(0.16, 0.15, 0.11), smoothstep(1.05, 1.2, alat));
+    veg = mix(veg, vec3(0.030, 0.070, 0.028), uCoal);
+    veg *= 0.8 + 0.45 * (n2 * 0.5 + 0.5);
+    vec3 savanna = vec3(0.25, 0.20, 0.11);
+    vec3 desert = mix(vec3(0.58, 0.44, 0.28), vec3(0.50, 0.30, 0.16), smoothstep(-0.2, 0.3, n3));
+    float wet = smoothstep(-0.3, 0.4, gnoise(p * 11.0) + 0.5 * n2) * (1.0 - arid);
+    veg *= mix(1.15, 0.7, wet);                                   // dense forest is darker
+    vec3 cover = mix(veg, savanna, smoothstep(0.3, 0.6, arid));
+    cover = mix(cover, desert, smoothstep(0.6, 0.88, arid));
+    cover = mix(cover, cover * vec3(1.25, 1.1, 0.85) + vec3(0.03, 0.02, 0.0), smoothstep(0.25, 0.5, e) * (1.0 - arid));  // uplands: browner
+    a = mix(a, cover, uVeg * smoothstep(0.85, 0.45, e));
+    vec3 rock = mix(vec3(0.13, 0.115, 0.10), vec3(0.26, 0.23, 0.20), smoothstep(-0.2, 0.3, n2));
+    a = mix(a, rock, smoothstep(0.42, 0.62, e));
+    float snow = smoothstep(0.8, 0.95, e + alat * 0.3 + n2 * 0.05);
+    iceL = smoothstep(uIceLat - 0.035, uIceLat + 0.035, alat + iceN);
+    a = mix(a, vec3(0.80, 0.84, 0.90), max(iceL, snow));
+    float fk = smoothstep(0.0048, 0.0028, gFoot);
+    if (fk > 0.0) {
+      float fd = fbmG(p * 80.0, 3);
+      a *= 1.0 + 0.5 * fd * fk;
+      a = mix(a, a * vec3(0.85, 1.05, 0.9), fk * uVeg * smoothstep(0.0, 0.3, fbmG(p * 45.0 + 4.0, 2)) * (1.0 - arid));
+    }
+    alb = a;
+    n = normalize(p - 0.05 * (1.0 - iceL * 0.7) * (T.g - dot(T.g, p) * p));
+    // city lights (only at the very end of the timeline), like NASA's Black Marble:
+    // bright metropolitan cores with sodium sprawl, chains of towns, faint highways
+    if (uCity > 0.001 && night > 0.0) {
+      float coast = smoothstep(0.45, 0.0, T.ec);
+      float pop = vnoise(p * 5.0) * 0.5 + vnoise(p * 13.0) * 0.3 + coast * 0.38 - arid * 0.6 - smoothstep(0.95, 1.15, alat);
+      pop = smoothstep(0.46, 1.0, pop) * (1.0 - iceL);
+      if (pop > 0.005) {
+        vec3 cid = floor(p * 34.0);
+        vec2 C = cell(p * 34.0);
+        float big = hash13(cid + 7.0);
+        float metro = step(0.5, big) * (exp(-C.x * C.x * 70.0) * (0.5 + 2.0 * big) + 0.06 * exp(-C.x * C.x * 12.0));
+        vec2 C2 = cell(p * 105.0);
+        float towns = smoothstep(0.2, 0.0, C2.x) * step(0.5, hash13(floor(p * 105.0 + 0.5)));
+        vec2 C3 = cell(p * 17.0 + 3.0);
+        float roads = smoothstep(0.03, 0.0, C3.y - C3.x) * smoothstep(0.25, 0.7, pop) * smoothstep(0.45, 0.8, vnoise(p * 420.0));
+        float vill = 0.0;
+        float fv = smoothstep(0.0048, 0.0028, gFoot);
+        if (fv > 0.0) { vec2 C4 = cell(p * 300.0); vill = fv * smoothstep(0.22, 0.0, C4.x) * smoothstep(0.35, 0.8, pop); }
+        float lum = pop * (metro * 2.0 + towns * 0.8 + vill * 0.45 + roads * 0.28);
+        vec3 lc = mix(vec3(1.0, 0.56, 0.2), vec3(1.0, 0.84, 0.62), smoothstep(0.8, 2.2, metro * pop * 2.0));
+        emis += lc * lum * uCity * night * 1.4;
+      }
+    }
+    if (uCrack > 0.001 && uWater > 0.5) {
+      vec2 F = cell(p * 18.0);
+      emis += glow(1250.0) * uCrack * smoothstep(0.06, 0.0, F.y - F.x) * 0.6 * smoothstep(0.02, 0.0, abs(e - 0.1) - 0.1);
+    }
+    if (uLava > 0.001) emis += glow(1400.0) * pow(vnoise(p * 55.0), 10.0) * uLava * 3.0;
+    emis *= land;
+  }
+  if (land < 1.0) {
+    float depth = -T.e;
+    vec3 deep = mix(vec3(0.004, 0.016, 0.045), vec3(0.007, 0.030, 0.026), uFerrous);
+    vec3 shelf = mix(vec3(0.020, 0.105, 0.125), vec3(0.035, 0.090, 0.055), uFerrous);
+    shelf = mix(shelf, vec3(0.06, 0.07, 0.04), uMats * 0.4);
+    vec3 o = mix(shelf, deep, smoothstep(0.0, 0.04, depth));
+    o = mix(o, deep * 0.72, smoothstep(0.35, 1.1, depth));
+    o = mix(o, o * vec3(0.8, 1.25, 0.9), uVeg * 0.35 * smoothstep(0.3, 0.05, depth) * smoothstep(0.0, 0.5, gnoise(p * 9.0)));  // coastal plankton
+    float leads = abs(gnoise(p * 60.0)) < 0.05 ? 0.12 : 0.0;
+    float seaIce = smoothstep(uSeaIceLat - 0.03, uSeaIceLat + 0.03, alat + iceN * 1.6) * (1.0 - leads);
+    vec3 iceC = mix(vec3(0.78, 0.83, 0.89), vec3(0.55, 0.68, 0.80), smoothstep(0.1, 0.5, gnoise(p * 14.0) + 0.3 * gnoise(p * 50.0)) * 0.7);
+    o = mix(o, iceC, seaIce);
+    if (uPlates > 0.5) o += vec3(0.02, 0.03, 0.035) * (1.0 - smoothstep(0.0, 0.03, T.bnd));
+    alb = mix(o, alb, land);
+    spec = (1.0 - seaIce) * (1.0 - land);
+    rough = mix(mix(0.16, 0.6, seaIce), 0.9, land);
+  }
+
+  // magma ocean / crusting-over
+  if (uWater < 0.999 && (uMagma > 0.001 || uCrack > 0.001)) {
+    float conv = fbmG(p * 3.0 + vec3(uTime * 0.004, -uTime * 0.003, 0.0), 3);
+    vec3 wp = p * 5.0 + vec3(fbmG(p * 4.0 + 1.3, 2), fbmG(p * 4.0 + 7.1, 2), fbmG(p * 4.0 + 3.7, 2)) * 1.6 + vec3(0.0, uTime * 0.01, 0.0);
+    vec2 F = cell(wp);
+    vec2 Fs = cell(wp * 2.7 + 5.0);
+    float edge = min(F.y - F.x, (Fs.y - Fs.x) * 1.6 + 0.08) + 0.12 * fbmG(p * 22.0, 2);
+    float molten = smoothstep(-0.08, 0.08, uMagma * 1.15 - (0.5 + conv));
+    float Tm = 1350.0 + 520.0 * smoothstep(0.0, 0.55, edge) + 160.0 * gnoise(p * 30.0 + uTime * 0.05);
+    vec3 crust = vec3(0.045, 0.040, 0.037) * (0.8 + 0.4 * vnoise(p * 60.0));
+    vec2 F2 = cell(p * 16.0);
+    float crackT = 900.0 + 450.0 * uCrack * smoothstep(0.08, 0.0, F2.y - F2.x) + 250.0 * smoothstep(0.05, 0.0, edge) * uCrack;
+    vec3 em = mix(glow(crackT) * 0.8, glow(Tm) * 1.4, molten);
+    float k = 1.0 - uWater;
+    alb = mix(alb, mix(crust, vec3(0.03, 0.02, 0.015), molten), k);
+    emis = mix(emis, em, k);
+    spec *= 1.0 - k; rough = mix(rough, 0.7, k);
+    if (k > 0.5) n = normalize(p + 0.02 * vec3(gnoise(p * 40.0), gnoise(p * 40.0 + 5.0), gnoise(p * 40.0 + 9.0)) * (1.0 - molten));
+  }
+
+  // lighting
+  float ndl = max(dot(n, L), 0.0);
+  vec3 col = alb * INV_PI * (sunC * ndl + amb);
+  if (spec > 0.0) {
+    vec3 H = normalize(L + V);
+    float nh = max(dot(p, H), 0.0), nv = max(dot(p, V), 1e-3), nl = max(dot(p, L), 0.0);
+    float a2 = rough * rough * rough * rough;
+    float Dg = a2 / (PI * pow(nh * nh * (a2 - 1.0) + 1.0, 2.0));
+    float F = 0.02 + 0.98 * pow(1.0 - max(dot(V, H), 0.0), 5.0);
+    float k2 = rough * rough * 0.5;
+    float G = (nl / (nl * (1.0 - k2) + k2)) * (nv / (nv * (1.0 - k2) + k2));
+    col += sunC * spec * Dg * F * G / (4.0 * nv + 1e-3) * nl;
+    float Fv = 0.02 + 0.98 * pow(1.0 - nv, 5.0);
+    col += spec * Fv * amb * 0.8;
+  }
+
+  // clouds, their shadows, and lightning
+  if (uCloudsOn > 0.5 && uCloud > 0.01) {
+    float cd = clouds(p, 5);
+    vec3 ps = normalize(p + (L - p * cz) * (0.0035 / max(cz, 0.15)));
+    float sh = clouds(ps, 2);
+    // relief: flanks facing the Sun catch the light, lee sides fall into grey shade
+    float relief = clamp(1.0 + 1.2 * (clouds(p, 2) - sh), 0.42, 1.25);
+    col *= 1.0 - 0.65 * sh * smoothstep(-0.1, 0.2, cz);
+    vec3 csun = uSunI * sunTrans(0.0012 * uAtmK, cz);
+    float cl = mix(max(cz, 0.0), 1.0, 0.22) * smoothstep(-0.1, 0.06, cz);
+    vec3 ccol = mix(vec3(0.9), vec3(0.32, 0.30, 0.29), clamp(uMagma * 1.5, 0.0, 1.0)) * INV_PI * (csun * cl * relief + amb * 1.2);
+    col = mix(col, ccol, cd);
+    col += emis * cd * 0.22;                 // steam lit from below by the glowing surface
+    emis *= 1.0 - cd * 0.75;
+    if (uStorm > 0.01) {
+      vec3 lc = floor(p * 26.0);
+      float ft = floor(uTime * 4.0 + hash13(lc) * 17.0);
+      float hsh = hash13(lc + ft * 1.37);
+      float flash = step(1.0 - 0.018 * uStorm, hsh) * step(0.55, cd);
+      float fr = fract(uTime * 4.0 + hash13(lc) * 17.0);
+      float fl = flash * exp(-fr * 9.0) * (0.6 + 0.4 * sin(fr * 60.0));
+      vec3 lp = (lc + 0.3 + 0.4 * hash33(lc)) / 26.0;     // flash centre well inside its cell
+      vec3 dl = (p - lp) * 26.0;
+      float fall = exp(-dot(dl, dl) * 60.0);
+      emis += vec3(0.72, 0.8, 1.0) * fl * fall * 5.0 * cd;
+    }
+  }
+
+  // aurorae: oxygen 557.7 nm curtains around the auroral ovals (~67° magnetic latitude)
+  if (uAurora > 0.01 && night > 0.0) {
+    // ovals ring the magnetic poles, about 9° off the spin axis; red 630 nm glow on the poleward side
+    const vec3 MPOLE = vec3(0.13, 0.985, 0.11);
+    float mlat = abs(asin(clamp(dot(p, MPOLE), -1.0, 1.0)));
+    float lon = atan(p.z, p.x);
+    float ov = 1.17 + 0.03 * sin(lon * 3.0 + uTime * 0.05) + 0.02 * gnoise(vec3(lon * 3.0, uTime * 0.1, 1.0));
+    float band = exp(-pow((mlat - ov) / 0.014, 2.0));
+    float red = exp(-pow((mlat - ov - 0.035) / 0.03, 2.0));
+    float curtain = 0.3 + 0.7 * smoothstep(-0.2, 0.5, gnoise(vec3(lon * 26.0, uTime * 0.25, mlat * 30.0)));
+    emis += (vec3(0.22, 1.0, 0.42) * band + vec3(0.6, 0.1, 0.18) * red * 0.12) * curtain * night * uAurora * 0.09;
+  }
+  // Chicxulub: fireball, ejecta curtain, spreading debris
+  if (uImp.y > 0.5) {
+    float ang = acos(clamp(dot(p, uImpDir), -1.0, 1.0));
+    float ti = uImp.x;
+    float core = exp(-ang * ang / (0.0006 + 0.0012 * ti)) * exp(-ti * 0.35);
+    float ring = exp(-pow((ang - uImp.z) / (0.012 + 0.05 * uImp.z), 2.0)) * exp(-ti * 0.09) * (0.55 + 0.9 * max(gnoise(p * 45.0 + ti), 0.0));
+    float dust = smoothstep(uImp.z + 0.05, 0.0, ang) * smoothstep(0.0, 2.0, ti);
+    col *= 1.0 - 0.55 * dust;
+    emis += glowC(3200.0, 6.0) * core * uImp.w + glowC(1700.0, 2.0) * ring * uImp.w;
+  }
+  if (uPlates > 0.5) {
+    float line = 1.0 - smoothstep(0.0022, 0.0055, T.bnd);
+    col = mix(col, uEra * (0.35 + uSunI * 0.05 * ndl), line * 0.85);
+    emis += uEra * line * 0.25;
+  }
+  return col + emis;
+}
+
+/* ---------- Moon, Theia, debris disk, stars ---------- */
+vec3 moonShade(vec3 pos, vec3 rd, vec3 L) {
+  vec3 nrm = normalize(pos - uMoon.xyz);
+  vec3 q = uMoonRot * nrm;
+  float maria = smoothstep(0.02, 0.22, fbmG(q * 1.9 + vec3(3.1, 0.4, 1.7), 4));
+  vec2 C1 = cell(q * 7.0), C2 = cell(q * 19.0);
+  float craters = smoothstep(0.05, 0.0, abs(C1.x - 0.32)) * 0.35 + smoothstep(0.04, 0.0, abs(C2.x - 0.3)) * 0.2 - smoothstep(0.3, 0.0, C1.x) * 0.12;
+  float alb = mix(0.155, 0.075, maria) * (0.85 + 0.3 * vnoise(q * 40.0)) * (1.0 + craters);
+  vec3 bump = vec3(gnoise(q * 25.0), gnoise(q * 25.0 + 7.0), gnoise(q * 25.0 + 13.0)) * 0.08;
+  vec3 n = normalize(nrm + bump - nrm * dot(bump, nrm));
+  float mu0 = max(dot(n, L), 0.0), mu = max(dot(n, -rd), 0.0);
+  float lit = mix(mu0, 2.0 * mu0 / (mu0 + mu + 1e-3), 0.55);
+  // Earth's shadow (lunar eclipse, reddened by the atmosphere)
+  float dd = length(cross(pos, L)); float behind = step(dot(pos, L), 0.0);
+  float sh = mix(1.0, smoothstep(0.98, 1.06, dd), behind);
+  vec3 col = vec3(alb) * vec3(1.0, 0.97, 0.93) * uSunI * lit * 1.4 * INV_PI;
+  col = mix(col * vec3(0.20, 0.06, 0.02), col, sh);
+  float T = 1050.0 + 380.0 * smoothstep(0.0, 0.5, C1.y - C1.x) + 150.0 * gnoise(q * 12.0 + uTime * 0.05);
+  col = mix(col, col * 0.35, uMoonGlow);
+  col += glowC(T, 0.9) * uMoonGlow * (0.3 + 0.7 * smoothstep(0.12, 0.0, C1.y - C1.x)) * (0.6 + 0.4 * smoothstep(-0.2, 0.3, fbmG(q * 3.0, 2)));
+  return col;
+}
+vec3 theiaShade(vec3 pos, vec3 rd, vec3 L) {
+  vec3 nrm = normalize(pos - uTheia.xyz);
+  vec4 D = fbmD(nrm * 3.0 + 4.0, 5);
+  vec2 F = cell(nrm * 5.0), F2 = cell(nrm * 12.0 + 2.0);
+  // cratered, differentiated protoplanet: dark basaltic plains, paler highlands
+  float rim = smoothstep(0.07, 0.0, abs(F2.x - 0.3)) * 0.45 - smoothstep(0.28, 0.0, F2.x) * 0.25;
+  vec3 g = D.yzw * 3.0;
+  vec3 n = normalize(nrm - 0.07 * (g - nrm * dot(g, nrm)));
+  vec3 alb = mix(vec3(0.085, 0.075, 0.068), vec3(0.30, 0.25, 0.20), smoothstep(-0.3, 0.35, D.x)) * (1.0 + rim);
+  float mu0 = max(dot(n, L), 0.0);
+  vec3 col = alb * uSunI * mu0 * INV_PI + alb * vec3(0.012, 0.016, 0.03);
+  // tidal heating: fissures open on the face turned toward Earth; after contact it glows through
+  float toE = dot(nrm, normalize(-uTheia.xyz));
+  float fis = smoothstep(0.075, 0.0, F.y - F.x) * smoothstep(-0.1, 0.8, toE);
+  col += glowC(1150.0 + 250.0 * fis, 1.4) * fis * smoothstep(0.0, 0.1, uTheiaGlow) * 0.9;
+  col += glowC(1300.0 + 900.0 * uTheiaGlow + 300.0 * smoothstep(0.1, 0.0, F.y - F.x), 1.5) * uTheiaGlow * step(0.12, uTheiaGlow) * (0.06 + 0.94 * smoothstep(-0.2, 0.6, toE)) * 0.8;
+  return col;
+}
+vec4 disk(vec3 ro, vec3 rd, out float tD) {
+  tD = 1e9;
+  if (uDisk.x <= 0.001) return vec4(0.0);
+  float dn = dot(rd, uDiskN);
+  if (abs(dn) < 1e-5) return vec4(0.0);
+  float t = -dot(ro, uDiskN) / dn;
+  if (t < 0.0) return vec4(0.0);
+  vec3 pp = ro + rd * t; float r = length(pp);
+  if (r < uDisk.z || r > uDisk.w * 1.25) return vec4(0.0);
+  tD = t;
+  vec3 ax = normalize(cross(uDiskN, vec3(0.3, 0.1, 0.95))), ay = cross(uDiskN, ax);
+  float th = atan(dot(pp, ay), dot(pp, ax));
+  float a = th - uDiskRot * pow(r, -1.5);             // Keplerian shear
+  vec3 sp = vec3(cos(a) * r, sin(a) * r, 0.0);
+  float nse = fbmV(sp * 1.4 + vec3(0.0, 0.0, uTime * 0.05), 5);
+  float spiral = 0.5 + 0.5 * sin(2.0 * a + 5.0 * log(r));
+  float radial = smoothstep(uDisk.z, uDisk.z + 0.35, r) * smoothstep(uDisk.w * 1.25, uDisk.w * 0.55, r);
+  float dens = clamp((nse + 0.28) * 2.2, 0.0, 1.0) * radial * (0.55 + 0.45 * spiral);
+  float T = uDisk.y * pow(max(r, 1.0) / 1.3, -0.55);
+  vec3 lit = vec3(0.4, 0.3, 0.25) * uSunI * 0.08;
+  vec3 em = (glowC(T, 0.55) + lit) * dens * uDisk.x;
+  return vec4(em, clamp(dens * uDisk.x * 0.85, 0.0, 1.0));
+}
+vec3 stars(vec3 rd) {
+  vec3 c = vec3(0.0);
+  float px = 1.0 / uFocal;
+  for (int l = 0; l < 2; l++) {
+    float s = l == 0 ? 70.0 : 170.0;
+    vec3 q = rd * s; vec3 id = floor(q); vec3 h = hash33(id + float(l) * 19.7);
+    if (h.x > (l == 0 ? 0.62 : 0.45)) {
+      vec3 sp = id + 0.25 + 0.5 * hash33(id + 3.1);
+      vec3 dv = sp - q; dv -= rd * dot(dv, rd);
+      float d = length(dv) / s;
+      float mag = pow(h.y, l == 0 ? 7.0 : 11.0) * (l == 0 ? 1.6 : 0.8) + 0.03;
+      vec3 tint = mix(vec3(1.0, 0.72, 0.48), vec3(0.72, 0.82, 1.0), smoothstep(0.2, 0.8, h.z));
+      c += tint * mag * exp(-d * d / (px * px * 0.55));
+    }
+  }
+  vec3 mwN = normalize(vec3(0.42, 0.78, -0.46));
+  float b = dot(rd, mwN);
+  float band = exp(-b * b * 22.0);
+  float mw = band * (0.6 + 1.6 * fbmV(rd * 5.0, 3));
+  float lanes = smoothstep(0.0, 0.25, fbmV(rd * 11.0 + 3.0, 2)) * exp(-b * b * 160.0);
+  c += vec3(0.016, 0.016, 0.022) * max(mw, 0.0) * (1.0 - 0.75 * lanes);
+  c += vec3(0.05, 0.035, 0.03) * exp(-pow(dot(rd, normalize(vec3(-0.6, 0.2, -0.7))) - 1.0, 2.0) * 60.0) * band;
+  return c;
+}
+vec3 background(vec3 rd) {
+  vec3 c = vec3(0.0);
+  float sd = dot(rd, uSun);
+  c += uSunI * vec3(1.0, 0.96, 0.9) * (smoothstep(0.999984, 0.999992, sd) * 400.0 + (pow(max(sd, 0.0), 2000.0) * 1.5 + pow(max(sd, 0.0), 120.0) * 0.03) * uGlare);
+  return c;
+}
+
+void main() {
+  vec2 fc = gl_FragCoord.xy;
+  vec3 rd = uCamRot * normalize(vec3((fc - uCenter) / uFocal, -1.0));
+  vec3 ro = uCamPos;
+  float jit = fract(52.9829189 * fract(dot(fc, vec2(0.06711056, 0.00583715))));
+  HR *= uAtmK; HM *= uAtmK;
+  vec3 L = uSun;
+  vec3 col = background(rd);
+  // stars are added after the air: a bright sky hides them (uStarMask mimics the exposure)
+  vec3 starC = stars(rd) * uStarK;
+  float tFar = 1e9;
+  if (uMoon.w > 0.001) { vec2 mh = sph(ro, rd, uMoon.xyz, uMoon.w); if (mh.x > 0.0) { col = moonShade(ro + rd * mh.x, rd, L); tFar = mh.x; starC = vec3(0.0); } }
+  if (uTheia.w > 0.001) { vec2 th = sph(ro, rd, uTheia.xyz, uTheia.w); if (th.x > 0.0 && th.x < tFar) { col = theiaShade(ro + rd * th.x, rd, L); tFar = th.x; starC = vec3(0.0); } }
+  float tPlanet = 1e9;
+  vec2 ah = sph(ro, rd, vec3(0.0), 1.0 + uAtmTop * uAtmK);
+  if (ah.y > 0.0 && ah.x < tFar) {
+    vec2 gh = sph(ro, rd, vec3(0.0), 1.0);
+    float t0 = max(ah.x, 0.0), t1 = ah.y;
+    vec3 surf = col;
+    if (gh.x > 0.0) { t1 = gh.x; tPlanet = gh.x; gFoot = gh.x / uFocal / max(0.25, -dot(rd, normalize(ro + rd * gh.x))); surf = shadePlanet(ro + rd * gh.x, rd, L); starC = vec3(0.0); }
+    if (uAtmOn > 0.5) { vec3 ins, tr; scatter(ro, rd, t0, t1, L, jit, ins, tr); col = surf * tr + ins + starC * tr * exp(-dot(ins, vec3(0.2126, 0.7152, 0.0722)) * uStarMask); }
+    else col = surf + starC;
+  } else {
+    col += starC;
+    // sub-pixel planet (Pale Blue Dot): splat its light so it never vanishes
+    vec3 oc = -ro; float tc = dot(oc, rd);
+    if (tc > 0.0) {
+      float d = length(oc - rd * tc) / tc;          // angular distance from the planet
+      float ra = 1.0 / length(ro);                   // angular radius
+      float px = 1.0 / uFocal;
+      float phase = 0.5 + 0.5 * dot(normalize(ro), uSun);
+      col += vec3(0.30, 0.48, 0.95) * uSunI * 1.6 * phase * max(ra * ra / (px * px), 0.02) * exp(-d * d / (px * px * 0.5)) * step(ra, px * 1.5);
+    }
+  }
+  float tD; vec4 dk = disk(ro, rd, tD);
+  if (dk.a > 0.0 && tD < min(tPlanet, tFar)) col = col * (1.0 - dk.a) + dk.rgb;
+  if (uBolide.w > 0.0) {
+    vec3 w = uBolide.xyz - ro; float tc = dot(w, rd);
+    if (tc > 0.0 && tc < tPlanet + 0.02) { float d2 = dot(w, w) - tc * tc; col += vec3(1.0, 0.85, 0.6) * uBolide.w * (exp(-d2 * 90000.0) * 30.0 + exp(-d2 * 2500.0) * 1.2); }
+  }
+  if (uTonemap > 0.5) { col = col * uExposure; col = clamp((col * (2.51 * col + 0.03)) / (col * (2.43 * col + 0.59) + 0.14), 0.0, 1.0); col = pow(col, vec3(1.0 / 2.2)); }
+  fragColor = vec4(max(col, vec3(0.0)), 1.0);
+}`;
+
+/* ---------- post: bloom + tonemap ---------- */
+const BRIGHT_FS = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+uniform sampler2D uTex; uniform vec2 uTexel; uniform float uThresh;
+void main() {
+  vec3 c = 0.25 * (texture(uTex, vUv + uTexel * vec2(-1.0, -1.0)).rgb + texture(uTex, vUv + uTexel * vec2(1.0, -1.0)).rgb
+                 + texture(uTex, vUv + uTexel * vec2(-1.0, 1.0)).rgb + texture(uTex, vUv + uTexel * vec2(1.0, 1.0)).rgb);
+  float l = max(max(c.r, c.g), c.b);
+  o = vec4(min(c * max(l - uThresh, 0.0) / max(l, 1e-4), vec3(60.0)), 1.0);
+}`;
+const BLUR_FS = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+uniform sampler2D uTex; uniform vec2 uDir;
+void main() {
+  vec3 c = texture(uTex, vUv).rgb * 0.2270270;
+  c += (texture(uTex, vUv + uDir * 1.3846154).rgb + texture(uTex, vUv - uDir * 1.3846154).rgb) * 0.3162162;
+  c += (texture(uTex, vUv + uDir * 3.2307692).rgb + texture(uTex, vUv - uDir * 3.2307692).rgb) * 0.0702703;
+  o = vec4(c, 1.0);
+}`;
+const COMP_FS = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+uniform sampler2D uScene, uB1, uB2; uniform float uExposure, uBloom, uFlash, uTime, uTonemap, uBeam, uBeamX; uniform vec2 uRes, uFlashPos;
+vec3 aces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
+float h12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+void main() {
+  vec3 c = texture(uScene, vUv).rgb;
+  vec3 b = texture(uB1, vUv).rgb * 0.55 + texture(uB2, vUv).rgb * 0.9;
+  if (uBeam > 0.0) {
+    float dx = (vUv.x - uBeamX) * uRes.x / uRes.y;
+    float band = exp(-dx * dx * 900.0) + 0.45 * exp(-pow(dx + 0.12, 2.0) * 500.0) + 0.3 * exp(-pow(dx - 0.2, 2.0) * 300.0);
+    vec3 tint = vec3(0.95, 0.72, 0.52) + vec3(0.0, 0.1, 0.25) * sin(dx * 40.0);
+    c += tint * band * uBeam * 0.08 * (0.8 + 0.2 * sin(vUv.y * 3.0 + dx * 7.0));
+  }
+  // impact flash: a blinding point at the impact site that floods the lens, not a white screen
+  vec2 fq = (vUv - uFlashPos) * vec2(uRes.x / uRes.y, 1.0);
+  float fl = uFlash * (0.1 + 2.2 * exp(-dot(fq, fq) * 24.0) + 14.0 * exp(-dot(fq, fq) * 400.0));
+  if (uTonemap > 0.5) { c += b * uBloom * 0.25 + vec3(1.0, 0.93, 0.82) * fl * 0.35; }
+  else {
+    c += b * uBloom + vec3(1.0, 0.93, 0.82) * fl;
+    c = aces(c * uExposure);
+    c = pow(c, vec3(1.0 / 2.2));
+  }
+  vec2 q = (vUv - 0.5) * vec2(uRes.x / uRes.y, 1.0);
+  c *= 1.0 - 0.28 * smoothstep(0.35, 1.25, length(q));
+  c += (h12(vUv * uRes + fract(uTime) * 91.0) - 0.5) * (2.0 / 255.0);
+  o = vec4(c, 1.0);
+}`;
+
+/* =====================================================================
+   7. GL SETUP
+   ===================================================================== */
+const canvas = ch.canvas('pbd-gl');
+const overlay = ch.canvas('pbd-ov'); overlay.classList.add('pbd-overlay');
+const octx = overlay.getContext('2d');
+const gl = Cosmos.gl.context(canvas, { antialias: false });
+if (!gl) { ch.fatal('This chapter ray-traces a planet on the GPU and needs WebGL2, which this browser does not provide.'); return; }
+let progScene, progBright, progBlur, progComp;
+try {
+  progScene = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, SCENE_FS);
+  progBright = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, BRIGHT_FS);
+  progBlur = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, BLUR_FS);
+  progComp = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, COMP_FS);
+} catch (e) { ch.fatal('The planet shader could not be compiled on this GPU.', e); return; }
+const drawTri = Cosmos.gl.quad(gl);
+// optional GPU timing of the scene pass (for the adaptive resolution and QA)
+const tq = { ext: gl.getExtension('EXT_disjoint_timer_query_webgl2'), q: null, ms: 0, n: 0 };
+let HDR = !!(gl.ext.floatRT || gl.ext.halfFloatRT);
+let tg = null;
+function makeTargets(w, h) {
+  const opt = HDR ? { internal: gl.RGBA16F, format: gl.RGBA, type: gl.HALF_FLOAT } : { internal: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE };
+  const mk = (W, H) => Cosmos.gl.target(gl, Object.assign({ w: Math.max(1, W), h: Math.max(1, H), filter: 'linear' }, opt));
+  const w4 = Math.ceil(w / 4), h4 = Math.ceil(h / 4), w8 = Math.ceil(w / 8), h8 = Math.ceil(h / 8);
+  return { w, h, scene: mk(w, h), b1a: mk(w4, h4), b1b: mk(w4, h4), b2a: mk(w8, h8), b2b: mk(w8, h8) };
+}
+function ensureTargets(w, h) {
+  if (tg && tg.w === w && tg.h === h) return;
+  if (tg) ['scene', 'b1a', 'b1b', 'b2a', 'b2b'].forEach((k) => { gl.deleteTexture(tg[k].tex); gl.deleteFramebuffer(tg[k].fbo); });
+  try { tg = makeTargets(w, h); }
+  catch (e) { if (HDR) { HDR = false; tg = makeTargets(w, h); console.info('Earth: float render targets unavailable, using 8-bit mode'); } else throw e; }
+}
+
+/* =====================================================================
+   8. CAMERA (drag to orbit, wheel / pinch to zoom, shift-drag moves the Sun)
+   ===================================================================== */
+const FOV = 36 * Math.PI / 180;
+const cam = { zk: 1, theta: 0.52, phi: 1.2, dist: 5.6, tDist: 5.6, base: 5.6, vt: 0, vp: 0, userZoom: false, min: 1.07, max: 60, eye: [0, 0, 5], right: [1, 0, 0], up: [0, 1, 0], back: [0, 0, 1] };
+const camRot = new Float32Array(9);
+const sun = { az: 0, el: 0.2, dir: [1, 0, 0] };
+let sunMode = false;
+function camBasis(theta, phi, dist) {
+  const s = Math.sin(phi);
+  const eye = [dist * s * Math.sin(theta), dist * Math.cos(phi), dist * s * Math.cos(theta)];
+  const back = V3.norm(eye), right = V3.norm(V3.cross([0, 1, 0], back)), up = V3.cross(back, right);
+  return { eye, back, right, up };
+}
+/* default Sun: about 72° from the line of sight, so the day side, the orange
+   terminator band and a slice of the night side are all on show */
+const SUN_DEF = (() => { const m = /[?&]sun=([0-9.]+)/.exec(location.search); return m ? +m[1] : 0.31; })();
+function defaultSun() {
+  const b = camBasis(0.52, 1.2, 1);
+  const L = V3.norm(V3.add(V3.add(V3.scale(b.back, SUN_DEF), b.right, 0.95), [0, 1, 0], 0.14));
+  sun.az = Math.atan2(L[0], L[2]); sun.el = Math.asin(L[1]);
+}
+defaultSun();
+function sunUpdate() { const c = Math.cos(sun.el); sun.dir = [c * Math.sin(sun.az), Math.sin(sun.el), c * Math.cos(sun.az)]; }
+sunUpdate();
+function camUpdate(dt) {
+  if (!drag.active) {
+    const k = Math.pow(0.9, dt * 60);
+    cam.theta += cam.vt; cam.phi = U.clamp(cam.phi + cam.vp, 0.12, Math.PI - 0.12); cam.vt *= k; cam.vp *= k;
+  }
+  const ld = Math.log(cam.dist - 1), lt = Math.log(cam.tDist - 1);
+  cam.dist = 1 + Math.exp(ld + (lt - ld) * Math.min(1, dt * (seq.pbd ? 0.8 : 4.5)));   // the Voyager pull-back is slow
+  const b = camBasis(cam.theta, cam.phi, cam.dist);
+  cam.eye = b.eye; cam.right = b.right; cam.up = b.up; cam.back = b.back;
+  camRot.set([b.right[0], b.right[1], b.right[2], b.up[0], b.up[1], b.up[2], b.back[0], b.back[1], b.back[2]]);
+}
+const drag = { active: false, mode: 'orbit', x: 0, y: 0, pointers: new Map(), pinch: 0 };
+const stage = ch.stage;
+stage.classList.add('pbd-grab');
+stage.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  drag.pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  try { stage.setPointerCapture(e.pointerId); } catch (_) { /* capture unsupported */ }
+  drag.active = true; drag.x = e.clientX; drag.y = e.clientY;
+  drag.mode = (e.shiftKey || sunMode) ? 'sun' : 'orbit';
+  if (drag.mode === 'orbit') { seq.finale = -1; seq.face = 0; }
+  stage.classList.add('pbd-dragging');
+  if (drag.pointers.size === 2) { const [a, b] = [...drag.pointers.values()]; drag.pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); }
+  audioArm();
+});
+stage.addEventListener('pointermove', (e) => {
+  if (!drag.pointers.has(e.pointerId)) return;
+  drag.pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  if (drag.pointers.size === 2) {
+    const [a, b] = [...drag.pointers.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (drag.pinch > 0 && d > 0) { cam.tDist = U.clamp(1 + (cam.tDist - 1) * drag.pinch / d, cam.min, cam.max); cam.userZoom = true; }
+    drag.pinch = d; return;
+  }
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+  if (drag.mode === 'sun') {
+    sun.az -= dx * 0.006; sun.el = U.clamp(sun.el + dy * 0.006, -1.3, 1.3); sunUpdate();
+  } else {
+    const k = U.clamp((cam.dist - 1) / 3.5, 0.04, 1) * 0.0055;
+    cam.vt = -dx * k; cam.vp = -dy * k;
+    cam.theta += cam.vt; cam.phi = U.clamp(cam.phi + cam.vp, 0.12, Math.PI - 0.12);
+  }
+});
+const endDrag = (e) => { drag.pointers.delete(e.pointerId); drag.pinch = 0; if (!drag.pointers.size) { drag.active = false; stage.classList.remove('pbd-dragging'); } };
+stage.addEventListener('pointerup', endDrag); stage.addEventListener('pointercancel', endDrag);
+stage.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  cam.tDist = U.clamp(1 + (cam.tDist - 1) * Math.exp(e.deltaY * 0.0014), cam.min, cam.max); cam.userZoom = true;
+}, { passive: false });
+
+/* =====================================================================
+   9. LAYOUT: find the free region between the panels, centre the planet
+   ===================================================================== */
+const ribbon = Cosmos.h('div', { class: 'pbd-ribbon' }); const ribbonCanvas = Cosmos.h('canvas'); ribbon.append(ribbonCanvas);
+const cap = Cosmos.h('div', { class: 'pbd-cap', 'aria-live': 'polite' },
+  Cosmos.h('div', { class: 'k' }), Cosmos.h('div', { class: 't' }), Cosmos.h('div', { class: 'd' }), Cosmos.h('div', { class: 'a' }));
+document.body.append(ribbon, cap);
+const view = { capBottom: 0, left: 0, right: 1, cx: 0, cy: 0, W: 1, H: 1, radiusPx: 200, focalCss: 1000, freeTop: 0, freeBottom: 0 };
+function layout() {
+  const W = window.innerWidth, H = window.innerHeight, sm = small();
+  const notes = document.querySelector('.cz-notes'), deck = document.querySelector('.cz-deck'), foot = document.querySelector('.cz-foot'), hud = document.querySelector('.cz-hud');
+  const nr = notes.getBoundingClientRect(), dr = deck.getBoundingClientRect(), fr = foot.getBoundingClientRect(), hr = hud.getBoundingClientRect();
+  const deckOn = deck.classList.contains('cz-open') && dr.width > 0 && getComputedStyle(deck).display !== 'none';
+  const notesOn = nr.width > 0 && getComputedStyle(notes).display !== 'none';
+  const cinema = document.body.classList.contains('cz-cinema');
+  let rl, rr, rb, top, bottom, left = 0, right = W;
+  if (sm) {
+    const anchor = deckOn ? dr.top : notesOn ? nr.top : fr.top;
+    rl = 12; rr = 12; rb = H - anchor + 10;
+    ribbon.style.display = deckOn ? 'none' : '';
+    const ribTop = H - rb - 66;
+    cap.style.bottom = (deckOn ? H - dr.top + 10 : H - ribTop + 12) + 'px'; cap.style.left = ''; cap.style.width = '';
+    top = hr.bottom + 8; bottom = ribTop - 70;
+  } else {
+    ribbon.style.display = '';
+    rl = notesOn && !cinema ? nr.right + 26 : 26; rr = deckOn && !cinema ? W - dr.left + 26 : 26; rb = H - fr.top + 14;
+    if (W - rl - rr < 380) { rl = 26; rb = notesOn ? H - nr.top + 18 : rb; }
+    left = notesOn && !cinema ? nr.right : 0; right = deckOn && !cinema ? dr.left : W;
+    top = cinema ? 20 : 150; bottom = cinema ? H - 20 : H - rb - 78 - 10;
+    cap.style.bottom = '';
+    // centre the plate title over the free region between the panels
+    cap.style.left = ((left + right) / 2) + 'px'; cap.style.width = Math.max(260, Math.min(620, right - left - 32)) + 'px';
+  }
+  ribbon.style.left = rl + 'px'; ribbon.style.right = rr + 'px'; ribbon.style.bottom = rb + 'px';
+  if (bottom - top < 160) { top = 60; bottom = H - 60; }
+  view.W = W; view.H = H;
+  view.cx = (left + right) / 2; view.cy = (top + bottom) / 2; view.left = left; view.right = right;
+  view.capBottom = sm ? 0 : cap.getBoundingClientRect().bottom;
+  view.radiusPx = 0.43 * Math.min(bottom - top, (right - left) * 0.9);
+  view.focalCss = (H / 2) / Math.tan(FOV / 2);
+  cam.base = 1 / Math.sin(Math.atan(view.radiusPx / view.focalCss));
+  if (!cam.userZoom && seqActive() === false) cam.tDist = 1 + (cam.base - 1) * cam.zk;
+}
+
+/* =====================================================================
+   10. STATE + FORMATTING
+   ===================================================================== */
+const state = { pos: 0, target: 0, age: 4500, scrubbing: false, spin: true, clouds: true, atm: true, plates: false, labels: true, exposure: 1, atmK: 1 };
+function fmtAge(a) {
+  if (a >= 1000) return (a / 1000).toFixed(2) + ' Ga';
+  if (a >= 10) return Math.round(a) + ' Ma';
+  if (a >= 1) return a.toFixed(1) + ' Ma';
+  if (a >= 0.001) return (a * 1000).toFixed(a < 0.01 ? 1 : 0) + ' ka';
+  if (a >= 2e-6) return Math.round(a * 1e6) + ' yr ago';
+  return 'Now';
+}
+function fmtPAL(x) {
+  if (x < 1e-5) return '< 0.001% PAL';
+  if (x < 0.01) return (x * 100).toPrecision(2) + '% PAL';
+  return Math.round(x * 100) + '% PAL';
+}
+function fmtCO2(bar) { return bar >= 0.01 ? (bar >= 1 ? Math.round(bar) : bar.toPrecision(2)) + ' bar' : Cosmos.fmt.num(Math.round(bar * 1e6 / 10) * 10) + ' ppm'; }
+function fmtKm(km) { return Cosmos.fmt.num(Math.round(km / 100) * 100) + ' km'; }
+
+/* =====================================================================
+   11. THE RIBBON (stage scrubber)
+   ===================================================================== */
+const rctx = ribbonCanvas.getContext('2d');
+const css = getComputedStyle(document.documentElement);
+const ERA = ch.meta.accent;
+const MONO = css.getPropertyValue('--f-mono').trim() || 'monospace';
+const DISP = css.getPropertyValue('--f-display').trim() || 'serif';
+let ribbonDirty = true, lastRibbonPos = -1;
+function drawRibbon() {
+  const c = ribbonCanvas, dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = c.clientWidth, H = c.clientHeight; if (!W || !H) return;
+  if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+  const x = rctx; x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
+  const X = (p) => 6 + p * (W - 12);
+  const sm = small();
+  const bandY = sm ? 20 : 26, bandH = sm ? 16 : 18;
+  // eon bands
+  EONS.forEach((e) => {
+    const a = X(posAt(e.from)), b = X(posAt(e.to));
+    const g = x.createLinearGradient(0, bandY, 0, bandY + bandH);
+    g.addColorStop(0, e.col + '55'); g.addColorStop(1, e.col + '22');
+    x.fillStyle = g; x.fillRect(a, bandY, b - a - 1, bandH);
+    x.fillStyle = e.col + 'cc'; x.fillRect(a, bandY, b - a - 1, 1);
+    x.save(); x.beginPath(); x.rect(a, bandY, b - a - 2, bandH); x.clip();
+    x.font = `italic 500 ${sm ? 11 : 12.5}px ${DISP}`; x.fillStyle = 'rgba(236,230,214,.82)'; x.textBaseline = 'middle';
+    x.fillText(e.name, a + 6, bandY + bandH / 2 + 1); x.restore();
+  });
+  // snowball intervals and the Quaternary
+  [[717, 660], [650, 635]].forEach(([a, b]) => { x.fillStyle = 'rgba(235,242,255,.55)'; x.fillRect(X(posAt(a)), bandY + bandH - 5, Math.max(1.5, X(posAt(b)) - X(posAt(a))), 4); });
+  // scale
+  const ticks = sm ? [[4500, '4.5 Ga'], [2500, '2.5'], [541, '541 Ma'], [66, '66'], [0, 'now']] : [[4500, '4.5 Ga'], [4000, '4.0'], [3000, '3.0'], [2500, '2.5'], [2000, '2.0'], [1000, '1.0 Ga'], [541, '541 Ma'], [252, '252'], [66, '66'], [0, 'now']];
+  x.font = `500 ${sm ? 9 : 9.5}px ${MONO}`; x.textBaseline = 'top';
+  const cursorX = X(state.pos);
+  ticks.forEach(([a, l], i) => {
+    const px = X(posAt(a));
+    x.fillStyle = 'rgba(236,230,214,.35)'; x.fillRect(px, bandY + bandH, 1, 4);
+    const tw = x.measureText(l).width;
+    const tx = i === ticks.length - 1 ? px - tw : i === 0 ? px : px - tw / 2;
+    if (Math.abs(px - cursorX) < tw / 2 + 34) return;
+    x.fillStyle = 'rgba(151,157,178,.8)'; x.fillText(l, tx, bandY + bandH + 6);
+  });
+  // event markers
+  x.font = `600 ${sm ? 8.5 : 9}px ${MONO}`; x.textBaseline = 'alphabetic';
+  const lastR = [-1e9, -1e9];
+  EVENTS.forEach((e) => {
+    if (!e.mark) return;
+    const px = X(posAt(e.age));
+    const label = e.mark.toUpperCase(); const tw = x.measureText(label).width;
+    let tx = px - tw / 2; tx = U.clamp(tx, 0, W - tw);
+    let row = tx >= lastR[0] + 6 ? 0 : (!sm && tx >= lastR[1] + 6 ? 1 : -1);
+    x.fillStyle = 'rgba(236,230,214,.5)'; x.fillRect(px - 0.5, bandY - (row === 1 ? 16 : 6), 1, row === 1 ? 16 : 6);
+    if (row < 0) return;
+    x.fillStyle = row === 0 ? 'rgba(151,157,178,.85)' : 'rgba(151,157,178,.62)';
+    x.fillText(label, tx, bandY - 9 - row * 10); lastR[row] = tx + tw;
+  });
+  // cursor
+  x.save();
+  x.shadowColor = ERA; x.shadowBlur = 10;
+  x.fillStyle = ERA; x.fillRect(cursorX - 1, bandY - 4, 2, bandH + 8);
+  x.restore();
+  x.beginPath(); x.arc(cursorX, bandY + bandH / 2, 6.5, 0, Math.PI * 2); x.fillStyle = '#05060c'; x.fill();
+  x.lineWidth = 2; x.strokeStyle = ERA; x.stroke();
+  x.font = `600 ${sm ? 10 : 10.5}px ${MONO}`; x.textBaseline = 'top'; x.fillStyle = ERA;
+  const al = fmtAge(state.age); const aw = x.measureText(al).width;
+  x.fillText(al, U.clamp(cursorX - aw / 2, 0, W - aw), bandY + bandH + 6);
+  if (!sm) {
+    x.font = `500 9px ${MONO}`; x.fillStyle = 'rgba(94,100,121,.95)'; x.textBaseline = 'alphabetic';
+    const note = 'CONTINENTS: ILLUSTRATIVE PLATE MOTION';
+    x.fillText(note, W - x.measureText(note).width - 2, H - 2);
+  }
+}
+function scrubTo(pos, snap) {
+  state.target = U.clamp(pos, 0, 1);
+  if (snap) state.pos = state.target;
+  stopJourney();
+  if (seq.pbd && pos < 0.98) exitPBD();
+}
+(function ribbonInput() {
+  let active = false;
+  const posFromEvent = (e) => { const r = ribbonCanvas.getBoundingClientRect(); return (e.clientX - r.left - 6) / (r.width - 12); };
+  ribbonCanvas.addEventListener('pointerdown', (e) => {
+    active = true; state.scrubbing = true; try { ribbonCanvas.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+    const r = ribbonCanvas.getBoundingClientRect(); let p = posFromEvent(e);
+    if (e.clientY - r.top < (small() ? 18 : 22)) {   // tap on a marker label: snap to the event
+      let best = null, bd = 14;
+      EVENTS.forEach((ev) => { if (!ev.mark) return; const d = Math.abs((posAt(ev.age) - p) * (r.width - 12)); if (d < bd) { bd = d; best = ev; } });
+      if (best) { scrubTo(posAt(best.age)); return; }
+    }
+    scrubTo(p); audioArm();
+  });
+  ribbonCanvas.addEventListener('pointermove', (e) => { if (active) scrubTo(posFromEvent(e)); });
+  const end = () => { active = false; state.scrubbing = false; };
+  ribbonCanvas.addEventListener('pointerup', end); ribbonCanvas.addEventListener('pointercancel', end);
+})();
+
+/* =====================================================================
+   12. CONTROL DECK
+   ===================================================================== */
+const gTime = ch.ui.group('Deep time');
+const scrubC = gTime.canvas(138); scrubC.classList.add('pbd-deckscrub');
+gTime.html(Cosmos.h('div', { class: 'pbd-legend', html: `<span style="--c:${ERA}">O₂ (log, % of today)</span><span style="--c:#ff9a62">Mean temperature</span><span style="--c:#979db2">Day length</span>` }));
+const [btnPrev, btnPlay, btnNext] = gTime.buttons([
+  { label: '‹ Event', title: 'Previous event (←)', onClick: () => stepEvent(-1) },
+  { label: 'Pause history', kind: 'primary', id: 'pbd-play', title: 'Play or pause the journey through time (P)', onClick: () => toggleJourney() },
+  { label: 'Event ›', title: 'Next event (→)', onClick: () => stepEvent(1) },
+]);
+/* the sky seen from the ground (rendered by the same shader; see section 17b) */
+const gSky = ch.ui.group('Standing on the surface');
+const skyC = gSky.canvas(small() ? 170 : 150); skyC.classList.add('pbd-sky');
+const skyNote = gSky.html(Cosmos.h('div', { class: 'pbd-skynote' }));
+const gEv = ch.ui.group('Events');
+const [btnTheia, btnChix] = gEv.buttons([
+  { label: 'Theia impact', id: 'pbd-theia', title: 'The Moon-forming impact (T)', onClick: () => startTheia() },
+  { label: 'Chicxulub', id: 'pbd-chix', title: 'The end-Cretaceous impact (K)', onClick: () => startChicxulub() },
+]);
+const [btnPBD] = gEv.buttons([
+  { label: 'Pale Blue Dot', id: 'pbd-dot', title: 'Pull back to Voyager 1’s distance (B)', onClick: () => (seq.pbd ? exitPBD() : enterPBD()) },
+  { label: 'Snowball', onClick: () => goToAge(690) },
+  { label: 'Pangaea', onClick: () => goToAge(270) },
+]);
+const gR = ch.ui.group('The planet then');
+const ro = gR.readouts([
+  { id: 'age', label: 'Time' }, { id: 'eon', label: 'Period' },
+  { id: 'day', label: 'Day length' }, { id: 'moon', label: 'Moon distance' },
+  { id: 'moonSky', label: 'Moon in the sky' }, { id: 'sun', label: 'Sunlight' },
+  { id: 'o2', label: 'Oxygen (O₂)' }, { id: 'co2', label: 'Carbon dioxide' },
+  { id: 'temp', label: 'Mean surface temp' }, { id: 'sea', label: 'Sea level' },
+  { id: 'plate', label: 'Plate speed (model)' }, { id: 'sc', label: 'Supercontinent' },
+]);
+const aliveEl = gR.html(Cosmos.h('div', { class: 'pbd-alive', html: '<b>What’s alive</b><span></span>' })).querySelector('span');
+const gV = ch.ui.group('View');
+gV.toggle({ id: 'pbd-spin', label: 'Planet spin', value: true, hint: 'Spin rate scales with the day length: 24 h ≈ 40 s.', onChange: (v) => { state.spin = v; } });
+gV.toggle({ id: 'pbd-clouds', label: 'Clouds', value: true, onChange: (v) => { state.clouds = v; } });
+gV.toggle({ id: 'pbd-atm', label: 'Atmospheric scattering', value: true, hint: 'Turn off to see the bare surface with no air.', onChange: (v) => { state.atm = v; ch.toast(v ? 'Rayleigh + Mie scattering on' : 'Airless: no blue limb, no orange terminator'); } });
+const tPlates = gV.toggle({ id: 'pbd-plates', label: 'Plate boundaries', value: false, hint: 'Illustrative plate motion (G).', onChange: (v) => { state.plates = v; } });
+gV.toggle({ id: 'pbd-labels', label: 'Annotations', value: true, onChange: (v) => { state.labels = v; } });
+const tSun = gV.toggle({ id: 'pbd-sunmode', label: 'Drag moves the Sun', value: false, hint: 'Or hold Shift while dragging.', onChange: (v) => { sunMode = v; stage.classList.toggle('pbd-sunmode', v); } });
+gV.slider({ id: 'pbd-atmk', label: 'Atmosphere scale', min: 1, max: 6, step: 0.1, value: 1, format: (v) => (v <= 1.001 ? 'true scale' : '×' + v.toFixed(1)), hint: 'Stretches the scale heights while keeping the vertical optical depth, so colours stay right and the thin shell becomes visible.', onInput: (v) => { state.atmK = v; } });
+gV.slider({ id: 'pbd-exp', label: 'Exposure', min: 0.25, max: 4, value: 1, log: true, format: (v) => (Math.log2(v) >= 0 ? '+' : '') + Math.log2(v).toFixed(1) + ' EV', onInput: (v) => { state.exposure = v; } });
+gV.buttons([{ label: 'Reset view', title: 'R', onClick: () => resetView() }]);
+
+const hud = { age: ch.hud.add('Time', ''), eon: ch.hud.add('Eon', ''), day: ch.hud.add('Day', ''), moon: ch.hud.add('Moon', ''), sun: ch.hud.add('Sun', '') };
+
+/* deck scrubber: eon bands + curves through all of deep time */
+const CURVE_N = 260;
+const curves = (() => {
+  const o2 = new Float32Array(CURVE_N), tc = new Float32Array(CURVE_N), day = new Float32Array(CURVE_N);
+  for (let i = 0; i < CURVE_N; i++) { const a = ageAt(i / (CURVE_N - 1)); sampleRD(a); o2[i] = Math.log10(Math.max(R.o2, 1e-7)); tc[i] = R.temp; day[i] = R.day; }
+  return { o2, tc, day };
+})();
+const sctx = scrubC.getContext('2d');
+function drawDeckScrub() {
+  const c = scrubC, dpr = Math.min(2, window.devicePixelRatio || 1), W = c.clientWidth, H = c.clientHeight;
+  if (!W || !H) return;
+  if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+  const x = sctx; x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
+  const L = 6, Rr = 6, T = 16, B = 20, cw = W - L - Rr, chh = H - T - B;
+  const X = (p) => L + p * cw;
+  EONS.forEach((e) => {
+    const a = X(posAt(e.from)), b = X(posAt(e.to));
+    x.fillStyle = e.col + '1c'; x.fillRect(a, T, b - a - 1, chh);
+    x.fillStyle = e.col + 'aa'; x.fillRect(a, H - B, b - a - 1, 3);
+    x.font = `600 8.5px ${MONO}`; x.fillStyle = 'rgba(151,157,178,.8)'; x.textBaseline = 'top';
+    const nm = e.name.slice(0, b - a > 60 ? 20 : 3).toUpperCase(); x.fillText(nm, a + 3, H - B + 6);
+  });
+  const line = (arr, lo, hi, col, w) => {
+    x.beginPath();
+    for (let i = 0; i < CURVE_N; i++) { const px = X(i / (CURVE_N - 1)), py = T + chh * (1 - U.clamp((arr[i] - lo) / (hi - lo), -0.02, 1.02)); i ? x.lineTo(px, py) : x.moveTo(px, py); }
+    x.strokeStyle = col; x.lineWidth = w; x.lineJoin = 'round'; x.stroke();
+  };
+  line(curves.day, 0, 26, 'rgba(151,157,178,.75)', 1.2);
+  line(curves.tc, -60, 70, '#ff9a62', 1.4);
+  line(curves.o2, -6.2, 0.5, ERA, 1.8);
+  x.font = `500 9px ${MONO}`; x.fillStyle = 'rgba(151,157,178,.9)'; x.textBaseline = 'top';
+  x.fillText('4.5 Ga', L, 2); const nw = x.measureText('now').width; x.fillText('now', W - Rr - nw, 2);
+  const cx = X(state.pos);
+  x.fillStyle = 'rgba(236,230,214,.9)'; x.fillRect(cx - 0.5, T - 2, 1, chh + 4);
+  const dot = (arr, lo, hi, col) => { const i = Math.round(state.pos * (CURVE_N - 1)); const py = T + chh * (1 - U.clamp((arr[i] - lo) / (hi - lo), 0, 1)); x.beginPath(); x.arc(cx, py, 3, 0, 7); x.fillStyle = col; x.fill(); };
+  dot(curves.day, 0, 26, '#979db2'); dot(curves.tc, -60, 70, '#ff9a62'); dot(curves.o2, -6.2, 0.5, ERA);
+  const lab = fmtAge(state.age); x.font = `600 10px ${MONO}`; const lw = x.measureText(lab).width;
+  x.fillStyle = ERA; x.fillText(lab, U.clamp(cx - lw / 2, L, W - Rr - lw), 2);
+}
+(function deckScrubInput() {
+  let active = false;
+  const p = (e) => { const r = scrubC.getBoundingClientRect(); return (e.clientX - r.left - 6) / (r.width - 12); };
+  scrubC.addEventListener('pointerdown', (e) => { active = true; state.scrubbing = true; try { scrubC.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ } scrubTo(p(e)); });
+  scrubC.addEventListener('pointermove', (e) => { if (active) scrubTo(p(e)); });
+  const end = () => { active = false; state.scrubbing = false; };
+  scrubC.addEventListener('pointerup', end); scrubC.addEventListener('pointercancel', end);
+})();
+
+/* =====================================================================
+   13. CAPTION + READOUTS
+   ===================================================================== */
+const capK = cap.querySelector('.k'), capT = cap.querySelector('.t'), capD = cap.querySelector('.d'), capA = cap.querySelector('.a');
+let capKey = '', capOverride = null;
+/** clear the caption override only if the given sequence still owns it */
+function dropCap(own) { if (capOverride && capOverride.own === own) capOverride = null; }
+function setCaption(k, t, d, a) {
+  capK.innerHTML = k;
+  if (t !== capKey) { capKey = t; capT.textContent = t; capD.textContent = d; cap.classList.remove('swap'); void cap.offsetWidth; cap.classList.add('swap'); }
+  capA.innerHTML = a;
+}
+function updateText() {
+  const age = state.age, eon = eonOf(age);
+  const ev = lastBefore(EVENTS, age, 'age'), alive = lastBefore(ALIVE, age);
+  const kicker = `${eon.name}${periodOf(age) !== eon.name ? ' · ' + periodOf(age) : ''} · <b>${fmtAge(age)}</b>`;
+  if (capOverride) setCaption(capOverride.k || kicker, capOverride.t, capOverride.d, capOverride.a || `<i>Alive</i>${alive[1]}`);
+  else setCaption(kicker, ev.title, ev.desc, `<i>Alive</i>${alive[1]}`);
+  const soot = seq.soot || 0;
+  const tempNow = R.temp - 18 * soot;
+  ro.age.set(age > 0.00016 ? fmtAge(age) + (age >= 1e-3 ? ' ago' : '') : 'Today');
+  ro.eon.set(periodOf(age));
+  ro.day.set(R.day.toFixed(R.day < 23.95 ? 1 : 0) + ' h');
+  ro.moon.set(fmtKm(R.moonKm));
+  ro.moonSky.set((384400 / R.moonKm).toFixed(2) + '× today');
+  ro.sun.set(Math.round(R.lum * 100) + '% of today');
+  ro.o2.set(fmtPAL(R.o2));
+  ro.co2.set(fmtCO2(R.co2));
+  ro.temp.set((tempNow > 300 ? '≈ ' + Cosmos.fmt.num(Math.round(tempNow / 50) * 50) : (tempNow >= 0 ? '+' : '−') + Math.abs(tempNow).toFixed(Math.abs(tempNow) < 20 ? 1 : 0)) + ' °C');
+  ro.sea.set(S.water < 0.5 ? 'no ocean' : R.sea == null ? 'unknown' : (R.sea >= 0 ? '+' : '−') + Math.abs(Math.round(R.sea)) + ' m');
+  const ps = plateSpeed(age); ro.plate.set(ps.toFixed(1) + ' cm/yr');
+  ro.sc.set(supercontinent(age));
+  aliveEl.textContent = alive[1];
+  skyNoteText();
+  hud.age.set(fmtAge(age));
+  hud.eon.set(eon.name);
+  hud.day.set(R.day.toFixed(1) + ' h');
+  hud.moon.set(fmtKm(R.moonKm) + ' · ' + R.moonRe.toFixed(1) + ' R⊕');
+  hud.sun.set(Math.round(R.lum * 100) + '% L☉');
+}
+
+/* =====================================================================
+   14. THE JOURNEY (automatic tour) + navigation
+   ===================================================================== */
+const STOPS = [[4500, 2.5], [4400, 3.2], [3450, 3.6], [2420, 3.6], [1800, 2.4], [1020, 3.2], [690, 3.6], [541, 2.6], [470, 2.6], [305, 3.0], [262, 3.6], [66, 1.0], [0.02, 3.6], [0, 1e9]];
+const journey = { on: true, i: 0, phase: 'dwell', t: 0, p0: 0, p1: 0, dur: 1 };
+function setPlayLabel() { btnPlay.setLabel(journey.on ? 'Pause history' : 'Play history'); btnPlay.setPressed(journey.on); }
+function stopJourney() { seq.finale = -1; if (journey.on) { journey.on = false; setPlayLabel(); } }
+function toggleJourney() {
+  if (journey.on) { stopJourney(); return; }
+  seq.finale = -1; cam.zk = 1;
+  state.age = ageAt(state.pos);
+  if (state.age <= 0.0001) { state.pos = state.target = 0; journey.i = 0; }
+  else { journey.i = STOPS.findIndex((s) => s[0] < state.age - 1e-6); if (journey.i < 0) journey.i = STOPS.length - 1; journey.i = Math.max(0, journey.i - 1); }
+  journey.on = true; journey.phase = 'move'; journey.t = 0; journey.p0 = state.pos; journey.p1 = posAt(STOPS[Math.min(journey.i + 1, STOPS.length - 1)][0]); journey.i = Math.min(journey.i + 1, STOPS.length - 1);
+  journey.dur = 2 + 3 * Math.abs(journey.p1 - journey.p0);
+  if (seq.pbd) exitPBD();
+  setPlayLabel();
+}
+function journeyStep(dt) {
+  journey.t += dt;
+  if (journey.phase === 'dwell') {
+    if (STOPS[journey.i][0] === 66 && !seq.chixDone && seq.imp < 0) { seq.chixDone = true; beginImpact(); return; }
+    if (journey.t >= STOPS[journey.i][1] && journey.i < STOPS.length - 1) {
+      journey.phase = 'move'; journey.t = 0; journey.p0 = state.pos; journey.i++;
+      journey.p1 = posAt(STOPS[journey.i][0]); journey.dur = 2.2 + 3.2 * Math.abs(journey.p1 - journey.p0);
+    }
+  } else {
+    const u = Math.min(1, journey.t / journey.dur), e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+    state.target = journey.p0 + (journey.p1 - journey.p0) * e; state.pos = state.target;
+    if (u >= 1) { journey.phase = 'dwell'; journey.t = 0; if (journey.i === STOPS.length - 1) { journey.on = false; setPlayLabel(); startFinale(); } }
+  }
+}
+function goToAge(a) { stopJourney(); if (seq.pbd) exitPBD(); state.target = posAt(a); seq.face = 5; }   // turn the continents to face us for a few seconds
+/* the finale: after the tour reaches today, swing round toward the night side so the
+   sunset band and the lights of the cities slide into view */
+function startFinale() {
+  const th0 = cam.theta; let best = null;
+  for (const sgn of [1, -1]) {
+    for (let k = 1; k <= 120; k++) {
+      const th = th0 + sgn * k * 0.02, b = camBasis(th, cam.phi, 1);
+      if (Math.acos(U.clamp(V3.dot(b.back, sun.dir), -1, 1)) > 1.9) { if (best == null || Math.abs(th - th0) < Math.abs(best - th0)) best = th; break; }
+    }
+  }
+  seq.finale = 0; seq.finToast = false; seq.finTh0 = th0; seq.finTh1 = best == null ? th0 + 0.9 : best;
+}
+function stepFinale(dt) {
+  if (seq.finale < 0) return;
+  seq.finale += dt;
+  const u = U.smoothstep(0.5, 9.5, seq.finale);
+  if (seq.finale < 10) { cam.theta = seq.finTh0 + (seq.finTh1 - seq.finTh0) * u; cam.vt = 0; }
+  cam.zk = 1 - 0.14 * u; if (!cam.userZoom) cam.tDist = 1 + (cam.base - 1) * cam.zk;
+  // after the swing, keep the lit continents turned toward us until the viewer takes over
+  if (seq.finale > 11 && !seq.finToast) { seq.finToast = true; ch.toast('Today. Drag to orbit, press B to see Earth from Voyager 1, or T to begin again.', 6500); }
+}
+function stepEvent(dir) {
+  const a = state.age; let tgt = null;
+  if (dir > 0) { for (const e of EVENTS) if (e.age < a - 1e-6) { tgt = e.age; break; } if (tgt == null) tgt = 0; }
+  else { for (let i = EVENTS.length - 1; i >= 0; i--) if (EVENTS[i].age > a + 1e-6) { tgt = EVENTS[i].age; break; } if (tgt == null) tgt = 4500; }
+  goToAge(tgt);
+}
+function resetView() { seq.finale = -1; cam.zk = 1; cam.theta = 0.52; cam.phi = 1.2; cam.vt = cam.vp = 0; cam.userZoom = false; cam.tDist = cam.base; if (seq.pbd) exitPBD(); defaultSun(); sunUpdate(); }
+
+/* =====================================================================
+   15. SEQUENCES: Theia, Chicxulub, the Pale Blue Dot
+   ===================================================================== */
+const seq = { face: 0, finale: -1, finTh0: 0, finTh1: 0, flashW: null, theia: -1, imp: -1, impPending: false, chixDone: false, pbd: false, soot: 0, flash: 0, rumble: 0, diskRot: 0, spinK: 1, thudDone: false,
+  C: [1, 0, 0], D: [0, 0, 1], N: [0, 1, 0], impBody: [0, 0, 1], impTan: [1, 0, 0] };
+function seqActive() { return seq.theia >= 0 || seq.imp >= 0 || seq.impPending; }
+function startTheia() {
+  stopJourney(); if (seq.pbd) exitPBD();
+  seq.imp = -1; seq.impPending = false; seq.soot = 0;
+  journey.on = false; setPlayLabel();
+  beginTheia(false);
+}
+function beginTheia(partOfJourney) {
+  state.target = state.pos = 0; seq.theia = 0; seq.thudDone = false; seq.theiaJourney = partOfJourney; seq.finale = -1; cam.zk = 1;
+  const b = camBasis(cam.theta, cam.phi, 1);
+  // the debris disk forms in the plane of Theia's orbit: tilt it ~22° toward the viewer
+  seq.N = V3.norm(V3.add(V3.add(b.up, b.back, 0.42), b.right, -0.12));
+  const C0 = V3.norm(V3.add(V3.add(V3.scale(b.right, -0.55), b.up, 0.2), b.back, 0.8));
+  seq.C = V3.norm(V3.add(C0, seq.N, -V3.dot(C0, seq.N)));
+  let tng = V3.norm(V3.cross(seq.N, seq.C)); if (V3.dot(tng, b.back) < 0) tng = V3.scale(tng, -1);
+  seq.D = V3.norm(V3.add(V3.scale(seq.C, -0.72), tng, -0.69));   // velocity: 46° from vertical, arriving from the viewer's side
+  const ax = V3.norm(V3.cross(seq.N, [0.3, 0.1, 0.95])), ay = V3.cross(seq.N, ax);
+  seq.ax = ax; seq.ay = ay; seq.moonA0 = Math.atan2(V3.dot(seq.C, ay), V3.dot(seq.C, ax)) + 2.2;
+  seq.diskRot = 0;
+  capOverride = { own: 'theia', t: 'The Moon-forming impact', d: 'A Mars-sized protoplanet, Theia, strikes the young Earth at an angle. Molten debris flings into orbit, and within months to about a century it gathers into the Moon.', k: 'Hadean · <b>≈ 4.51 Ga</b>', a: '<i>Model</i>Canup &amp; Asphaug (2001), Nature 412, 708' };
+}
+function startChicxulub() {
+  if (seq.imp >= 0) return;
+  if (seq.theia >= 0) { seq.theia = -1; dropCap('theia'); }
+  if (seq.pbd) exitPBD();
+  stopJourney();
+  seq.impPending = true; state.target = posAt(66.05);
+}
+function beginImpact() {
+  seq.impPending = false; seq.imp = 0; seq.thudDone = false;
+  const dirW = V3.norm(V3.add(V3.add(V3.scale(cam.back, 0.85), sun.dir, 0.45), cam.up, 0.18));
+  seq.impBody = mulMV(spinT(), dirW);
+  seq.impTan = V3.norm(V3.cross(V3.cross(dirW, [0, 1, 0]), dirW));
+  capOverride = { own: 'imp', t: 'Chicxulub', d: 'A 10 km asteroid hits at about 20 km/s with the energy of roughly 10⁸ megatons of TNT. Ejecta rains back through the atmosphere and soot and sulfate dim the Sun for years.', k: 'Cretaceous–Paleogene · <b>66.0 Ma</b>', a: '<i>Evidence</i>the iridium layer, Alvarez et al. (1980), Science 208, 1095' };
+}
+function enterPBD() {
+  stopJourney(); seq.pbd = true; state.target = 1; cam.max = 3000; cam.tDist = 2600; cam.userZoom = true;
+  btnPBD.setPressed(true);
+  capOverride = { own: 'pbd', t: 'The Pale Blue Dot', d: 'From Voyager 1, about 6 billion km away in 1990, Earth was less than a pixel: “a mote of dust suspended in a sunbeam” (Sagan 1994).', k: 'Voyager 1 · <b>14 February 1990</b>', a: '<i>Scale</i>Voyager: 0.12 pixel from 6 billion km · here: about 1 pixel from 17 million km' };
+}
+function exitPBD() { seq.pbd = false; cam.max = 60; cam.userZoom = false; cam.tDist = cam.base; btnPBD.setPressed(false); dropCap('pbd'); }
+
+/* body → world spin (tilted 23.4°) */
+let spinAng = 0.9;
+const spinM = new Float32Array(9);
+const TILT = 23.44 * Math.PI / 180;
+let spinRow = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+function updateSpin() {
+  const c = Math.cos(spinAng), s = Math.sin(spinAng);
+  const Ry = [c, 0, s, 0, 1, 0, -s, 0, c];
+  const Rx = rotM([1, 0, 0], TILT);
+  spinRow = mulM(Rx, Ry);
+  // column-major for GLSL
+  spinM.set([spinRow[0], spinRow[3], spinRow[6], spinRow[1], spinRow[4], spinRow[7], spinRow[2], spinRow[5], spinRow[8]]);
+}
+function spinT() { const m = spinRow; return [m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]]; }
+
+/* Moon: placed where the default camera sees it, at the true distance for the epoch */
+const MOON_R = 1737.4 / 6371;
+const moonFrame = (() => {
+  const b = camBasis(0.52, 1.2, 1); const w = V3.norm(V3.add(V3.scale(b.right, -0.88), b.up, 0.48));
+  return { v: V3.scale(b.back, -1), w, C: V3.scale(b.back, 5.6) };
+})();
+function moonStatic(dRe) {
+  const al = 17 * Math.PI / 180, D0 = 5.6;
+  const e = V3.add(V3.scale(moonFrame.v, Math.cos(al)), moonFrame.w, Math.sin(al));
+  const s = D0 * Math.cos(al) + Math.sqrt(Math.max(0, dRe * dRe - D0 * D0 * Math.sin(al) * Math.sin(al)));
+  return V3.add(moonFrame.C, e, s);
+}
+const moonRotM = new Float32Array(9);
+function setMoonRot(pos) {
+  const f = V3.norm(V3.scale(pos, -1)), r = V3.norm(V3.cross([0, 1, 0], f)), u = V3.cross(f, r);
+  moonRotM.set([r[0], u[0], f[0], r[1], u[1], f[1], r[2], u[2], f[2]]);
+}
+
+/* =====================================================================
+   16. SOUND: wind whose voice follows the epoch, a thud for impacts
+   ===================================================================== */
+const audio = { n: null };
+function audioArm() { if (ch.sound.enabled && ch.sound.ctx && ch.sound.ctx.state === 'suspended') ch.sound.ctx.resume(); }
+function soundOn() {
+  const ac = ch.sound.ensure(); if (!ac || audio.n) return;
+  const len = ac.sampleRate * 4, buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+  let b = 0; for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; b = (b + 0.02 * w) / 1.02; d[i] = b * 3.2 + w * 0.12; }
+  const src = ac.createBufferSource(); src.buffer = buf; src.loop = true;
+  const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 420; bp.Q.value = 0.9;
+  const g = ac.createGain(); g.gain.value = 0;
+  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 120;
+  const rg = ac.createGain(); rg.gain.value = 0;
+  src.connect(bp); bp.connect(g); g.connect(ch.sound.out);
+  src.connect(lp); lp.connect(rg); rg.connect(ch.sound.out);
+  src.start();
+  audio.n = { ac, src, bp, g, lp, rg };
+}
+function soundOff() {
+  const n = audio.n; if (!n) return; audio.n = null;
+  const t = n.ac.currentTime; n.g.gain.setTargetAtTime(0, t, 0.15); n.rg.gain.setTargetAtTime(0, t, 0.15);
+  setTimeout(() => { try { n.src.stop(); } catch (_) { /* already stopped */ } }, 900);
+}
+ch.onSound((on) => (on ? soundOn() : soundOff()));
+if (ch.sound.enabled) soundOn();
+function soundUpdate(t) {
+  const n = audio.n; if (!n || !ch.sound.enabled) return;
+  const now = n.ac.currentTime;
+  const gust = 0.5 + 0.5 * Math.sin(t * 0.37) * Math.sin(t * 0.13 + 1.3);
+  const thick = U.clamp((S.press - 1) * 0.5 + S.haze * 0.4 + S.steam * 0.6, 0, 1);
+  n.bp.frequency.setTargetAtTime(220 + 520 * gust - 120 * thick + 200 * (S.ice < 10 ? 1 : 0), now, 0.4);
+  n.g.gain.setTargetAtTime((0.06 + 0.1 * gust) * (1 - 0.7 * S.magma) * (seq.pbd ? 0.1 : 1), now, 0.4);
+  n.rg.gain.setTargetAtTime(0.28 * S.magma + 0.5 * seq.rumble + 0.05 * thick, now, 0.3);
+}
+function thud(power) {
+  const n = audio.n; if (!n || !ch.sound.enabled) return;
+  const ac = n.ac, t = ac.currentTime;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(95, t); o.frequency.exponentialRampToValueAtTime(26, t + 1.6);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.9 * power, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.6);
+  o.connect(g); g.connect(ch.sound.out); o.start(t); o.stop(t + 2.7);
+  const nb = ac.createBufferSource(); nb.buffer = n.src.buffer; const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(80, t + 2.5);
+  const ng = ac.createGain(); ng.gain.setValueAtTime(0.9 * power, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 3);
+  nb.connect(f); f.connect(ng); ng.connect(ch.sound.out); nb.start(t, Math.random() * 2); nb.stop(t + 3.1);
+}
+
+/* =====================================================================
+   17. FRAME LOOP
+   ===================================================================== */
+const era3 = U.rgbf(ERA);
+const SUN_I = 7.5;
+const P = {}; // reused uniform object
+const perf = { ema: 1 / 60, last: performance.now(), acc: 0, rs: small() ? 0.8 : 1, rsMin: 0.6, rsMax: small() ? 0.9 : 1, fps: 60, frames: 0, ft: 0, fixed: false };
+(function () { const m = /[?&]rs=([0-9.]+)/.exec(location.search); if (m) { perf.rs = perf.rsMin = perf.rsMax = U.clamp(+m[1], 0.3, 1); perf.fixed = true; } })();
+let uiT = 0, layoutT = 0, simT = 0;
+const moonPos = [0, 0, 0];
+let theiaPos = [0, 0, 0], theiaR = 0, theiaGlow = 0, diskV = [0, 0, 0, 0], bolide = [0, 0, 0, 0], moonR = MOON_R, moonGlow = 0;
+// on narrow desktops fold the field notes so the planet keeps the stage
+(function () {
+  if (small()) return;
+  const nr = document.querySelector('.cz-notes').getBoundingClientRect(), dr = document.querySelector('.cz-deck').getBoundingClientRect();
+  if (window.innerWidth - nr.width - dr.width < 460) ch.foldNotes(true);
+})();
+layout();
+if (journey.on) beginTheia(true);
+
+function stepSequences(dt) {
+  seq.flash = Math.max(0, seq.flash - dt * 1.8);
+  seq.rumble = Math.max(0, seq.rumble - dt * 0.25);
+  seq.spinK += ((seq.imp >= 0 && seq.imp < 13 ? 0.06 : 1) - seq.spinK) * Math.min(1, dt * 2);
+  diskV = [0, 4000, 1.03, 2]; theiaR = 0; theiaGlow = 0; bolide = [0, 0, 0, 0];
+  const st = moonStatic(R.moonRe);
+  moonPos[0] = st[0]; moonPos[1] = st[1]; moonPos[2] = st[2]; moonR = MOON_R;
+  moonGlow = 0.9 * (1 - U.smoothstep(4500, 4380, state.age));
+  seq.soot = 0;
+  // ---- Theia
+  if (seq.theia >= 0) {
+    const s = (seq.theia += dt);
+    seq.diskRot += dt * 1.1;
+    const contact = V3.scale(seq.C, 1 + 0.53 * 0.92);
+    if (s < 3) {
+      const d = 7.5 * Math.pow(1 - s / 3, 1.5);
+      theiaPos = V3.add(contact, seq.D, -d); theiaR = 0.53; theiaGlow = 0.1 * s / 3;
+      S.magma = 0.42; S.crack = 1; S.steam = 0.25; S.cloud = 0.1;
+    } else {
+      theiaPos = V3.add(contact, seq.D, (s - 3) * 0.45);
+      theiaR = 0.53 * (1 - U.smoothstep(3.0, 4.6, s)); theiaGlow = U.smoothstep(2.9, 3.5, s);
+      const k = U.smoothstep(3, 4.2, s);
+      S.magma = 0.42 + 0.58 * k; S.steam = 0.25 + 0.3 * U.smoothstep(4, 9, s);
+      if (!seq.thudDone) { seq.thudDone = true; seq.flash = 1; seq.rumble = 1; thud(1); seq.theiaBody = mulMV(spinT(), seq.C); seq.flashW = V3.scale(seq.C, 1.02); }
+      const cp = V3.scale(seq.C, 1.0);
+      bolide = [cp[0], cp[1], cp[2], 2.5 * Math.exp(-(s - 3) * 1.4)];
+      diskV = [U.smoothstep(3.1, 4.1, s) * (1 - U.smoothstep(11, 14.5, s)), 4300 - 2400 * U.smoothstep(3.5, 12, s), 1.03, 1.5 + 3.4 * U.smoothstep(3.2, 7.5, s)];
+    }
+    // the Moon accretes from the disk at ~3.8 Earth radii, then recedes
+    const a = seq.moonA0 + seq.diskRot * Math.pow(3.8, -1.5);
+    const fp = V3.add(V3.scale(seq.ax, 3.8 * Math.cos(a)), seq.ay, 3.8 * Math.sin(a));
+    const k2 = U.smoothstep(12, 15.5, s);
+    moonPos[0] = fp[0] + (st[0] - fp[0]) * k2; moonPos[1] = fp[1] + (st[1] - fp[1]) * k2; moonPos[2] = fp[2] + (st[2] - fp[2]) * k2;
+    moonR = MOON_R * U.smoothstep(6, 10.5, s); moonGlow = 1;
+    if (!cam.userZoom) cam.tDist = s < 12.5 ? Math.max(cam.base, 8.5) : cam.base;
+    state.pos = state.target = 0;
+    if (s > 16) { seq.theia = -1; dropCap('theia'); if (seq.theiaJourney) { journey.on = true; journey.i = 0; journey.phase = 'dwell'; journey.t = 0; setPlayLabel(); } }
+  }
+  // ---- Chicxulub
+  if (seq.impPending && Math.abs(state.age - 66.05) < 0.6) beginImpact();
+  if (seq.imp >= 0) {
+    const s = (seq.imp += dt);
+    const impW = mulMV(spinRow, seq.impBody);
+    if (s < 1.4) {
+      const u = Math.pow(1 - s / 1.4, 1.3);
+      const bp = V3.add(V3.scale(impW, 1 + 2.4 * u), seq.impTan, 1.8 * u);
+      bolide = [bp[0], bp[1], bp[2], 0.6 + 0.4 * (s / 1.4)];
+    } else {
+      if (!seq.thudDone) { seq.thudDone = true; seq.flash = 0.75; seq.rumble = 0.8; thud(0.9); seq.flashW = V3.scale(impW, 1.01); }
+      const cp = V3.scale(impW, 1.002);
+      bolide = [cp[0], cp[1], cp[2], 1.6 * Math.exp(-(s - 1.4) * 1.2)];
+    }
+    seq.soot = U.smoothstep(1.8, 5.5, s) * (1 - U.smoothstep(10, 17, s));
+    if (s > 18.5 || Math.abs(state.age - 66) > 3) { seq.imp = -1; seq.soot = 0; dropCap('imp'); }
+  }
+}
+
+function render(dt, rawDt) {
+  Cosmos.gl.fit(canvas, small() ? 1.5 : 1.5);
+  const rw = Math.max(64, Math.round(canvas.width * perf.rs)), rh = Math.max(64, Math.round(canvas.height * perf.rs));
+  ensureTargets(rw, rh);
+  const k = rw / Math.max(1, canvas.clientWidth);
+  // aerosol mixture: orange organic haze, steam, impact soot
+  const hz = S.haze * 0.9, stm = S.steam * 1.1, soot = seq.soot * 1.5;
+  const tau = hz + stm + soot, wsum = Math.max(1e-4, tau);
+  const mix3 = (a, b, c) => [(a[0] * hz + b[0] * stm + c[0] * soot) / wsum, (a[1] * hz + b[1] * stm + c[1] * soot) / wsum, (a[2] * hz + b[2] * stm + c[2] * soot) / wsum];
+  const aerAlb = tau > 1e-4 ? mix3([0.96, 0.72, 0.40], [0.93, 0.93, 0.95], [0.20, 0.18, 0.17]) : [1, 1, 1];
+  const aerK = tau > 1e-4 ? mix3([0.55, 1.0, 1.95], [1, 1, 1], [0.9, 1, 1.1]) : [1, 1, 1];
+  const aerH = tau > 1e-4 ? (hz * 0.0060 + stm * 0.0034 + soot * 0.0030) / wsum : 0.004;
+  Object.assign(P, {
+    uRes: [rw, rh], uCenter: [view.cx * k, (canvas.clientHeight - view.cy) * k], uFocal: view.focalCss * k,
+    uTime: simT, uJit: (perf.frames * 0.618034) % 1,
+    uCamPos: cam.eye, uCamRot: camRot, uSpin: spinM, uSun: sun.dir, uSunI: SUN_I * R.lum,
+    uPlateRT: plateRT, uPlateC: plateC, uContRad: contRad,
+    uMagma: S.magma, uCrack: S.crack, uWater: S.water, uSea: S.sea, uCont: S.cont, uIsl: S.isl,
+    uIceLat: S.ice * Math.PI / 180, uSeaIceLat: S.seaIce * Math.PI / 180, uVeg: S.veg, uMats: S.mats, uRed: S.red, uBif: S.bif, uCoal: S.coal, uDesert: S.desert,
+    uFerrous: S.ferrous, uCloud: S.cloud, uStorm: S.storm, uLava: S.lava, uCity: S.city,
+    uPress: S.press, uMie: S.mie * (1 + seq.soot * 2), uAtmTop: 0.025,
+    uAerK: aerK, uAerAlb: aerAlb, uAerP: [tau, aerH, tau > 1e-4 ? (hz * 0.55 + stm * 0.7 + soot * 0.5) / wsum : 0.6],
+    uPlates: state.plates ? 1 : 0, uCloudsOn: state.clouds ? 1 : 0, uAtmOn: state.atm ? 1 : 0, uTonemap: HDR ? 0 : 1, uExposure: 0.9 * state.exposure,
+    uMoon: [moonPos[0], moonPos[1], moonPos[2], moonR], uMoonRot: moonRotM, uMoonGlow: moonGlow,
+    uTheia: [theiaPos[0], theiaPos[1], theiaPos[2], theiaR], uTheiaGlow: theiaGlow,
+    uDisk: diskV, uDiskN: seq.N, uDiskRot: seq.diskRot,
+    uImp: seq.theia >= 3 ? [seq.theia - 3, 1, 0.05 + 2.2 * (1 - Math.exp(-(seq.theia - 3) / 1.1)), 1.6 * (1 - U.smoothstep(4.5, 7.5, seq.theia))] : [Math.max(0, seq.imp - 1.4), seq.imp >= 1.4 ? 1 : 0, 0.015 + 0.55 * (1 - Math.exp(-Math.max(0, seq.imp - 1.4) / 2.5)), 1 - U.smoothstep(11, 18, seq.imp)],
+    uImpDir: seq.theia >= 3 ? seq.theiaBody : seq.impBody, uBolide: bolide, uEra: era3, uAtmK: state.atmK, uAurora: U.smoothstep(3600, 3400, state.age) * (1 - S.magma), uStarK: 1 - 0.85 * U.smoothstep(150, 1500, cam.dist), uStarMask: 4, uGlare: 1, uDbg: Cosmos.debug.mask ? 1 : 0,
+  });
+  setMoonRot(moonPos);
+  tg.scene.bind();
+  gl.useProgram(progScene); Cosmos.gl.uniforms(gl, progScene, P);
+  const timing = tq.ext && !tq.q && (perf.frames % 20 === 0);
+  if (timing) { tq.q = gl.createQuery(); gl.beginQuery(tq.ext.TIME_ELAPSED_EXT, tq.q); }
+  drawTri();
+  if (timing) gl.endQuery(tq.ext.TIME_ELAPSED_EXT);
+  if (tq.q && !timing && gl.getQueryParameter(tq.q, gl.QUERY_RESULT_AVAILABLE)) {
+    if (!gl.getParameter(tq.ext.GPU_DISJOINT_EXT)) { const ms = gl.getQueryParameter(tq.q, gl.QUERY_RESULT) / 1e6; tq.ms = tq.n ? tq.ms * 0.7 + ms * 0.3 : ms; tq.n++; }
+    gl.deleteQuery(tq.q); tq.q = null;
+  }
+  // bloom
+  gl.useProgram(progBright);
+  tg.b1a.bind(); Cosmos.gl.uniforms(gl, progBright, { uTex: tg.scene.tex, uTexel: [1 / rw, 1 / rh], uThresh: HDR ? 2.6 : 0.85 }); drawTri();
+  gl.useProgram(progBlur);
+  tg.b1b.bind(); Cosmos.gl.uniforms(gl, progBlur, { uTex: tg.b1a.tex, uDir: [1 / tg.b1a.w, 0] }); drawTri();
+  tg.b1a.bind(); Cosmos.gl.uniforms(gl, progBlur, { uTex: tg.b1b.tex, uDir: [0, 1 / tg.b1a.h] }); drawTri();
+  gl.useProgram(progBright);
+  tg.b2a.bind(); Cosmos.gl.uniforms(gl, progBright, { uTex: tg.b1a.tex, uTexel: [0.5 / tg.b1a.w, 0.5 / tg.b1a.h], uThresh: 0 }); drawTri();
+  gl.useProgram(progBlur);
+  for (let i = 0; i < 2; i++) {
+    tg.b2b.bind(); Cosmos.gl.uniforms(gl, progBlur, { uTex: tg.b2a.tex, uDir: [(1.5 + i) / tg.b2a.w, 0] }); drawTri();
+    tg.b2a.bind(); Cosmos.gl.uniforms(gl, progBlur, { uTex: tg.b2b.tex, uDir: [0, (1.5 + i) / tg.b2a.h] }); drawTri();
+  }
+  Cosmos.gl.screen(gl);
+  gl.useProgram(progComp);
+  // Voyager's sunbeam (scattered light in the camera optics) when far away
+  const beam = U.smoothstep(150, 1500, cam.dist);
+  Cosmos.gl.uniforms(gl, progComp, { uScene: tg.scene.tex, uB1: tg.b1a.tex, uB2: tg.b2a.tex, uExposure: 0.9 * state.exposure, uBloom: 0.75, uFlash: seq.flash * seq.flash, uFlashPos: flashUV(), uTime: simT, uTonemap: HDR ? 0 : 1, uRes: [canvas.width, canvas.height], uBeam: beam, uBeamX: view.cx / Math.max(1, view.W) });
+  drawTri();
+}
+
+/* =====================================================================
+   17b. STANDING ON THE SURFACE
+   The same ray tracer runs a second time, from a camera 1.5 km above the
+   ground at 30° N, looking east. The Sun, the Moon and the stars stay fixed
+   in space while the planet turns under the camera at the epoch's day
+   length (24 h ≈ 40 s): dawn, the day sky, the Earth's shadow rising at
+   dusk with the Moon, and night.
+   ===================================================================== */
+const SKY = { lat: 30 * Math.PI / 180, h: 1.5 / 6371, lon0: 2.3, pitch: 15 * Math.PI / 180, hfov: 84 * Math.PI / 180 };
+SKY.moonDir = (() => { const el = 138 * Math.PI / 180, dec = 3 * Math.PI / 180; return [Math.cos(dec) * Math.cos(el), Math.sin(dec), -Math.cos(dec) * Math.sin(el)]; })();
+SKY.diskN = V3.norm([0.3, 0.94, 0.16]);
+const sky = { theta: -1.72, fail: false, P: {}, spin: new Float32Array(9), rot: new Float32Array(9), mrot: new Float32Array(9), shown: null, n: 0 };
+const skyCtx = skyC.getContext('2d');
+const deckEl = document.querySelector('.cz-deck');
+function ryRow(a) { const c = Math.cos(a), s = Math.sin(a); return [c, 0, s, 0, 1, 0, -s, 0, c]; }
+function skyFrame() {
+  const Rm = ryRow(sky.theta);
+  const up = mulMV(Rm, [Math.cos(SKY.lat), Math.sin(SKY.lat), 0]), east = mulMV(Rm, [0, 0, -1]);
+  const fw = V3.norm(V3.add(V3.scale(east, Math.cos(SKY.pitch)), up, Math.sin(SKY.pitch)));
+  const right = V3.norm(V3.cross(fw, up)), cu = V3.cross(right, fw);
+  return { up, east, fw, right, cu };
+}
+function skyProject(p, f, eye, focal, w, h) {
+  const d = [p[0] - eye[0], p[1] - eye[1], p[2] - eye[2]], z = V3.dot(d, f.fw);
+  if (z <= 0) return null;
+  return [w / 2 + focal * V3.dot(d, f.right) / z, h / 2 - focal * V3.dot(d, f.cu) / z];
+}
+function renderSky(dt) {
+  if (sky.fail) return;
+  sky.theta += dt * 2 * Math.PI / skyDaySec();
+  if (sky.theta > Math.PI) sky.theta -= 2 * Math.PI;
+  const cw = skyC.clientWidth, chh = skyC.clientHeight;
+  if (!cw || !chh || (deckEl && !deckEl.classList.contains('cz-open'))) return;
+  if (P.uSunI === undefined || ((sky.n++ & 1) && sky.shown)) return;   // 30 Hz is plenty
+  try {
+    const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+    const w = Math.max(32, Math.min(720, canvas.width, Math.round(cw * dpr))), h = Math.max(16, Math.min(320, canvas.height, Math.round(chh * dpr)));
+    if (skyC.width !== w || skyC.height !== h) { skyC.width = w; skyC.height = h; }
+    const f = skyFrame(), focal = (w / 2) / Math.tan(SKY.hfov / 2);
+    const eye = V3.scale(f.up, 1 + SKY.h), back = V3.scale(f.fw, -1);
+    sky.rot.set([f.right[0], f.right[1], f.right[2], f.cu[0], f.cu[1], f.cu[2], back[0], back[1], back[2]]);
+    const sr = ryRow(sky.theta + SKY.lon0);
+    sky.spin.set([sr[0], sr[3], sr[6], sr[1], sr[4], sr[7], sr[2], sr[5], sr[8]]);
+    const mp = V3.scale(SKY.moonDir, R.moonRe);
+    { const fm = V3.norm(V3.scale(mp, -1)), rr = V3.norm(V3.cross([0, 1, 0], fm)), uu = V3.cross(fm, rr); sky.mrot.set([rr[0], uu[0], fm[0], rr[1], uu[1], fm[1], rr[2], uu[2], fm[2]]); }
+    Object.assign(sky.P, P, {
+      uRes: [w, h], uCenter: [w / 2, h / 2], uFocal: focal, uCamPos: eye, uCamRot: sky.rot, uSpin: sky.spin, uSun: [1, 0, 0],
+      uMoon: [mp[0], mp[1], mp[2], moonR], uMoonRot: sky.mrot, uTheia: [0, 0, 0, 0], uBolide: [0, 0, 0, 0], uDiskN: SKY.diskN,
+      uPlates: 0, uCloudsOn: 0, uTonemap: 1, uExposure: 0.75 * state.exposure, uAtmK: 1, uAurora: 0, uStarK: 0.3, uStarMask: 60, uGlare: 0.2, uDbg: 0,
+    });
+    // draw into the bottom-left corner of the drawing buffer, copy it out on the GPU,
+    // and let the main pass paint over it before the frame is shown
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, w, h);
+    gl.useProgram(progScene); Cosmos.gl.uniforms(gl, progScene, sky.P); drawTri();
+    skyCtx.drawImage(canvas, 0, canvas.height - h, w, h, 0, 0, w, h);
+    const md = Math.hypot(mp[0] - eye[0], mp[1] - eye[1], mp[2] - eye[2]);
+    sky.shown = { w, h, dpr, sunAlt: Math.asin(U.clamp(f.up[0], -1, 1)) * 180 / Math.PI, moon: moonR > 0.05 ? skyProject(mp, f, eye, focal, w, h) : null,
+      moonDeg: 2 * Math.asin(Math.min(1, MOON_R / md)) * 180 / Math.PI, moonPx: focal * MOON_R / md, moonAlt: Math.asin(U.clamp(V3.dot(V3.norm(V3.add(mp, eye, -1)), f.up), -1, 1)) };
+    drawSkyLabels();
+  } catch (e) { sky.fail = true; console.info('Earth: the surface view is unavailable here', e && e.message); }
+}
+function drawSkyLabels() {
+  const L = sky.shown; if (!L) return;
+  const c = skyCtx, k = L.dpr, w = L.w, h = L.h;
+  c.save();
+  c.shadowColor = 'rgba(0,0,0,.85)'; c.shadowBlur = 4 * k;
+  c.font = `600 ${8.5 * k}px ${MONO}`; c.textBaseline = 'top'; c.fillStyle = 'rgba(236,230,214,.78)';
+  c.textAlign = 'left'; c.fillText('LOOKING EAST · 30° N', 7 * k, 6 * k);
+  c.textAlign = 'right'; const sa = Math.round(L.sunAlt); c.fillText(`SUN ${sa > 0 ? '+' : sa < 0 ? '−' : ''}${Math.abs(sa)}°`, w - 7 * k, 6 * k);
+  if (L.moon && L.moonAlt > -0.02 && L.moon[0] > -20 * k && L.moon[0] < w + 20 * k && L.moon[1] > -20 * k && L.moon[1] < h) {
+    const [mx, my] = L.moon, r = Math.max(L.moonPx, 1.5 * k) + 4 * k;
+    c.shadowBlur = 0; c.strokeStyle = 'rgba(236,230,214,.5)'; c.lineWidth = k;
+    c.beginPath(); c.arc(mx, my, r, -2.4, -0.7); c.stroke();
+    const tx = mx + r * 0.8 + 6 * k, ty = my - r * 0.8 - 12 * k;
+    c.beginPath(); c.moveTo(mx + r * 0.72, my - r * 0.72); c.lineTo(tx - 2 * k, ty + 8 * k); c.stroke();
+    c.shadowBlur = 4 * k; c.textAlign = tx > w - 90 * k ? 'right' : 'left';
+    const lx = c.textAlign === 'right' ? mx - r - 6 * k : tx;
+    c.font = `italic 500 ${11 * k}px ${DISP}`; c.fillStyle = 'rgba(236,230,214,.95)'; c.fillText('Moon', lx, ty - 2 * k);
+    c.font = `500 ${8.5 * k}px ${MONO}`; c.fillStyle = 'rgba(200,204,218,.9)'; c.fillText(`${L.moonDeg.toFixed(L.moonDeg < 1 ? 2 : 1)}° wide`, lx, ty + 10 * k);
+  }
+  c.restore();
+}
+/** one sky day on screen: 20 s for the 5.5 h Hadean day, 40 s for today's 24 h */
+function skyDaySec() { return 14 + 26 * R.day / 24; }
+function skyNoteText() {
+  const secs = skyDaySec();
+  skyNote.innerHTML = `The same scattering integral, seen from the ground. The planet turns under a fixed Sun, Moon and stars: <b>one ${R.day.toFixed(1)} h day every ${secs.toFixed(0)} s</b>. Today the Moon spans 0.52°.`;
+}
+/** screen position (0..1, GL orientation) of the latest impact flash */
+function flashUV() {
+  const pp = seq.flashW ? project(seq.flashW) : null;
+  return pp ? [pp[0] / Math.max(1, view.W), 1 - pp[1] / Math.max(1, view.H)] : [view.cx / Math.max(1, view.W), 1 - view.cy / Math.max(1, view.H)];
+}
+/* overlay annotations: hairline labels like an astronomical plate */
+function project(p) {
+  const d = [p[0] - cam.eye[0], p[1] - cam.eye[1], p[2] - cam.eye[2]];
+  const z = -V3.dot(d, cam.back); if (z <= 0.01) return null;
+  return [view.cx + view.focalCss * V3.dot(d, cam.right) / z, view.cy - view.focalCss * V3.dot(d, cam.up) / z, z];
+}
+function occludedByEarth(p) {
+  const d = V3.add(p, cam.eye, -1), L = Math.hypot(d[0], d[1], d[2]), rd = V3.scale(d, 1 / L);
+  const b = V3.dot(cam.eye, rd), q = V3.add(cam.eye, rd, -b), h = 1 - V3.dot(q, q);
+  if (h < 0) return false; const t = -b - Math.sqrt(h); return t > 0 && t < L;
+}
+function label(x, y, r, lines, side) {
+  const c = octx;
+  // keep the text in the free region between the panels
+  if (side > 0 && x + r + 230 > view.right) side = -1; else if (side < 0 && x - r - 230 < view.left) side = 1;
+  const dx = side < 0 ? -1 : 1;
+  const ax = x + dx * (r + 4) * 0.7, ay = y - (r + 4) * 0.7, bx = ax + dx * 26, by = ay - 26;
+  c.strokeStyle = 'rgba(236,230,214,.45)'; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.lineTo(bx + dx * 16, by); c.stroke();
+  c.textAlign = dx < 0 ? 'right' : 'left'; c.textBaseline = 'alphabetic';
+  c.font = `italic 500 14px ${DISP}`; c.fillStyle = 'rgba(236,230,214,.92)'; c.fillText(lines[0], bx + dx * 20, by + 4);
+  if (lines[1]) { c.font = `500 10px ${MONO}`; c.fillStyle = 'rgba(151,157,178,.95)'; c.fillText(lines[1], bx + dx * 20, by + 18); }
+}
+function drawOverlay() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1), W = overlay.clientWidth, H = overlay.clientHeight;
+  if (overlay.width !== Math.round(W * dpr) || overlay.height !== Math.round(H * dpr)) { overlay.width = Math.round(W * dpr); overlay.height = Math.round(H * dpr); }
+  octx.setTransform(dpr, 0, 0, dpr, 0, 0); octx.clearRect(0, 0, W, H);
+  if (!state.labels || document.body.classList.contains('cz-cinema')) return;
+  if (seq.pbd) {
+    if (cam.dist > 300) {
+      const pe = project([0, 0, 0]);
+      if (pe) { octx.strokeStyle = 'rgba(92,200,255,.6)'; octx.lineWidth = 1; octx.beginPath(); octx.arc(pe[0], pe[1], 11, 0, 7); octx.stroke(); label(pe[0], pe[1], 11, ['Earth', 'less than a pixel · long exposure'], 1); }
+    }
+    return;
+  }
+  if (moonR > 0.05) {
+    const pm = project(moonPos);
+    if (pm && !occludedByEarth(moonPos)) {
+      const r = view.focalCss * moonR / pm[2];
+      if (r < 5) { octx.strokeStyle = 'rgba(236,230,214,.35)'; octx.beginPath(); octx.arc(pm[0], pm[1], r + 7, 0, 7); octx.stroke(); }
+      if (pm[0] > view.left + 20 && pm[0] < view.right - 20 && pm[1] - 50 > Math.max(60, view.capBottom) && pm[1] < H - 60)
+        label(pm[0], pm[1], Math.max(r, 5), ['The Moon', seq.theia >= 0 && seq.theia < 12 ? 'accreting from the disk' : fmtKm(R.moonKm) + ' · ' + R.moonRe.toFixed(1) + ' R⊕'], pm[0] < view.cx ? -1 : 1);
+    }
+  }
+  if (theiaR > 0.2) {
+    const pt = project(theiaPos);
+    if (pt && pt[0] > 0 && pt[0] < W) label(pt[0], pt[1], view.focalCss * theiaR / pt[2], ['Theia', 'Mars-sized · ≈ 6,800 km across'], pt[0] < view.cx ? -1 : 1);
+  }
+  if (diskV[0] > 0.5 && seq.theia > 5 && seq.theia < 11) {
+    const pd = project(V3.add(V3.scale(seq.ax, -3.2), seq.ay, 0.6));
+    if (pd) label(pd[0], pd[1], 2, ['Debris disk', 'rock vapour and magma'], pd[0] < view.cx ? -1 : 1);
+  }
+  if (seq.imp > 1.4 && seq.imp < 11) {
+    const pi = project(V3.scale(mulMV(spinRow, seq.impBody), 1.01));
+    if (pi && !occludedByEarth(V3.scale(mulMV(spinRow, seq.impBody), 1.02))) label(pi[0], pi[1], 10, ['Chicxulub', '180 km crater · ejecta curtain'], 1);
+  }
+}
+
+let lastAge = -1, lastTickAge = 4500;
+ch.loop((dtIn, t) => {
+  const now = performance.now(), rawDt = Math.min(0.25, (now - perf.last) / 1000); perf.last = now;
+  const dt = ch.paused ? 0 : Math.max(0, dtIn);
+  simT += dt;
+  perf.frames++; perf.ft += rawDt; perf.ema = perf.ema * 0.93 + rawDt * 0.07;
+  perf.acc += rawDt;
+  if (perf.acc > 1.2) {
+    perf.fps = Math.round(perf.frames / perf.ft) || 0; perf.frames = 0; perf.ft = 0; perf.acc = 0;
+    if (perf.ema > 1 / 34 && perf.rs > perf.rsMin) perf.rs = Math.max(perf.rsMin, perf.rs - 0.05);
+    else if (perf.ema < 1 / 57 && perf.rs < perf.rsMax) perf.rs = Math.min(perf.rsMax, perf.rs + 0.04);
+  }
+  if ((layoutT -= rawDt) <= 0) { layoutT = 0.3; layout(); ribbonDirty = true; }
+  if (journey.on && seq.theia < 0 && seq.imp < 0 && dt > 0) journeyStep(dt);
+  if (!journey.on || journey.phase === 'dwell') state.pos += (state.target - state.pos) * Math.min(1, (state.scrubbing ? 16 : 5) * rawDt);
+  if (Math.abs(state.target - state.pos) < 1e-6) state.pos = state.target;
+  state.age = ageAt(state.pos);
+  sampleKF(state.age); sampleRD(state.age); updatePlates(state.age);
+  stepSequences(dt);
+  // the scrub "ticks" as it crosses an event
+  for (const e of EVENTS) if ((lastTickAge - e.age) * (state.age - e.age) < 0 && e.mark) { tickSound(); break; }
+  lastTickAge = state.age;
+  if (state.spin) {
+    if (journey.on && seq.theia < 0 && seq.imp < 0) steerSpin(dt, 0.55);
+    else if (seq.finale >= 0) steerSpin(dt, -0.3);
+    else if (seq.face > 0 && seq.theia < 0 && seq.imp < 0) { seq.face -= dt; steerSpin(dt, 0.55); }
+    else spinAng += dt * (2 * Math.PI / 40) * (24 / R.day) * seq.spinK;
+  }
+  updateSpin();
+  stepFinale(dt);
+  camUpdate(rawDt);
+  renderSky(dt);
+  render(dt, rawDt);
+  drawOverlay();
+  if (Math.abs(state.pos - lastRibbonPos) > 1e-5 || ribbonDirty) { drawRibbon(); drawDeckScrub(); lastRibbonPos = state.pos; ribbonDirty = false; }
+  if ((uiT -= rawDt) <= 0 || Math.abs(state.age - lastAge) > 50) { uiT = 0.12; updateText(); lastAge = state.age; }
+  if (perf.frames % 6 === 0) soundUpdate(simT);
+}, { always: true });
+/* during the tour, turn the planet so its continents face the viewer on the lit side */
+let steerDrift = 0;
+function steerSpin(dt, ks) {
+  let cx = 0, cy = 0, cz = 0;
+  for (let k = 0; k < 7; k++) { const w = contRad[k] * contRad[k]; cx += plateC[k * 3] * w; cy += plateC[k * 3 + 1] * w; cz += plateC[k * 3 + 2] * w; }
+  const t = V3.norm(V3.add(V3.scale(cam.back, 0.8), sun.dir, ks));
+  const tt = mulMV(rotM([1, 0, 0], -TILT), t);           // undo the axial tilt
+  steerDrift += dt * 0.05;
+  const target = Math.atan2(tt[0], tt[2]) - Math.atan2(cx, cz) + 0.25 * Math.sin(steerDrift);
+  let d = target - spinAng; d = Math.atan2(Math.sin(d), Math.cos(d));
+  spinAng += d * Math.min(1, dt * 0.9) + dt * 0.02;
+}
+function tickSound() {
+  const n = audio.n; if (!n || !ch.sound.enabled) return;
+  const t = n.ac.currentTime, o = n.ac.createOscillator(), g = n.ac.createGain();
+  o.frequency.value = 1500; g.gain.setValueAtTime(0.025, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+  o.connect(g); g.connect(ch.sound.out); o.start(t); o.stop(t + 0.05);
+}
+ch.onResize(() => { layout(); ribbonDirty = true; });
+document.addEventListener('visibilitychange', () => { const n = audio.n; if (n && document.hidden) { n.g.gain.setTargetAtTime(0, n.ac.currentTime, 0.1); n.rg.gain.setTargetAtTime(0, n.ac.currentTime, 0.1); } });
+canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); ch.fatal('The graphics processor reset and the planet can no longer be drawn. Reload the page to continue.'); });
+
+/* keys (avoid Space H N C M F [ ] ?) */
+ch.onKey('ArrowRight', () => stepEvent(1), 'Next event');
+ch.onKey('ArrowLeft', () => stepEvent(-1), 'Previous event');
+ch.onKey('p', () => toggleJourney(), 'Play / pause the journey');
+ch.onKey('t', () => startTheia(), 'Theia impact');
+ch.onKey('k', () => startChicxulub(), 'Chicxulub impact');
+ch.onKey('b', () => (seq.pbd ? exitPBD() : enterPBD()), 'Pale Blue Dot');
+ch.onKey('g', () => { tPlates.set(!state.plates, true); }, 'Plate boundaries');
+ch.onKey('r', () => resetView(), 'Reset view');
+ch.onKey('s', () => { tSun.set(!sunMode, true); }, 'Drag moves the Sun');
+
+Cosmos.debug.state = () => ({
+  age_Ma: +state.age.toFixed(4), pos: +state.pos.toFixed(4), eon: eonOf(state.age).name, day_h: +R.day.toFixed(2), moon_km: Math.round(R.moonKm),
+  sun_L: +R.lum.toFixed(3), o2_PAL: R.o2, co2_bar: R.co2, temp_C: +R.temp.toFixed(1), plate_cm_yr: +plateSpeed(state.age).toFixed(2),
+  journey: journey.on, stop: journey.i, theia: +seq.theia.toFixed(2), impact: +seq.imp.toFixed(2), pbd: seq.pbd,
+  camDist: +cam.dist.toFixed(2), renderScale: +perf.rs.toFixed(2), sceneGpuMs: +tq.ms.toFixed(2), renderPx: tg ? tg.w + 'x' + tg.h : '', fps: perf.fps, hdr: HDR, magma: +S.magma.toFixed(2), haze: +S.haze.toFixed(2), ice: +S.ice.toFixed(1),
+});
+Cosmos.debug.plates = (a) => { updatePlates(a); const o = []; for (let k = 0; k < 7; k++) { const y = plateC[k * 3 + 1]; o.push([Math.round(Math.asin(y) * 57.3), Math.round(Math.atan2(plateC[k * 3], plateC[k * 3 + 2]) * 57.3)]); } return JSON.stringify(o); };
+Cosmos.debug.bench = (batches = 12, per = 4) => {
+  // minimum wall time per scene draw over several batches (robust to GPU time-slicing)
+  const px = HDR ? new Float32Array(4) : new Uint8Array(4), sync = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, HDR ? gl.FLOAT : gl.UNSIGNED_BYTE, px);
+  tg.scene.bind(); gl.useProgram(progScene); Cosmos.gl.uniforms(gl, progScene, P); sync();
+  let best = 1e9;
+  for (let b = 0; b < batches; b++) { const t0 = performance.now(); for (let i = 0; i < per; i++) drawTri(); sync(); best = Math.min(best, (performance.now() - t0) / per); }
+  return +best.toFixed(2);
+};
+Cosmos.debug.sky = (th) => { if (th != null) sky.theta = th; return { theta: +sky.theta.toFixed(3), fail: sky.fail, shown: sky.shown }; };
+Cosmos.debug.glerr = () => { const o = []; let e; while ((e = gl.getError()) && o.length < 5) o.push(e); return o; };
+Cosmos.debug.face = (ks = 0.55) => { steerSpin(10, ks); state.spin = false; };
+Cosmos.debug.spin = (a) => { spinAng = a; state.spin = false; };
+Cosmos.debug.goto = (a) => { stopJourney(); seq.theia = -1; capOverride = null; state.pos = state.target = posAt(a); };
+})();
+</script>
+</body>
+</html>

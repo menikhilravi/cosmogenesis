@@ -1,0 +1,2310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The First Three Minutes · Cosmogenesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="cosmos.css">
+<style>
+  /* ---------- scene overlays ---------- */
+  #ns-labels { pointer-events: none; z-index: 2; }
+  .cz-stage { -webkit-user-select: none; user-select: none; }
+  /* soft shade behind the HUD, the caption and the bottom instruments, so they stay legible over the plasma */
+  .ns-scrim {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none; transition: opacity .6s var(--ease);
+    background:
+      radial-gradient(ellipse 400px 150px at 150px calc(var(--bar-h) + 52px), rgba(3,4,8,.74), rgba(3,4,8,.4) 48%, rgba(3,4,8,0) 100%),
+      radial-gradient(ellipse 560px 150px at 54.5% calc(var(--bar-h) + 70px), rgba(3,4,8,.5), rgba(3,4,8,0) 100%),
+      linear-gradient(to top, rgba(3,4,8,.82) 0, rgba(3,4,8,.5) 120px, rgba(3,4,8,0) 220px),
+      linear-gradient(to bottom, rgba(3,4,8,.55) 0, rgba(3,4,8,0) 80px);
+  }
+  body.cz-cinema .ns-scrim { opacity: .35; }
+  .ns-cap {
+    position: fixed; z-index: 22; left: 50%; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 16px);
+    transform: translate(-50%, -6px); width: min(600px, calc(100vw - 2 * var(--gutter) - 660px)); min-width: 300px;
+    text-align: center; pointer-events: none; opacity: 0; text-shadow: 0 1px 14px rgba(0,0,0,.95), 0 0 2px rgba(0,0,0,.8);
+    transition: opacity .9s var(--ease), transform .9s var(--ease);
+  }
+  .ns-cap.on { opacity: 1; transform: translate(-50%, 0); }
+  .ns-cap b { display: block; font: 600 10.5px/1.2 var(--f-mono); letter-spacing: .18em; text-transform: uppercase; color: var(--era); margin-bottom: 7px; }
+  .ns-cap span { font: italic 400 clamp(17px, 1.75vw, 22px)/1.36 var(--f-display); color: var(--star); text-wrap: balance; }
+  .ns-cap::before { content: ""; position: absolute; inset: -30px -80px; z-index: -1; background: radial-gradient(closest-side, rgba(3,4,8,.55), rgba(3,4,8,0)); }
+
+  .ns-bottom {
+    position: fixed; z-index: 21; left: calc(var(--gutter) + 446px); right: calc(var(--gutter) + 320px);
+    bottom: calc(var(--foot-h) + env(safe-area-inset-bottom, 0px) + 8px);
+    display: grid; gap: 6px; pointer-events: none; transition: opacity .5s var(--ease), right .5s var(--ease);
+  }
+  .cz-deck.cz-closed ~ .ns-bottom { right: var(--gutter); }
+  .ns-census { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; font: 500 10.5px/1.2 var(--f-mono); color: var(--dust); text-shadow: 0 0 3px #000, 0 1px 10px rgba(0,0,0,.95), 0 0 18px rgba(0,0,0,.8); font-variant-numeric: tabular-nums; }
+  .ns-census span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; transition: opacity .4s; }
+  .ns-census span.zero { opacity: .38; }
+  .ns-census i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px currentColor; background: currentColor; }
+  .ns-census b { font-weight: 500; color: var(--star); }
+  .ns-census em { font-style: normal; color: var(--faint); }
+  .ns-strip { position: relative; height: 50px; pointer-events: auto; cursor: ew-resize; touch-action: none; }
+  .ns-strip canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  .ns-end {
+    position: fixed; inset: 0; z-index: 23; display: grid; place-items: center; padding: 24px; pointer-events: none;
+    opacity: 0; transition: opacity 1.2s var(--ease);
+  }
+  .ns-end.on { opacity: 1; }
+  .ns-end > div { max-width: 540px; display: grid; gap: 14px; justify-items: center; text-align: center; padding: 26px 30px 24px; border-radius: 16px;
+    background: rgba(6,7,13,.72); border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0,0,0,.55); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+    transform: translateY(10px); transition: transform 1.2s var(--ease); }
+  .ns-end.on > div { transform: none; }
+  @media (min-width: 1181px) { .ns-end { padding-left: calc(var(--gutter) + 446px); padding-right: calc(var(--gutter) + 320px); } .cz-deck.cz-closed ~ .ns-end { padding-right: var(--gutter); } }
+  .ns-end.on > div { pointer-events: auto; }
+  .ns-end small { font: 600 10.5px/1.2 var(--f-mono); letter-spacing: .18em; text-transform: uppercase; color: var(--era); }
+  .ns-end h2 { margin: 0; font: italic 500 clamp(26px, 3.6vw, 40px)/1.08 var(--f-display); color: var(--star); text-wrap: balance; }
+  .ns-recipe { width: min(460px, 80vw); display: grid; gap: 8px; }
+  .ns-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line-strong); }
+  .ns-bar i { display: block; height: 100%; }
+  .ns-rows { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px 14px; font: 500 11px/1.35 var(--f-mono); color: var(--dust); }
+  .ns-rows div { display: grid; gap: 2px; }
+  .ns-rows b { font: 500 14px/1.2 var(--f-mono); color: var(--star); font-weight: 500; }
+  .ns-end p { margin: 0; color: var(--dust); font-size: 14px; line-height: 1.55; text-wrap: pretty; max-width: 470px; }
+  .ns-end .cz-btns { justify-content: center; }
+  .ns-end .cz-btn { flex: none; padding: 9px 20px; }
+
+  .ns-probe {
+    position: fixed; z-index: 24; pointer-events: none; opacity: 0; transition: opacity .25s;
+    font: 500 11px/1.4 var(--f-mono); color: var(--dust); max-width: 260px;
+    padding: 8px 11px; border-radius: 8px; background: rgba(5,6,12,.8); border: 1px solid var(--line-strong);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  }
+  .ns-probe.on { opacity: 1; }
+  .ns-probe b { display: block; font: italic 500 16px/1.2 var(--f-display); color: var(--star); margin-bottom: 3px; }
+
+  .cz-deck .ns-hint { font-size: 11.5px; color: var(--faint); line-height: 1.4; margin-top: -4px; }
+  .ns-verdict { display: grid; grid-template-columns: auto 1fr auto; gap: 5px 10px; font: 500 11px/1.3 var(--f-mono); color: var(--dust); align-items: baseline; }
+  .ns-verdict b { font-weight: 500; color: var(--star); font-variant-numeric: tabular-nums; }
+  .ns-verdict .ok { color: var(--ok); } .ns-verdict .bad { color: var(--bad); } .ns-verdict .meh { color: var(--warn); }
+  .ns-verdict small { color: var(--faint); font-size: 10px; }
+
+  body.cz-cinema .ns-bottom, body.cz-cinema .ns-probe { opacity: 0; }
+  body.cz-cinema .ns-bottom .ns-strip { pointer-events: none; }
+
+  @media (max-width: 1180px) and (min-width: 761px) {
+    .ns-bottom { left: calc(var(--gutter) + 446px); }
+    .ns-census { font-size: 9.5px; gap: 3px 9px; }
+    .ns-cap { width: min(520px, calc(100vw - 2 * var(--gutter) - 400px)); min-width: 260px; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 150px); }
+  }
+  @media (max-width: 1180px) and (min-width: 761px) {
+    /* narrow desktops: the caption sits in the band between the HUD and the deck, above the notes */
+    .ns-cap { left: calc(var(--gutter) + 296px); right: calc(var(--gutter) + 318px); width: auto; min-width: 0; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 8px); transform: translate(0, -6px); }
+    .ns-cap.on { transform: none; }
+    .cz-deck.cz-closed ~ .ns-cap { right: var(--gutter); }
+    .ns-cap span { font-size: 17px; }
+  }
+  @media (max-width: 1100px) and (min-width: 761px) {
+    .cz-deck.cz-open ~ .ns-bottom { display: none; }
+  }
+  @media (max-width: 980px) and (min-width: 761px) {
+    .ns-bottom { display: none; }
+  }
+  @media (max-width: 760px) {
+    .ns-cap { width: calc(100vw - 2 * var(--gutter)); min-width: 0; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 104px); }
+    .ns-cap span { font-size: 16px; }
+    .ns-cap b { font-size: 9.5px; margin-bottom: 5px; }
+    .ns-bottom { left: var(--gutter); right: var(--gutter); bottom: calc(var(--foot-h) + env(safe-area-inset-bottom, 0px) + 112px); }
+    .cz-deck.cz-open ~ .ns-bottom { opacity: 0; pointer-events: none; }
+    .cz-deck.cz-open ~ .ns-bottom .ns-strip { pointer-events: none; }
+    .ns-census { font-size: 9.5px; gap: 3px 10px; }
+    .ns-strip { height: 44px; }
+    .ns-rows { grid-template-columns: repeat(2, 1fr); }
+    .ns-end > div { padding: 18px 14px; }
+    .ns-scrim {
+      background:
+        radial-gradient(ellipse 330px 190px at 120px calc(var(--bar-h) + 70px), rgba(3,4,8,.74), rgba(3,4,8,.38) 50%, rgba(3,4,8,0) 100%),
+        radial-gradient(ellipse 300px 150px at 50% calc(var(--bar-h) + 190px), rgba(3,4,8,.45), rgba(3,4,8,0) 100%),
+        linear-gradient(to top, rgba(3,4,8,.86) 0, rgba(3,4,8,.55) 230px, rgba(3,4,8,0) 340px),
+        linear-gradient(to bottom, rgba(3,4,8,.5) 0, rgba(3,4,8,0) 70px);
+    }
+  }
+</style>
+</head>
+<body>
+<script src="cosmos.js"></script>
+<script>
+(function () {
+'use strict';
+
+/* =========================================================================
+   Chapter 2 · The First Three Minutes
+   A real reduced Big Bang nucleosynthesis network (8 species, 15 reactions)
+   integrated with a stiff second-order implicit solver, then played back as
+   a glowing soup of nucleons whose populations follow the network.
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   The physics engine. Self-contained (it is also stringified into a Worker).
+   Units: MeV, s, cm, g. Rates N_A<σv> in cm³ s⁻¹ mol⁻¹ as functions of T9.
+   ------------------------------------------------------------------------- */
+function bbnEngine(COUL) {
+  'use strict';
+  if (COUL == null) COUL = true;
+  const ME = 0.51099895, QNP = 1.29333236, KB9 = 0.0861733, MPL = 1.220890e22, HBAR = 6.582119569e-22;
+  const PI2 = Math.PI * Math.PI;
+  // species: 0 n, 1 p, 2 D, 3 T, 4 He3, 5 He4, 6 Li7, 7 Be7
+  const NS = 8;
+  const A = [1, 1, 2, 3, 3, 4, 7, 7];
+  const G = [2, 2, 3, 2, 2, 1, 4, 4];
+  const M = [1.008665, 1.007276, 2.013553, 3.015501, 3.014932, 4.001506, 7.014358, 7.014735];
+  const NAMES = ['n', 'p', 'D', 'T', 'He3', 'He4', 'Li7', 'Be7'];
+  function pw(T9) { const t13 = Math.cbrt(T9), t23 = t13 * t13, t12 = Math.sqrt(T9); return { t13, t23, t12, t32: T9 * t12, t43: T9 * t13, t53: T9 * t23 }; }
+  // Smith, Kawano & Malaney (1993) / Caughlan & Fowler (1988) fits, as in the Kawano (1992) code
+  const R = [
+    { name: 'p(n,γ)D', i: [0, 1], o: [2], Q: 2.224573, f: (T9, w) => 4.742e4 * (1 - 0.8504 * w.t12 + 0.4895 * T9 - 0.09623 * w.t32 + 8.471e-3 * T9 * T9 - 2.80e-4 * T9 * T9 * w.t12) },
+    { name: 'D(p,γ)³He', i: [2, 1], o: [4], Q: 5.493485, f: (T9, w) => 2.65e3 / w.t23 * Math.exp(-3.720 / w.t13) * (1 + 0.112 * w.t13 + 1.99 * w.t23 + 1.56 * T9 + 0.162 * w.t43 + 0.324 * w.t53) },
+    { name: 'D(n,γ)³H', i: [2, 0], o: [3], Q: 6.257248, f: (T9) => 66.2 * (1 + 18.9 * T9) },
+    { name: 'D(D,n)³He', i: [2, 2], o: [4, 0], Q: 3.268913, f: (T9, w) => 3.95e8 / w.t23 * Math.exp(-4.259 / w.t13) * (1 + 0.098 * w.t13 + 0.765 * w.t23 + 0.525 * T9 + 9.61e-3 * w.t43 + 0.0167 * w.t53) },
+    { name: 'D(D,p)³H', i: [2, 2], o: [3, 1], Q: 4.032667, f: (T9, w) => 4.17e8 / w.t23 * Math.exp(-4.258 / w.t13) * (1 + 0.098 * w.t13 + 0.518 * w.t23 + 0.355 * T9 - 0.010 * w.t43 - 0.018 * w.t53) },
+    { name: '³H(D,n)⁴He', i: [3, 2], o: [5, 0], Q: 17.589293, f: (T9, w) => 1.063e11 / w.t23 * Math.exp(-4.559 / w.t13 - Math.pow(T9 / 0.0754, 2)) * (1 + 0.092 * w.t13 - 0.375 * w.t23 - 0.242 * T9 + 33.82 * w.t43 + 55.42 * w.t53) + 8.047e8 / w.t23 * Math.exp(-0.4857 / T9) },
+    { name: '³He(D,p)⁴He', i: [4, 2], o: [5, 1], Q: 18.353053, f: (T9, w) => 5.021e10 / w.t23 * Math.exp(-7.144 / w.t13 - Math.pow(T9 / 0.270, 2)) * (1 + 0.058 * w.t13 + 0.603 * w.t23 + 0.245 * T9 + 6.97 * w.t43 + 7.19 * w.t53) + 5.212e8 / w.t12 * Math.exp(-1.762 / T9) },
+    { name: '³He(n,p)³H', i: [4, 0], o: [3, 1], Q: 0.763755, f: (T9, w) => 7.21e8 * (1 - 0.508 * w.t12 + 0.228 * T9) },
+    { name: '³H(p,γ)⁴He', i: [3, 1], o: [5], Q: 19.813852, f: (T9, w) => 2.87e4 / w.t23 * Math.exp(-3.87 / w.t13) * (1 + 0.108 * w.t13 + 0.466 * w.t23 + 0.352 * T9 + 0.300 * w.t43 + 0.576 * w.t53) },
+    { name: '³He(n,γ)⁴He', i: [4, 0], o: [5], Q: 20.577612, f: (T9) => 6.62 * (1 + 905 * T9) },
+    { name: '³H(α,γ)⁷Li', i: [3, 5], o: [6], Q: 2.467032, f: (T9, w) => { const a = T9 / (1 + 0.1378 * T9); return 3.032e5 / w.t23 * Math.exp(-8.090 / w.t13) * (1 + 0.0516 * w.t13 + 0.0229 * w.t23 + 8.28e-3 * T9 - 3.28e-4 * w.t43 - 3.01e-4 * w.t53) + 5.109e5 * Math.pow(a, 5 / 6) / w.t32 * Math.exp(-8.068 / Math.cbrt(a)); } },
+    { name: '³He(α,γ)⁷Be', i: [4, 5], o: [7], Q: 1.586627, f: (T9, w) => { const a = T9 / (1 + 0.1071 * T9); return 4.817e6 / w.t23 * Math.exp(-14.964 / w.t13) * (1 + 0.0325 * w.t13 - 1.04e-3 * w.t23 - 2.37e-4 * T9 - 8.11e-5 * w.t43 - 4.69e-5 * w.t53) + 5.938e6 * Math.pow(a, 5 / 6) / w.t32 * Math.exp(-12.859 / Math.cbrt(a)); } },
+    { name: '⁷Be(n,p)⁷Li', i: [7, 0], o: [6, 1], Q: 1.644243, f: (T9, w) => { const a = T9 / (1 + 13.076 * T9); return 2.675e9 * (1 - 0.560 * w.t12 + 0.179 * T9 - 0.0283 * w.t32 + 2.214e-3 * T9 * T9 - 6.851e-5 * T9 * T9 * w.t12) + 9.391e8 * Math.pow(a, 1.5) / w.t32 + 4.467e7 / w.t32 * Math.exp(-0.07486 / T9); } },
+    { name: '⁷Li(p,α)⁴He', i: [6, 1], o: [5, 5], Q: 17.346249, f: (T9, w) => { const d = T9 / (1 + 0.759 * T9); return 1.096e9 / w.t23 * Math.exp(-8.472 / w.t13) - 4.830e8 * Math.pow(d, 5 / 6) / w.t32 * Math.exp(-8.472 / Math.cbrt(d)) + 1.06e10 / w.t32 * Math.exp(-30.442 / T9) + 1.56e5 / w.t23 * Math.exp(-8.472 / w.t13 - Math.pow(T9 / 1.696, 2)) * (1 + 0.049 * w.t13 - 2.498 * w.t23 + 0.860 * T9 + 3.518 * w.t43 + 3.08 * w.t53) + 1.55e6 / w.t32 * Math.exp(-4.478 / T9); } },
+    { name: '⁷Be(n,α)⁴He', i: [7, 0], o: [5, 5], Q: 18.990, f: (T9) => 1.2e7 * T9 },
+  ];
+  // detailed balance: reverse = forward × (g, μ factors) × [T9^{3/2}] × exp(−Q/kT)
+  const CPH = 9.8686e9; // (m_u k·10⁹K / 2πħ²)^{3/2} / N_A
+  const mu = (a, b) => (M[a] * M[b]) / (M[a] + M[b]);
+  R.forEach((r) => {
+    const gin = r.i.reduce((s, k) => s * G[k], 1), gout = r.o.reduce((s, k) => s * G[k], 1);
+    r.din = r.i[0] === r.i[1] ? 2 : 1; r.dout = r.o.length === 2 && r.o[0] === r.o[1] ? 2 : 1;
+    r.photo = r.o.length === 1;
+    r.rev = r.photo ? (gin / gout) * Math.pow(mu(r.i[0], r.i[1]), 1.5) * CPH / r.din
+      : (r.dout / r.din) * (gin / gout) * Math.pow(mu(r.i[0], r.i[1]) / mu(r.o[0], r.o[1]), 1.5);
+    r.Q9 = r.Q / KB9;
+  });
+  const NR = R.length;
+  // e± thermodynamics (g = 4), in units of T⁴
+  function epm(z) {
+    const n = 240, b = z + 48, hh = 48 / n; let sr = 0, sp = 0;
+    for (let k = 0; k <= n; k++) {
+      const x = z + k * hh, w = k === 0 || k === n ? 1 : k % 2 ? 4 : 2;
+      const q = Math.sqrt(Math.max(0, x * x - z * z)), fd = 1 / (Math.exp(x) + 1);
+      sr += w * x * x * q * fd; sp += w * q * q * q * fd;
+    }
+    return { rho: (2 / PI2) * sr * hh / 3, p: (2 / (3 * PI2)) * sp * hh / 3 };
+  }
+  const TT_N = 900, T_HI = 12, T_LO = 0.004;
+  const tab = { lnT: new Float64Array(TT_N), Tnu: new Float64Array(TT_N), gs: new Float64Array(TT_N), rhoE: new Float64Array(TT_N) };
+  for (let k = 0; k < TT_N; k++) {
+    const lnT = Math.log(T_HI) + (Math.log(T_LO) - Math.log(T_HI)) * k / (TT_N - 1);
+    const T = Math.exp(lnT), e = epm(ME / T);
+    const gs = (4 * PI2 / 45 + e.rho + e.p) / (2 * PI2 / 45);
+    tab.lnT[k] = lnT; tab.gs[k] = gs; tab.rhoE[k] = e.rho; tab.Tnu[k] = T * Math.cbrt(gs / 5.5);
+  }
+  // weak rates: Born approximation with the Coulomb (Fermi-function) correction, normalised to τ_n
+  const q = QNP / ME, ALPHA = 1 / 137.036;
+  const fermi = (e) => { const b = Math.sqrt(Math.max(1e-12, 1 - 1 / (e * e))); const y = 2 * Math.PI * ALPHA / b; return y / (1 - Math.exp(-y)); };
+  let fPS = 0;
+  { const n = 4000, hh = Math.sqrt(q - 1) / n;
+    for (let k = 0; k <= n; k++) { const u = k * hh, e = 1 + u * u, w = k === 0 || k === n ? 1 : k % 2 ? 4 : 2; fPS += w * e * Math.sqrt(e * e - 1) * (q - e) * (q - e) * 2 * u * (COUL ? fermi(e) : 1); }
+    fPS *= hh / 3; }
+  const wNP = new Float64Array(TT_N), wPN = new Float64Array(TT_N);
+  const fe = (x) => 1 / (1 + Math.exp(x));
+  for (let k = 0; k < TT_N; k++) {
+    const T = Math.exp(tab.lnT[k]), Tn = tab.Tnu[k], z = ME / T, zn = ME / Tn;
+    const emax = q + 60 / Math.min(z, zn) + 2, n = 600, hh = Math.sqrt(emax - 1) / n;
+    let snp = 0, spn = 0;
+    for (let j = 0; j <= n; j++) {
+      const u = j * hh, e = 1 + u * u, w = j === 0 || j === n ? 1 : j % 2 ? 4 : 2;
+      const ps = e * Math.sqrt(e * e - 1) * 2 * u, Fc = COUL ? fermi(e) : 1;
+      snp += w * ps * ((e - q) * (e - q) * fe(-e * z) * fe((e - q) * zn) * Fc + (e + q) * (e + q) * fe(e * z) * fe(-(e + q) * zn));
+      spn += w * ps * ((e + q) * (e + q) * fe(-e * z) * fe((e + q) * zn) + (e - q) * (e - q) * fe(e * z) * fe(-(e - q) * zn) * Fc);
+    }
+    wNP[k] = snp * hh / 3 / fPS; wPN[k] = spn * hh / 3 / fPS;
+  }
+  function interpT(arr, lnT) {
+    const x = (lnT - tab.lnT[0]) / (tab.lnT[TT_N - 1] - tab.lnT[0]) * (TT_N - 1);
+    if (x <= 0) return arr[0]; if (x >= TT_N - 1) return arr[TT_N - 1];
+    const i = Math.floor(x), f = x - i; return arr[i] * (1 - f) + arr[i + 1] * f;
+  }
+  // t(T) for a radiation-dominated universe with N_eff neutrino species
+  function history(Neff) {
+    const t = new Float64Array(TT_N), H = new Float64Array(TT_N);
+    for (let k = 0; k < TT_N; k++) {
+      const T = Math.exp(tab.lnT[k]), Tn = tab.Tnu[k], T4 = T * T * T * T;
+      const rho = (PI2 / 15) * T4 + tab.rhoE[k] * T4 + Neff * (7 / 8) * (PI2 / 15) * Tn * Tn * Tn * Tn;
+      H[k] = Math.sqrt(8 * Math.PI * rho / 3) / MPL / HBAR;
+    }
+    t[0] = 1 / (2 * H[0]);
+    for (let k = 1; k < TT_N; k++) t[k] = t[k - 1] + 0.5 * Math.log(tab.Tnu[k - 1] / tab.Tnu[k]) * (1 / H[k - 1] + 1 / H[k]);
+    const lnt = new Float64Array(TT_N); for (let k = 0; k < TT_N; k++) lnt[k] = Math.log(t[k]);
+    return { t, H, lnt };
+  }
+  function lnTofT(hist, lt) {
+    const lnt = hist.lnt; let lo = 0, hi = TT_N - 1;
+    if (lt <= lnt[0]) return tab.lnT[0]; if (lt >= lnt[hi]) return tab.lnT[hi];
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (lnt[m] < lt) lo = m; else hi = m; }
+    const f = (lt - lnt[lo]) / (lnt[hi] - lnt[lo]); return tab.lnT[lo] + f * (tab.lnT[hi] - tab.lnT[lo]);
+  }
+  // the network: variable-step BDF2 with Newton iteration and an analytic Jacobian, on log-spaced time steps
+  function run(opt) {
+    const eta = opt.eta, Neff = opt.Neff, tau = opt.tau;
+    const steps = opt.steps || 1200, tEnd = opt.tEnd || 1.2e4, nOut = Math.max(2, opt.nOut || 400);
+    const hist = history(Neff);
+    const lnTs = Math.log((opt.T9start || 30) * KB9);
+    let ks = 0; while (ks < TT_N - 1 && tab.lnT[ks] > lnTs) ks++;
+    const t0 = hist.t[ks];
+    const Y = new Float64Array(NS), F = new Float64Array(NS), J = new Float64Array(NS * NS), Jm = new Float64Array(NS * NS), res = new Float64Array(NS);
+    const Ym1 = new Float64Array(NS), base = new Float64Array(NS), Yold = new Float64Array(NS);
+    const kf = new Float64Array(NR), kr = new Float64Array(NR);
+    { const T = Math.exp(tab.lnT[ks]), r = Math.exp(-QNP / T); Y[0] = r / (1 + r); Y[1] = 1 / (1 + r); for (let s = 2; s < NS; s++) Y[s] = 1e-30; }
+    let lNP = 0, lPN = 0, rho = 0;
+    const setRates = (t) => {
+      const lT = lnTofT(hist, Math.log(t)), T9 = Math.exp(lT) / KB9;
+      rho = eta * 3.3675e4 * T9 * T9 * T9; // ρ_b = m_u η n_γ  [g cm⁻³]
+      lNP = interpT(wNP, lT) / tau; lPN = interpT(wPN, lT) / tau;
+      const w = pw(T9);
+      for (let r = 0; r < NR; r++) {
+        const re = R[r]; let f = re.f(T9, w); if (!(f > 0)) f = 0;
+        kf[r] = f; const ex = re.Q9 / T9;
+        kr[r] = ex > 600 ? 0 : re.photo ? f * re.rev * w.t32 * Math.exp(-ex) : f * re.rev * Math.exp(-ex);
+      }
+    };
+    const rhs = (Yv, out, jac) => {
+      out.fill(0); jac.fill(0);
+      const wn = lNP * Yv[0], wp = lPN * Yv[1];
+      out[0] += wp - wn; out[1] += wn - wp;
+      jac[0] -= lNP; jac[NS] += lNP; jac[1] += lPN; jac[NS + 1] -= lPN;
+      for (let r = 0; r < NR; r++) {
+        const re = R[r], a = re.i[0], b = re.i[1], c = re.o[0], d = re.o[1], ph = re.photo;
+        const cf = rho * kf[r] / re.din, cr = ph ? kr[r] : rho * kr[r] / re.dout;
+        const net = cf * Yv[a] * Yv[b] - (ph ? cr * Yv[c] : cr * Yv[c] * Yv[d]);
+        out[a] -= net; out[b] -= net; out[c] += net; if (!ph) out[d] += net;
+        const add = (k, v) => { jac[a * NS + k] -= v; jac[b * NS + k] -= v; jac[c * NS + k] += v; if (!ph) jac[d * NS + k] += v; };
+        if (a === b) add(a, 2 * cf * Yv[a]); else { add(a, cf * Yv[b]); add(b, cf * Yv[a]); }
+        if (ph) add(c, -cr); else if (c === d) add(c, -2 * cr * Yv[c]); else { add(c, -cr * Yv[d]); add(d, -cr * Yv[c]); }
+      }
+    };
+    const solve = (Am, bv) => {
+      for (let c = 0; c < NS; c++) {
+        let p = c, mx = Math.abs(Am[c * NS + c]);
+        for (let r = c + 1; r < NS; r++) { const v = Math.abs(Am[r * NS + c]); if (v > mx) { mx = v; p = r; } }
+        if (p !== c) { for (let k = 0; k < NS; k++) { const tmp = Am[c * NS + k]; Am[c * NS + k] = Am[p * NS + k]; Am[p * NS + k] = tmp; } const tb = bv[c]; bv[c] = bv[p]; bv[p] = tb; }
+        const dd = Am[c * NS + c] || 1e-300;
+        for (let r = c + 1; r < NS; r++) { const f = Am[r * NS + c] / dd; if (!f) continue; for (let k = c; k < NS; k++) Am[r * NS + k] -= f * Am[c * NS + k]; bv[r] -= f * bv[c]; }
+      }
+      for (let r = NS - 1; r >= 0; r--) { let s = bv[r]; for (let k = r + 1; k < NS; k++) s -= Am[r * NS + k] * bv[k]; bv[r] = s / (Am[r * NS + r] || 1e-300); }
+    };
+    const outT = new Float64Array(nOut), outY = new Float64Array(nOut * NS), outTemp = new Float64Array(nOut);
+    const ltA = Math.log(opt.tOut0 || 0.5), ltB = Math.log(opt.tOut1 || tEnd);
+    let oi = 0;
+    const record = (tp, tc, Ya, Yb) => {
+      const lp = Math.log(tp), lc = Math.log(tc);
+      while (oi < nOut) {
+        const lt = ltA + (ltB - ltA) * oi / (nOut - 1);
+        if (lt > lc + 1e-12) break;
+        const f = lc === lp ? 1 : Math.max(0, (lt - lp) / (lc - lp));
+        outT[oi] = Math.exp(lt);
+        for (let s = 0; s < NS; s++) { const a = Math.max(Ya[s], 1e-300), b = Math.max(Yb[s], 1e-300); outY[oi * NS + s] = Math.exp(Math.log(a) * (1 - f) + Math.log(b) * f); }
+        outTemp[oi] = Math.exp(lnTofT(hist, lt));
+        oi++;
+      }
+    };
+    let t = t0, hPrev = 0, bad = 0;
+    const lt0 = Math.log(t0), lt1 = Math.log(tEnd);
+    record(t0, t0, Y, Y);
+    for (let step = 1; step <= steps; step++) {
+      const tn = Math.exp(lt0 + (lt1 - lt0) * step / steps), h = tn - t;
+      setRates(tn);
+      let beta = 1;
+      if (hPrev > 0) { const om = h / hPrev, dd = 1 + 2 * om; beta = (1 + om) / dd; for (let s = 0; s < NS; s++) base[s] = ((1 + om) * (1 + om) / dd) * Y[s] - (om * om / dd) * Ym1[s]; }
+      else for (let s = 0; s < NS; s++) base[s] = Y[s];
+      for (let s = 0; s < NS; s++) { Ym1[s] = Y[s]; Yold[s] = Y[s]; }
+      hPrev = h;
+      const hb = h * beta;
+      let err = 1;
+      for (let it = 0; it < 30 && err > 1e-9; it++) {
+        rhs(Y, F, J);
+        for (let r = 0; r < NS; r++) { res[r] = base[r] + hb * F[r] - Y[r]; for (let c = 0; c < NS; c++) Jm[r * NS + c] = (r === c ? 1 : 0) - hb * J[r * NS + c]; }
+        solve(Jm, res);
+        err = 0;
+        for (let s = 0; s < NS; s++) { let yn = Y[s] + res[s]; if (!(yn > 1e-40)) yn = 1e-40; const e = Math.abs(yn - Y[s]) / Math.max(yn, 1e-25); if (e > err) err = e; Y[s] = yn; }
+      }
+      if (!(err < 1e-6)) bad++;
+      // renormalise baryon number (guards round-off and clamping)
+      let sA = 0; for (let s = 0; s < NS; s++) sA += A[s] * Y[s];
+      if (sA > 0 && isFinite(sA)) for (let s = 0; s < NS; s++) Y[s] /= sA; else { for (let s = 0; s < NS; s++) Y[s] = Yold[s]; bad++; }
+      record(t, tn, Yold, Y);
+      t = tn;
+    }
+    while (oi < nOut) { outT[oi] = Math.exp(ltA + (ltB - ltA) * oi / (nOut - 1)); for (let s = 0; s < NS; s++) outY[oi * NS + s] = Y[s]; outTemp[oi] = Math.exp(lnTofT(hist, Math.log(outT[oi]))); oi++; }
+    const Hn = Y[1] + Y[0];
+    return { t: outT, Y: outY, T: outTemp, hist, bad, t0,
+      fin: { Yp: 4 * Y[5], DH: Y[2] / Hn, He3H: (Y[4] + Y[3]) / Hn, Li7H: (Y[6] + Y[7]) / Hn, Li7onlyH: Y[6] / Hn, Be7H: Y[7] / Hn } };
+  }
+  // gross forward and reverse fluxes (dY/dt per baryon) of every reaction at temperature T (MeV); last entry is n ⇄ p
+  function flux(Tmev, Yv, eta, tau, fwd, rev) {
+    const T9 = Tmev / KB9, lT = Math.log(Tmev), rho = eta * 3.3675e4 * T9 * T9 * T9, w = pw(T9);
+    for (let r = 0; r < NR; r++) {
+      const re = R[r]; let f = re.f(T9, w); if (!(f > 0)) f = 0;
+      const ex = re.Q9 / T9, k = ex > 600 ? 0 : re.photo ? f * re.rev * w.t32 * Math.exp(-ex) : f * re.rev * Math.exp(-ex);
+      fwd[r] = rho * f / re.din * Yv[re.i[0]] * Yv[re.i[1]];
+      rev[r] = re.photo ? k * Yv[re.o[0]] : rho * k / re.dout * Yv[re.o[0]] * Yv[re.o[1]];
+    }
+    fwd[NR] = interpT(wNP, lT) / tau * Yv[0]; rev[NR] = interpT(wPN, lT) / tau * Yv[1];
+  }
+  return { run, history, lnTofT, interpT, flux, R, NAMES, A, NS, tab, wNP, wPN, KB9, QNP, ME, fPS };
+}
+
+/* ------------------------------------------------------------------------- text */
+const NOTES = `
+<p>One second after the Big Bang, the universe is a ten-billion-kelvin soup of protons (amber), neutrons (blue-grey), electrons, positrons, neutrinos and light. The particles you see are a sample of that soup. Their numbers follow a real nuclear reaction network, solved in your browser reaction by reaction. The colour is a thermometer: white-hot at first, then amber, then embers.</p>
+<p>Neutrons are the scarce ingredient. The weak force turns them into protons and back until about one second, then falls behind the expansion. After that, free neutrons simply decay, with a mean life of 878 seconds. Every neutron that lasts long enough ends up in helium.</p>
+<p>Deuterium is the first step and the hardest. A proton and a neutron can stick, but there are 1.6 billion photons for every nucleon. While enough of them carry more than 2.2 MeV, each new deuteron is blasted apart. Watch the bright blue photons thin out. Near 0.08 MeV, about three and a half minutes in, the dam breaks, and within a minute almost every neutron is locked inside helium-4.</p>
+<p>By twenty minutes the universe is too cool and too thin for fusion. It leaves the recipe we still find in the oldest gas: about 75% hydrogen and 25% helium by mass, a few parts in 100,000 of deuterium and helium-3, and a trace of lithium.</p>
+<p><strong>Try this:</strong></p>
+<ul>
+<li>Press <em>Break the bottleneck</em> (<kbd>B</kbd>) and watch helium form in a rush. Tap any particle to see what it is.</li>
+<li>Raise the baryon density η. Deuterium survives earlier and burns more completely, so D/H plummets. The measured D/H fixes η to about 1%.</li>
+<li>Set N<sub>eff</sub> to 4. A fourth kind of neutrino speeds up the expansion and pushes helium outside the observed band. BBN counted the neutrino families before particle colliders did.</li>
+<li>Look at the lithium panel of the Schramm plot. The prediction sits about three times above what old stars show. That is the lithium problem, and it is still open.</li>
+</ul>`;
+
+const SCIENCE = `
+<h4>The network</h4>
+<p>Eight species (n, p, D, ³H, ³He, ⁴He, ⁷Li, ⁷Be) are coupled by the n ⇄ p weak rates and 15 nuclear reactions: p(n,γ)D, D(p,γ)³He, D(n,γ)³H, D(D,n)³He, D(D,p)³H, ³H(D,n)⁴He, ³He(D,p)⁴He, ³He(n,p)³H, ³H(p,γ)⁴He, ³He(n,γ)⁴He, ³H(α,γ)⁷Li, ³He(α,γ)⁷Be, ⁷Be(n,p)⁷Li, ⁷Li(p,α)⁴He and ⁷Be(n,α)⁴He. With abundances Y<sub>i</sub> = n<sub>i</sub>/n<sub>b</sub>:</p>
+<span class="eq">dY<sub>i</sub>/dt = Σ ρ<sub>b</sub>N<sub>A</sub>⟨σv⟩<sub>jk</sub>Y<sub>j</sub>Y<sub>k</sub> − Σ ρ<sub>b</sub>N<sub>A</sub>⟨σv⟩<sub>ik</sub>Y<sub>i</sub>Y<sub>k</sub></span>
+<p>plus the photodissociation and weak terms, with</p>
+<span class="eq">ρ<sub>b</sub> = m<sub>u</sub> η n<sub>γ</sub> = 3.37 × 10⁴ η T<sub>9</sub>³ g cm⁻³</span>
+<p>Rates N<sub>A</sub>⟨σv⟩(T<sub>9</sub>) use the fits of Smith, Kawano &amp; Malaney (1993). Every reverse rate follows from detailed balance, with spin factors, reduced masses and Q-values. The <em>Reaction network</em> panel draws both directions of every reaction live, on a chart of nuclides. For deuterium photodissociation:</p>
+<span class="eq">λ<sub>γ</sub>(D) = ⟨σv⟩<sub>np</sub> (g<sub>n</sub>g<sub>p</sub>/g<sub>D</sub>) (μkT/2πħ²)<sup>3/2</sup> e<sup>−B<sub>D</sub>/kT</sup></span>
+<span class="eq">λ<sub>γ</sub>(D) = 4.71 × 10⁹ T<sub>9</sub><sup>3/2</sup> e<sup>−25.82/T<sub>9</sub></sup> N<sub>A</sub>⟨σv⟩<sub>np</sub> s⁻¹</span>
+<h4>Solver</h4>
+<p>The equations are stiff: at the start, deuterium photodissociation runs about 10¹⁵ times faster than the expansion. They are integrated with the variable-step BDF2 formula (second-order backward differentiation) and Newton iteration on an analytic Jacobian. The run takes 1,200 log-spaced steps from 0.11 s (3 × 10¹⁰ K) to 3.3 hours, which costs about 10 ms. Baryon number is conserved to round-off. The Schramm plot re-runs the whole network 106 times in a Web Worker.</p>
+<h4>Weak freeze-out</h4>
+<p>The six processes n + ν ⇄ p + e⁻, n + e⁺ ⇄ p + ν̄ and n ⇄ p + e⁻ + ν̄ are integrated over the electron and neutrino Fermi–Dirac distributions (Born approximation, with the Coulomb correction F(Z, E)). They are normalised so that the zero-temperature decay rate is exactly 1/τ<sub>n</sub>. With q = Q/m<sub>e</sub>, Q = 1.293 MeV and ε = E<sub>e</sub>/m<sub>e</sub>:</p>
+<span class="eq">λ<sub>n→p</sub> = (1/τ<sub>n</sub> f) ∫<sub>1</sub><sup>∞</sup> ε√(ε²−1) [a(ε) + b(ε)] dε</span>
+<span class="eq">a = (ε−q)² F(ε) / [(1+e<sup>−εz</sup>)(1+e<sup>(ε−q)z<sub>ν</sub></sup>)]</span>
+<span class="eq">b = (ε+q)² / [(1+e<sup>εz</sup>)(1+e<sup>−(ε+q)z<sub>ν</sub></sup>)]</span>
+<p>The first term covers n + ν → p + e⁻ and neutron decay, the second n + e⁺ → p + ν̄. λ<sub>p→n</sub> follows with q → −q. Here z = m<sub>e</sub>/kT, z<sub>ν</sub> = m<sub>e</sub>/kT<sub>ν</sub> and f = 1.69 is the decay phase-space integral. In equilibrium n/p = e<sup>−Q/kT</sup>. The rates drop below H near kT<sub>f</sub> ≈ 0.7 MeV, where e<sup>−Q/kT<sub>f</sub></sup> ≈ 1/6. The full integration freezes out gradually: n/p levels off near 1/5 by t ≈ 10 s, and decay brings it to about 1/7 by t ≈ 3.5 min, when deuterium finally survives. Nearly all of those neutrons end up in helium:</p>
+<span class="eq">Y<sub>p</sub> ≈ 2(n/p) / (1 + n/p) ≈ 0.25</span>
+<h4>Expansion</h4>
+<span class="eq">H² = (8πG/3) [ρ<sub>γ</sub> + ρ<sub>e±</sub>(T) + ρ<sub>ν</sub>]</span>
+<span class="eq">ρ<sub>ν</sub> = N<sub>eff</sub> (7/8)(π²/15) T<sub>ν</sub>⁴,&nbsp;&nbsp; H = 1.66 √g<sub>*</sub> T²/M<sub>Pl</sub></span>
+<p>ρ<sub>e±</sub> and the pair entropy are integrated exactly. Neutrinos decouple before e⁺e⁻ annihilation, so entropy conservation gives T<sub>ν</sub>/T = [g<sub>s</sub>(T)/(11/2)]<sup>1/3</sup>, which falls to (4/11)<sup>1/3</sup> = 0.714 afterwards. Once the pairs are gone, t ≈ 1.32 s (MeV/kT)². The universe reaches 10⁹ K at 2.8 minutes.</p>
+<h4>The deuterium bottleneck</h4>
+<p>B<sub>D</sub> = 2.224 MeV, but there are 1/η ≈ 1.6 × 10⁹ photons per baryon. The number of photons per baryon energetic enough to split a deuteron is</p>
+<span class="eq">N<sub>γ&gt;B</sub> ≈ η⁻¹ e<sup>−B/kT</sup> [(B/kT)² + 2B/kT + 2] / 2ζ(3)</span>
+<p>It falls below 1 at kT ≈ 0.082 MeV (shown live in the readouts). Deuterium then accumulates, peaks at a mass fraction of 0.6% at t ≈ 4.1 min (kT ≈ 0.072 MeV), and is burned through ³H and ³He into ⁴He.</p>
+<h4>Results at η₁₀ = 6.1, N<sub>eff</sub> = 3.044, τ<sub>n</sub> = 878.4 s</h4>
+<p>Y<sub>p</sub> = 0.2447, D/H = 2.68 × 10⁻⁵, ³He/H = 1.05 × 10⁻⁵, ⁷Li/H = 4.3 × 10⁻¹⁰ (mostly as ⁷Be, which later captures an electron). Precision codes give Y<sub>p</sub> ≈ 0.247, D/H ≈ 2.5 × 10⁻⁵ and ⁷Li/H ≈ 4.7 × 10⁻¹⁰ (Fields et al. 2020). Each extra neutrino species adds about 0.0125 to Y<sub>p</sub>. The observed boxes are Y<sub>p</sub> = 0.245 ± 0.003, D/H = (2.527 ± 0.030) × 10⁻⁵ and the halo-star lithium plateau ⁷Li/H = (1.6 ± 0.3) × 10⁻¹⁰. η₁₀ = 273.9 Ω<sub>b</sub>h². The Planck CMB value is η₁₀ = 6.10 ± 0.06.</p>
+<h4>What is simplified</h4>
+<ul>
+<li>A 15-reaction network with 1993-era rate fits. Modern evaluations, including the 2020 LUNA measurement of D(p,γ)³He, bring D/H down to about 2.5 × 10⁻⁵ at the same η.</li>
+<li>Of the corrections to the weak rates, only the Coulomb one is included. Finite nucleon mass, the remaining radiative corrections and incomplete neutrino decoupling together add about 0.002 to Y<sub>p</sub>.</li>
+<li>On screen, each dot is one of a few thousand nucleons in a sample. Species too rare to appear even once, such as the surviving D, ³He and ⁷Li, are shown as single tagged specimens with their true ratio. The short-lived deuterons that flicker before 3 minutes illustrate formation and photodissociation. They are not counted.</li>
+<li>Colour is a thermometer, scaled down. The plasma, the nucleons and the photon streaks all take the blackbody colour of 1,250 K + T/(2.2 × 10⁶), so the soup cools from white-hot through amber to embers, and the photon sea reddens. The real radiation is gamma rays and hard X-rays. After fusion ends, free nucleons are dimmed so the helium stands out. The gold ring at the dam break marks the moment; it is not a physical shock.</li>
+<li>Time runs on a warped logarithmic clock: brisk through the first three minutes, slow through the helium cascade.</li>
+</ul>
+<span class="cite">Alpher, R. A., Bethe, H. &amp; Gamow, G. (1948). The origin of chemical elements. Phys. Rev. 73, 803.</span>
+<span class="cite">Wagoner, R. V., Fowler, W. A. &amp; Hoyle, F. (1967). On the synthesis of elements at very high temperatures. ApJ 148, 3.</span>
+<span class="cite">Weinberg, S. (1977). The First Three Minutes. Basic Books.</span>
+<span class="cite">Smith, M. S., Kawano, L. H. &amp; Malaney, R. A. (1993). Experimental, computational, and observational analysis of primordial nucleosynthesis. ApJS 85, 219.</span>
+<span class="cite">Cyburt, R. H., Fields, B. D., Olive, K. A. &amp; Yeh, T.-H. (2016). Big bang nucleosynthesis: present status. Rev. Mod. Phys. 88, 015004.</span>
+<span class="cite">Fields, B. D., Olive, K. A., Yeh, T.-H. &amp; Young, C. (2020). Big-Bang nucleosynthesis after Planck. JCAP 03, 010.</span>`;
+
+/* ------------------------------------------------------------------------- chapter */
+const ch = Cosmos.chapter({ id: 'nucleosynthesis', notes: NOTES, science: SCIENCE });
+const U = Cosmos.util, FM = Cosmos.fmt;
+const isSmall = () => window.matchMedia('(max-width: 760px)').matches;
+const SMALL = isSmall();
+const DPR = () => Math.min(SMALL ? 2 : 1.75, window.devicePixelRatio || 1);
+const cssv = getComputedStyle(document.documentElement);
+const FONT_MONO = cssv.getPropertyValue('--f-mono').trim() || 'monospace';
+const FONT_DISP = cssv.getPropertyValue('--f-display').trim() || 'serif';
+
+/* species palette (sRGB hex) */
+const SP = [
+  { id: 'n', label: 'n', name: 'neutron', col: '#7f9bd6' },
+  { id: 'p', label: 'p', name: 'proton', col: '#ff9f45' },
+  { id: 'D', label: 'D', name: 'deuteron', col: '#fff0cf' },
+  { id: 'T', label: '³H', name: 'triton', col: '#62e6c6' },
+  { id: 'He3', label: '³He', name: 'helion', col: '#ff8fb8' },
+  { id: 'He4', label: '⁴He', name: 'alpha', col: '#ffd37a' },
+  { id: 'Li7', label: '⁷Li', name: 'lithium-7', col: '#ff4a64' },
+  { id: 'Be7', label: '⁷Be', name: 'beryllium-7', col: '#b894ff' },
+];
+const PLOT_COL = ['#8ea9dc', '#ffac4d', '#fff0cf', '#62e6c6', '#ff8fb8', '#ffd37a', '#ff4a64', '#b894ff'];
+const lin = (hex) => U.rgbf(hex).map((v) => Math.pow(v, 2.2));
+const SPL = SP.map((s) => lin(s.col));
+const INFO = [
+  'Free neutron · mean life 878 s · n → p e⁻ ν̄ (Q = 0.78 MeV)',
+  'Proton · the nucleus of hydrogen · stable',
+  'Deuteron (²H) · binding 2.22 MeV · any photon above that splits it',
+  'Triton (³H) · binding 8.48 MeV · half-life 12.3 yr, later becomes ³He',
+  'Helion (³He) · binding 7.72 MeV',
+  'Alpha (⁴He) · binding 28.30 MeV · the most tightly bound light nucleus',
+  'Lithium-7 · binding 39.24 MeV · destroyed by ⁷Li(p,α)⁴He',
+  'Beryllium-7 · binding 37.60 MeV · captures an electron to become ⁷Li (half-life 53 d)',
+];
+
+/* ------------------------------------------------------------------------- engine + current run */
+const T_ENGINE0 = performance.now();
+let eng;
+try { eng = bbnEngine(true); } catch (e) { ch.fatal('The nuclear reaction network failed to initialise.', e); return; }
+const KB9 = eng.KB9;
+const P = { eta: 6.1e-10, Neff: 3.044, tau: 878.4 };
+const NOUT = 700, TOUT0 = 0.5, TOUT1 = 1.2e4;
+const LT_MIN = 0, LT_MAX = Math.log(1200);
+let RUN = null, runMs = 0;
+const KEY = { tBreak: 200, tHalf: 249, tDone: 330, tDpeak: 248, tNB1: 175, np10: 0.2, np200: 0.147, gsA: 3, gsB: 30 };
+
+function computeRun() {
+  const t0 = performance.now();
+  const r = eng.run({ eta: P.eta, Neff: P.Neff, tau: P.tau, steps: 1200, nOut: NOUT, tOut0: TOUT0, tOut1: TOUT1 });
+  runMs = performance.now() - t0;
+  RUN = r;
+  // key moments
+  const Y = r.Y, fin4 = r.fin.Yp;
+  let iB = -1, iH = -1, iD = -1, iP = 0;
+  for (let i = 0; i < NOUT; i++) {
+    const x4 = 4 * Y[i * 8 + 5];
+    if (iB < 0 && x4 > 0.01 * fin4) iB = i;
+    if (iH < 0 && x4 > 0.5 * fin4) iH = i;
+    if (iD < 0 && x4 > 0.99 * fin4) iD = i;
+    if (Y[i * 8 + 2] > Y[iP * 8 + 2]) iP = i;
+  }
+  KEY.tBreak = iB >= 0 ? r.t[iB] : 200; KEY.tHalf = iH >= 0 ? r.t[iH] : 250; KEY.tDone = iD >= 0 ? r.t[iD] : 400; KEY.tDpeak = r.t[iP];
+  KEY.np10 = npAt(10); KEY.np200 = npAt(Math.min(KEY.tBreak, 1000));
+  // N_{γ>B} = 1 crossing
+  let tn = 1200; for (let i = 0; i < NOUT; i++) if (nAboveB(r.T[i]) < 1) { tn = r.t[i]; break; }
+  KEY.tNB1 = tn;
+  // e± annihilation window from the entropy table
+  const tab = eng.tab; let Ta = 1, Tb = 0.03;
+  for (let k = 0; k < tab.gs.length; k++) { if (tab.gs[k] < 5.3 && Ta === 1) Ta = Math.exp(tab.lnT[k]); if (tab.gs[k] < 3.5) { Tb = Math.exp(tab.lnT[k]); break; } }
+  KEY.gsA = tOfT(Ta); KEY.gsB = tOfT(Tb);
+  if (typeof onRun === 'function') onRun();
+}
+function tOfT(Tmev) { const h = RUN.hist, tab = eng.tab, lT = Math.log(Tmev); let k = 0; while (k < tab.lnT.length - 1 && tab.lnT[k] > lT) k++; return h.t[k]; }
+function nAboveB(Tmev) { const x = 2.224573 / Tmev; return (1 / P.eta) * Math.exp(-x) * (x * x + 2 * x + 2) / (2 * 1.2020569); }
+function idxAt(t) { const u = (Math.log(t) - Math.log(TOUT0)) / (Math.log(TOUT1) - Math.log(TOUT0)) * (NOUT - 1); return U.clamp(u, 0, NOUT - 1.0001); }
+const XS = new Float64Array(8);
+let T_NOW = 0.86; // MeV
+function stateAt(t) { // fills XS (mass fractions); returns kT in MeV
+  const u = idxAt(t), i = Math.floor(u), f = u - i, Y = RUN.Y;
+  for (let s = 0; s < 8; s++) { const a = Math.max(Y[i * 8 + s], 1e-300), b = Math.max(Y[(i + 1) * 8 + s], 1e-300); XS[s] = eng.A[s] * Math.exp(Math.log(a) * (1 - f) + Math.log(b) * f); }
+  return Math.exp(Math.log(RUN.T[i]) * (1 - f) + Math.log(RUN.T[i + 1]) * f);
+}
+function npAt(t) { const u = idxAt(t), i = Math.round(u); return RUN.Y[i * 8] / RUN.Y[i * 8 + 1]; }
+const weakNP = (Tmev) => eng.interpT(eng.wNP, Math.log(Tmev)) / P.tau;
+const weakPN = (Tmev) => eng.interpT(eng.wPN, Math.log(Tmev)) / P.tau;
+let onRun = null;
+computeRun();
+const ENGINE_MS = performance.now() - T_ENGINE0;
+
+/* ------------------------------------------------------------------------- Schramm scan (worker) */
+function workerMain() {
+  const E = bbnEngine(true);
+  let latest = 0;
+  self.onmessage = (ev) => { const m = ev.data; latest = m.job; setTimeout(() => work(m), 0); };
+  function work(m) {
+    const tasks = [];
+    m.etas.forEach((eta, i) => tasks.push({ kind: 'main', i, eta, Neff: m.Neff }));
+    if (m.ghosts) [2, 3, 4].forEach((N) => m.gEtas.forEach((eta, i) => tasks.push({ kind: 'ghost', N, i, eta, Neff: N })));
+    let ti = 0;
+    const step = () => {
+      if (latest !== m.job) return;
+      const t0 = Date.now(), out = [];
+      while (ti < tasks.length && Date.now() - t0 < 40) { const tk = tasks[ti++]; const r = E.run({ eta: tk.eta, Neff: tk.Neff, tau: m.tau, steps: 900, nOut: 2 }); out.push({ kind: tk.kind, N: tk.N, i: tk.i, eta: tk.eta, fin: r.fin }); }
+      self.postMessage({ job: m.job, out, done: ti >= tasks.length });
+      if (ti < tasks.length) setTimeout(step, 0);
+    };
+    step();
+  }
+}
+const SCAN_N = 40, GHOST_N = 22;
+const SC = { etas: [], gEtas: [], main: new Array(SCAN_N).fill(null), ghost: { 2: new Array(GHOST_N).fill(null), 3: new Array(GHOST_N).fill(null), 4: new Array(GHOST_N).fill(null) }, job: 0, busy: false, lastTau: null };
+for (let i = 0; i < SCAN_N; i++) SC.etas.push(1e-10 * Math.pow(100, i / (SCAN_N - 1)));
+for (let i = 0; i < GHOST_N; i++) SC.gEtas.push(1e-10 * Math.pow(100, i / (GHOST_N - 1)));
+let scanWorker = null;
+try {
+  const src = 'var bbnEngine = ' + bbnEngine.toString() + ';\n(' + workerMain.toString() + ')();';
+  scanWorker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+  scanWorker.onmessage = (ev) => onScan(ev.data);
+  scanWorker.onerror = (e) => { e.preventDefault && e.preventDefault(); scanWorker = null; startScan(); };
+} catch (e) { scanWorker = null; }
+function onScan(m) {
+  if (m.job !== SC.job) return;
+  m.out.forEach((o) => { if (o.kind === 'main') SC.main[o.i] = o.fin; else SC.ghost[o.N][o.i] = o.fin.Yp; });
+  if (m.done) SC.busy = false;
+  schrammDirty = true;
+}
+let fallbackTimer = 0;
+function startScan() {
+  SC.job++;
+  const ghosts = SC.lastTau !== P.tau;
+  SC.lastTau = P.tau;
+  SC.main.fill(null);
+  if (ghosts) [2, 3, 4].forEach((N) => SC.ghost[N].fill(null));
+  SC.busy = true; schrammDirty = true;
+  const msg = { job: SC.job, etas: SC.etas, gEtas: SC.gEtas, Neff: P.Neff, tau: P.tau, ghosts };
+  if (scanWorker) { scanWorker.postMessage(msg); return; }
+  // main-thread fallback, in small chunks
+  clearTimeout(fallbackTimer);
+  const tasks = [];
+  msg.etas.forEach((eta, i) => tasks.push({ kind: 'main', i, eta, Neff: msg.Neff }));
+  if (ghosts) [2, 3, 4].forEach((N) => msg.gEtas.forEach((eta, i) => tasks.push({ kind: 'ghost', N, i, eta, Neff: N })));
+  let ti = 0; const job = msg.job;
+  const step = () => {
+    if (job !== SC.job) return;
+    const t0 = performance.now(), out = [];
+    while (ti < tasks.length && performance.now() - t0 < 8) { const tk = tasks[ti++]; const r = eng.run({ eta: tk.eta, Neff: tk.Neff, tau: msg.tau, steps: 900, nOut: 2 }); out.push({ kind: tk.kind, N: tk.N, i: tk.i, eta: tk.eta, fin: r.fin }); }
+    onScan({ job, out, done: ti >= tasks.length });
+    if (ti < tasks.length) fallbackTimer = setTimeout(step, 16);
+  };
+  fallbackTimer = setTimeout(step, 30);
+}
+let schrammDirty = true;
+
+/* ------------------------------------------------------------------------- playback clock */
+let lt = LT_MIN;          // ln(t / s), cosmic time shown
+let speed = 1;
+let holdT = 0;            // seconds spent at the end
+let loopOn = true;
+// d ln t / d(wall s). Brisk through the first minutes (the dam breaks about 9 s after load at the defaults),
+// then a slow-motion valley through the helium cascade.
+function lrate(l) {
+  const base = 0.78 - 0.21 * U.smoothstep(Math.log(3), Math.log(40), l);
+  const lb = Math.log(Math.max(KEY.tHalf, 5)), lk = Math.log(Math.max(KEY.tBreak, 4));
+  const valley = 1 - 0.78 * Math.exp(-Math.pow((l - lb + 0.04) / 0.30, 2)) - 0.2 * Math.exp(-Math.pow((l - lk + 0.12) / 0.2, 2));
+  return base * Math.max(0.13, valley);
+}
+
+/* ------------------------------------------------------------------------- particle soup (CPU) */
+const N = SMALL ? 2000 : 4000;
+const VFOV = 50 * Math.PI / 180, TY = Math.tan(VFOV / 2);
+const DN = 0.55, DF = 5.6;
+const RW = 0.0125;                    // nucleon radius (world units)
+let aspect = 1.6, TX = TY * aspect;
+const nx = new Float32Array(N), ny = new Float32Array(N), nd = new Float32Array(N);
+const nvx = new Float32Array(N), nvy = new Float32Array(N), nvd = new Float32Array(N);
+const nIsN = new Uint8Array(N), nGrp = new Int32Array(N).fill(-1), nSlot = new Uint8Array(N);
+const nSwap = new Float32Array(N).fill(-99), nWas = new Uint8Array(N);
+const nAx = new Float32Array(N), nAy = new Float32Array(N), nAd = new Float32Array(N);
+const rx = new Float32Array(N), ry = new Float32Array(N), rd = new Float32Array(N); // rendered positions
+const GM = N;
+const gSp = new Int8Array(GM).fill(-1), gKind = new Uint8Array(GM), gNm = new Uint8Array(GM), gMem = new Int32Array(GM * 7);
+const gx = new Float32Array(GM), gy = new Float32Array(GM), gd = new Float32Array(GM), gvx = new Float32Array(GM), gvy = new Float32Array(GM), gvd = new Float32Array(GM);
+const gAng = new Float32Array(GM), gSpin = new Float32Array(GM), gAxX = new Float32Array(GM), gAxY = new Float32Array(GM), gAxZ = new Float32Array(GM);
+const gBorn = new Float32Array(GM), gLife = new Float32Array(GM), gHit = new Uint8Array(GM);
+const gFree = []; for (let i = GM - 1; i >= 0; i--) gFree.push(i);
+const G_REAL = 0, G_TRANS = 1, G_SPEC = 2;
+
+// cluster templates in units of the nucleon radius; flag 1 = neutron slot
+const TPL = {};
+(function () {
+  const tri = (r) => [0, 1, 2].map((k) => [r * Math.cos(Math.PI / 2 + k * 2.0944), r * Math.sin(Math.PI / 2 + k * 2.0944), 0]);
+  const tet = (s) => [[1, 1, 1], [-1, -1, 1], [-1, 1, -1], [1, -1, -1]].map((v) => v.map((c) => c * s));
+  TPL[2] = { pos: [[-0.86, 0, 0], [0.86, 0, 0]], n: [0, 1] };
+  TPL[3] = { pos: tri(1.0), n: [0, 1, 1] };
+  TPL[4] = { pos: tri(1.0), n: [0, 0, 1] };
+  TPL[5] = { pos: tet(0.62), n: [0, 0, 1, 1] };
+  const a = tet(0.62).map((v) => [v[0] - 1.05, v[1], v[2]]), t = tri(1.0).map((v) => [v[2] + 1.35, v[0], v[1]]);
+  TPL[6] = { pos: a.concat(t), n: [0, 0, 1, 1, 0, 1, 1] };   // ⁷Li ≈ α + t
+  TPL[7] = { pos: a.concat(t), n: [0, 0, 1, 1, 0, 0, 1] };   // ⁷Be ≈ α + ³He
+})();
+
+// gaussian table
+const GT = new Float32Array(8192); for (let i = 0; i < GT.length; i++) GT[i] = U.gauss(Math.random);
+let gti = 0; const gr = () => GT[(gti = (gti + 1) & 8191)];
+
+function randomDepth() { const a = DN * DN * DN, b = DF * DF * DF; return Math.cbrt(a + Math.random() * (b - a)); }
+function seedPositions() {
+  for (let i = 0; i < N; i++) {
+    const d = randomDepth(); nd[i] = d; nx[i] = (Math.random() * 2 - 1) * d * TX * 1.04; ny[i] = (Math.random() * 2 - 1) * d * TY * 1.04;
+    nvx[i] = gr() * 0.05; nvy[i] = gr() * 0.05; nvd[i] = gr() * 0.05;
+  }
+}
+seedPositions();
+
+let now = 0; // wall clock (s) used for animation
+function allocGroup() { return gFree.length ? gFree.pop() : -1; }
+function freeGroup(g) { gSp[g] = -1; gNm[g] = 0; gFree.push(g); }
+
+const cnt = new Int32Array(8), cntSpec = new Int32Array(8);
+let freeNList = new Int32Array(N), freePList = new Int32Array(N), nFreeN = 0, nFreeP = 0;
+function rebuildLists() {
+  nFreeN = 0; nFreeP = 0; cnt.fill(0); cntSpec.fill(0);
+  for (let i = 0; i < N; i++) {
+    const g = nGrp[i];
+    if (g < 0 || gKind[g] === G_TRANS) { if (g < 0) { if (nIsN[i]) freeNList[nFreeN++] = i; else freePList[nFreeP++] = i; } cnt[nIsN[i] ? 0 : 1]++; }
+  }
+  for (let g = 0; g < GM; g++) { if (gSp[g] < 0) continue; if (gKind[g] === G_REAL) cnt[gSp[g]]++; else if (gKind[g] === G_SPEC) cntSpec[gSp[g]]++; }
+}
+function pickFree(isN, x, y, d, samples, maxDist) {
+  const list = isN ? freeNList : freePList, L = isN ? nFreeN : nFreeP;
+  if (!L) return -1;
+  let best = -1, bd = 1e9;
+  for (let k = 0; k < samples; k++) {
+    const j = list[(Math.random() * L) | 0];
+    if (nGrp[j] !== -1) continue; // -2 marks nucleons already claimed by the caller
+    const dx = nx[j] - x, dy = ny[j] - y, dz = nd[j] - d, dist = dx * dx + dy * dy + dz * dz;
+    if (dist < bd) { bd = dist; best = j; }
+  }
+  if (best < 0) { for (let k = 0; k < L; k++) { const j = list[k]; if (nGrp[j] === -1) { best = j; break; } } }
+  if (maxDist && bd > maxDist * maxDist && best >= 0 && samples > 0) { /* accept anyway, assembly flies it in */ }
+  return best;
+}
+function randomFree(isN) {
+  const list = isN ? freeNList : freePList, L = isN ? nFreeN : nFreeP;
+  for (let k = 0; k < 12 && L; k++) { const j = list[(Math.random() * L) | 0]; if (nGrp[j] === -1) return j; }
+  for (let k = 0; k < L; k++) if (nGrp[list[k]] === -1) return list[k];
+  return -1;
+}
+// rotation of a template vector by the group's axis-angle (Rodrigues)
+const RV = [0, 0, 0];
+function rot(g, v) {
+  const c = Math.cos(gAng[g]), s = Math.sin(gAng[g]), kx = gAxX[g], ky = gAxY[g], kz = gAxZ[g];
+  const dot = kx * v[0] + ky * v[1] + kz * v[2];
+  const cx = ky * v[2] - kz * v[1], cy = kz * v[0] - kx * v[2], cz = kx * v[1] - ky * v[0];
+  RV[0] = v[0] * c + cx * s + kx * dot * (1 - c); RV[1] = v[1] * c + cy * s + ky * dot * (1 - c); RV[2] = v[2] * c + cz * s + kz * dot * (1 - c);
+  return RV;
+}
+const TSC = RW * 0.98;
+function memberPos(i) { // world position of nucleon i (free or bound); writes rx/ry/rd
+  const g = nGrp[i];
+  if (g < 0) { rx[i] = nx[i]; ry[i] = ny[i]; rd[i] = nd[i]; return; }
+  const v = rot(g, TPL[gSp[g]].pos[nSlot[i]]);
+  const k = U.clamp((now - gBorn[g]) / 0.42, 0, 1);
+  const e = k >= 1 ? 1 : 1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2); // ease-out-back
+  const ox = nAx[i] + (v[0] * TSC - nAx[i]) * e, oy = nAy[i] + (v[1] * TSC - nAy[i]) * e, od = nAd[i] + (-v[2] * TSC - nAd[i]) * e;
+  rx[i] = gx[g] + ox; ry[i] = gy[g] + oy; rd[i] = gd[g] + od;
+}
+function formGroup(sp, mem, kind, instant) {
+  const g = allocGroup(); if (g < 0) return -1;
+  const tpl = TPL[sp];
+  // make the identities match the template (only needed in fallbacks)
+  let needN = tpl.n.reduce((s, v) => s + v, 0), haveN = 0;
+  mem.forEach((i) => { haveN += nIsN[i]; });
+  for (let k = 0; k < mem.length && haveN !== needN; k++) {
+    const i = mem[k];
+    if (haveN > needN && nIsN[i]) { nWas[i] = 1; nIsN[i] = 0; nSwap[i] = now; haveN--; }
+    else if (haveN < needN && !nIsN[i]) { nWas[i] = 0; nIsN[i] = 1; nSwap[i] = now; haveN++; }
+  }
+  let cx = 0, cy = 0, cd = 0, vx = 0, vy = 0, vd = 0;
+  mem.forEach((i) => { memberPos(i); cx += rx[i]; cy += ry[i]; cd += rd[i]; vx += (nGrp[i] < 0 ? nvx[i] : 0); vy += (nGrp[i] < 0 ? nvy[i] : 0); vd += (nGrp[i] < 0 ? nvd[i] : 0); });
+  const m = mem.length; cx /= m; cy /= m; cd /= m;
+  gx[g] = cx; gy[g] = cy; gd[g] = cd; gvx[g] = vx / m; gvy[g] = vy / m; gvd[g] = vd / m;
+  gSp[g] = sp; gKind[g] = kind; gNm[g] = m; gBorn[g] = instant ? now - 10 : now; gLife[g] = 0; gHit[g] = 0;
+  let ax = gr(), ay = gr(), az = gr(); const al = Math.hypot(ax, ay, az) || 1;
+  gAxX[g] = ax / al; gAxY[g] = ay / al; gAxZ[g] = az / al; gAng[g] = Math.random() * 6.283; gSpin[g] = (0.5 + Math.random() * 0.9) * (Math.random() < 0.5 ? -1 : 1);
+  // assign slots
+  const usedSlot = new Uint8Array(tpl.pos.length);
+  mem.forEach((i, k) => {
+    let slot = -1;
+    for (let s = 0; s < tpl.pos.length; s++) if (!usedSlot[s] && tpl.n[s] === nIsN[i]) { slot = s; break; }
+    if (slot < 0) for (let s = 0; s < tpl.pos.length; s++) if (!usedSlot[s]) { slot = s; break; }
+    usedSlot[slot] = 1; nSlot[i] = slot;
+    const ox = rx[i] - cx, oy = ry[i] - cy, od = rd[i] - cd;
+    nAx[i] = ox; nAy[i] = oy; nAd[i] = od;
+    nGrp[i] = g; gMem[g * 7 + k] = i;
+  });
+  return g;
+}
+function dissolve(g, kick) {
+  const m = gNm[g];
+  for (let k = 0; k < m; k++) {
+    const i = gMem[g * 7 + k];
+    memberPos(i);
+    nx[i] = rx[i]; ny[i] = ry[i]; nd[i] = rd[i];
+    const ox = rx[i] - gx[g], oy = ry[i] - gy[g], od = rd[i] - gd[g], ol = Math.hypot(ox, oy, od) || 1;
+    nvx[i] = gvx[g] + ox / ol * kick; nvy[i] = gvy[g] + oy / ol * kick; nvd[i] = gvd[g] + od / ol * kick;
+    nGrp[i] = -1;
+  }
+  freeGroup(g);
+}
+function groupMembers(g) { const out = []; for (let k = 0; k < gNm[g]; k++) out.push(gMem[g * 7 + k]); return out; }
+function groupsOf(sp, kind) { const out = []; for (let g = 0; g < GM; g++) if (gSp[g] === sp && gKind[g] === kind) out.push(g); return out; }
+
+/* ---------- transient effects: flares and streaks ---------- */
+const FL_MAX = 320;
+const flX = new Float32Array(FL_MAX), flY = new Float32Array(FL_MAX), flD = new Float32Array(FL_MAX), flT0 = new Float32Array(FL_MAX), flLife = new Float32Array(FL_MAX), flSize = new Float32Array(FL_MAX), flI = new Float32Array(FL_MAX);
+const flCol = new Float32Array(FL_MAX * 3); let flN = 0;
+function flare(x, y, d, col, size, life, inten) {
+  let k = flN < FL_MAX ? flN++ : -1;
+  if (k < 0) { let old = 0; for (let j = 1; j < FL_MAX; j++) if (flT0[j] < flT0[old]) old = j; k = old; }
+  flX[k] = x; flY[k] = y; flD[k] = d; flT0[k] = now; flLife[k] = life; flSize[k] = size; flI[k] = inten;
+  flCol[k * 3] = col[0]; flCol[k * 3 + 1] = col[1]; flCol[k * 3 + 2] = col[2];
+}
+const ST_MAX = 220;
+const stX = new Float32Array(ST_MAX), stY = new Float32Array(ST_MAX), stD = new Float32Array(ST_MAX), stDx = new Float32Array(ST_MAX), stDy = new Float32Array(ST_MAX), stDd = new Float32Array(ST_MAX);
+const stV = new Float32Array(ST_MAX), stL = new Float32Array(ST_MAX), stT0 = new Float32Array(ST_MAX), stLife = new Float32Array(ST_MAX), stI = new Float32Array(ST_MAX), stW = new Float32Array(ST_MAX);
+const stCol = new Float32Array(ST_MAX * 3); let stN = 0;
+function streak(x, y, d, dx, dy, dd, v, len, life, col, inten, w) {
+  let k = stN < ST_MAX ? stN++ : -1;
+  if (k < 0) { let old = 0; for (let j = 1; j < ST_MAX; j++) if (stT0[j] < stT0[old]) old = j; k = old; }
+  const l = Math.hypot(dx, dy, dd) || 1;
+  stX[k] = x; stY[k] = y; stD[k] = d; stDx[k] = dx / l; stDy[k] = dy / l; stDd[k] = dd / l; stV[k] = v; stL[k] = len; stT0[k] = now; stLife[k] = life; stI[k] = inten; stW[k] = w || 1.6;
+  stCol[k * 3] = col[0]; stCol[k * 3 + 1] = col[1]; stCol[k * 3 + 2] = col[2];
+}
+function randDir() { const z = Math.random() * 2 - 1, a = Math.random() * 6.283, r = Math.sqrt(1 - z * z); return [r * Math.cos(a), r * Math.sin(a), z]; }
+const C_GAMMA = lin('#fff4dc'), C_HARD = lin('#bcd4ff'), C_E = lin('#8fe9ff'), C_NU = lin('#9aa2b8'), C_POS = lin('#ff9ad5');
+
+/* ---------- events (visual reactions) ---------- */
+const EV = { he4: 0, d: 0, decay: 0, photo: 0, churn: 0, specimens: 0, attempts: 0 };
+let soundEvents = [];
+function gammaFrom(x, y, d, inten) { const dir = randDir(); streak(x, y, d, dir[0], dir[1], dir[2], 3.6, 0.38, 0.55, C_GAMMA, inten || 1.1, 1.8); }
+function makeD(kind) {
+  let i = randomFree(1); if (i < 0) return -1;
+  if (kind === G_TRANS) for (let k = 0; k < 6 && (nd[i] < 1.25 || nd[i] > 4.2); k++) { const j = randomFree(1); if (j >= 0) i = j; }
+  const j = pickFree(0, nx[i], ny[i], nd[i], 18); if (j < 0) return -1;
+  const g = formGroup(2, [i, j], kind);
+  if (g < 0) return -1;
+  gx[g] = (nx[i] + nx[j]) / 2; // centroid already set by formGroup
+  if (kind === G_REAL) { flare(gx[g], gy[g], gd[g], SPL[2], 0.075, 0.45, 1.2); gammaFrom(gx[g], gy[g], gd[g], 1.0); EV.d++; soundEvents.push(1); }
+  else { flare(gx[g], gy[g], gd[g], SPL[2], 0.05, 0.3, 0.55); EV.attempts++; }
+  return g;
+}
+function nearestGroup(sp, g0, kind) {
+  let best = -1, bd = 1e9;
+  for (let g = 0; g < GM; g++) { if (g === g0 || gSp[g] !== sp || gKind[g] !== kind) continue; const dx = gx[g] - gx[g0], dy = gy[g] - gy[g0], dz = gd[g] - gd[g0], dd = dx * dx + dy * dy + dz * dz; if (dd < bd) { bd = dd; best = g; } }
+  return best >= 0 ? { g: best, d: Math.sqrt(bd) } : null;
+}
+function makeHe4() {
+  // preferred channels mimic the network: ³H + D → ⁴He + n, ³He + D → ⁴He + p, D + D, D + n + p, then 2n + 2p
+  const Ds = groupsOf(2, G_REAL), Ts = groupsOf(3, G_REAL), H3s = groupsOf(4, G_REAL);
+  let mem = null, eject = -1, ex = 0, ey = 0, ed = 0;
+  const pair = (A3, extraIsN) => {
+    const a = A3[(Math.random() * A3.length) | 0], nd_ = nearestGroup(2, a, G_REAL);
+    if (!nd_ || nd_.d > 0.9) return false;
+    const mm = groupMembers(a).concat(groupMembers(nd_.g));
+    ex = gx[a]; ey = gy[a]; ed = gd[a];
+    dissolve(a, 0); dissolve(nd_.g, 0);
+    // drop one surplus nucleon of the right kind
+    let drop = -1; for (let k = 0; k < mm.length; k++) if (nIsN[mm[k]] === extraIsN) { drop = k; break; }
+    eject = mm[drop]; mm.splice(drop, 1); mem = mm; return true;
+  };
+  if (Ts.length && Ds.length && Math.random() < 0.7) pair(Ts, 1);
+  if (!mem && H3s.length && Ds.length && Math.random() < 0.7) pair(H3s, 0);
+  if (!mem && Ds.length >= 2) {
+    const a = Ds[(Math.random() * Ds.length) | 0], b = nearestGroup(2, a, G_REAL);
+    if (b && b.d < 0.8) { mem = groupMembers(a).concat(groupMembers(b.g)); dissolve(a, 0); dissolve(b.g, 0); }
+  }
+  if (!mem && Ds.length) {
+    const a = Ds[(Math.random() * Ds.length) | 0];
+    const i = pickFree(1, gx[a], gy[a], gd[a], 24), j = i >= 0 ? pickFree(0, gx[a], gy[a], gd[a], 24) : -1;
+    if (i >= 0 && j >= 0) { mem = groupMembers(a).concat([i, j]); dissolve(a, 0); }
+  }
+  if (!mem) {
+    // 2n + 2p from the free soup; if free neutrons have run out (e.g. after a parameter change late in the run),
+    // borrow protons and let formGroup fix the identities so the census still matches the network
+    let i = randomFree(1); if (i < 0) i = randomFree(0); if (i < 0) return false;
+    const x = nx[i], y = ny[i], d = nd[i];
+    mem = [i]; nGrp[i] = -2;
+    for (const want of [1, 0, 0]) { let j = pickFree(want, x, y, d, 20); if (j < 0) j = pickFree(1 - want, x, y, d, 20); if (j < 0) break; nGrp[j] = -2; mem.push(j); }
+    mem.forEach((k) => { nGrp[k] = -1; });
+    if (mem.length < 4) return false;
+  }
+  const g = formGroup(5, mem, G_REAL);
+  if (g < 0) return false;
+  if (eject >= 0) { const dir = randDir(); nvx[eject] = dir[0] * 0.9; nvy[eject] = dir[1] * 0.9; nvd[eject] = dir[2] * 0.9; flare(ex, ey, ed, SPL[nIsN[eject] ? 0 : 1], 0.05, 0.3, 0.6); }
+  flare(gx[g], gy[g], gd[g], SPL[5], 0.19, 0.8, 2.2);
+  EV.he4++; soundEvents.push(5);
+  return true;
+}
+function makeA3(sp) { // ³H (sp 3) or ³He (sp 4): D + D → ³H + p / ³He + n, else from free nucleons
+  const Ds = groupsOf(2, G_REAL);
+  let mem = null;
+  if (Ds.length >= 2) {
+    const a = Ds[(Math.random() * Ds.length) | 0], b = nearestGroup(2, a, G_REAL);
+    if (b && b.d < 0.8) {
+      const mm = groupMembers(a).concat(groupMembers(b.g)); dissolve(a, 0); dissolve(b.g, 0);
+      const dropN = sp === 4 ? 1 : 0; let drop = -1; for (let k = 0; k < mm.length; k++) if (nIsN[mm[k]] === dropN) { drop = k; break; }
+      const ej = mm[drop]; mm.splice(drop, 1); mem = mm; const dir = randDir(); nvx[ej] = dir[0] * 0.7; nvy[ej] = dir[1] * 0.7; nvd[ej] = dir[2] * 0.7;
+    }
+  }
+  if (!mem) {
+    const i = randomFree(sp === 3 ? 1 : 0); if (i < 0) return false;
+    nGrp[i] = -2; const j = pickFree(1, nx[i], ny[i], nd[i], 16); if (j >= 0) nGrp[j] = -2;
+    const k = pickFree(0, nx[i], ny[i], nd[i], 16); nGrp[i] = -1; if (j >= 0) nGrp[j] = -1;
+    if (j < 0 || k < 0) return false; mem = [i, j, k];
+  }
+  const g = formGroup(sp, mem, G_REAL); if (g < 0) return false;
+  flare(gx[g], gy[g], gd[g], SPL[sp], 0.11, 0.55, 1.5); soundEvents.push(3);
+  return true;
+}
+function decayN(i, reverse) {
+  nWas[i] = nIsN[i]; nIsN[i] = reverse ? 1 : 0; nSwap[i] = now;
+  if (!reverse) {
+    flare(nx[i], ny[i], nd[i], C_E, 0.045, 0.35, 0.8);
+    const d1 = randDir(); streak(nx[i], ny[i], nd[i], d1[0], d1[1], d1[2], 2.4, 0.2, 0.45, C_E, 0.9, 1.3);
+    streak(nx[i], ny[i], nd[i], -d1[0] + gr() * 0.3, -d1[1] + gr() * 0.3, -d1[2], 3.4, 0.28, 0.5, C_NU, 0.3, 1.0);
+    EV.decay++; if (Math.random() < 0.5) soundEvents.push(0);
+  }
+}
+function removeGroupSoft(g) { if (g == null || gSp[g] < 0) return; flare(gx[g], gy[g], gd[g], SPL[gSp[g]], 0.05, 0.35, 0.5); dissolve(g, 0.25); }
+
+/* ---------- specimen nuclei for species too rare to appear ---------- */
+let specOn = true;
+function specimenWanted(sp) {
+  if (!specOn) return false;
+  const t = Math.exp(lt);
+  if (t < KEY.tDone * 0.95) return false;
+  if (cnt[sp] > 0) return false;
+  return XS[sp] > 1e-14;
+}
+const SPEC_ANCHOR = { 2: [0.2, 0.28], 4: [0.8, 0.3], 6: [0.28, 0.78], 7: [0.74, 0.74] };
+function ensureSpecimens() {
+  for (const sp of [2, 4, 6, 7]) {
+    const want = specimenWanted(sp), have = groupsOf(sp, G_SPEC);
+    if (want && !have.length) {
+      // build from free nucleons near the centre of view
+      const tpl = TPL[sp], mem = [];
+      const sb = safeBox(), Wc = window.innerWidth, Hc = window.innerHeight;
+      const an = SPEC_ANCHOR[sp];
+      const u = (sb.x0 + (an[0] + 0.08 * (Math.random() - 0.5)) * (sb.x1 - sb.x0)) / Wc, v = (sb.y0 + (an[1] + 0.08 * (Math.random() - 0.5)) * (sb.y1 - sb.y0)) / Hc;
+      const cdw = 1.5 + Math.random() * 0.6, cxw = (u * 2 - 1) * cdw * TX, cyw = (1 - v * 2) * cdw * TY;
+      for (let s = 0; s < tpl.pos.length; s++) { const i = pickFree(tpl.n[s], cxw, cyw, cdw, 40); if (i < 0) break; nGrp[i] = -2; mem.push(i); }
+      mem.forEach((i) => { nGrp[i] = -1; });
+      if (mem.length === tpl.pos.length) { const g = formGroup(sp, mem, G_SPEC); if (g >= 0) { gx[g] = cxw; gy[g] = cyw; gd[g] = cdw; gvx[g] = gvy[g] = gvd[g] = 0; flare(gx[g], gy[g], gd[g], SPL[sp], 0.14, 0.9, 1.6); EV.specimens++; } }
+    } else if (!want && have.length) have.forEach((g) => removeGroupSoft(g));
+  }
+}
+
+/* ---------- reconcile the soup with the network ---------- */
+let lastRebuildLt = null;
+function targets() { const T = new Float64Array(8); for (let s = 0; s < 8; s++) T[s] = N * XS[s] / eng.A[s]; return T; }
+function rebuild() {
+  // instant, silent re-population (after big scrubs or parameter jumps)
+  for (let g = 0; g < GM; g++) if (gSp[g] >= 0) dissolve(g, 0);
+  const tg = targets();
+  let nNeut = 0; for (let s = 0; s < 8; s++) nNeut += tg[s] * [1, 0, 1, 2, 1, 2, 4, 3][s];
+  nNeut = Math.round(nNeut);
+  for (let i = 0; i < N; i++) nIsN[i] = 0;
+  let placed = 0; while (placed < nNeut) { const i = (Math.random() * N) | 0; if (!nIsN[i]) { nIsN[i] = 1; placed++; } }
+  rebuildLists();
+  const build = (sp, k) => {
+    for (let c = 0; c < k; c++) {
+      const tpl = TPL[sp], mem = [];
+      const i0 = randomFree(tpl.n[0]); if (i0 < 0) return; nGrp[i0] = -2; mem.push(i0);
+      for (let s = 1; s < tpl.pos.length; s++) { const i = pickFree(tpl.n[s], nx[i0], ny[i0], nd[i0], 30); if (i < 0) break; nGrp[i] = -2; mem.push(i); }
+      mem.forEach((i) => { nGrp[i] = -1; });
+      if (mem.length === tpl.pos.length) formGroup(sp, mem, G_REAL, true);
+    }
+  };
+  build(5, Math.round(tg[5])); build(3, Math.round(tg[3])); build(4, Math.round(tg[4])); build(2, Math.round(tg[2]));
+  rebuildLists();
+  ensureSpecimens(); rebuildLists();
+  // settle the free n/p balance silently
+  let ex = Math.round(cnt[0] - tg[0]);
+  while (ex > 0) { const i = randomFree(1); if (i < 0) break; nIsN[i] = 0; ex--; }
+  while (ex < 0) { const i = randomFree(0); if (i < 0) break; nIsN[i] = 1; ex++; }
+  rebuildLists();
+  lastRebuildLt = lt;
+}
+const HYST = 0.62;
+function reconcile(dtCos, Tmev) {
+  rebuildLists();
+  const tg = targets();
+  // big mismatch → silent rebuild
+  let mis = Math.abs(tg[5] - cnt[5]) + Math.abs(tg[2] - cnt[2]) * 0.5 + Math.abs(tg[0] - cnt[0]) * 0.12;
+  if (mis > (SMALL ? 26 : 45)) { rebuild(); rebuildLists(); }
+  let budget = 7;
+  // ⁴He
+  let d4 = tg[5] - cnt[5];
+  while (d4 > HYST && budget > 0) { if (!makeHe4()) break; rebuildLists(); d4 -= 1; budget--; }
+  if (d4 < -HYST - 0.6) { const Hs = groupsOf(5, G_REAL); let k = Math.min(Hs.length, Math.round(-d4), 3); while (k-- > 0) removeGroupSoft(Hs.splice((Math.random() * Hs.length) | 0, 1)[0]); rebuildLists(); }
+  // ³H, ³He
+  for (const sp of [3, 4]) {
+    const dd = tg[sp] - cnt[sp];
+    if (dd > HYST && budget > 0) { if (makeA3(sp)) { rebuildLists(); budget--; } }
+    else if (dd < -HYST) {
+      const gs = groupsOf(sp, G_REAL); const g = gs[0];
+      if (g != null) {
+        const D = nearestGroup(2, g, G_REAL);
+        if (D && D.d < 1 && tg[5] - cnt[5] > -1.2) { // ³H/³He + D → ⁴He + n/p
+          const mm = groupMembers(g).concat(groupMembers(D.g)); dissolve(g, 0); dissolve(D.g, 0);
+          const dropN = sp === 3 ? 1 : 0; let drop = -1; for (let k = 0; k < mm.length; k++) if (nIsN[mm[k]] === dropN) { drop = k; break; }
+          const ej = mm[drop]; mm.splice(drop, 1); const h = formGroup(5, mm, G_REAL);
+          const dir = randDir(); nvx[ej] = dir[0] * 0.9; nvy[ej] = dir[1] * 0.9; nvd[ej] = dir[2] * 0.9;
+          if (h >= 0) { flare(gx[h], gy[h], gd[h], SPL[5], 0.19, 0.8, 2.2); EV.he4++; soundEvents.push(5); }
+        } else removeGroupSoft(g);
+        rebuildLists();
+      }
+    }
+  }
+  // D
+  const dD = tg[2] - cnt[2];
+  if (dD > HYST) { let k = Math.min(budget, Math.ceil(dD - HYST)); while (k-- > 0) { if (makeD(G_REAL) < 0) break; } rebuildLists(); }
+  else if (dD < -HYST) {
+    const Ds = groupsOf(2, G_REAL);
+    let k = Math.min(3, Math.round(-dD));
+    while (k-- > 0 && Ds.length) {
+      const g = Ds.splice((Math.random() * Ds.length) | 0, 1)[0];
+      if (Tmev > 0.075) photodissociate(g); else removeGroupSoft(g);
+    }
+    rebuildLists();
+  }
+  // free neutrons ⇄ protons (net), after composites
+  const dn = cnt[0] - tg[0];
+  if (dn > 0.9) { let k = Math.min(SMALL ? 6 : 12, Math.floor(dn)); while (k-- > 0) { const i = randomFree(1); if (i < 0) break; decayN(i, false); } }
+  else if (dn < -0.9) { let k = Math.min(12, Math.floor(-dn)); while (k-- > 0) { const i = randomFree(0); if (i < 0) break; decayN(i, true); } }
+  // weak churn: balanced n ⇄ p swaps at the real rates (shimmer)
+  if (dtCos > 0 && Tmev > 0.12) {
+    const lnp = weakNP(Tmev), lpn = weakPN(Tmev);
+    const pairs = Math.min(lnp * nFreeN, lpn * nFreeP) * dtCos;
+    let k = Math.min(SMALL ? 12 : 24, poisson(pairs));
+    while (k-- > 0) { const a = randomFree(1), b = randomFree(0); if (a < 0 || b < 0) break; nWas[a] = 1; nIsN[a] = 0; nSwap[a] = now; nWas[b] = 0; nIsN[b] = 1; nSwap[b] = now; EV.churn++; }
+  }
+  ensureSpecimens();
+}
+function poisson(m) { if (m <= 0) return 0; if (m > 30) return Math.max(0, Math.round(m + Math.sqrt(m) * gr())); let L = Math.exp(-m), k = 0, p = 1; do { k++; p *= Math.random(); } while (p > L); return k - 1; }
+function photodissociate(g) {
+  // a hard photon arrives and splits the deuteron
+  const dir = randDir();
+  streak(gx[g] - dir[0] * 0.7, gy[g] - dir[1] * 0.7, gd[g] - dir[2] * 0.7, dir[0], dir[1], dir[2], 4.5, 0.42, 0.32, C_HARD, 2.2, 2.0);
+  flare(gx[g], gy[g], gd[g], C_HARD, 0.07, 0.35, 1.3);
+  dissolve(g, 0.55); EV.photo++; if (Math.random() < 0.5) soundEvents.push(2);
+}
+// flickering deuterons during the bottleneck (illustrative; not counted)
+let attemptAcc = 0;
+function bottleneckFlicker(dtWall, Tmev) {
+  const t = Math.exp(lt);
+  const nb = nAboveB(Tmev);
+  // live transients
+  for (let g = 0; g < GM; g++) {
+    if (gSp[g] !== 2 || gKind[g] !== G_TRANS) continue;
+    if (!gHit[g] && now > gLife[g] - 0.16) { const dir = randDir(); streak(gx[g] - dir[0] * 0.72, gy[g] - dir[1] * 0.72, gd[g] - dir[2] * 0.72, dir[0], dir[1], dir[2], 4.5, 0.42, 0.3, C_HARD, 2.4, 2.0); gHit[g] = 1; }
+    if (now > gLife[g]) { flare(gx[g], gy[g], gd[g], C_HARD, 0.065, 0.3, 1.2); dissolve(g, 0.55); EV.photo++; if (Math.random() < 0.35) soundEvents.push(2); }
+  }
+  if (t < 3 || t > KEY.tBreak * 1.02 || nb < 0.3 || dtWall <= 0) return;
+  attemptAcc += dtWall * (SMALL ? 3.2 : 6) * U.clamp(speed, 0.3, 2.5) * U.smoothstep(3, 12, t);
+  while (attemptAcc > 1) {
+    attemptAcc -= 1;
+    rebuildLists();
+    const g = makeD(G_TRANS);
+    if (g >= 0) gLife[g] = now + 0.22 + 0.9 / (1 + nb / 4) + Math.random() * 0.12;
+  }
+}
+// e⁺e⁻ → γγ sparks while pairs are still abundant
+let annAcc = 0;
+function pairSparks(dtWall, Tmev) {
+  const k = Math.max(0, Math.round((Math.log(Tmev) - eng.tab.lnT[0]) / (eng.tab.lnT[eng.tab.lnT.length - 1] - eng.tab.lnT[0]) * (eng.tab.lnT.length - 1)));
+  const frac = eng.tab.rhoE[Math.min(k, eng.tab.rhoE.length - 1)] / (7 / 8 * 2 * Math.PI * Math.PI / 15); // e± energy relative to fully relativistic
+  annAcc += dtWall * frac * (SMALL ? 10 : 22) * U.clamp(speed, 0.3, 2.5);
+  while (annAcc > 1) {
+    annAcc -= 1;
+    const d = 0.9 + Math.random() * 3.4, x = (Math.random() * 2 - 1) * d * TX, y = (Math.random() * 2 - 1) * d * TY;
+    flare(x, y, d, C_POS, 0.035, 0.25, 0.7);
+    const dir = randDir();
+    streak(x, y, d, dir[0], dir[1], dir[2], 3.8, 0.3, 0.4, C_GAMMA, 0.7, 1.3);
+    streak(x, y, d, -dir[0], -dir[1], -dir[2], 3.8, 0.3, 0.4, C_GAMMA, 0.7, 1.3);
+  }
+}
+
+/* ---------- motion ---------- */
+let stir = null; // {x,y,dx,dy,t} in CSS px
+function wrap(i, arrx, arry, arrd) {
+  let d = arrd[i];
+  if (d > DF) { const nd_ = DN + (d - DF); arrx[i] *= nd_ / d; arry[i] *= nd_ / d; arrd[i] = d = nd_; }
+  else if (d < DN) { const nd_ = DF - (DN - d); arrx[i] *= nd_ / d; arry[i] *= nd_ / d; arrd[i] = d = nd_; }
+  const xr = d * TX * 1.06, yr = d * TY * 1.06;
+  if (arrx[i] > xr) arrx[i] -= 2 * xr; else if (arrx[i] < -xr) arrx[i] += 2 * xr;
+  if (arry[i] > yr) arry[i] -= 2 * yr; else if (arry[i] < -yr) arry[i] += 2 * yr;
+}
+function move(dt, Tmev) {
+  if (dt <= 0) return;
+  const sig = 0.028 + 0.13 * Math.sqrt(Tmev / 0.86), tau = 0.7, a = Math.exp(-dt / tau), b = Math.sqrt(1 - a * a);
+  const W = window.innerWidth, H = window.innerHeight;
+  let sx = 0, sy = 0, sR = 0, sK = 0, sdx = 0, sdy = 0;
+  if (stir && now - stir.t < 0.12) { sx = stir.x; sy = stir.y; sR = Math.min(W, H) * 0.16; sdx = stir.dx; sdy = stir.dy; sK = 1; }
+  const stirAt = (x, y, d) => {
+    const sc = toScreen(x, y, d), px = sc[0] * W, py = sc[1] * H;
+    const ddx = px - sx, ddy = py - sy, r2 = ddx * ddx + ddy * ddy;
+    if (r2 > sR * sR) return null;
+    const f = (1 - Math.sqrt(r2) / sR) * 0.9 * d * 2 * TY / H / ZK;
+    return [sdx * f * 60, -sdy * f * 60];
+  };
+  for (let i = 0; i < N; i++) {
+    if (nGrp[i] >= 0) continue;
+    nvx[i] = nvx[i] * a + sig * b * gr(); nvy[i] = nvy[i] * a + sig * b * gr(); nvd[i] = nvd[i] * a + sig * b * gr();
+    if (sK) { const s = stirAt(nx[i], ny[i], nd[i]); if (s) { nvx[i] += s[0]; nvy[i] += s[1]; } }
+    nx[i] += nvx[i] * dt; ny[i] += nvy[i] * dt; nd[i] += nvd[i] * dt;
+    wrap(i, nx, ny, nd);
+  }
+  for (let g = 0; g < GM; g++) {
+    if (gSp[g] < 0) continue;
+    const sg = sig / Math.sqrt(gNm[g]);
+    gvx[g] = gvx[g] * a + sg * b * gr(); gvy[g] = gvy[g] * a + sg * b * gr(); gvd[g] = gvd[g] * a + sg * b * gr();
+    if (sK) { const s = stirAt(gx[g], gy[g], gd[g]); if (s) { gvx[g] += s[0]; gvy[g] += s[1]; } }
+    gx[g] += gvx[g] * dt; gy[g] += gvy[g] * dt; gd[g] += gvd[g] * dt;
+    wrap(g, gx, gy, gd);
+    gAng[g] += gSpin[g] * dt * (gKind[g] === G_TRANS ? 2 : 1);
+    if (gKind[g] === G_SPEC) { gvx[g] *= 0.97; gvy[g] *= 0.97; gvd[g] *= 0.97; }
+  }
+}
+
+/* ---------- ambient photons ---------- */
+const PH = SMALL ? 380 : 1100;
+const phx = new Float32Array(PH), phy = new Float32Array(PH), phd = new Float32Array(PH), phdx = new Float32Array(PH), phdy = new Float32Array(PH), phdd = new Float32Array(PH), phSeed = new Float32Array(PH);
+for (let i = 0; i < PH; i++) { const d = randomDepth(); phd[i] = d; phx[i] = (Math.random() * 2 - 1) * d * TX; phy[i] = (Math.random() * 2 - 1) * d * TY; const r = randDir(); phdx[i] = r[0]; phdy[i] = r[1]; phdd[i] = r[2]; phSeed[i] = Math.random(); }
+let photonsOn = true;
+function movePhotons(dt) {
+  const v = 2.6;
+  for (let i = 0; i < PH; i++) { phx[i] += phdx[i] * v * dt; phy[i] += phdy[i] * v * dt; phd[i] += phdd[i] * v * dt; wrap(i, phx, phy, phd); }
+}
+
+/* ------------------------------------------------------------------------- WebGL renderer */
+const canvas = ch.canvas('ns-gl');
+const gl = Cosmos.gl.context(canvas, { alpha: false, antialias: false });
+if (!gl) { ch.fatal('This chapter needs WebGL2, which this browser or device does not provide.'); return; }
+const overlay = ch.canvas('ns-labels');
+const octx = overlay.getContext('2d');
+ch.stage.append(Cosmos.h('div', { class: 'ns-scrim' }));
+// dragging across the plasma must never start a text selection in the panels
+ch.stage.addEventListener('selectstart', (e) => e.preventDefault());
+
+const HDR = gl.ext.floatRT || gl.ext.halfFloatRT;
+const RT_FMT = HDR ? { internal: gl.RGBA16F, format: gl.RGBA, type: gl.HALF_FLOAT } : { internal: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE };
+
+const BG_FS = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+uniform vec2 uRes; uniform float uTime; uniform vec3 uCol; uniform float uBright; uniform float uPulse; uniform float uHeat;
+float hash(vec3 p){ p = fract(p*0.3183099 + .1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+float noise(vec3 x){ vec3 i = floor(x), f = fract(x); f = f*f*(3.-2.*f);
+  return mix(mix(mix(hash(i), hash(i+vec3(1,0,0)), f.x), mix(hash(i+vec3(0,1,0)), hash(i+vec3(1,1,0)), f.x), f.y),
+             mix(mix(hash(i+vec3(0,0,1)), hash(i+vec3(1,0,1)), f.x), mix(hash(i+vec3(0,1,1)), hash(i+vec3(1,1,1)), f.x), f.y), f.z); }
+float fbm(vec3 p){ float a = .5, s = 0.; for (int i = 0; i < 5; i++){ s += a*noise(p); p = p*2.03 + vec3(1.7,9.2,3.1); a *= .5; } return s; }
+void main(){
+  vec2 p = (vUv - .5) * vec2(uRes.x/uRes.y, 1.);
+  float r = length(p);
+  vec3 q = vec3(p*1.35, uTime*.045);
+  float w = fbm(q + vec3(0., 0., uTime*.02));
+  float n = fbm(q*1.6 + vec3(w*1.8, -w*1.2, uTime*.03));
+  float fil = pow(n, 3.0);
+  float glow = uBright * (0.22 + 3.0*fil) * (1.0 - 0.62*smoothstep(0.05, 1.0, r)) * (1.0 + 0.55*exp(-r*r*2.5));
+  vec3 c = uCol * glow;
+  c += uCol * uPulse * 0.16 * exp(-r*r*4.0);
+  // the furnace: at 10¹⁰ K a boiling white-hot core fills the view
+  float boil = fbm(vec3(p*2.4, uTime*.22) + vec3(w*2.0));
+  c += mix(uCol, vec3(1., .93, .8), .3) * uHeat * uHeat * (0.03 + 0.9*boil*boil*boil) * exp(-r*r*2.6);
+  // fine sparkle of the photon sea
+  float s = hash(vec3(floor(gl_FragCoord.xy*.5), floor(uTime*24.)));
+  c += uCol * uBright * 0.22 * step(0.9965, s);
+  o = vec4(c, 1.);
+}`;
+const SPR_VS = `#version 300 es
+layout(location=0) in vec2 aC;
+layout(location=1) in vec4 iPS;
+layout(location=2) in vec4 iCol;
+layout(location=3) in vec4 iKX;
+uniform mat4 uProj;
+out vec2 vC; out vec4 vCol; flat out float vKind; out float vX; out float vFog; out float vBlur;
+void main(){
+  float kind = iKX.x;
+  float half_ = kind < 0.5 ? iPS.w*2.6 : iPS.w;
+  vec3 p = iPS.xyz + vec3(aC*half_, 0.);
+  gl_Position = uProj * vec4(p, 1.);
+  float d = -iPS.z;
+  vC = aC; vCol = iCol; vKind = kind; vX = iKX.y;
+  vFog = smoothstep(0.7, 1.6, d) * exp(-max(d - 2.0, 0.) * 0.33);
+  vBlur = clamp(abs(d - 2.1) * 0.22, 0., 1.);
+}`;
+const SPR_FS = `#version 300 es
+precision highp float;
+in vec2 vC; in vec4 vCol; flat in float vKind; in float vX; in float vFog; in float vBlur;
+out vec4 o;
+void main(){
+  if (vKind < 0.5) {
+    vec2 q = vC * 2.6; float r2 = dot(q, q);
+    vec3 base = vCol.rgb;
+    float halo = (exp(-r2*1.3)*0.32 + exp(-r2*0.3)*0.05) * vX;
+    float r = sqrt(r2);
+    float edge = 0.1 + 0.55*vBlur;
+    float a = (1.0 - smoothstep(1.0 - edge, 1.0 + edge*0.4, r)) * vCol.a;
+    vec3 c = vec3(0.);
+    if (r < 1.25) {
+      float rr = min(r2, 0.999);
+      vec3 n = vec3(q, sqrt(1. - rr));
+      vec3 L = normalize(vec3(-.45, .55, .7));
+      float dif = max(dot(n, L), 0.);
+      float sp = pow(max(dot(reflect(-L, n), vec3(0,0,1)), 0.), 26.) * (1. - vBlur);
+      float rim = pow(1. - n.z, 2.5);
+      c = base*(0.22 + 1.0*dif) + vec3(1., .95, .86)*sp*0.7 + base*rim*1.1;
+    }
+    o = vec4(c*a + base*halo*(1. - a), a);
+    o *= vFog;
+  } else if (vKind < 1.5) {
+    float r2 = dot(vC, vC);
+    float g = (exp(-r2*7.0)*0.9 + exp(-r2*2.6)*0.3) * (1. - smoothstep(0.55, 1.0, sqrt(r2)));
+    o = vec4(vCol.rgb * g * vCol.a * vFog, 0.);
+  } else {
+    float r = length(vC), age = vX;
+    float fade = (1. - age); fade *= fade;
+    float core = exp(-r*r*55.)*1.8;
+    float rays = (exp(-abs(vC.x)*70.)*exp(-abs(vC.y)*3.2) + exp(-abs(vC.y)*70.)*exp(-abs(vC.x)*3.2))*0.75;
+    float ring = exp(-pow((r - (0.1 + age*0.55))/0.035, 2.))*0.5*(1. - age)*(1. - age);
+    o = vec4(vCol.rgb * ((core + rays)*fade + ring) * vCol.a * max(vFog, 0.35), 0.);
+  }
+}`;
+const LN_VS = `#version 300 es
+layout(location=0) in vec2 aC;
+layout(location=1) in vec4 iH;
+layout(location=2) in vec4 iT;
+layout(location=3) in vec3 iCol;
+uniform mat4 uProj; uniform vec2 uRes;
+out float vA; out float vS; out vec3 vCol; out float vI;
+void main(){
+  vec4 h = uProj*vec4(iH.xyz, 1.), t = uProj*vec4(iT.xyz, 1.);
+  vec2 hs = h.xy/h.w*uRes*.5, ts = t.xy/t.w*uRes*.5;
+  vec2 d = hs - ts; float L = length(d); d = L > 1e-3 ? d/L : vec2(1., 0.);
+  vec2 n = vec2(-d.y, d.x);
+  float w = iT.w;
+  vec2 s = mix(ts - d*w, hs + d*w, aC.x) + n*aC.y*w;
+  gl_Position = vec4(s/(uRes*.5), 0., 1.);
+  vA = aC.x; vS = aC.y; vCol = iCol; vI = iH.w;
+}`;
+const LN_FS = `#version 300 es
+precision highp float; in float vA; in float vS; in vec3 vCol; in float vI; out vec4 o;
+void main(){ float a = vA*vA*vA; float x = exp(-vS*vS*3.5); o = vec4(vCol * vI * a * x, 0.); }`;
+const DOWN_FS = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o; uniform sampler2D uTex; uniform vec2 uTexel; uniform float uThresh; uniform float uPre;
+void main(){
+  vec3 s = texture(uTex, vUv).rgb*4.0;
+  s += texture(uTex, vUv + uTexel*vec2(-1.,-1.)).rgb; s += texture(uTex, vUv + uTexel*vec2(1.,-1.)).rgb;
+  s += texture(uTex, vUv + uTexel*vec2(-1.,1.)).rgb; s += texture(uTex, vUv + uTexel*vec2(1.,1.)).rgb;
+  s /= 8.0;
+  if (uPre > 0.5) { float l = max(s.r, max(s.g, s.b)); float k = max(l - uThresh, 0.) / max(l, 1e-4); s *= k; }
+  o = vec4(s, 1.);
+}`;
+const UP_FS = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o; uniform sampler2D uTex; uniform vec2 uTexel;
+void main(){
+  vec3 s = vec3(0.);
+  s += texture(uTex, vUv + uTexel*vec2(-2., 0.)).rgb; s += texture(uTex, vUv + uTexel*vec2(2., 0.)).rgb;
+  s += texture(uTex, vUv + uTexel*vec2(0., -2.)).rgb; s += texture(uTex, vUv + uTexel*vec2(0., 2.)).rgb;
+  s += texture(uTex, vUv + uTexel*vec2(-1., -1.)).rgb*2.; s += texture(uTex, vUv + uTexel*vec2(1., -1.)).rgb*2.;
+  s += texture(uTex, vUv + uTexel*vec2(-1., 1.)).rgb*2.; s += texture(uTex, vUv + uTexel*vec2(1., 1.)).rgb*2.;
+  o = vec4(s/12., 1.);
+}`;
+const COMP_FS = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+uniform sampler2D uScene; uniform sampler2D uBloom; uniform float uBloomK; uniform float uExpo; uniform float uTime; uniform vec2 uRes;
+uniform float uShock; uniform vec2 uShockC; uniform vec3 uGrade;
+vec3 aces(vec3 x){ return clamp((x*(2.51*x + .03))/(x*(2.43*x + .59) + .14), 0., 1.); }
+void main(){
+  // the dam-break shock front: a gold ring that sweeps outward and bends the light it crosses
+  vec2 asp = vec2(uRes.x/uRes.y, 1.);
+  vec2 sp = (vUv - uShockC) * asp;
+  float sr = length(sp);
+  vec2 sdir = sr > 1e-4 ? sp / sr : vec2(0.);
+  float ring = 0., ring2 = 0., sI = 0.;
+  if (uShock > 0. && uShock < 1.) {
+    float R = 0.04 + 1.55*uShock, w = 0.018 + 0.07*uShock;
+    sI = (1. - uShock); sI *= sI;
+    ring = exp(-pow((sr - R)/w, 2.)) * sI;
+    ring2 = exp(-pow((sr - R*0.72)/(w*0.7), 2.)) * sI * 0.45;
+  }
+  vec2 off = sdir * (ring + ring2) * 0.018 / asp;
+  vec3 c;
+  c.r = texture(uScene, vUv - off*1.25).r + texture(uBloom, vUv - off*1.25).r * uBloomK;
+  c.g = texture(uScene, vUv - off).g + texture(uBloom, vUv - off).g * uBloomK;
+  c.b = texture(uScene, vUv - off*0.75).b + texture(uBloom, vUv - off*0.75).b * uBloomK;
+  c += vec3(1.0, .72, .32) * (ring*0.55 + ring2*0.35);
+  c += vec3(1.0, .78, .42) * sI * sI * 0.22 * exp(-sr*sr*3.0) * step(0.0001, uShock);
+  c *= uGrade;
+  c = aces(c * uExpo);
+  vec2 p = vUv - .5; p.x *= uRes.x/uRes.y;
+  c *= 1.0 - 0.34*smoothstep(0.35, 1.1, length(p));
+  c = pow(c, vec3(1./2.2));
+  float g = fract(sin(dot(gl_FragCoord.xy + fract(uTime)*97., vec2(12.9898, 78.233)))*43758.5453);
+  c += (g - .5) * 0.022;
+  o = vec4(c, 1.);
+}`;
+
+let progBg, progSpr, progLn, progDown, progUp, progComp;
+try {
+  progBg = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, BG_FS);
+  progSpr = Cosmos.gl.program(gl, SPR_VS, SPR_FS);
+  progLn = Cosmos.gl.program(gl, LN_VS, LN_FS);
+  progDown = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, DOWN_FS);
+  progUp = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, UP_FS);
+  progComp = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, COMP_FS);
+} catch (e) { ch.fatal('A graphics shader failed to compile on this device.', e); return; }
+const fsTri = Cosmos.gl.quad(gl);
+
+// instanced sprite geometry
+const SPR_MAX = N + GM + FL_MAX + 64, SPR_F = 12;
+const sprStage = new Float32Array(SPR_MAX * SPR_F), sprSorted = new Float32Array(SPR_MAX * SPR_F), sprDepth = new Float32Array(SPR_MAX);
+const sprOrder = new Uint32Array(SPR_MAX), bucketCnt = new Uint32Array(512);
+const quadBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+const sprBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, sprBuf); gl.bufferData(gl.ARRAY_BUFFER, sprSorted.byteLength, gl.DYNAMIC_DRAW);
+const sprVao = gl.createVertexArray(); gl.bindVertexArray(sprVao);
+gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+gl.bindBuffer(gl.ARRAY_BUFFER, sprBuf);
+[1, 2, 3].forEach((loc, k) => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 4, gl.FLOAT, false, SPR_F * 4, k * 16); gl.vertexAttribDivisor(loc, 1); });
+gl.bindVertexArray(null);
+// instanced line geometry
+const LN_MAX = PH + ST_MAX, LN_F = 11;
+const lnData = new Float32Array(LN_MAX * LN_F);
+const lnQuad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, lnQuad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, -1, 1, -1, 0, 1, 1, 1]), gl.STATIC_DRAW);
+const lnBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, lnBuf); gl.bufferData(gl.ARRAY_BUFFER, lnData.byteLength, gl.DYNAMIC_DRAW);
+const lnVao = gl.createVertexArray(); gl.bindVertexArray(lnVao);
+gl.bindBuffer(gl.ARRAY_BUFFER, lnQuad); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+gl.bindBuffer(gl.ARRAY_BUFFER, lnBuf);
+gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 4, gl.FLOAT, false, LN_F * 4, 0); gl.vertexAttribDivisor(1, 1);
+gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 4, gl.FLOAT, false, LN_F * 4, 16); gl.vertexAttribDivisor(2, 1);
+gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 3, gl.FLOAT, false, LN_F * 4, 32); gl.vertexAttribDivisor(3, 1);
+gl.bindVertexArray(null);
+
+// render targets
+let W = 0, H = 0, scene = null, blooms = [];
+function makeTargets() {
+  Cosmos.gl.fit(canvas, DPR());
+  W = canvas.width; H = canvas.height;
+  const mk = (w, h) => Cosmos.gl.target(gl, Object.assign({ w: Math.max(1, w), h: Math.max(1, h), filter: 'linear' }, RT_FMT));
+  try {
+    if (scene) { gl.deleteTexture(scene.tex); gl.deleteFramebuffer(scene.fbo); blooms.forEach((b) => { gl.deleteTexture(b.tex); gl.deleteFramebuffer(b.fbo); }); }
+    scene = mk(W, H); blooms = [];
+    let w = W >> 1, h = H >> 1;
+    for (let k = 0; k < 6 && w > 4 && h > 4; k++) { blooms.push(mk(w, h)); w >>= 1; h >>= 1; }
+  } catch (e) { ch.fatal('This device cannot create the off-screen images this chapter renders into.', e); throw e; }
+  aspect = canvas.clientWidth / Math.max(1, canvas.clientHeight); TX = TY * aspect;
+  overlay.width = Math.round(overlay.clientWidth * DPR()); overlay.height = Math.round(overlay.clientHeight * DPR());
+}
+makeTargets();
+ch.onResize(() => { makeTargets(); });
+
+let proj = Cosmos.mat4.perspective(VFOV, aspect, 0.05, 50);
+
+/* ------------------------------------------------------------------------- colour of the plasma */
+function plasmaColor(Tmev) {
+  const TK = Tmev / 8.617333e-11;
+  const Td = 1250 + TK * 0.45e-6;
+  const c = U.blackbody(Td).map((v) => Math.pow(v, 2.2));
+  const h = heatOf(Tmev);
+  const b = 0.014 + 0.035 * Math.pow(Math.min(1, TK / 1e10), 0.5) + 0.26 * Math.pow(Math.min(1.2, TK / 1e10), 1.5) + 0.03 * h * h;
+  return { c, b, Td };
+}
+// 1 while the plasma is white-hot (≥ 10¹⁰ K), 0 below 2 × 10⁹ K: particles and photons share the furnace colour
+function heatOf(Tmev) { const l = Math.log10(Math.max(Tmev, 1e-6) / 8.617333e-11); return Math.pow(U.clamp((l - 9.3) / 0.7, 0, 1), 1.2); }
+// 1 above 1.1 × 10⁹ K, 0 by 4 × 10⁸ K: free nucleons dim to embers as fusion ends, helium stays lit
+function emberOf(Tmev) { const l = Math.log10(Math.max(Tmev, 1e-6) / 8.617333e-11); return U.clamp((l - 8.6) / 0.45, 0, 1); }
+let shockAt = -99, shockC = [0.55, 0.5];
+function triggerShock() {
+  pulse = 1; shockAt = now; if (!EV.damBreakAtWall) EV.damBreakAtWall = +(performance.now() / 1000).toFixed(2);
+  const sb = safeBox(), Wc = window.innerWidth || 1, Hc = window.innerHeight || 1;
+  shockC = [U.clamp((sb.x0 + sb.x1) / 2 / Wc, 0.2, 0.8), U.clamp(1 - (sb.y0 + sb.y1) / 2 / Hc, 0.2, 0.8)];
+  if (ch.sound.enabled) boom();
+}
+
+/* ------------------------------------------------------------------------- frame assembly */
+let zoomUser = 1, zoomAuto = 1, ZK = 1;
+const toScreen = (x, y, d) => [(x / (d * TX) * ZK * 0.5 + 0.5), (0.5 - y / (d * TY) * ZK * 0.5)];
+function updateZoom(dt, t) {
+  const l = Math.log(t), lb = Math.log(Math.max(5, KEY.tHalf));
+  const target = 1 + 0.17 * Math.exp(-Math.pow((l - lb + 0.08) / 0.36, 2));
+  zoomAuto += (target - zoomAuto) * Math.min(1, dt * 1.2);
+  ZK = zoomUser * zoomAuto;
+}
+let pulse = 0;
+function pushSprite(n, x, y, d, size, r, g, b, a, kind, extra) {
+  const o = n * SPR_F;
+  sprStage[o] = x; sprStage[o + 1] = y; sprStage[o + 2] = -d; sprStage[o + 3] = size;
+  sprStage[o + 4] = r; sprStage[o + 5] = g; sprStage[o + 6] = b; sprStage[o + 7] = a;
+  sprStage[o + 8] = kind; sprStage[o + 9] = extra; sprStage[o + 10] = 0; sprStage[o + 11] = 0;
+  sprDepth[n] = d;
+}
+const HOT = [1, 1, 1];
+function assemble(Tmev) {
+  let n = 0;
+  const bound = 1.25;
+  // thermal palette: white-hot at 10¹⁰ K, species colours emerge as it cools, free nucleons dim to embers at the end
+  const heat = heatOf(Tmev), ember = emberOf(Tmev);
+  { const bb = U.blackbody(plasmaColor(Tmev).Td).map((v) => Math.pow(v, 2.2)), mx = Math.max(bb[0], bb[1], bb[2], 1e-3); HOT[0] = bb[0] / mx; HOT[1] = bb[1] / mx; HOT[2] = bb[2] / mx; }
+  const hm = 0.55 * heat, freeDim = 0.6 + 0.4 * ember, heBoost = 1 + 0.45 * (1 - ember);
+  const hn = 0.6 * hm; // neutrons keep more of their blue, so the scarce ingredient stays visible in the furnace
+  const pN = [SPL[0][0] + (HOT[0] - SPL[0][0]) * hn, SPL[0][1] + (HOT[1] - SPL[0][1]) * hn, SPL[0][2] + (HOT[2] - SPL[0][2]) * hn];
+  const pP = [SPL[1][0] + (HOT[0] - SPL[1][0]) * hm, SPL[1][1] + (HOT[1] - SPL[1][1]) * hm, SPL[1][2] + (HOT[2] - SPL[1][2]) * hm];
+  const hotI = 1 + 1.0 * heat;
+  for (let i = 0; i < N; i++) {
+    memberPos(i);
+    const isN = nIsN[i];
+    let c = isN ? pN : pP;
+    let r = c[0], g = c[1], b = c[2], glow = 0.5 + 0.6 * heat, inten = (isN ? 0.62 : 0.7) * hotI;
+    const sw = now - nSwap[i];
+    if (sw < 0.4) { // identity crossfade + glint
+      const w = sw / 0.4, cw = nWas[i] ? pN : pP;
+      r = cw[0] + (r - cw[0]) * w; g = cw[1] + (g - cw[1]) * w; b = cw[2] + (b - cw[2]) * w; glow += (1 - w) * 2.2; inten += (1 - w) * 0.8;
+    }
+    const gg = nGrp[i];
+    if (gg >= 0) {
+      const sp = gSp[gg];
+      inten *= bound; glow = sp === 5 ? 1.1 : 0.8;
+      if (sp === 5) {
+        // helium glows gold: members lean toward the alpha colour and stay lit as the free soup dims
+        const a5 = 0.42, c5 = SPL[5]; r += (c5[0] - r) * a5; g += (c5[1] - g) * a5; b += (c5[2] - b) * a5;
+        inten *= heBoost; glow = 1.1 + 0.5 * (1 - ember);
+      }
+      if (gKind[gg] === G_SPEC) { inten *= 1.3; glow = 1.6; }
+    } else inten *= freeDim;
+    pushSprite(n++, rx[i], ry[i], rd[i], RW, r * inten, g * inten, b * inten, 1, 0, glow);
+  }
+  for (let g = 0; g < GM; g++) {
+    const sp = gSp[g]; if (sp < 0) continue;
+    const c = SPL[sp], kind = gKind[g];
+    const age = now - gBorn[g];
+    let I = sp === 5 ? 0.42 * (1 + 0.6 * (1 - ember)) * (0.9 + 0.1 * Math.sin(now * 1.7 + g * 2.3)) : sp === 2 ? 0.26 : 0.4, size = RW * (sp === 5 ? 4.6 : sp >= 6 ? 6.5 : 3.8);
+    if (kind === G_TRANS) { I = 0.35; }
+    if (kind === G_SPEC) { I = 1.1 * (0.8 + 0.2 * Math.sin(now * 2.2 + g)); size *= sp >= 6 ? 0.85 : 1.25; }
+    I *= 1 + 1.6 * Math.exp(-age * 3);
+    pushSprite(n++, gx[g], gy[g], gd[g], size, c[0], c[1], c[2], I, 1, 0);
+  }
+  for (let k = 0; k < flN; k++) {
+    const age = (now - flT0[k]) / flLife[k];
+    if (age >= 1 || age < 0) continue;
+    const fd = flD[k], fs = flSize[k] * U.clamp(fd / 2.2, 0.55, 1.5);
+    pushSprite(n++, flX[k], flY[k], fd - 0.02, fs, flCol[k * 3], flCol[k * 3 + 1], flCol[k * 3 + 2], flI[k] * U.smoothstep(0.6, 1.2, fd), 2, age);
+  }
+  // compact flare pool occasionally
+  if (flN > FL_MAX - 20) { let w = 0; for (let k = 0; k < flN; k++) { if ((now - flT0[k]) / flLife[k] < 1) { if (w !== k) { flX[w] = flX[k]; flY[w] = flY[k]; flD[w] = flD[k]; flT0[w] = flT0[k]; flLife[w] = flLife[k]; flSize[w] = flSize[k]; flI[w] = flI[k]; flCol[w * 3] = flCol[k * 3]; flCol[w * 3 + 1] = flCol[k * 3 + 1]; flCol[w * 3 + 2] = flCol[k * 3 + 2]; } w++; } } flN = w; }
+  // depth sort (far first) by counting sort
+  bucketCnt.fill(0);
+  const NB = 512, inv = (NB - 1) / (DF + 0.4 - DN + 0.4);
+  for (let k = 0; k < n; k++) { let bk = ((DF + 0.4 - sprDepth[k]) * inv) | 0; if (bk < 0) bk = 0; else if (bk >= NB) bk = NB - 1; sprOrder[k] = bk; bucketCnt[bk]++; }
+  let acc = 0; for (let bk = 0; bk < NB; bk++) { const c = bucketCnt[bk]; bucketCnt[bk] = acc; acc += c; }
+  for (let k = 0; k < n; k++) { const dst = bucketCnt[sprOrder[k]]++; sprSorted.set(sprStage.subarray(k * SPR_F, k * SPR_F + SPR_F), dst * SPR_F); }
+  return n;
+}
+function assembleLines(Tmev) {
+  let n = 0;
+  const pc = plasmaColor(Tmev);
+  const TK = Tmev / 8.617333e-11;
+  if (photonsOn) {
+    const nb = nAboveB(Tmev);
+    const nHard = Math.min(PH * 0.3, Math.round(58 * Math.log10(1 + nb)));
+    const vis = Math.round(PH * (0.3 + 0.7 * Math.pow(Math.min(1, TK / 1e10), 0.6)));
+    const I0 = 0.12 + 0.22 * Math.pow(Math.min(1, TK / 1e10), 0.5);
+    // the photon sea reddens as it cools (HOT is the normalised furnace colour set in assemble)
+    const tint = [0.28 + 0.72 * HOT[0], 0.28 + 0.72 * HOT[1], 0.28 + 0.72 * HOT[2]];
+    for (let i = 0; i < vis; i++) {
+      const hard = i < nHard;
+      const d = phd[i];
+      const L = (hard ? 0.34 : 0.2) * (SMALL ? 0.6 : 1) * U.clamp(d / 2.6, 0.3, 1);
+      const o = n * LN_F;
+      const I = (hard ? 1.25 : I0) * (0.5 + phSeed[i]) * U.smoothstep(0.6, 1.1, d) * Math.exp(-Math.max(0, d - 2.2) * 0.35);
+      lnData[o] = phx[i]; lnData[o + 1] = phy[i]; lnData[o + 2] = -d; lnData[o + 3] = I;
+      lnData[o + 4] = phx[i] - phdx[i] * L; lnData[o + 5] = phy[i] - phdy[i] * L; lnData[o + 6] = -(d - phdd[i] * L); lnData[o + 7] = (hard ? 1.7 : 1.1) * (SMALL ? 1.4 : DPR());
+      const c = hard ? C_HARD : tint;
+      lnData[o + 8] = c[0]; lnData[o + 9] = c[1]; lnData[o + 10] = c[2];
+      if (-(d - phdd[i] * L) > -0.06) continue; // behind camera guard
+      n++;
+    }
+  }
+  for (let k = 0; k < stN; k++) {
+    const age = (now - stT0[k]) / stLife[k];
+    if (age < 0 || age >= 1) continue;
+    const s = (now - stT0[k]) * stV[k];
+    const hx = stX[k] + stDx[k] * s, hy = stY[k] + stDy[k] * s, hd = stD[k] + stDd[k] * s;
+    if (hd < 0.15 || hd - stDd[k] * stL[k] < 0.15) continue;
+    const o = n * LN_F, fade = (1 - age) * U.smoothstep(0, 0.1, age);
+    lnData[o] = hx; lnData[o + 1] = hy; lnData[o + 2] = -hd; lnData[o + 3] = stI[k] * fade;
+    lnData[o + 4] = hx - stDx[k] * stL[k]; lnData[o + 5] = hy - stDy[k] * stL[k]; lnData[o + 6] = -(hd - stDd[k] * stL[k]); lnData[o + 7] = stW[k] * DPR();
+    lnData[o + 8] = stCol[k * 3]; lnData[o + 9] = stCol[k * 3 + 1]; lnData[o + 10] = stCol[k * 3 + 2];
+    n++;
+  }
+  if (stN > ST_MAX - 10) { let w = 0; for (let k = 0; k < stN; k++) { if ((now - stT0[k]) / stLife[k] < 1) { if (w !== k) { stX[w] = stX[k]; stY[w] = stY[k]; stD[w] = stD[k]; stDx[w] = stDx[k]; stDy[w] = stDy[k]; stDd[w] = stDd[k]; stV[w] = stV[k]; stL[w] = stL[k]; stT0[w] = stT0[k]; stLife[w] = stLife[k]; stI[w] = stI[k]; stW[w] = stW[k]; stCol[w * 3] = stCol[k * 3]; stCol[w * 3 + 1] = stCol[k * 3 + 1]; stCol[w * 3 + 2] = stCol[k * 3 + 2]; } w++; } } stN = w; }
+  return n;
+}
+
+function render(Tmev, nSpr, nLn) {
+  const pc = plasmaColor(Tmev);
+  proj = Cosmos.mat4.perspective(2 * Math.atan(TY / ZK), aspect, 0.05, 50);
+  // scene
+  scene.bind();
+  gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND);
+  gl.useProgram(progBg);
+  Cosmos.gl.uniforms(gl, progBg, { uRes: [W, H], uTime: now, uCol: pc.c, uBright: pc.b, uPulse: pulse, uHeat: heatOf(Tmev) });
+  fsTri();
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  if (nLn > 0) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, lnBuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, lnData, 0, nLn * LN_F);
+    gl.useProgram(progLn); Cosmos.gl.uniforms(gl, progLn, { uProj: proj, uRes: [W, H] });
+    gl.bindVertexArray(lnVao); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, nLn); gl.bindVertexArray(null);
+  }
+  if (nSpr > 0) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, sprBuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, sprSorted, 0, nSpr * SPR_F);
+    gl.useProgram(progSpr); Cosmos.gl.uniforms(gl, progSpr, { uProj: proj });
+    gl.bindVertexArray(sprVao); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, nSpr); gl.bindVertexArray(null);
+  }
+  gl.disable(gl.BLEND);
+  // bloom
+  gl.useProgram(progDown);
+  let src = scene;
+  for (let k = 0; k < blooms.length; k++) {
+    const dst = blooms[k]; dst.bind();
+    Cosmos.gl.uniforms(gl, progDown, { uTex: src.tex, uTexel: [1 / src.w, 1 / src.h], uThresh: 0.75, uPre: k === 0 ? 1 : 0 });
+    fsTri(); src = dst;
+  }
+  gl.useProgram(progUp); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  for (let k = blooms.length - 1; k > 0; k--) {
+    const s = blooms[k], dst = blooms[k - 1]; dst.bind();
+    Cosmos.gl.uniforms(gl, progUp, { uTex: s.tex, uTexel: [1 / s.w, 1 / s.h] });
+    fsTri();
+  }
+  gl.disable(gl.BLEND);
+  Cosmos.gl.screen(gl);
+  gl.useProgram(progComp);
+  const sk = (now - shockAt) / 2.6;
+  const heat = heatOf(Tmev), cool = 1 - emberOf(Tmev);
+  Cosmos.gl.uniforms(gl, progComp, { uScene: scene.tex, uBloom: blooms[0].tex, uBloomK: 0.5 + 0.1 * heat, uExpo: 1.0, uTime: now, uRes: [W, H],
+    uShock: sk > 0 && sk < 1 ? sk : 0, uShockC: shockC, uGrade: [1 + 0.04 * heat - 0.03 * cool, 1 + 0.02 * heat - 0.02 * cool, 1 - 0.02 * heat + 0.03 * cool] });
+  fsTri();
+}
+
+/* ------------------------------------------------------------------------- overlays: captions, labels, census, strip */
+const cap = Cosmos.h('div', { class: 'ns-cap' }, Cosmos.h('b'), Cosmos.h('span'));
+const bottom = Cosmos.h('div', { class: 'ns-bottom' });
+const census = Cosmos.h('div', { class: 'ns-census' });
+const strip = Cosmos.h('div', { class: 'ns-strip', title: 'Drag to travel in time' });
+const stripC = Cosmos.h('canvas'); strip.append(stripC);
+bottom.append(census, strip);
+const probe = Cosmos.h('div', { class: 'ns-probe' });
+const endCard = Cosmos.h('div', { class: 'ns-end' });
+document.body.append(cap, bottom, probe, endCard);
+const censusEls = [];
+[[1, 'p'], [0, 'n'], [2, 'D'], [3, '³H'], [4, '³He'], [5, '⁴He']].forEach(([s, lab]) => {
+  const b = Cosmos.h('b', { text: '0' });
+  const el = Cosmos.h('span', {}, Cosmos.h('i', { style: { color: SP[s].col } }), Cosmos.h('em', { text: lab }), b);
+  census.append(el); censusEls.push({ s, el, b });
+});
+const censusTot = Cosmos.h('span', {}, Cosmos.h('em', { text: SMALL ? 'of ' + FM.num(N) : 'of ' + FM.num(N) + ' nucleons' }));
+census.append(censusTot);
+
+let capTimer = 0, capShown = new Set();
+function showCaption(kicker, text, ms) {
+  cap.children[0].innerHTML = kicker; cap.children[1].innerHTML = text;
+  cap.classList.add('on'); clearTimeout(capTimer); capTimer = setTimeout(() => cap.classList.remove('on'), ms || 6200);
+}
+function fmtClock(t) {
+  if (t < 10) return t.toFixed(2) + ' s';
+  if (t < 60) return t.toFixed(1) + ' s';
+  const m = Math.floor(t / 60), s = Math.floor(t - 60 * m);
+  return m + ' min ' + String(s).padStart(2, '0') + ' s';
+}
+function sci(x, d) {
+  if (!isFinite(x) || x === 0) return String(x);
+  const a = Math.abs(x); if (a >= 1e-3 && a < 1e5) return Number(x.toPrecision(d)).toLocaleString('en-US');
+  let e = Math.floor(Math.log10(a)), m = Number((x / Math.pow(10, e)).toPrecision(d));
+  if (Math.abs(m) >= 10) { m = Number((m / 10).toPrecision(d)); e++; }
+  return (m === 1 ? '' : m + ' × ') + '10' + FM.sup(e);
+}
+const fmtK = (Tmev) => sci(Tmev / 8.617333e-11, 2) + ' K';
+function npStr(r) { return r > 0.02 ? '1 : ' + (1 / r).toFixed(1) : r > 1e-6 ? FM.sci(r, 2) : '≈ 0'; }
+const CAPS = [
+  { id: 'c1', at: () => 1.0, k: () => 't = 1 second · ' + fmtK(stateAtT(1)) + ' · weak freeze-out', s: () => 'Protons and neutrons swap identities, but the weak force is losing its race with the expansion. It will leave about one neutron for every ' + (1 / KEY.np10).toFixed(0) + ' protons.', ms: 3600 },
+  { id: 'c3', at: () => U.clamp(KEY.gsA * 5, 6, 14), k: () => 'e⁺e⁻ annihilation', s: () => 'Electrons and positrons annihilate into light and heat the photons. The neutrinos have already escaped, so they end up cooler by (4/11)<sup>1/3</sup>.', ms: 3400 },
+  { id: 'c4', at: () => U.clamp(KEY.gsB * 1.15, 20, KEY.tBreak * 0.4), k: () => 'The deuterium bottleneck', s: () => 'A proton and a neutron can stick, but with ' + FM.sci(1 / P.eta, 2) + ' photons per nucleon the hardest ones split every new deuteron. Watch the blue ones.', ms: 4200 },
+  { id: 'c6', at: () => KEY.tBreak * 1.02, k: () => 'The dam breaks · kT ≈ ' + stateAtT(KEY.tBreak).toFixed(3) + ' MeV', s: () => 'Fewer than one photon per nucleon can now split deuterium. Within a minute almost every neutron is in helium&#8209;4.', ms: 4200 },
+  { id: 'c7', at: () => KEY.tDone * 1.05, k: () => 'Helium · Yₚ = ' + RUN.fin.Yp.toFixed(3), s: () => 'About one nucleus in ' + Math.round(1 / ((RUN.fin.Yp / 4) / (1 - RUN.fin.Yp + RUN.fin.Yp / 4))) + ' is now helium&#8209;4, carrying a quarter of all the mass. Traces of deuterium, helium&#8209;3 and lithium remain.', ms: 5200 },
+];
+function stateAtT(t) { const u = idxAt(t), i = Math.floor(u), f = u - i; return Math.exp(Math.log(RUN.T[i]) * (1 - f) + Math.log(RUN.T[i + 1]) * f); }
+function checkCaptions(t, tPrev) {
+  if (t < tPrev) return;
+  for (const c of CAPS) {
+    const at = c.at();
+    if (!capShown.has(c.id) && tPrev <= at && t >= at) { capShown.add(c.id); showCaption(c.k(), c.s(), (c.ms || 5000) / Math.sqrt(U.clamp(speed, 0.25, 4))); if (c.id === 'c6') triggerShock(); }
+  }
+}
+
+/* the part of the screen not covered by panels (CSS px) */
+function safeBox() {
+  const Wc = window.innerWidth, Hc = window.innerHeight;
+  const capOn = cap.classList.contains('on'), capB = capOn ? cap.getBoundingClientRect().bottom + 14 : 0;
+  if (isSmall()) return { x0: 18, x1: Wc - 18, y0: Math.max(170, capB), y1: Hc - 250 };
+  const notes = document.querySelector('.cz-notes'), deck = document.querySelector('.cz-deck'), hud = document.querySelector('.cz-hud'), cine = document.body.classList.contains('cz-cinema');
+  let x0 = 40, x1 = Wc - 40, y0 = 100;
+  if (notes && !cine) { const r = notes.getBoundingClientRect(); if (r.top < Hc * 0.6) x0 = r.right + 20; }
+  if (deck && deck.classList.contains('cz-open') && !cine) x1 = deck.getBoundingClientRect().left - 20;
+  if (hud && !cine) { const r = hud.getBoundingClientRect(); if (r.right > x0 - 10) y0 = Math.max(y0, r.bottom + 12); }
+  return { x0, x1, y0: Math.max(y0, capB), y1: Hc - 170 };
+}
+/* labels on exemplar particles */
+let labelsOn = !SMALL, safeCache = { x0: 0, x1: 1, y0: 0, y1: 1 }, safeT = -1;
+const exemplar = new Int32Array(8).fill(-1); let exT = 0;
+function drawLabels(Tmev) {
+  const cw = overlay.width, chh = overlay.height, dpr = DPR();
+  octx.clearRect(0, 0, cw, chh);
+  const Wc = cw / dpr, Hc = chh / dpr;
+  octx.save(); octx.scale(dpr, dpr);
+  octx.font = `500 10.5px ${FONT_MONO}`; octx.textBaseline = 'middle';
+  if (now - safeT > 0.5) { safeCache = safeBox(); safeT = now; }
+  const safe = safeCache;
+  const scr = (x, y, d) => { const s = toScreen(x, y, d); return [s[0] * Wc, s[1] * Hc]; };
+  const inSafe = (p) => p[0] > safe.x0 && p[0] < safe.x1 && p[1] > safe.y0 && p[1] < safe.y1;
+  const placed = [];
+  const tag = (p, rpx, col, title, sub, dir0) => {
+    // try four placements, keep the first that does not collide with earlier labels
+    let dir = dir0, up = -1, lx, ly, box;
+    const tw = Math.max(title.length, sub ? sub.length : 0) * 6.4 + 22;
+    for (let k = 0; k < 4; k++) {
+      dir = k % 2 ? -dir0 : dir0; up = k < 2 ? -1 : 1;
+      lx = p[0] + dir * (rpx + 22); ly = p[1] + up * (rpx + 22);
+      box = dir > 0 ? [lx, ly - 14, lx + tw, ly + 14] : [lx - tw, ly - 14, lx, ly + 14];
+      if (!placed.some((b) => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]))) break;
+    }
+    placed.push(box);
+    octx.strokeStyle = col; octx.globalAlpha = 0.85; octx.lineWidth = 1;
+    octx.beginPath(); octx.arc(p[0], p[1], rpx + 4, 0, 6.283); octx.stroke();
+    octx.beginPath(); const a = Math.atan2(up, dir); octx.moveTo(p[0] + Math.cos(a) * (rpx + 4), p[1] + Math.sin(a) * (rpx + 4)); octx.lineTo(lx, ly); octx.lineTo(lx + dir * 14, ly); octx.stroke();
+    octx.globalAlpha = 1; octx.textAlign = dir > 0 ? 'left' : 'right';
+    octx.fillStyle = col; octx.font = `600 11px ${FONT_MONO}`; octx.fillText(title, lx + dir * 18, ly - (sub ? 6 : 0));
+    if (sub) { octx.fillStyle = 'rgba(236,230,214,.7)'; octx.font = `500 10px ${FONT_MONO}`; octx.fillText(sub, lx + dir * 18, ly + 8); }
+  };
+  const Hn = RUN ? (XS[1] + XS[0]) : 1;
+  const endOn = endCard.classList.contains('on');
+  if (endOn) { octx.restore(); return; }
+  // specimens always tagged
+  for (let g = 0; g < GM; g++) {
+    if (gSp[g] < 0 || gKind[g] !== G_SPEC) continue;
+    const sp = gSp[g], p = scr(gx[g], gy[g], gd[g]);
+    const ratio = (XS[sp] / eng.A[sp]) / Hn;
+    tag(p, RW * 3.2 / (gd[g] * TY) * Hc * 0.5 * ZK + 3, SP[sp].col, SP[sp].label + ' · specimen', '1 per ' + sci(1 / Math.max(ratio, 1e-30), 2) + ' H', p[0] > Wc * 0.6 ? -1 : 1);
+  }
+  if (labelsOn) {
+    if (now - exT > 3.2) { exemplar.fill(-1); exT = now; }
+    const want = [1, 0, 2, 5, 3, 4];
+    let side = 1;
+    for (const sp of want) {
+      let e = exemplar[sp];
+      const valid = (e) => {
+        if (e < 0) return false;
+        if (sp <= 1) { if (nGrp[e] >= 0 || nIsN[e] !== (sp === 0 ? 1 : 0)) return false; const p = scr(nx[e], ny[e], nd[e]); return nd[e] > 1.1 && nd[e] < 2.6 && inSafe(p); }
+        if (gSp[e] !== sp || gKind[e] === G_SPEC) return false; const p = scr(gx[e], gy[e], gd[e]); return gd[e] > 0.9 && gd[e] < 3.2 && inSafe(p);
+      };
+      if (!valid(e)) {
+        e = -1;
+        if (sp <= 1) { for (let k = 0; k < 60; k++) { const i = (Math.random() * N) | 0; if (valid(i)) { e = i; break; } } }
+        else { for (let g = 0; g < GM; g++) if (valid(g)) { e = g; break; } }
+        exemplar[sp] = e;
+      }
+      if (e < 0) continue;
+      const isG = sp > 1;
+      const x = isG ? gx[e] : nx[e], y = isG ? gy[e] : ny[e], d = isG ? gd[e] : nd[e];
+      const p = scr(x, y, d);
+      const rpx = RW * (isG ? (sp === 5 ? 2.0 : 1.8) : 1) / (d * TY) * Hc * 0.5 * ZK;
+      const sub = sp === 0 ? 'neutron' : sp === 1 ? 'proton' : sp === 2 ? (gKind[e] === G_TRANS ? 'deuteron · doomed' : 'deuteron') : sp === 5 ? 'helium-4' : SP[sp].name;
+      tag(p, rpx, SP[sp].col, SP[sp].label, sub, side); side = -side;
+    }
+  }
+  // probe marker
+  if (probeSel && now - probeSel.t < 4.5) {
+    const s = probeSel; let p = null;
+    if (s.kind === 'n' && nGrp[s.i] < 0) p = scr(nx[s.i], ny[s.i], nd[s.i]);
+    else if (s.kind === 'g' && gSp[s.i] >= 0) p = scr(gx[s.i], gy[s.i], gd[s.i]);
+    if (p) { octx.strokeStyle = 'rgba(236,230,214,.9)'; octx.lineWidth = 1; octx.beginPath(); octx.arc(p[0], p[1], 16, 0, 6.283); octx.stroke(); probe.style.left = Math.min(Wc - 270, p[0] + 22) + 'px'; probe.style.top = Math.max(60, p[1] - 30) + 'px'; }
+    else probe.classList.remove('on');
+  } else if (probeSel) { probe.classList.remove('on'); probeSel = null; }
+  octx.restore();
+}
+
+/* phase strip (stage timeline) */
+function phases() {
+  return [
+    { a: 1, b: 3, name: 'n ⇄ p freeze-out' },
+    { a: 3, b: U.clamp(KEY.gsB, 4, KEY.tBreak * 0.5), name: 'e⁺e⁻ annihilation' },
+    { a: U.clamp(KEY.gsB, 4, KEY.tBreak * 0.5), b: KEY.tBreak, name: 'deuterium bottleneck' },
+    { a: KEY.tBreak, b: KEY.tDone, name: 'fusion' },
+    { a: KEY.tDone, b: 1200, name: 'frozen' },
+  ];
+}
+function drawStrip() {
+  const dpr = DPR(), w = Math.round(strip.clientWidth * dpr), h = Math.round(strip.clientHeight * dpr);
+  if (!w || !h) return;
+  if (stripC.width !== w || stripC.height !== h) { stripC.width = w; stripC.height = h; }
+  const c = stripC.getContext('2d');
+  c.clearRect(0, 0, w, h);
+  c.save(); c.scale(dpr, dpr);
+  const Wc = w / dpr, Hc = h / dpr, pad = 8;
+  const X = (t) => pad + (Math.log(t) - LT_MIN) / (LT_MAX - LT_MIN) * (Wc - 2 * pad);
+  const yb = Hc - 17;
+  const tNow = Math.exp(lt);
+  // phases
+  const ph = phases();
+  c.font = `italic 500 ${SMALL ? 11 : 12.5}px ${FONT_DISP}`; c.textBaseline = 'alphabetic';
+  // bars, then labels: the current phase is always named; the others only where they fit without touching it
+  const labs = [];
+  ph.forEach((p) => {
+    const x0 = X(p.a), x1 = X(p.b), cur = tNow >= p.a && tNow < p.b;
+    c.fillStyle = cur ? 'rgba(255,211,122,.9)' : 'rgba(236,230,214,.18)';
+    c.fillRect(x0 + 1, yb - 1.5, Math.max(1, x1 - x0 - 2), cur ? 3 : 2);
+    const wtxt = c.measureText(p.name).width;
+    const cx = U.clamp((x0 + x1) / 2, pad + wtxt / 2, Wc - pad - wtxt / 2);
+    labs.push({ name: p.name, cur, fit: x1 - x0 > wtxt + 6, l: cx - wtxt / 2 - 6, r: cx + wtxt / 2 + 6, cx });
+  });
+  const curL = labs.find((o) => o.cur);
+  c.textAlign = 'center';
+  labs.forEach((o) => {
+    if (!o.cur && (!o.fit || (curL && o.r > curL.l && o.l < curL.r))) return;
+    c.fillStyle = o.cur ? '#ffd37a' : 'rgba(236,230,214,.46)';
+    c.fillText(o.name, o.cx, yb - 8);
+  });
+  // ticks
+  c.font = `500 9.5px ${FONT_MONO}`; c.textAlign = 'center'; c.textBaseline = 'top';
+  [[1, '1 s'], [10, '10 s'], [60, '1 min'], [180, '3 min'], [600, Wc < 520 ? '' : '10 min'], [1200, '20 min']].forEach(([t, l]) => {
+    const x = X(t); c.fillStyle = 'rgba(236,230,214,.34)'; c.fillRect(x - 0.5, yb + 2, 1, 4);
+    c.fillStyle = 'rgba(236,230,214,.5)'; c.textAlign = t === 1 ? 'left' : t === 1200 ? 'right' : 'center'; c.fillText(l, t === 1 ? x - 2 : t === 1200 ? x + 2 : x, yb + 6);
+  });
+  // playhead
+  const px = X(tNow);
+  c.strokeStyle = '#ffd37a'; c.lineWidth = 1; c.beginPath(); c.moveTo(px, 2); c.lineTo(px, yb + 5); c.stroke();
+  c.fillStyle = '#ffd37a'; c.beginPath(); c.arc(px, yb, 3.5, 0, 6.283); c.fill();
+  c.restore();
+}
+function stripScrub(e) {
+  const r = strip.getBoundingClientRect(), pad = 8;
+  const u = U.clamp((e.clientX - r.left - pad) / (r.width - 2 * pad), 0, 1);
+  setLt(LT_MIN + u * (LT_MAX - LT_MIN), true);
+}
+let stripDrag = false;
+strip.addEventListener('pointerdown', (e) => { stripDrag = true; strip.setPointerCapture(e.pointerId); stripScrub(e); e.stopPropagation(); });
+strip.addEventListener('pointermove', (e) => { if (stripDrag) stripScrub(e); });
+strip.addEventListener('pointerup', () => { stripDrag = false; });
+strip.addEventListener('pointercancel', () => { stripDrag = false; });
+
+/* end card */
+function buildEnd() {
+  const f = RUN.fin, X = 1 - f.Yp;
+  // neutron bookkeeping: free neutrons per baryon at t = 1 s versus neutrons bound in nuclei at the end
+  const iE = NOUT - 1, Yf = (s_) => RUN.Y[iE * 8 + s_];
+  const n1 = RUN.Y[Math.round(idxAt(1)) * 8], nBound = Yf(2) + 2 * Yf(3) + Yf(4) + 2 * Yf(5) + 4 * Yf(6) + 3 * Yf(7);
+  const nKept = U.clamp(Math.round(100 * nBound / Math.max(n1, 1e-9)), 0, 100);
+  endCard.innerHTML = '';
+  const bar = Cosmos.h('div', { class: 'ns-bar' },
+    Cosmos.h('i', { style: { width: (X * 100).toFixed(2) + '%', background: SP[1].col } }),
+    Cosmos.h('i', { style: { width: (f.Yp * 100).toFixed(2) + '%', background: SP[5].col } }));
+  const rows = Cosmos.h('div', { class: 'ns-rows' },
+    Cosmos.h('div', {}, Cosmos.h('span', { text: 'hydrogen' }), Cosmos.h('b', { text: (X * 100).toFixed(1) + '%' })),
+    Cosmos.h('div', {}, Cosmos.h('span', { text: 'helium-4' }), Cosmos.h('b', { text: (f.Yp * 100).toFixed(1) + '%' })),
+    Cosmos.h('div', {}, Cosmos.h('span', { text: 'D/H' }), Cosmos.h('b', { text: FM.sci(f.DH, 2) })),
+    Cosmos.h('div', {}, Cosmos.h('span', { text: '⁷Li/H' }), Cosmos.h('b', { text: FM.sci(f.Li7H, 2) })));
+  const btns = Cosmos.h('div', { class: 'cz-btns' });
+  const b1 = Cosmos.h('button', { class: 'cz-btn primary', type: 'button', text: 'Replay the first three minutes' });
+  b1.addEventListener('click', () => replay());
+  const b2 = Cosmos.h('a', { class: 'cz-btn', href: ch.next ? ch.next.file : 'index.html', text: ch.next ? 'Next: ' + ch.next.title + ' →' : 'Timeline →', style: { textDecoration: 'none' } });
+  btns.append(b1, b2);
+  endCard.append(Cosmos.h('div', {},
+    Cosmos.h('small', { text: 't = 20 minutes · ' + fmtK(stateAtT(1200)) }),
+    Cosmos.h('h2', { text: 'The recipe for everything that followed' }),
+    Cosmos.h('div', { class: 'ns-recipe' }, bar, rows),
+    Cosmos.h('p', { html: 'Of every 100 neutrons present at one second, ' + nKept + ' are now inside helium. The other ' + (100 - nKept) + ' turned into protons first. The deuterium in the oceans, and in you, was made in these minutes.' }),
+    btns));
+}
+
+/* ------------------------------------------------------------------------- deck */
+// clock
+const gClock = ch.ui.group('Clock');
+const clockC = gClock.canvas(118);
+// abundances
+const gAb = ch.ui.group('Abundances · mass fraction');
+const abC = gAb.canvas(SMALL ? 200 : 228);
+gAb.html(Cosmos.h('div', { class: 'ns-hint', html: 'Drag across the plot to travel in time. Faint curves are the future, already computed.' }));
+// reaction network
+const gNet = ch.ui.group('Reaction network · live flux');
+const netC = gNet.canvas(SMALL ? 206 : 214);
+const netNote = gNet.html(Cosmos.h('div', { class: 'ns-hint', html: 'A chart of nuclides: protons up, neutrons across. Gold dashes are fusion, blue dashes are the reverse (photodissociation). Width follows the reaction rate.' }));
+// timeline
+const gTime = ch.ui.group('Timeline');
+const sT = gTime.slider({ id: 'ns-t', label: 'Time since the Big Bang', min: 1, max: 1200, log: true, value: 1, format: (v) => fmtClock(v), onInput: (v) => setLt(Math.log(v), true) });
+const sSpeed = gTime.slider({ id: 'ns-speed', label: 'Playback speed', min: 0.25, max: 4, log: true, value: 1, format: (v) => v.toFixed(2) + '×', onInput: (v) => { speed = v; } });
+const tBtns = gTime.buttons([
+  { label: 'Replay', id: 'ns-replay', onClick: () => replay(), title: 'Back to t = 1 s (R)' },
+  { label: 'Break the bottleneck', id: 'ns-break', kind: 'primary', onClick: () => jumpBreak(), title: 'Jump to just before the cascade (B)' },
+]);
+gTime.toggle({ id: 'ns-loop', label: 'Loop', value: true, onChange: (v) => { loopOn = v; } });
+// cosmology
+const gCos = ch.ui.group('Recipe · re-runs the network');
+const sEta = gCos.slider({ id: 'ns-eta', label: 'Baryons per photon η', min: 1e-10, max: 1e-8, log: true, value: P.eta, format: (v) => 'η₁₀ = ' + (v * 1e10).toPrecision(3),
+  hint: 'Ω<sub>b</sub>h² = η₁₀ / 273.9. Planck: η₁₀ = 6.10.', onInput: (v) => { P.eta = v; queueRun(false); } });
+const sNeff = gCos.slider({ id: 'ns-neff', label: 'Neutrino species N_eff', min: 2, max: 5, step: 0.01, value: P.Neff, format: (v) => v.toFixed(2),
+  hint: 'Each extra species speeds up the expansion. LEP measured 2.98 ± 0.01 in 1989–2006.', onInput: (v) => { P.Neff = v; queueRun(true); } });
+const sTau = gCos.slider({ id: 'ns-tau', label: 'Neutron lifetime τ_n', min: 800, max: 950, step: 0.1, value: P.tau, format: (v) => v.toFixed(1) + ' s',
+  hint: 'Bottle experiments: 877.8 s. Beam experiments: 887.7 s. An unsolved 9-second puzzle.', onInput: (v) => { P.tau = v; queueRun(true); } });
+sNeff.el.querySelector('.cz-label span').innerHTML = 'Neutrino species N<sub>eff</sub>';
+sTau.el.querySelector('.cz-label span').innerHTML = 'Neutron lifetime τ<sub>n</sub>';
+gCos.buttons([
+  { label: 'Planck', onClick: () => preset(6.1e-10, 3.044, 878.4, 'Planck 2018: η₁₀ = 6.1, N_eff = 3.044') },
+  { label: 'Four neutrinos', onClick: () => preset(6.1e-10, 4, 878.4, 'N_eff = 4: faster expansion, more helium') },
+  { label: 'Dense', onClick: () => preset(6e-9, 3.044, 878.4, 'Ten times more baryons: deuterium is burned away') },
+  { label: 'Sparse', onClick: () => preset(1.2e-10, 3.044, 878.4, 'Few baryons: deuterium and ³He survive in quantity') },
+]);
+const roCos = gCos.readouts([{ id: 'omb', label: 'Ω_b h²' }, { id: 'gpb', label: 'Photons per baryon' }, { id: 'ms', label: 'Network run' }, { id: 'nb', label: 'n/p at 3.5 min' }]);
+{ const lab = roCos.omb.el.previousElementSibling; if (lab) { lab.innerHTML = 'Ω<sub>b</sub>h²'; lab.style.textTransform = 'none'; lab.style.letterSpacing = '.06em'; } }
+// Schramm
+const gSch = ch.ui.group('Schramm plot · final abundances');
+const schC = gSch.canvas(SMALL ? 330 : 352);
+const verdict = gSch.html(Cosmos.h('div', { class: 'ns-verdict' }));
+gSch.html(Cosmos.h('div', { class: 'ns-hint', html: 'Ticks allow for this compact network’s accuracy: ±0.002 in Y<sub>p</sub>, ±10% in D/H. Tap the plot to set η.' }));
+// display
+const gDisp = ch.ui.group('Display');
+gDisp.toggle({ id: 'ns-labels-t', label: 'Label particles', value: labelsOn, onChange: (v) => { labelsOn = v; } });
+gDisp.toggle({ id: 'ns-spec', label: 'Tag trace survivors', value: true, hint: 'One specimen each of D, ³He, ⁷Li and ⁷Be, labelled with its true abundance.', onChange: (v) => { specOn = v; } });
+gDisp.toggle({ id: 'ns-ph', label: 'Photons', value: true, onChange: (v) => { photonsOn = v; } });
+
+const hudT = ch.hud.add('Time', '');
+const hudTemp = ch.hud.add('Temperature', '');
+const hudNP = ch.hud.add('n : p', '');
+const hudNB = ch.hud.add('Splitting photons', '');
+const hudHe = ch.hud.add('⁴He by mass', '');
+
+/* ---------- deck drawings ---------- */
+function prepCanvas(cv) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(cv.clientWidth * dpr), h = Math.round(cv.clientHeight * dpr);
+  if (!w || !h) return null;
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h);
+  return { c, W: w / dpr, H: h / dpr };
+}
+function drawClock(Tmev) {
+  const P_ = prepCanvas(clockC); if (!P_) return;
+  const { c, W: Wc, H: Hc } = P_;
+  const t = Math.exp(lt), cx = 50, cy = Hc / 2, R = 41;
+  const a0 = Math.PI * 0.75, a1 = Math.PI * 2.25;
+  const ang = (tt) => a0 + (Math.log(tt) - LT_MIN) / (LT_MAX - LT_MIN) * (a1 - a0);
+  // dial
+  c.lineWidth = 1; c.strokeStyle = 'rgba(236,230,214,.14)'; c.beginPath(); c.arc(cx, cy, R, a0, a1); c.stroke();
+  const pc = plasmaColor(Tmev), bb = U.blackbody(pc.Td);
+  c.strokeStyle = `rgb(${bb.map((v) => Math.round(v * 255)).join(',')})`; c.lineWidth = 3; c.beginPath(); c.arc(cx, cy, R, a0, ang(t)); c.stroke();
+  // phase ticks
+  c.lineWidth = 1;
+  [[1, '1s'], [10, '10s'], [60, '1m'], [180, '3m'], [600, '10m'], [1200, '20m']].forEach(([tt, l]) => {
+    const a = ang(tt); c.strokeStyle = 'rgba(236,230,214,.4)'; c.beginPath(); c.moveTo(cx + Math.cos(a) * (R - 5), cy + Math.sin(a) * (R - 5)); c.lineTo(cx + Math.cos(a) * (R + 2), cy + Math.sin(a) * (R + 2)); c.stroke();
+    c.fillStyle = 'rgba(236,230,214,.45)'; c.font = `500 8.5px ${FONT_MONO}`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(l, cx + Math.cos(a) * (R - 13), cy + Math.sin(a) * (R - 13));
+  });
+  // bottleneck marker
+  const ab = ang(KEY.tBreak); c.fillStyle = '#ffd37a'; c.beginPath(); c.arc(cx + Math.cos(ab) * R, cy + Math.sin(ab) * R, 2.2, 0, 6.283); c.fill();
+  // hand
+  const a = ang(t);
+  c.strokeStyle = '#ece6d6'; c.lineWidth = 1.4; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(a) * (R - 3), cy + Math.sin(a) * (R - 3)); c.stroke();
+  c.fillStyle = '#ece6d6'; c.beginPath(); c.arc(cx, cy, 2.5, 0, 6.283); c.fill();
+  // readouts
+  const x0 = 106;
+  c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+  c.fillStyle = 'rgba(236,230,214,.45)'; c.font = `600 9px ${FONT_MONO}`; c.fillText('T I M E', x0, 18);
+  c.fillStyle = '#ece6d6'; c.font = `500 20px ${FONT_MONO}`; c.fillText(fmtClock(t), x0, 40);
+  c.fillStyle = 'rgba(236,230,214,.45)'; c.font = `600 9px ${FONT_MONO}`; c.fillText('T E M P E R A T U R E', x0, 60);
+  c.fillStyle = '#ece6d6'; c.font = `500 12.5px ${FONT_MONO}`; c.fillText(fmtK(Tmev), x0, 76);
+  const kx = x0 + c.measureText(fmtK(Tmev)).width + 10;
+  c.fillStyle = '#ffd37a'; c.font = `500 11.5px ${FONT_MONO}`; c.fillText(Tmev.toFixed(Tmev < 0.1 ? 4 : 3) + ' MeV', kx, 76);
+  // n/p bar
+  const n = XS[0], p = XS[1], ratio = n / p;
+  c.fillStyle = 'rgba(236,230,214,.45)'; c.font = `600 9px ${FONT_MONO}`; c.fillText('F R E E  n / p', x0, 96);
+  c.fillStyle = '#ece6d6'; c.font = `500 12px ${FONT_MONO}`; c.textAlign = 'right'; c.fillText(npStr(ratio), Wc - 8, 96); c.textAlign = 'left';
+  const bw = Wc - x0 - 8, fn = n / Math.max(n + p, 1e-9);
+  c.fillStyle = SP[1].col; c.globalAlpha = 0.85; c.fillRect(x0, 104, bw * (1 - fn), 5);
+  c.fillStyle = SP[0].col; c.fillRect(x0 + bw * (1 - fn), 104, bw * fn, 5); c.globalAlpha = 1;
+}
+
+// abundance plot
+const AB = { tMin: 1, tMax: 1200, yMin: 1e-12, yMax: 1.5, pad: [14, 30, 22, 36] };
+let abBase = null, abDirty = true;
+function abMap(Wc, Hc) {
+  const [pt, pr, pb, pl] = AB.pad;
+  return {
+    x: (t) => pl + (Math.log(t) - Math.log(AB.tMin)) / (Math.log(AB.tMax) - Math.log(AB.tMin)) * (Wc - pl - pr),
+    y: (v) => pt + (1 - (Math.log10(Math.max(v, 1e-30)) - Math.log10(AB.yMin)) / (Math.log10(AB.yMax) - Math.log10(AB.yMin))) * (Hc - pt - pb),
+    it: (x) => Math.exp(Math.log(AB.tMin) + (x - pl) / (Wc - pl - pr) * (Math.log(AB.tMax) - Math.log(AB.tMin))),
+    pt, pr, pb, pl,
+  };
+}
+function drawAbund() {
+  const P_ = prepCanvas(abC); if (!P_) return;
+  const { c, W: Wc, H: Hc } = P_, m = abMap(Wc, Hc);
+  // grid
+  c.font = `500 9px ${FONT_MONO}`; c.fillStyle = 'rgba(236,230,214,.4)'; c.strokeStyle = 'rgba(236,230,214,.07)'; c.lineWidth = 1;
+  c.textAlign = 'right'; c.textBaseline = 'middle';
+  for (let e = 0; e >= -12; e -= 2) { const y = m.y(Math.pow(10, e)); c.beginPath(); c.moveTo(m.pl, y); c.lineTo(Wc - m.pr, y); c.stroke(); c.fillText(e === 0 ? '1' : '10' + FM.sup(e), m.pl - 4, y); }
+  c.textAlign = 'center'; c.textBaseline = 'top';
+  [[1, '1 s'], [10, '10 s'], [60, '1 m'], [180, '3 m'], [600, ''], [1200, '20 m']].forEach(([t, l]) => { const x = m.x(t); c.beginPath(); c.moveTo(x, m.pt); c.lineTo(x, Hc - m.pb); c.stroke(); if (l) c.fillText(l, U.clamp(x, m.pl + 8, Wc - m.pr - 8), Hc - m.pb + 5); });
+  // temperature labels along the top
+  c.fillStyle = 'rgba(255,211,122,.45)'; c.textBaseline = 'bottom';
+  [3e9, 1e9].forEach((TK) => { const Tm = TK * 8.617333e-11; const t = tOfT(Tm); if (t > AB.tMin && t < AB.tMax) { const x = m.x(t); c.fillText(FM.sci(TK, 1) + ' K', x, m.pt - 2); c.strokeStyle = 'rgba(255,211,122,.12)'; c.beginPath(); c.moveTo(x, m.pt); c.lineTo(x, m.pt + 5); c.stroke(); } });
+  if (!RUN) return;
+  const tNow = Math.exp(lt), iNow = idxAt(tNow);
+  const i0 = Math.floor(idxAt(AB.tMin)), i1 = Math.ceil(idxAt(AB.tMax));
+  const order = [1, 5, 0, 2, 4, 3, 7, 6];
+  c.save(); c.beginPath(); c.rect(m.pl, m.pt - 2, Wc - m.pl - m.pr, Hc - m.pt - m.pb + 4); c.clip();
+  // bottleneck band
+  const xb = m.x(KEY.tBreak), xd = m.x(KEY.tDone);
+  c.fillStyle = 'rgba(255,211,122,.06)'; c.fillRect(xb, m.pt, xd - xb, Hc - m.pt - m.pb);
+  for (const s of order) {
+    const A = eng.A[s];
+    // future (faint)
+    c.strokeStyle = PLOT_COL[s]; c.globalAlpha = 0.2; c.lineWidth = 1; c.beginPath();
+    let started = false;
+    for (let i = Math.max(i0, Math.floor(iNow)); i <= i1; i++) { const x = m.x(RUN.t[i]), y = m.y(A * RUN.Y[i * 8 + s]); if (!started) { c.moveTo(x, y); started = true; } else c.lineTo(x, y); }
+    c.stroke();
+    // past (bright)
+    c.globalAlpha = 1; c.lineWidth = s === 5 || s === 1 ? 1.8 : 1.4; c.beginPath(); started = false;
+    for (let i = i0; i <= Math.min(i1, Math.floor(iNow) + 1); i++) { const tt = Math.min(RUN.t[i], tNow); const x = m.x(tt); const v = i > iNow ? XS[s] : A * RUN.Y[i * 8 + s]; const y = m.y(v); if (!started) { c.moveTo(x, y); started = true; } else c.lineTo(x, y); }
+    c.stroke();
+  }
+  c.restore(); c.globalAlpha = 1;
+  // cursor
+  const xn = m.x(tNow);
+  c.strokeStyle = 'rgba(236,230,214,.55)'; c.lineWidth = 1; c.beginPath(); c.moveTo(xn, m.pt); c.lineTo(xn, Hc - m.pb); c.stroke();
+  for (const s of order) { const v = XS[s]; if (v < AB.yMin) continue; c.fillStyle = PLOT_COL[s]; c.beginPath(); c.arc(xn, m.y(v), 2.4, 0, 6.283); c.fill(); }
+  // labels at right end (final values), nudged apart
+  const lab = order.map((s) => ({ s, y: m.y(eng.A[s] * RUN.Y[i1 * 8 + s]) })).filter((o) => o.y < Hc - m.pb + 4 && o.y > m.pt - 4).sort((a, b) => a.y - b.y);
+  for (let k = 1; k < lab.length; k++) if (lab[k].y - lab[k - 1].y < 10) lab[k].y = lab[k - 1].y + 10;
+  c.font = `600 9.5px ${FONT_MONO}`; c.textAlign = 'left'; c.textBaseline = 'middle';
+  lab.forEach((o) => { c.fillStyle = PLOT_COL[o.s]; c.fillText(SP[o.s].label, Wc - m.pr + 4, U.clamp(o.y, m.pt, Hc - m.pb)); });
+}
+let abDrag = false;
+function abScrub(e) { const r = abC.getBoundingClientRect(); const m = abMap(r.width, r.height); const t = U.clamp(m.it(e.clientX - r.left), AB.tMin, AB.tMax); setLt(Math.log(t), true); }
+abC.style.cursor = 'ew-resize'; abC.style.touchAction = 'none';
+abC.addEventListener('pointerdown', (e) => { abDrag = true; abC.setPointerCapture(e.pointerId); abScrub(e); });
+abC.addEventListener('pointermove', (e) => { if (abDrag) abScrub(e); });
+abC.addEventListener('pointerup', () => { abDrag = false; });
+abC.addEventListener('pointercancel', () => { abDrag = false; });
+
+// Schramm plot
+const OBS = { Yp: [0.245, 0.003], DH: [2.527e-5, 0.030e-5], Li: [1.6e-10, 0.3e-10] };
+const PLANCK = [6.10e-10, 0.06e-10];
+function schMap(Wc, Hc) {
+  const pl = 44, pr = 10, top = 16, gap = 16, bot = 26;
+  const hh = (Hc - top - bot - 2 * gap);
+  const h1 = hh * 0.36, h2 = hh * 0.36, h3 = hh * 0.28;
+  const x = (eta) => pl + (Math.log(eta) - Math.log(1e-10)) / Math.log(100) * (Wc - pl - pr);
+  return {
+    x, pl, pr, Wc, Hc,
+    ix: (px) => 1e-10 * Math.pow(100, U.clamp((px - pl) / (Wc - pl - pr), 0, 1)),
+    p1: { y0: top, h: h1, lin: true, lo: 0.20, hi: 0.285 },
+    p2: { y0: top + h1 + gap, h: h2, lo: 1e-6, hi: 1e-3 },
+    p3: { y0: top + h1 + h2 + 2 * gap, h: h3, lo: 5e-11, hi: 2e-8 },
+  };
+}
+function py(p, v) { const u = p.lin ? (v - p.lo) / (p.hi - p.lo) : (Math.log(Math.max(v, 1e-30)) - Math.log(p.lo)) / (Math.log(p.hi) - Math.log(p.lo)); return p.y0 + p.h * (1 - u); }
+let schAcc = 0;
+function drawSchramm() {
+  const P_ = prepCanvas(schC); if (!P_) return false;
+  const { c, W: Wc, H: Hc } = P_, m = schMap(Wc, Hc);
+  const panels = [m.p1, m.p2, m.p3];
+  // frames & grid
+  c.lineWidth = 1; c.font = `500 9px ${FONT_MONO}`;
+  panels.forEach((p) => { c.strokeStyle = 'rgba(236,230,214,.1)'; c.strokeRect(m.pl, p.y0, Wc - m.pl - m.pr, p.h); });
+  // Planck band
+  const xp0 = m.x(PLANCK[0] - PLANCK[1] * 2), xp1 = m.x(PLANCK[0] + PLANCK[1] * 2);
+  c.fillStyle = 'rgba(255,211,122,.16)'; c.fillRect(xp0, m.p1.y0, Math.max(2, xp1 - xp0), m.p3.y0 + m.p3.h - m.p1.y0);
+  c.fillStyle = 'rgba(255,211,122,.75)'; c.textAlign = 'center'; c.textBaseline = 'bottom'; c.fillText('Planck CMB', (xp0 + xp1) / 2, m.p1.y0 - 3);
+  // x ticks
+  c.fillStyle = 'rgba(236,230,214,.45)'; c.textBaseline = 'top';
+  [1, 2, 5, 10, 20, 50, 100].forEach((e10) => { const x = m.x(e10 * 1e-10); c.strokeStyle = 'rgba(236,230,214,.06)'; c.beginPath(); c.moveTo(x, m.p1.y0); c.lineTo(x, m.p3.y0 + m.p3.h); c.stroke(); c.fillText(String(e10), x, m.p3.y0 + m.p3.h + 4); });
+  c.textAlign = 'right'; c.fillText('η × 10¹⁰', Wc - m.pr, m.p3.y0 + m.p3.h + 14);
+  // y ticks
+  c.textAlign = 'right'; c.textBaseline = 'middle';
+  [0.22, 0.24, 0.26, 0.28].forEach((v) => { const y = py(m.p1, v); c.fillStyle = 'rgba(236,230,214,.45)'; c.fillText(v.toFixed(2), m.pl - 4, y); c.strokeStyle = 'rgba(236,230,214,.05)'; c.beginPath(); c.moveTo(m.pl, y); c.lineTo(Wc - m.pr, y); c.stroke(); });
+  [-6, -5, -4, -3].forEach((e) => { const y = py(m.p2, Math.pow(10, e)); c.fillStyle = 'rgba(236,230,214,.45)'; c.fillText('10' + FM.sup(e), m.pl - 4, y); });
+  [-10, -9, -8].forEach((e) => { const y = py(m.p3, Math.pow(10, e)); c.fillStyle = 'rgba(236,230,214,.45)'; c.fillText('10' + FM.sup(e), m.pl - 4, y); });
+  // panel titles
+  c.textAlign = 'left'; c.textBaseline = 'top'; c.font = `600 9.5px ${FONT_MONO}`;
+  c.fillStyle = SP[5].col; c.fillText('⁴He  Yₚ', m.pl + 5, m.p1.y0 + 4);
+  c.fillStyle = SP[2].col; c.fillText('D/H', m.pl + 5, m.p2.y0 + 4); c.fillStyle = SP[4].col; c.fillText('³He/H', m.pl + 36, m.p2.y0 + 4);
+  c.fillStyle = SP[6].col; c.fillText('⁷Li/H', m.pl + 5, m.p3.y0 + 4);
+  // observation boxes
+  const box = (p, v, s, col) => { const y0 = py(p, v + 2 * s), y1 = py(p, v - 2 * s), y2 = py(p, v + s), y3 = py(p, v - s); c.fillStyle = col.replace('A', '.13'); c.fillRect(m.pl, y0, Wc - m.pl - m.pr, Math.max(1, y1 - y0)); c.fillStyle = col.replace('A', '.28'); c.fillRect(m.pl, y2, Wc - m.pl - m.pr, Math.max(1.5, y3 - y2)); };
+  box(m.p1, OBS.Yp[0], OBS.Yp[1], 'rgba(255,211,122,A)');
+  box(m.p2, OBS.DH[0], OBS.DH[1], 'rgba(255,240,207,A)');
+  { const y = py(m.p2, OBS.DH[0]); c.fillStyle = 'rgba(255,240,207,.55)'; c.fillRect(m.pl, y - 0.75, Wc - m.pl - m.pr, 1.5); }
+  box(m.p3, OBS.Li[0], OBS.Li[1], 'rgba(255,74,100,A)');
+  const clipP = (p) => { c.save(); c.beginPath(); c.rect(m.pl, p.y0, Wc - m.pl - m.pr, p.h); c.clip(); };
+  clipP(m.p1);
+  // ghost N_eff curves
+  c.setLineDash([3, 3]); c.lineWidth = 1;
+  [2, 3, 4].forEach((Nn) => {
+    const arr = SC.ghost[Nn]; c.strokeStyle = 'rgba(236,230,214,.38)'; c.beginPath(); let st = false;
+    arr.forEach((v, i) => { if (v == null) { st = false; return; } const x = m.x(SC.gEtas[i]), y = py(m.p1, v); if (!st) { c.moveTo(x, y); st = true; } else c.lineTo(x, y); });
+    c.stroke();
+    const li = arr.length - 4, lv = arr[li]; if (lv != null) { c.fillStyle = 'rgba(236,230,214,.62)'; c.font = `500 8.5px ${FONT_MONO}`; c.textAlign = 'center'; c.textBaseline = 'bottom'; c.fillText('N=' + Nn, m.x(SC.gEtas[li]), py(m.p1, lv) - 3); }
+  });
+  c.setLineDash([]);
+  // main curves
+  const curve = (p, key, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); let st = false; SC.main.forEach((f, i) => { if (!f) { st = false; return; } const x = m.x(SC.etas[i]), y = py(p, f[key]); if (!st) { c.moveTo(x, y); st = true; } else c.lineTo(x, y); }); c.stroke(); };
+  curve(m.p1, 'Yp', SP[5].col, 1.8); c.restore();
+  clipP(m.p2); curve(m.p2, 'DH', SP[2].col, 1.6); curve(m.p2, 'He3H', SP[4].col, 1.4); c.restore();
+  clipP(m.p3); curve(m.p3, 'Li7H', SP[6].col, 1.6); c.restore();
+  // current η
+  const xe = m.x(P.eta);
+  c.strokeStyle = 'rgba(236,230,214,.8)'; c.lineWidth = 1; c.beginPath(); c.moveTo(xe, m.p1.y0); c.lineTo(xe, m.p3.y0 + m.p3.h); c.stroke();
+  const f = RUN.fin;
+  const dot = (p, v, col) => { const y = py(p, v); if (y < p.y0 - 1 || y > p.y0 + p.h + 1) return; c.fillStyle = col; c.beginPath(); c.arc(xe, y, 3.2, 0, 6.283); c.fill(); c.strokeStyle = '#05060c'; c.lineWidth = 1; c.stroke(); };
+  dot(m.p1, f.Yp, SP[5].col); dot(m.p2, f.DH, SP[2].col); dot(m.p2, f.He3H, SP[4].col); dot(m.p3, f.Li7H, SP[6].col);
+  // lithium problem annotation
+  const liP = f.Li7H / OBS.Li[0];
+  if (Math.abs(Math.log(P.eta / PLANCK[0])) < 0.35 && liP > 1.6) {
+    const y1 = py(m.p3, f.Li7H), y0 = py(m.p3, OBS.Li[0]);
+    c.strokeStyle = 'rgba(255,74,100,.8)'; c.beginPath(); c.moveTo(xe + 7, y1); c.lineTo(xe + 7, y0); c.stroke();
+    c.fillStyle = 'rgba(255,120,140,.95)'; c.font = `500 9px ${FONT_MONO}`; c.textAlign = 'left'; c.textBaseline = 'middle';
+    c.fillText('lithium problem ×' + liP.toFixed(1), xe + 11, (y0 + y1) / 2);
+  }
+  if (SC.busy) { c.fillStyle = 'rgba(236,230,214,.45)'; c.font = `500 9px ${FONT_MONO}`; c.textAlign = 'right'; c.textBaseline = 'top'; c.fillText('computing…', Wc - m.pr - 2, m.p2.y0 + 4); }
+}
+schC.style.cursor = 'crosshair'; schC.style.touchAction = 'pan-y';
+schC.addEventListener('click', (e) => { const r = schC.getBoundingClientRect(); const m = schMap(r.width, r.height); const eta = m.ix(e.clientX - r.left); sEta.set(eta); P.eta = eta; queueRun(false); });
+
+/* live reaction network on a chart of nuclides */
+const NODE = { 0: [1, 0], 1: [0, 1], 2: [1, 1], 3: [2, 1], 4: [1, 2], 5: [2, 2], 6: [4, 3], 7: [3, 4] }; // [N, Z]
+// edges: [reaction index, from species, to species, curvature]
+const EDGES = [
+  [0, 1, 2, 0.0], [0, 0, 2, 0.0],
+  [1, 2, 4, -0.22], [3, 2, 4, 0.22],
+  [2, 2, 3, -0.22], [4, 2, 3, 0.22],
+  [5, 3, 5, -0.22], [8, 3, 5, 0.22],
+  [6, 4, 5, -0.22], [9, 4, 5, 0.22],
+  [7, 4, 3, 0.35],
+  [10, 3, 6, 0.1], [11, 4, 7, -0.1],
+  [12, 7, 6, 0.25], [13, 6, 5, 0.3], [14, 7, 5, -0.2],
+];
+const FLF = new Float64Array(eng.R.length + 1), FLR = new Float64Array(eng.R.length + 1), YV = new Float64Array(8);
+let dashPhase = 0, netTop = '';
+function drawNet(Tmev, dt) {
+  const P_ = prepCanvas(netC); if (!P_) return;
+  const { c, W: Wc, H: Hc } = P_;
+  for (let s2 = 0; s2 < 8; s2++) YV[s2] = XS[s2] / eng.A[s2];
+  eng.flux(Tmev, YV, P.eta, P.tau, FLF, FLR);
+  dashPhase += dt * 40;
+  const padL = 30, padB = 28, padT = 12, padR = 12;
+  const cw = (Wc - padL - padR) / 4.6, chh = (Hc - padT - padB) / 4.6;
+  const px = (N) => padL + (N + 0.3) * cw, py = (Z) => Hc - padB - (Z + 0.3) * chh;
+  // grid
+  c.strokeStyle = 'rgba(236,230,214,.06)'; c.lineWidth = 1;
+  for (let k = 0; k <= 4; k++) { c.beginPath(); c.moveTo(px(k), padT); c.lineTo(px(k), Hc - padB + 4); c.stroke(); c.beginPath(); c.moveTo(padL - 4, py(k)); c.lineTo(Wc - padR, py(k)); c.stroke(); }
+  c.fillStyle = 'rgba(236,230,214,.38)'; c.font = `500 8.5px ${FONT_MONO}`; c.textAlign = 'center'; c.textBaseline = 'top';
+  for (let k = 0; k <= 4; k++) c.fillText(String(k), px(k), Hc - padB + 5);
+  c.textAlign = 'right'; c.textBaseline = 'middle';
+  for (let k = 0; k <= 4; k++) c.fillText(String(k), padL - 8, py(k));
+  c.save(); c.translate(9, (padT + Hc - padB) / 2); c.rotate(-Math.PI / 2); c.textAlign = 'center'; c.fillText('protons Z', 0, 0); c.restore();
+  c.textAlign = 'right'; c.textBaseline = 'bottom'; c.fillText('neutrons N →', Wc - padR, Hc - 1);
+  // flux → width
+  const wOf = (j) => { if (!(j > 0)) return 0; return U.clamp((Math.log10(j) + 11) / 9, 0, 1); };
+  let best = -1, bestJ = 0;
+  const arc = (a, b, curv, w, col, phase, back) => {
+    const x0 = px(NODE[a][0]), y0 = py(NODE[a][1]), x1 = px(NODE[b][0]), y1 = py(NODE[b][1]);
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, dx = x1 - x0, dy = y1 - y0;
+    const cx = mx - dy * curv, cy = my + dx * curv;
+    c.strokeStyle = col; c.lineWidth = 0.6 + w * 3.4; c.globalAlpha = 0.25 + 0.75 * w;
+    c.setLineDash([4, 5]); c.lineDashOffset = back ? phase : -phase;
+    c.beginPath(); c.moveTo(x0, y0); c.quadraticCurveTo(cx, cy, x1, y1); c.stroke();
+    c.setLineDash([]); c.globalAlpha = 1;
+  };
+  for (const [r, a, b, curv] of EDGES) {
+    const f = FLF[r], rv = FLR[r];
+    const wf = wOf(f), wr = wOf(rv);
+    if (wr > 0.02) arc(a, b, curv + (curv >= 0 ? 0.08 : -0.08), wr, '#9fc0ff', dashPhase * (0.3 + wr), true);
+    if (wf > 0.02) arc(a, b, curv, wf, '#ffd37a', dashPhase * (0.3 + wf), false);
+    if (f - rv > bestJ) { bestJ = f - rv; best = r; }
+  }
+  // weak n ⇄ p
+  { const wf = wOf(FLF[eng.R.length]), wr = wOf(FLR[eng.R.length]);
+    if (wf > 0.02) arc(0, 1, 0.25, wf, '#8fe9ff', dashPhase * (0.3 + wf), false);
+    if (wr > 0.02) arc(0, 1, -0.25, wr, '#8fe9ff', dashPhase * (0.3 + wr), true); }
+  // nodes
+  const lab = ['n', 'p', 'D', '³H', '³He', '⁴He', '⁷Li', '⁷Be'];
+  for (let k = 0; k < 8; k++) {
+    const x = px(NODE[k][0]), y = py(NODE[k][1]), X = XS[k];
+    const r = 3 + 9 * U.clamp((Math.log10(Math.max(X, 1e-30)) + 12) / 12, 0, 1);
+    const g = c.createRadialGradient(x, y, 0, x, y, r * 2.2); g.addColorStop(0, SP[k].col + 'aa'); g.addColorStop(1, SP[k].col + '00');
+    c.fillStyle = g; c.beginPath(); c.arc(x, y, r * 2.2, 0, 6.283); c.fill();
+    c.fillStyle = SP[k].col; c.beginPath(); c.arc(x, y, r, 0, 6.283); c.fill();
+    c.fillStyle = '#ece6d6'; c.font = `600 9.5px ${FONT_MONO}`; c.textAlign = 'left'; c.textBaseline = 'bottom';
+    c.fillText(lab[k], x + r + 2, y - 2);
+  }
+  // dominant net reaction
+  const nm = best >= 0 && bestJ > 1e-14 ? eng.R[best].name : (FLF[eng.R.length] > 1e-6 ? 'n → p (weak)' : '—');
+  c.fillStyle = 'rgba(236,230,214,.55)'; c.font = `500 9px ${FONT_MONO}`; c.textAlign = 'left'; c.textBaseline = 'top';
+  c.fillText('busiest now', padL + 4, padT - 4); c.fillStyle = '#ffd37a'; c.fillText(nm, padL + 4, padT + 8);
+}
+
+function updateVerdict() {
+  const f = RUN.fin, el = verdict;
+  const yOk = Math.abs(f.Yp - OBS.Yp[0]) < 2 * OBS.Yp[1] + 0.002;
+  const dRel = f.DH / OBS.DH[0]; const dOk = Math.abs(Math.log(dRel)) < Math.log(1.1) + 2 * OBS.DH[1] / OBS.DH[0];
+  const lRel = f.Li7H / OBS.Li[0]; const lOk = lRel < (OBS.Li[0] + 2 * OBS.Li[1]) / OBS.Li[0] && lRel > (OBS.Li[0] - 2 * OBS.Li[1]) / OBS.Li[0];
+  const row = (name, val, obs, ok, extra) => [Cosmos.h('span', { text: name }), Cosmos.h('span', {}, Cosmos.h('b', { text: val }), Cosmos.h('small', { text: '  obs ' + obs })), Cosmos.h('span', { class: ok === true ? 'ok' : ok === false ? 'bad' : 'meh', text: ok === true ? '✓' : ok === false ? '✗' + (extra || '') : '·' })];
+  el.innerHTML = '';
+  el.append(...row('Yₚ', f.Yp.toFixed(4), '0.245 ± 0.003', yOk));
+  el.append(...row('D/H', FM.sci(f.DH, 3), '2.527 × 10⁻⁵', dOk));
+  el.append(...row('³He/H', FM.sci(f.He3H, 3), '≈ 1 × 10⁻⁵', null));
+  el.append(...row('⁷Li/H', FM.sci(f.Li7H, 3), '1.6 × 10⁻¹⁰', lOk, lOk ? '' : ' ×' + lRel.toFixed(1)));
+}
+
+/* ---------- parameter changes ---------- */
+let runQueued = false, scanQueued = false, scanTimer = 0, toastTimer = 0;
+function queueRun(needScan) { runQueued = true; if (needScan) scanQueued = true; }
+function flushRun() {
+  if (!runQueued) return;
+  runQueued = false;
+  const oldYp = RUN.fin.Yp;
+  computeRun();
+  if (scanQueued) { scanQueued = false; clearTimeout(scanTimer); scanTimer = setTimeout(startScan, 180); }
+  capShown = new Set([...capShown].filter((id) => CAPS.find((c) => c.id === id).at() <= Math.exp(lt)));
+  clearTimeout(toastTimer); cap.classList.remove('on'); // the toast takes the caption's place
+  toastTimer = setTimeout(() => ch.toast('Network re-run in ' + runMs.toFixed(0) + ' ms · Yₚ = ' + RUN.fin.Yp.toFixed(4) + ' · D/H = ' + sci(RUN.fin.DH, 3)), 350);
+}
+function preset(eta, Neff, tau, msg) {
+  const needScan = Neff !== P.Neff || tau !== P.tau;
+  P.eta = eta; P.Neff = Neff; P.tau = tau; sEta.set(eta); sNeff.set(Neff); sTau.set(tau);
+  queueRun(needScan); flushRun(); ch.toast(msg);
+}
+onRun = () => {
+  roCos.omb.set((P.eta * 1e10 / 273.9).toFixed(4));
+  roCos.gpb.set(FM.sci(1 / P.eta, 3));
+  roCos.ms.set(runMs.toFixed(1) + ' ms');
+  roCos.nb.set(npStr(npAt(Math.min(KEY.tBreak, 1000))));
+  updateVerdict(); schrammDirty = true;
+  if (endCard.classList.contains('on')) buildEnd();
+};
+onRun();
+
+/* ---------- time control ---------- */
+let scrubbing = false, lastScrub = 0;
+function setLt(v, fromUser) {
+  const prev = lt;
+  lt = U.clamp(v, LT_MIN, LT_MAX);
+  if (fromUser) {
+    lastScrub = now; holdT = 0; hideEnd();
+    const tn = Math.exp(lt);
+    capShown = new Set(CAPS.filter((c) => c.at() < tn).map((c) => c.id));
+    if (Math.abs(lt - prev) > 0.12) { cap.classList.remove('on'); }
+  }
+}
+function replay() { setLt(LT_MIN, true); capShown.clear(); rebuild(); pulse = 0.4; if (ch.paused) ch.setPaused(false); }
+function jumpBreak() { setLt(Math.log(Math.max(1, KEY.tBreak * 0.72)), true); capShown = new Set(CAPS.filter((c) => c.at() < KEY.tBreak * 0.72).map((c) => c.id)); if (ch.paused) ch.setPaused(false); ch.toast('T ≈ ' + stateAtT(KEY.tBreak * 0.72).toFixed(3) + ' MeV · watch the blue photons'); }
+function hideEnd() { endCard.classList.remove('on'); }
+ch.onKey('r', () => replay(), 'Replay from t = 1 s');
+ch.onKey('b', () => jumpBreak(), 'Jump to the deuterium bottleneck');
+ch.onKey('l', () => { labelsOn = !labelsOn; document.getElementById('ns-labels-t').checked = labelsOn; }, 'Toggle particle labels');
+ch.onKey('arrowright', () => setLt(lt + 0.08, true), 'Step forward in time');
+ch.onKey('arrowleft', () => setLt(lt - 0.08, true), 'Step back in time');
+
+/* ---------- stage interaction: stir, probe, zoom ---------- */
+let pDown = null, probeSel = null;
+const ptrs = new Map(); let pinch0 = 0;
+ch.stage.addEventListener('wheel', (e) => { e.preventDefault(); zoomUser = U.clamp(zoomUser * Math.exp(-e.deltaY * 0.0015), 1, 3.2); }, { passive: false });
+ch.stage.addEventListener('pointerdown', (e) => {
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); pDown = null; stir = null; return; }
+  pDown = { x: e.clientX, y: e.clientY, t: now, moved: 0 }; stir = { x: e.clientX, y: e.clientY, dx: 0, dy: 0, t: now };
+});
+ch.stage.addEventListener('pointermove', (e) => {
+  if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch0 > 0) zoomUser = U.clamp(zoomUser * d / pinch0, 1, 3.2); pinch0 = d; return; }
+  if (!pDown) return;
+  const dx = e.clientX - stir.x, dy = e.clientY - stir.y;
+  pDown.moved += Math.abs(dx) + Math.abs(dy);
+  stir = { x: e.clientX, y: e.clientY, dx: U.clamp(dx, -40, 40) * 0.02, dy: U.clamp(dy, -40, 40) * 0.02, t: now };
+});
+const endPointer = (e) => {
+  if (pDown && pDown.moved < 6) doProbe(e.clientX, e.clientY);
+  pDown = null; stir = null;
+};
+ch.stage.addEventListener('pointerup', (e) => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch0 = 0; endPointer(e); });
+ch.stage.addEventListener('pointercancel', (e) => { ptrs.delete(e.pointerId); pinch0 = 0; pDown = null; stir = null; });
+ch.onKey('0', () => { zoomUser = 1; }, 'Reset zoom');
+let probeCanvas = null, probeSp = 1;
+function drawProbeNucleus() {
+  if (!probeCanvas || !probe.classList.contains('on')) return;
+  const c = probeCanvas.getContext('2d'); c.setTransform(2, 0, 0, 2, 0, 0); c.clearRect(0, 0, 64, 64);
+  const sp = probeSp, a = now * 0.9, tilt = 0.45;
+  let pts;
+  if (sp <= 1) pts = [{ x: 0, y: 0, z: 0, n: sp === 0 ? 1 : 0 }];
+  else pts = TPL[sp].pos.map((v, k) => ({ x: v[0], y: v[1], z: v[2], n: TPL[sp].n[k] }));
+  const R = sp <= 1 ? 17 : sp >= 6 ? 8.5 : 11;
+  const pr = pts.map((q) => { const x = q.x * Math.cos(a) + q.z * Math.sin(a), z0 = -q.x * Math.sin(a) + q.z * Math.cos(a); const y = q.y * Math.cos(tilt) - z0 * Math.sin(tilt), z = q.y * Math.sin(tilt) + z0 * Math.cos(tilt); return { x, y, z, n: q.n }; }).sort((p, q) => p.z - q.z);
+  const halo = c.createRadialGradient(32, 32, 2, 32, 32, 31); halo.addColorStop(0, SP[sp].col + '55'); halo.addColorStop(1, SP[sp].col + '00');
+  c.fillStyle = halo; c.fillRect(0, 0, 64, 64);
+  pr.forEach((q) => {
+    const x = 32 + q.x * R * 0.98, y = 32 - q.y * R * 0.98, rr = R * (1 + q.z * 0.06);
+    const col = q.n ? SP[0].col : SP[1].col;
+    const gr_ = c.createRadialGradient(x - rr * 0.35, y - rr * 0.4, rr * 0.1, x, y, rr);
+    gr_.addColorStop(0, '#fff6e6'); gr_.addColorStop(0.25, col); gr_.addColorStop(1, 'rgba(20,14,10,0.95)');
+    c.fillStyle = gr_; c.beginPath(); c.arc(x, y, rr, 0, 6.283); c.fill();
+  });
+  if (sp <= 1) { c.fillStyle = 'rgba(5,6,12,.75)'; c.font = `600 9px ${FONT_MONO}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(sp === 1 ? 'uud' : 'udd', 32, 34); }
+}
+function doProbe(cx, cy) {
+  const Wc = window.innerWidth, Hc = window.innerHeight;
+  let best = null, bd = 34 * 34;
+  const test = (x, y, d, sel) => { if (d > 3.6) return; const s = toScreen(x, y, d); const dx = s[0] * Wc - cx, dy = s[1] * Hc - cy, dd = dx * dx + dy * dy - (4 - d) * 30; if (dd < bd) { bd = dd; best = sel; } };
+  for (let g = 0; g < GM; g++) if (gSp[g] >= 0) test(gx[g], gy[g], gd[g], { kind: 'g', i: g });
+  for (let i = 0; i < N; i++) if (nGrp[i] < 0) test(nx[i], ny[i], nd[i], { kind: 'n', i });
+  if (!best) { probe.classList.remove('on'); probeSel = null; return; }
+  best.t = now; probeSel = best;
+  let sp, extra = '';
+  if (best.kind === 'n') sp = nIsN[best.i] ? 0 : 1; else { sp = gSp[best.i]; if (gKind[best.i] === G_TRANS) extra = ' · this one will be split by a photon'; if (gKind[best.i] === G_SPEC) extra = ' · shown as a specimen; the true abundance is far too low to appear'; }
+  probe.innerHTML = '';
+  probeCanvas = Cosmos.h('canvas', { width: 128, height: 128, style: { width: '64px', height: '64px', float: 'left', margin: '0 10px 2px 0' } });
+  probeSp = sp;
+  probe.append(probeCanvas, Cosmos.h('b', { text: SP[sp].label + ' · ' + SP[sp].name }), Cosmos.h('span', { text: INFO[sp] + extra }));
+  probe.classList.add('on');
+  if (ch.sound.enabled) soundEvents.push(sp === 5 ? 5 : 1);
+}
+
+/* ------------------------------------------------------------------------- sound */
+const AUD = { amb: null, noiseBuf: null, last: 0, count: 0 };
+function audioInit() {
+  const ctx = ch.sound.ensure(); if (!ctx || AUD.amb) return;
+  const len = Math.round(ctx.sampleRate * 2), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+  let b0 = 0, b1 = 0, b2 = 0;
+  for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; b0 = 0.99765 * b0 + w * 0.099; b1 = 0.963 * b1 + w * 0.2965; b2 = 0.57 * b2 + w * 1.0527; d[i] = (b0 + b1 + b2 + w * 0.1848) * 0.2; }
+  AUD.noiseBuf = buf;
+  const out = ctx.createGain(); out.gain.value = 0; out.connect(ch.sound.out);
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 600; lp.Q.value = 0.8; lp.connect(out);
+  const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), o3 = ctx.createOscillator();
+  o1.type = 'sawtooth'; o2.type = 'sawtooth'; o3.type = 'sine';
+  const g12 = ctx.createGain(); g12.gain.value = 0.18; o1.connect(g12); o2.connect(g12); g12.connect(lp);
+  const g3 = ctx.createGain(); g3.gain.value = 0.5; o3.connect(g3); g3.connect(lp);
+  const ns = ctx.createBufferSource(); ns.buffer = buf; ns.loop = true;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1200; bp.Q.value = 0.6;
+  const gn = ctx.createGain(); gn.gain.value = 0.25; ns.connect(bp); bp.connect(gn); gn.connect(out);
+  o1.start(); o2.start(); o3.start(); ns.start();
+  AUD.amb = { out, lp, o1, o2, o3, bp, gn };
+}
+function audioFrame(Tmev) {
+  if (!ch.sound.enabled || !AUD.amb) return;
+  const ctx = ch.sound.ctx, a = AUD.amb, tt = ctx.currentTime;
+  const TK = Tmev / 8.617333e-11;
+  const f0 = 38 * Math.pow(TK / 3e8, 0.36);
+  a.o1.frequency.setTargetAtTime(f0, tt, 0.15); a.o2.frequency.setTargetAtTime(f0 * 1.006, tt, 0.15); a.o3.frequency.setTargetAtTime(f0 / 2, tt, 0.15);
+  a.lp.frequency.setTargetAtTime(180 + 900 * Math.pow(Math.min(1, TK / 1e10), 0.6), tt, 0.2);
+  a.bp.frequency.setTargetAtTime(500 + 2600 * Math.pow(Math.min(1, TK / 1e10), 0.7), tt, 0.2);
+  a.gn.gain.setTargetAtTime(0.08 + 0.3 * Math.pow(Math.min(1, TK / 1e10), 0.8), tt, 0.3);
+  a.out.gain.setTargetAtTime(ch.paused ? 0.02 : 0.11, tt, 0.3);
+  // events → crackle
+  const evs = soundEvents; soundEvents = [];
+  let played = 0;
+  for (const kind of evs) {
+    if (played > 3) break;
+    if (tt - AUD.last < 0.018) continue;
+    AUD.last = tt; played++;
+    crackle(kind);
+  }
+}
+const PENTA = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.5];
+function crackle(kind) {
+  const ctx = ch.sound.ctx, t = ctx.currentTime + 0.005;
+  const src = ctx.createBufferSource(); src.buffer = AUD.noiseBuf;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = kind === 5 ? 2600 + Math.random() * 1800 : 3000 + Math.random() * 4000; bp.Q.value = 2.5;
+  const g = ctx.createGain(); const peak = kind === 5 ? 0.35 : kind === 0 ? 0.06 : kind === 2 ? 0.12 : 0.18;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + (kind === 5 ? 0.09 : 0.04));
+  src.connect(bp); bp.connect(g); g.connect(ch.sound.out);
+  src.start(t, Math.random() * 1.5, 0.12);
+  if (kind === 5) { // a soft gold chime for helium
+    const o = ctx.createOscillator(), og = ctx.createGain(); o.type = 'sine'; o.frequency.value = PENTA[(Math.random() * PENTA.length) | 0];
+    og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.05, t + 0.006); og.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+    o.connect(og); og.connect(ch.sound.out); o.start(t); o.stop(t + 0.75);
+  }
+}
+// the dam breaks: a deep swell under the cascade of chimes
+function boom() {
+  const ctx = ch.sound.ctx; if (!ctx || !AUD.noiseBuf) return;
+  const t = ctx.currentTime + 0.01;
+  const o = ctx.createOscillator(), og = ctx.createGain(); o.type = 'sine';
+  o.frequency.setValueAtTime(74, t); o.frequency.exponentialRampToValueAtTime(31, t + 2.2);
+  og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.32, t + 0.08); og.gain.exponentialRampToValueAtTime(0.0001, t + 3.0);
+  o.connect(og); og.connect(ch.sound.out); o.start(t); o.stop(t + 3.1);
+  const src = ctx.createBufferSource(); src.buffer = AUD.noiseBuf;
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(2400, t); lp.frequency.exponentialRampToValueAtTime(160, t + 2.0);
+  const ng = ctx.createGain(); ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(0.22, t + 0.05); ng.gain.exponentialRampToValueAtTime(0.0001, t + 2.2);
+  src.connect(lp); lp.connect(ng); ng.connect(ch.sound.out); src.start(t, 0, 2.3);
+}
+ch.onSound((on) => { if (on) audioInit(); else if (AUD.amb) AUD.amb.out.gain.setTargetAtTime(0, ch.sound.ctx.currentTime, 0.1); });
+if (ch.sound.enabled) audioInit();
+
+/* ------------------------------------------------------------------------- main loop */
+rebuild();
+let lastReconT = -1, uiAcc = 1, deckAcc = 1, netAcc = 1, fpsAcc = 0, fpsN = 0, fps = 60, frameMs = 0;
+setTimeout(() => startScan(), 350);
+ch.loop((dt) => {
+  const f0 = performance.now();
+  now += dt;
+  flushRun();
+  // advance cosmic time
+  const tBefore = Math.exp(lt);
+  if (dt > 0 && !abDrag && !stripDrag) {
+    if (lt < LT_MAX - 1e-6) lt = Math.min(LT_MAX, lt + lrate(lt) * speed * dt);
+    else {
+      holdT += dt;
+      if (holdT > 1.2 && !endCard.classList.contains('on')) { buildEnd(); endCard.classList.add('on'); cap.classList.remove('on'); }
+      if (loopOn && holdT > 16) { hideEnd(); replay(); }
+    }
+  }
+  const t = Math.exp(lt);
+  const Tmev = stateAt(t); T_NOW = Tmev;
+  const dtCos = Math.max(0, t - tBefore);
+  checkCaptions(t, tBefore);
+  if (t !== lastReconT || dt > 0) { reconcile(dtCos, Tmev); lastReconT = t; }
+  bottleneckFlicker(dt, Tmev);
+  if (dt > 0) pairSparks(dt, Tmev);
+  move(dt, Tmev);
+  movePhotons(dt);
+  pulse *= Math.exp(-dt * 1.6);
+  updateZoom(dt, t);
+  // render
+  const nS = assemble(Tmev), nL = assembleLines(Tmev);
+  render(Tmev, nS, nL);
+  drawLabels(Tmev);
+  drawProbeNucleus();
+  audioFrame(Tmev);
+  // UI (throttled)
+  uiAcc += dt || 0.016; deckAcc += dt || 0.016;
+  if (uiAcc > 0.08) {
+    uiAcc = 0;
+    hudT.set(fmtClock(t));
+    hudTemp.set(fmtK(Tmev) + ' · ' + Tmev.toFixed(3) + ' MeV');
+    hudNP.set(npStr(XS[0] / XS[1]));
+    const nb = nAboveB(Tmev); hudNB.set((nb > 1e5 ? FM.sci(nb, 2) : nb >= 10 ? FM.num(nb, 0) : nb >= 0.01 ? nb.toFixed(2) : FM.sci(nb, 1)) + ' per nucleon');
+    hudHe.set((XS[5] * 100).toFixed(XS[5] < 0.001 ? 4 : 2) + '%');
+    rebuildLists();
+    censusEls.forEach((o) => { const v = cnt[o.s]; o.b.textContent = FM.num(v); o.el.classList.toggle('zero', v === 0); });
+    if (!sT.input.matches(':active')) sT.set(t);
+    drawStrip();
+    drawClock(Tmev);
+  }
+  netAcc += dt || 0.016; if (netAcc > 1 / 30) { drawNet(Tmev, netAcc); netAcc = 0; }
+  if (deckAcc > 0.1) { deckAcc = 0; drawAbund(); schAcc++; if (schrammDirty || schAcc > 8) { schAcc = 0; if (drawSchramm() !== false) schrammDirty = SC.busy; } }
+  fpsAcc += dt; fpsN++; if (fpsAcc > 1) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
+  frameMs = frameMs * 0.9 + (performance.now() - f0) * 0.1;
+}, { always: true });
+
+/* ------------------------------------------------------------------------- debug */
+Cosmos.debug.state = () => {
+  const f = RUN.fin, t = Math.exp(lt);
+  rebuildLists();
+  return {
+    t: +t.toFixed(3), kT_MeV: +T_NOW.toFixed(5), T_K: +(T_NOW / 8.617333e-11).toExponential(3), n_over_p: +(XS[0] / XS[1]).toFixed(5),
+    X: Object.fromEntries(eng.NAMES.map((n, i) => [n, +XS[i].toExponential(3)])),
+    eta: P.eta, Neff: P.Neff, tau_n: P.tau,
+    final: { Yp: +f.Yp.toFixed(5), DH: +f.DH.toExponential(4), He3H: +f.He3H.toExponential(4), Li7H: +f.Li7H.toExponential(4) },
+    key: { tBreak: +KEY.tBreak.toFixed(1), tDpeak: +KEY.tDpeak.toFixed(1), tDone: +KEY.tDone.toFixed(1), tNgammaB1: +KEY.tNB1.toFixed(1), np10s: +KEY.np10.toFixed(4) },
+    N_gamma_gt_B: nAboveB(T_NOW), runMs: +runMs.toFixed(2), engineInitMs: +ENGINE_MS.toFixed(1), solverBadSteps: RUN.bad,
+    onScreen: { n: cnt[0], p: cnt[1], D: cnt[2], T: cnt[3], He3: cnt[4], He4: cnt[5], specimens: Array.from(cntSpec).reduce((a, b) => a + b, 0) },
+    events: Object.assign({}, EV), scan: { done: SC.main.filter(Boolean).length, busy: SC.busy, worker: !!scanWorker },
+    fps: +fps.toFixed(1), frameMs: +frameMs.toFixed(2), hdr: !!HDR,
+  };
+};
+Cosmos.debug.setT = (t) => { setLt(Math.log(t), true); return Math.exp(lt); };
+Cosmos.debug.params = (eta, Neff, tau) => { preset(eta || P.eta, Neff || P.Neff, tau || P.tau, 'debug'); return RUN.fin; };
+Cosmos.debug.speed = (s) => { speed = s; sSpeed.set(s); return speed; };
+Cosmos.debug.pause = (b) => { ch.setPaused(!!b); return ch.paused; };
+Cosmos.debug.frame = (t, secs) => { setLt(Math.log(t), true); const s0 = now; return new Promise((res) => { const f = () => { if (now - s0 >= (secs || 1.2)) { ch.setPaused(true); res(+Math.exp(lt).toFixed(2)); } else requestAnimationFrame(f); }; f(); }); };
+console.info('[nucleosynthesis] network ready in ' + ENGINE_MS.toFixed(0) + ' ms · Y_p = ' + RUN.fin.Yp.toFixed(4) + ', D/H = ' + RUN.fin.DH.toExponential(3) + ', ⁷Li/H = ' + RUN.fin.Li7H.toExponential(3));
+})();
+</script>
+</body>
+</html>

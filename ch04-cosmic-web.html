@@ -1,0 +1,1992 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Cosmic Web · Cosmogenesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="cosmos.css">
+<style>
+  .cw-caption {
+    position: fixed; z-index: 12; pointer-events: none; text-align: center;
+    left: 470px; right: 340px; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 14px);
+    display: grid; gap: 6px; justify-items: center;
+    opacity: 0; transform: translateY(-6px); transition: opacity .9s var(--ease), transform .9s var(--ease);
+    text-shadow: 0 2px 18px rgba(0,0,0,.95), 0 0 2px rgba(0,0,0,.8);
+  }
+  .cw-caption.on { opacity: 1; transform: none; }
+  .cw-caption b { font: italic 500 clamp(20px, 2.1vw, 28px)/1.15 var(--f-display); color: var(--star); font-weight: 500; text-wrap: balance; }
+  .cw-caption small { font: 500 10.5px/1.3 var(--f-mono); letter-spacing: .16em; text-transform: uppercase; color: var(--era); }
+  .cw-labels { position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }
+  .cw-lab {
+    position: absolute; left: 0; top: 0; white-space: nowrap; will-change: transform;
+    font: 500 10px/1.2 var(--f-mono); letter-spacing: .08em; color: var(--dust);
+    text-shadow: 0 1px 6px rgba(0,0,0,.95); opacity: 0; transition: opacity .6s var(--ease);
+  }
+  .cw-lab.on { opacity: .9; }
+  .cw-lab.halo { color: #ffd9a0; padding: 2px 6px 2px 16px; background: linear-gradient(90deg, rgba(5,6,12,0), rgba(5,6,12,.55) 18px, rgba(5,6,12,.55)); border-radius: 3px; }
+  .cw-lab.halo.flip { padding: 2px 16px 2px 6px; background: linear-gradient(270deg, rgba(5,6,12,0), rgba(5,6,12,.55) 18px, rgba(5,6,12,.55)); }
+  .cw-lab.halo.flip::before { left: auto; right: -9px; }
+  .cw-lab.halo.flip::after { left: auto; right: -15px; transform: translateX(2px); }
+  .cw-lab.halo::before { content: ""; position: absolute; left: -9px; top: 50%; width: 22px; height: 1px; background: rgba(255,217,160,.55); }
+  .cw-lab.halo::after { content: ""; position: absolute; left: -15px; top: calc(50% - 6px); width: 11px; height: 11px; border-radius: 50%; border: 1px solid rgba(255,217,160,.6); transform: translateX(-2px); }
+  .cw-lab.scale { color: var(--faint); letter-spacing: .12em; }
+  .cw-mode {
+    display: inline-flex; gap: 0; border: 1px solid var(--line-strong); border-radius: var(--r-s); overflow: hidden;
+  }
+  .cw-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 500 10px/1.3 var(--f-mono); color: var(--dust); letter-spacing: .04em; }
+  .cw-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .cw-legend i { width: 14px; height: 0; border-top: 1.5px solid currentColor; display: inline-block; }
+  .cw-legend i.d { border-top-style: dashed; }
+  .cw-legend i.o { width: 8px; height: 8px; border: 0; border-radius: 50%; background: currentColor; }
+  .cw-ramp { height: 8px; border-radius: 4px; background: linear-gradient(90deg, #2a1f63 0%, #5b4fd6 22%, #7fa8ff 45%, #eef0ff 70%, #ffc46b 88%, #ffe2a8 100%); border: 1px solid var(--line); }
+  .cw-ramp-lab { display: flex; justify-content: space-between; font: 500 9.5px/1 var(--f-mono); color: var(--faint); margin-top: 4px; }
+  @media (max-width: 1100px) and (min-width: 761px) { .cw-caption { left: 40%; right: 330px; } }
+  @media (max-width: 760px) {
+    .cw-caption { left: var(--gutter); right: var(--gutter); top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 132px); }
+    .cw-caption b { font-size: 19px; }
+  }
+</style>
+</head>
+<body>
+<script src="cosmos.js"></script>
+<script>
+(function () {
+'use strict';
+
+/* =====================================================================================
+   Shared cosmology (flat ΛCDM). Stringified into the worker as well, so it must be
+   self-contained: growth factor, growth rate, leapfrog drift/kick integrals, cosmic age,
+   Eisenstein & Hu (1998) no-wiggle transfer function, σ8 normalisation, σ(M).
+   Units: lengths in Mpc/h, time in 1/H0, masses in M☉/h.
+   ===================================================================================== */
+function cosmoLib() {
+  'use strict';
+  function simpson(f, a, b, n) { const hh = (b - a) / n; let s = f(a) + f(b); for (let i = 1; i < n; i++) s += f(a + i * hh) * (i & 1 ? 4 : 2); return s * hh / 3; }
+  function make(o) {
+    const Om = o.Om, OL = 1 - Om, h = o.h, ns = o.ns, Ob = o.Ob, s8 = o.s8;
+    const E = (a) => Math.sqrt(Om / (a * a * a) + OL);
+    const gI = (u) => { if (u <= 0) return 0; const a = u * u; return 2 * u * Math.pow(Om / a + OL * a * a, -1.5); };
+    const I = (a) => simpson(gI, 0, Math.sqrt(a), 256);
+    const Dun = (a) => 2.5 * Om * E(a) * I(a);
+    const D1 = Dun(1);
+    const D = (a) => Dun(a) / D1;
+    const f = (a) => { const e = E(a); return -1.5 * Om / (a * a * a * e * e) + 1 / (a * a * e * e * e * I(a)); };
+    const drift = (a0, a1) => simpson((a) => 1 / (a * a * a * E(a)), a0, a1, 32);
+    const kick = (a0, a1) => simpson((a) => 1 / (a * a * E(a)), a0, a1, 32);
+    const hubbleTimeGyr = 9.7779 / h;
+    const age = (a) => hubbleTimeGyr * 2 / (3 * Math.sqrt(OL)) * Math.asinh(Math.sqrt(OL / Om) * Math.pow(a, 1.5));
+    const om = Om * h * h, ob = Ob * h * h, fb = Ob / Om, th2 = Math.pow(2.7255 / 2.7, 2);
+    const sEH = 44.5 * Math.log(9.83 / om) / Math.sqrt(1 + 10 * Math.pow(ob, 0.75));
+    const aG = 1 - 0.328 * Math.log(431 * om) * fb + 0.38 * Math.log(22.3 * om) * fb * fb;
+    const T = (k) => {
+      if (k <= 0) return 1;
+      const ks = 0.43 * k * h * sEH, Geff = Om * h * (aG + (1 - aG) / (1 + ks * ks * ks * ks));
+      const q = k * th2 / Geff, L0 = Math.log(2 * Math.E + 1.8 * q), C0 = 14.2 + 731 / (1 + 62.5 * q);
+      return L0 / (L0 + C0 * q * q);
+    };
+    const W = (x) => x < 1e-3 ? 1 - x * x / 10 : 3 * (Math.sin(x) - x * Math.cos(x)) / (x * x * x);
+    const P0 = (k) => { const t = T(k); return Math.pow(k, ns) * t * t; };
+    const sigR0 = (R, Pf) => Math.sqrt(simpson((lk) => { const k = Math.exp(lk), w = W(k * R); return k * k * k * Pf(k) * w * w; }, Math.log(1e-4), Math.log(2e2), 2400) / (2 * Math.PI * Math.PI));
+    const A = Math.pow(s8 / sigR0(8, P0), 2);
+    const Plin = (k, a) => { const d = a == null ? 1 : D(a); return A * P0(k) * d * d; };
+    const rhoM = 2.775e11 * Om;
+    const sigR = (R) => sigR0(R, (k) => A * P0(k));
+    const sigmaM = (M) => sigR(Math.cbrt(3 * M / (4 * Math.PI * rhoM)));
+    const sigG = (R) => Math.sqrt(simpson((lk) => { const k = Math.exp(lk); return k * k * k * A * P0(k) * Math.exp(-k * k * R * R); }, Math.log(1e-4), Math.log(50), 1600) / (2 * Math.PI * Math.PI));
+    return { Om, OL, h, ns, Ob, s8, E, D, f, drift, kick, age, T, Plin, sigR, sigG, sigmaM, rhoM, A, hubbleTimeGyr };
+  }
+  return { make, simpson };
+}
+
+/*@worker-begin*/
+/* =====================================================================================
+   The particle-mesh N-body engine. Runs in a Blob worker.
+   Comoving coordinates x (Mpc/h), momenta p = a² dx/dt (H0 = 1), KDK leapfrog in a:
+     dx/da = p / (a³ E(a)),   dp/da = −∇φ / (a² E(a)),   ∇²φ = (3/2) Ωm δ
+   CIC mass assignment, real-to-complex mixed-radix FFT Poisson solve,
+   4-point finite-difference gradient, CIC force interpolation.
+   ===================================================================================== */
+function workerMain() {
+  'use strict';
+  const COS = cosmoLib();
+
+  /* ---- Stockham FFT (radix 4, 2, 3) over n "rows", each row M contiguous floats ---- */
+  function makeRows(n, M) {
+    const fac = []; let m0 = n;
+    while (m0 % 4 === 0) { fac.push(4); m0 /= 4; }
+    while (m0 % 2 === 0) { fac.push(2); m0 /= 2; }
+    while (m0 % 3 === 0) { fac.push(3); m0 /= 3; }
+    if (m0 !== 1) throw new Error('FFT size must be 2^a 3^b');
+    const NM = n * M;
+    const Ar = new Float32Array(NM), Ai = new Float32Array(NM), Br = new Float32Array(NM), Bi = new Float32Array(NM);
+    const cw = new Float64Array(n), sw = new Float64Array(n);
+    for (let j = 0; j < n; j++) { cw[j] = Math.cos(2 * Math.PI * j / n); sw[j] = Math.sin(2 * Math.PI * j / n); }
+    const H3 = Math.sqrt(3) / 2;
+    const eng = { Ar, Ai, r: Ar, i: Ai };
+    eng.run = function (sg) {
+      let xr = Ar, xi = Ai, yr = Br, yi = Bi, nn = n, s = 1;
+      for (let f = 0; f < fac.length; f++) {
+        const r = fac[f], m = nn / r, sM = s * M, tstep = n / nn, istr = m * sM;
+        for (let p = 0; p < m; p++) {
+          const ib = sM * p, ob = sM * r * p, i1 = p * tstep;
+          const w1r = cw[i1], w1i = sg * sw[i1];
+          if (r === 4) {
+            const i2 = 2 * i1, i3 = 3 * i1, w2r = cw[i2], w2i = sg * sw[i2], w3r = cw[i3], w3i = sg * sw[i3];
+            const j1 = ib + istr, j2 = j1 + istr, j3 = j2 + istr, o1 = ob + sM, o2 = o1 + sM, o3 = o2 + sM;
+            for (let t = 0; t < sM; t++) {
+              const a0r = xr[ib + t], a0i = xi[ib + t], a1r = xr[j1 + t], a1i = xi[j1 + t];
+              const a2r = xr[j2 + t], a2i = xi[j2 + t], a3r = xr[j3 + t], a3i = xi[j3 + t];
+              const t0r = a0r + a2r, t0i = a0i + a2i, t1r = a0r - a2r, t1i = a0i - a2i;
+              const t2r = a1r + a3r, t2i = a1i + a3i, t3r = a1r - a3r, t3i = a1i - a3i;
+              const ur = -sg * t3i, ui = sg * t3r;
+              yr[ob + t] = t0r + t2r; yi[ob + t] = t0i + t2i;
+              let br = t0r - t2r, bi = t0i - t2i;
+              yr[o2 + t] = br * w2r - bi * w2i; yi[o2 + t] = br * w2i + bi * w2r;
+              br = t1r + ur; bi = t1i + ui;
+              yr[o1 + t] = br * w1r - bi * w1i; yi[o1 + t] = br * w1i + bi * w1r;
+              br = t1r - ur; bi = t1i - ui;
+              yr[o3 + t] = br * w3r - bi * w3i; yi[o3 + t] = br * w3i + bi * w3r;
+            }
+          } else if (r === 2) {
+            const j1 = ib + istr, o1 = ob + sM;
+            for (let t = 0; t < sM; t++) {
+              const a0r = xr[ib + t], a0i = xi[ib + t], a1r = xr[j1 + t], a1i = xi[j1 + t];
+              yr[ob + t] = a0r + a1r; yi[ob + t] = a0i + a1i;
+              const br = a0r - a1r, bi = a0i - a1i;
+              yr[o1 + t] = br * w1r - bi * w1i; yi[o1 + t] = br * w1i + bi * w1r;
+            }
+          } else {
+            const i2 = 2 * i1, w2r = cw[i2], w2i = sg * sw[i2];
+            const j1 = ib + istr, j2 = j1 + istr, o1 = ob + sM, o2 = o1 + sM, c = sg * H3;
+            for (let t = 0; t < sM; t++) {
+              const a0r = xr[ib + t], a0i = xi[ib + t], a1r = xr[j1 + t], a1i = xi[j1 + t], a2r = xr[j2 + t], a2i = xi[j2 + t];
+              const s1r = a1r + a2r, s1i = a1i + a2i, d1r = a1r - a2r, d1i = a1i - a2i;
+              yr[ob + t] = a0r + s1r; yi[ob + t] = a0i + s1i;
+              const mr = a0r - 0.5 * s1r, mi = a0i - 0.5 * s1i, nr = -c * d1i, ni = c * d1r;
+              let br = mr + nr, bi = mi + ni;
+              yr[o1 + t] = br * w1r - bi * w1i; yi[o1 + t] = br * w1i + bi * w1r;
+              br = mr - nr; bi = mi - ni;
+              yr[o2 + t] = br * w2r - bi * w2i; yi[o2 + t] = br * w2i + bi * w2r;
+            }
+          }
+        }
+        let tr = xr; xr = yr; yr = tr; tr = xi; xi = yi; yi = tr;
+        nn = m; s *= r;
+      }
+      eng.r = xr; eng.i = xi;
+    };
+    return eng;
+  }
+
+  /* complex 3D FFT, in place, unnormalised (used once for the initial conditions) */
+  function makeFFT3(N) {
+    const E = makeRows(N, N), N2 = N * N, Ar = E.Ar, Ai = E.Ai;
+    function transform(re, im, sg) {
+      for (let z = 0; z < N; z++) {
+        const b = z * N2;
+        for (let y = 0; y < N; y++) { const o = b + y * N; for (let x = 0; x < N; x++) { Ar[x * N + y] = re[o + x]; Ai[x * N + y] = im[o + x]; } }
+        E.run(sg);
+        const RR = E.r, RI = E.i;
+        for (let y = 0; y < N; y++) { const o = b + y * N; for (let x = 0; x < N; x++) { re[o + x] = RR[x * N + y]; im[o + x] = RI[x * N + y]; } }
+      }
+      for (let z = 0; z < N; z++) {
+        const b = z * N2;
+        Ar.set(re.subarray(b, b + N2)); Ai.set(im.subarray(b, b + N2));
+        E.run(sg); re.set(E.r, b); im.set(E.i, b);
+      }
+      for (let y = 0; y < N; y++) {
+        for (let z = 0; z < N; z++) { const o = z * N2 + y * N; Ar.set(re.subarray(o, o + N), z * N); Ai.set(im.subarray(o, o + N), z * N); }
+        E.run(sg);
+        const RR = E.r, RI = E.i;
+        for (let z = 0; z < N; z++) { const o = z * N2 + y * N; re.set(RR.subarray(z * N, z * N + N), o); im.set(RI.subarray(z * N, z * N + N), o); }
+      }
+    }
+    return { N, forward: (re, im) => transform(re, im, -1), inverse: (re, im) => transform(re, im, 1) };
+  }
+
+  /* real ↔ half-complex 3D FFT for the force mesh; spectrum layout [z][y][kx], kx = 0..N/2 */
+  function makeRFFT3(N) {
+    const H = N / 2, K = H + 1, NK = N * K, N2 = N * N;
+    const Rx = makeRows(H, N), Ryz = makeRows(N, K);
+    const ck = new Float64Array(K), sk = new Float64Array(K);
+    for (let k = 0; k < K; k++) { ck[k] = Math.cos(2 * Math.PI * k / N); sk[k] = Math.sin(2 * Math.PI * k / N); }
+    function yz(cr, ci, sg) {
+      for (let z = 0; z < N; z++) {
+        const b = z * NK;
+        Ryz.Ar.set(cr.subarray(b, b + NK)); Ryz.Ai.set(ci.subarray(b, b + NK));
+        Ryz.run(sg); cr.set(Ryz.r, b); ci.set(Ryz.i, b);
+      }
+      for (let y = 0; y < N; y++) {
+        for (let z = 0; z < N; z++) { const o = z * NK + y * K; Ryz.Ar.set(cr.subarray(o, o + K), z * K); Ryz.Ai.set(ci.subarray(o, o + K), z * K); }
+        Ryz.run(sg);
+        const rr = Ryz.r, ri = Ryz.i;
+        for (let z = 0; z < N; z++) { const o = z * NK + y * K; cr.set(rr.subarray(z * K, z * K + K), o); ci.set(ri.subarray(z * K, z * K + K), o); }
+      }
+    }
+    function forward(f, cr, ci) {
+      const Ar = Rx.Ar, Ai = Rx.Ai;
+      for (let z = 0; z < N; z++) {
+        const b = z * N2;
+        for (let y = 0; y < N; y++) { const o = b + y * N; for (let n = 0; n < H; n++) { Ar[n * N + y] = f[o + 2 * n]; Ai[n * N + y] = f[o + 2 * n + 1]; } }
+        Rx.run(-1);
+        const Zr = Rx.r, Zi = Rx.i, ob = z * NK;
+        for (let k = 0; k <= H; k++) {
+          const ka = (k === H ? 0 : k) * N, kb = (k === 0 ? 0 : H - k) * N, c = ck[k], s = -sk[k];
+          for (let y = 0; y < N; y++) {
+            const zr = Zr[ka + y], zi = Zi[ka + y], wr = Zr[kb + y], wi = -Zi[kb + y];
+            const fer = 0.5 * (zr + wr), fei = 0.5 * (zi + wi), for_ = 0.5 * (zi - wi), foi = -0.5 * (zr - wr);
+            const o = ob + y * K + k;
+            cr[o] = fer + c * for_ - s * foi; ci[o] = fei + c * foi + s * for_;
+          }
+        }
+      }
+      yz(cr, ci, -1);
+    }
+    function inverse(cr, ci, f) {
+      yz(cr, ci, 1);
+      const Ar = Rx.Ar, Ai = Rx.Ai;
+      for (let z = 0; z < N; z++) {
+        const ob = z * NK;
+        for (let k = 0; k < H; k++) {
+          const c = ck[k], s = sk[k], kb = H - k;
+          for (let y = 0; y < N; y++) {
+            const o = ob + y * K;
+            const xr = cr[o + k], xi = ci[o + k], yr = cr[o + kb], yi = -ci[o + kb];
+            const dr = xr - yr, di = xi - yi, tr = dr * c - di * s, ti = dr * s + di * c;
+            Ar[k * N + y] = xr + yr - ti; Ai[k * N + y] = xi + yi + tr;
+          }
+        }
+        Rx.run(1);
+        const Zr = Rx.r, Zi = Rx.i, b = z * N2;
+        for (let y = 0; y < N; y++) { const o = b + y * N; for (let n = 0; n < H; n++) { f[o + 2 * n] = Zr[n * N + y]; f[o + 2 * n + 1] = Zi[n * N + y]; } }
+      }
+    }
+    return { N, K, NK, forward, inverse };
+  }
+
+  function rng(seed) { let s = seed >>> 0; return function () { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+  function schedule(ai, dlna, damax) {
+    const s = [ai]; let a = ai;
+    while (a < 1) { const da = Math.min(dlna * a, damax); a = a + da; if (a > 1 - 0.4 * damax) a = 1; s.push(a); }
+    return s;
+  }
+
+  let S = null;
+  let busy = false, timer = 0;
+  const post = (m, tr) => self.postMessage(m, tr || []);
+
+  function init(P) {
+    const C = COS.make(P);
+    const Np = P.Np, Nm = P.Nm, L = P.L, np = Np * Np * Np, nm3 = Nm * Nm * Nm, H = Nm / 2, K = H + 1;
+    S = {
+      P, C, Np, Nm, L, np, nm3, cellP: L / Np, cellM: L / Nm, off: 0.5 * Np / Nm,
+      pos: new Float32Array(4 * np), mom: new Float32Array(3 * np), acc: new Float32Array(3 * np),
+      rho: new Float32Array(nm3), phi: new Float32Array(nm3), cr: new Float32Array(Nm * Nm * K), ci: new Float32Array(Nm * Nm * K),
+      gx: new Float32Array(nm3), gy: new Float32Array(nm3), gz: new Float32Array(nm3),
+      rfft: makeRFFT3(Nm), sched: schedule(1 / (1 + P.zi), P.dlna || 0.05, P.damax || 0.01), k: 0, produced: 0, consumed: 0, pool: [],
+      stats: { drms: 0, rmax: 0, ms: 0, s8: 0, sG: 0 }, fof: null,
+    };
+    const kf = 2 * Math.PI / L;
+    // per-axis signed mode index and CIC window
+    S.iax = new Int32Array(Nm); S.wax = new Float32Array(Nm);
+    for (let i = 0; i < Nm; i++) { const ii = i < H ? i : i - Nm; S.iax[i] = ii; const x = Math.PI * ii / Nm; const sc = x === 0 ? 1 : Math.sin(x) / x; S.wax[i] = sc * sc; }
+    // lookup tables over integer |n|² = nx² + ny² + nz²
+    const n2max = 3 * H * H, nb = 26, kNy = Math.PI * Nm / L;
+    S.pkLo = Math.log(kf * 0.999); S.pkHi = Math.log(kNy); S.pkNb = nb;
+    S.binOf = new Int16Array(n2max + 1); S.inv2 = new Float32Array(n2max + 1); S.wth8 = new Float32Array(n2max + 1); S.wg = new Float32Array(n2max + 1); S.kOf = new Float32Array(n2max + 1);
+    const binf = nb / (S.pkHi - S.pkLo);
+    for (let n2 = 0; n2 <= n2max; n2++) {
+      const k = Math.sqrt(n2) * kf; S.kOf[n2] = k;
+      S.inv2[n2] = n2 ? 1 / (n2 * kf * kf) : 0;
+      const b = n2 && k < kNy ? Math.floor((Math.log(k) - S.pkLo) * binf) : -1;
+      S.binOf[n2] = b >= 0 && b < nb ? b : -1;
+      const x = k * 8; S.wth8[n2] = x < 1e-3 ? 1 : 3 * (Math.sin(x) - x * Math.cos(x)) / (x * x * x);
+      S.wg[n2] = Math.exp(-0.5 * k * k * 4);     // Gaussian, R = 2 h⁻¹ Mpc
+    }
+    S.pkSum = new Float64Array(nb); S.pkCnt = new Float64Array(nb); S.pkKs = new Float64Array(nb);
+    S.pkK = new Float32Array(nb); S.pk = new Float32Array(nb);
+    // neighbour index tables for the periodic 4-point gradient
+    S.p1 = new Int32Array(Nm); S.m1 = new Int32Array(Nm); S.p2 = new Int32Array(Nm); S.m2 = new Int32Array(Nm);
+    for (let i = 0; i < Nm; i++) { S.p1[i] = (i + 1) % Nm; S.m1[i] = (i - 1 + Nm) % Nm; S.p2[i] = (i + 2) % Nm; S.m2[i] = (i - 2 + Nm) % Nm; }
+    makeIC();
+  }
+
+  /* Zel'dovich initial conditions from a Gaussian random field with the ΛCDM spectrum.
+     Also returns ψ and ∂ψ/∂q (raw and Gaussian-truncated) for the instant preview. */
+  function makeIC() {
+    const { P, C, Np, L, np } = S;
+    const t0 = performance.now();
+    const n = Np, n3 = np, fft = makeFFT3(Np);
+    const R = rng(P.seed * 2654435761 + 12345);
+    const wr = new Float32Array(n3), wi = new Float32Array(n3);
+    for (let i = 0; i < n3; i += 2) {
+      let u = R(); if (u < 1e-12) u = 1e-12; const rr = Math.sqrt(-2 * Math.log(u)), th = 2 * Math.PI * R();
+      wr[i] = rr * Math.cos(th); if (i + 1 < n3) wr[i + 1] = rr * Math.sin(th);
+    }
+    fft.forward(wr, wi);
+    const kf = 2 * Math.PI / L, kNy = Math.PI * n / L, dcell = L / n, amp0 = 1 / Math.pow(dcell, 1.5);
+    const kv = new Float32Array(n); for (let i = 0; i < n; i++) kv[i] = (i < n / 2 ? i : i - n) * kf;
+    for (let z = 0; z < n; z++) for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const i = (z * n + y) * n + x, kx = kv[x], ky = kv[y], kz = kv[z], k = Math.sqrt(kx * kx + ky * ky + kz * kz);
+      if (k === 0 || k >= kNy) { wr[i] = 0; wi[i] = 0; continue; }
+      const a = Math.sqrt(C.Plin(k)) * amp0;
+      wr[i] *= a; wi[i] *= a;
+    }
+    // fields: ψ_i (kind 0) and T_ij = ∂ψ_i/∂q_j (kind 1); smoothing flag s
+    const fields = [];
+    for (const s of [0, 1]) fields.push([0, 0, 0, s], [0, 1, 0, s], [0, 2, 0, s], [1, 0, 0, s], [1, 1, 1, s], [1, 2, 2, s], [1, 0, 1, s], [1, 0, 2, s], [1, 1, 2, s]);
+    const out = fields.map(() => new Float32Array(n3));
+    const cr = new Float32Array(n3), ci = new Float32Array(n3), kk = [0, 0, 0];
+    const RS = P.tzaR || 3.2;                                   // truncation scale (h⁻¹ Mpc)
+    const coef = (fd, k2, dr, di, res) => {
+      const sm = fd[3] ? Math.exp(-0.5 * k2 * RS * RS) : 1;
+      if (fd[0] === 0) { const c = sm * kk[fd[1]] / k2; res[0] = -c * di; res[1] = c * dr; }
+      else { const c = -sm * kk[fd[1]] * kk[fd[2]] / k2; res[0] = c * dr; res[1] = c * di; }
+    };
+    const ra = [0, 0], rb = [0, 0];
+    for (let f = 0; f < fields.length; f += 2) {
+      const A = fields[f], B = fields[f + 1];
+      for (let z = 0; z < n; z++) for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+        const i = (z * n + y) * n + x; kk[0] = kv[x]; kk[1] = kv[y]; kk[2] = kv[z];
+        const k2 = kk[0] * kk[0] + kk[1] * kk[1] + kk[2] * kk[2];
+        if (k2 === 0) { cr[i] = 0; ci[i] = 0; continue; }
+        coef(A, k2, wr[i], wi[i], ra);
+        if (B) { coef(B, k2, wr[i], wi[i], rb); cr[i] = ra[0] - rb[1]; ci[i] = ra[1] + rb[0]; }
+        else { cr[i] = ra[0]; ci[i] = ra[1]; }
+      }
+      fft.inverse(cr, ci);
+      const inv = 1 / n3, oa = out[f], ob = B ? out[f + 1] : null;
+      for (let i = 0; i < n3; i++) { oa[i] = cr[i] * inv; if (ob) ob[i] = ci[i] * inv; }
+    }
+    const psi = new Float32Array(6 * np), tens = new Float32Array(12 * np);
+    let psiRms = 0;
+    for (let i = 0; i < np; i++) {
+      for (let c = 0; c < 3; c++) { psi[6 * i + c] = out[c][i]; psi[6 * i + 3 + c] = out[9 + c][i]; }
+      for (let c = 0; c < 6; c++) { tens[12 * i + c] = out[3 + c][i]; tens[12 * i + 6 + c] = out[12 + c][i]; }
+      psiRms += out[0][i] * out[0][i] + out[1][i] * out[1][i] + out[2][i] * out[2][i];
+    }
+    psiRms = Math.sqrt(psiRms / np);
+    const ai = S.sched[0], Di = C.D(ai), pf = ai * ai * C.E(ai) * C.f(ai) * Di, off = S.off, pos = S.pos, mom = S.mom;
+    for (let z = 0; z < n; z++) for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const i = (z * n + y) * n + x, q0 = (x + off) * dcell, q1 = (y + off) * dcell, q2 = (z + off) * dcell;
+      for (let c = 0; c < 3; c++) {
+        const ps = out[c][i];
+        let v = (c === 0 ? q0 : c === 1 ? q1 : q2) + Di * ps;
+        v -= L * Math.floor(v / L); if (v >= L) v -= L;
+        pos[4 * i + c] = v; mom[3 * i + c] = pf * ps;
+      }
+      pos[4 * i + 3] = 1;
+    }
+    const icMs = performance.now() - t0;
+    post({ type: 'ic', psi, tens, off, sched: S.sched, psiRms, icMs }, [psi.buffer, tens.buffer]);
+    const t1 = performance.now();
+    forces();
+    smoothField();
+    S.stats.ms = performance.now() - t1;
+    S.k = 0;
+    emit();
+  }
+
+  /* CIC deposit → r2c FFT → Green's function (+ P(k), σ) → c2r FFT → 4-point gradient → CIC interpolation */
+  function forces() {
+    const { Nm, L, np, nm3, pos, acc, rho, phi, cr, ci, gx, gy, gz, iax, wax, C } = S;
+    const N2 = Nm * Nm, inv = Nm / L, w = nm3 / np, H = Nm / 2, K = H + 1;
+    const T0 = performance.now(), tm = S.tm || (S.tm = {});
+    rho.fill(0);
+    for (let p = 0, j = 0; p < np; p++, j += 4) {
+      const ux = pos[j] * inv, uy = pos[j + 1] * inv, uz = pos[j + 2] * inv;
+      let ix = ux | 0, iy = uy | 0, iz = uz | 0;
+      const dx = ux - ix, dy = uy - iy, dz = uz - iz;
+      if (ix >= Nm) ix -= Nm; if (iy >= Nm) iy -= Nm; if (iz >= Nm) iz -= Nm;
+      const ix1 = ix + 1 === Nm ? 0 : ix + 1, iy1 = (iy + 1 === Nm ? 0 : iy + 1) * Nm, iz1 = (iz + 1 === Nm ? 0 : iz + 1) * N2;
+      const y0 = iy * Nm, z0 = iz * N2;
+      const tx = 1 - dx, ty = 1 - dy, tz = 1 - dz;
+      const a00 = w * ty * tz, a10 = w * dy * tz, a01 = w * ty * dz, a11 = w * dy * dz;
+      rho[z0 + y0 + ix] += a00 * tx; rho[z0 + y0 + ix1] += a00 * dx;
+      rho[z0 + iy1 + ix] += a10 * tx; rho[z0 + iy1 + ix1] += a10 * dx;
+      rho[iz1 + y0 + ix] += a01 * tx; rho[iz1 + y0 + ix1] += a01 * dx;
+      rho[iz1 + iy1 + ix] += a11 * tx; rho[iz1 + iy1 + ix1] += a11 * dx;
+    }
+    let rmax = 0;
+    for (let i = 0; i < nm3; i++) if (rho[i] > rmax) rmax = rho[i];
+    S.stats.rmax = rmax;
+    const T1 = performance.now();
+    S.rfft.forward(rho, cr, ci);
+    const T2 = performance.now();            // the k = 0 mode (mean) is discarded below, so ρ/ρ̄ transforms like δ
+    const { pkSum, pkCnt, pkKs, pkNb, binOf, inv2, wth8, wg, kOf } = S;
+    pkSum.fill(0); pkCnt.fill(0); pkKs.fill(0);
+    const V = L * L * L, n6 = nm3 * nm3, pnorm = V / n6, gnorm = -1.5 * C.Om / nm3;
+    let s8 = 0, sG = 0;
+    for (let z = 0; z < Nm; z++) {
+      const iz = iax[z], wz = wax[z];
+      for (let y = 0; y < Nm; y++) {
+        const iy = iax[y], wyz = wax[y] * wz, nyz = iy * iy + iz * iz, rowb = (z * Nm + y) * K;
+        for (let x = 0; x < K; x++) {
+          const i = rowb + x, n2 = x * x + nyz;
+          if (n2 === 0) { cr[i] = 0; ci[i] = 0; continue; }
+          const W = wax[x] * wyz, r = cr[i], m = ci[i];
+          const wt = x === 0 || x === H ? 1 : 2, p2 = (r * r + m * m) / (W * W) * wt;
+          const b = binOf[n2];
+          if (b >= 0) { pkSum[b] += p2; pkCnt[b] += wt; pkKs[b] += wt * kOf[n2]; }
+          const t8 = wth8[n2], tg = wg[n2];
+          s8 += p2 * t8 * t8; sG += p2 * tg * tg;
+          const g = gnorm * inv2[n2] / W;
+          cr[i] = r * g; ci[i] = m * g;
+        }
+      }
+    }
+    for (let b = 0; b < pkNb; b++) { S.pk[b] = pkCnt[b] ? pkSum[b] * pnorm / pkCnt[b] : 0; S.pkK[b] = pkCnt[b] ? pkKs[b] / pkCnt[b] : 0; }
+    S.stats.s8 = Math.sqrt(s8 / n6); S.stats.drms = Math.sqrt(sG / n6);
+    const T3 = performance.now();
+    S.rfft.inverse(cr, ci, phi);
+    const T4 = performance.now();
+    // acceleration −∇φ with the 4-point stencil, one contiguous pass per axis
+    const c1 = -8 / (12 * S.cellM), c2 = 1 / (12 * S.cellM), P1 = S.p1, M1 = S.m1, P2 = S.p2, M2 = S.m2;
+    for (let r = 0; r < N2; r++) {
+      const b = r * Nm, e = b + Nm;
+      for (let x = 0; x < 2; x++) gx[b + x] = c1 * (phi[b + P1[x]] - phi[b + M1[x]]) + c2 * (phi[b + P2[x]] - phi[b + M2[x]]);
+      for (let i = b + 2, ie = e - 2; i < ie; i++) gx[i] = c1 * (phi[i + 1] - phi[i - 1]) + c2 * (phi[i + 2] - phi[i - 2]);
+      for (let x = Nm - 2; x < Nm; x++) gx[b + x] = c1 * (phi[b + P1[x]] - phi[b + M1[x]]) + c2 * (phi[b + P2[x]] - phi[b + M2[x]]);
+    }
+    for (let z = 0; z < Nm; z++) {
+      const zb = z * N2;
+      for (let y = 0; y < Nm; y++) {
+        const r0 = zb + y * Nm, ra = zb + P1[y] * Nm, rb = zb + M1[y] * Nm, rc = zb + P2[y] * Nm, rd = zb + M2[y] * Nm;
+        for (let x = 0; x < Nm; x++) gy[r0 + x] = c1 * (phi[ra + x] - phi[rb + x]) + c2 * (phi[rc + x] - phi[rd + x]);
+      }
+    }
+    for (let z = 0; z < Nm; z++) {
+      const zb = z * N2, za = P1[z] * N2, zc = M1[z] * N2, zd = P2[z] * N2, ze = M2[z] * N2;
+      for (let j = 0; j < N2; j++) gz[zb + j] = c1 * (phi[za + j] - phi[zc + j]) + c2 * (phi[zd + j] - phi[ze + j]);
+    }
+    const T5 = performance.now();
+    for (let p = 0, j = 0, q = 0; p < np; p++, j += 4, q += 3) {
+      const ux = pos[j] * inv, uy = pos[j + 1] * inv, uz = pos[j + 2] * inv;
+      let ix = ux | 0, iy = uy | 0, iz = uz | 0;
+      const dx = ux - ix, dy = uy - iy, dz = uz - iz;
+      if (ix >= Nm) ix -= Nm; if (iy >= Nm) iy -= Nm; if (iz >= Nm) iz -= Nm;
+      const ix1 = ix + 1 === Nm ? 0 : ix + 1, iy1 = (iy + 1 === Nm ? 0 : iy + 1) * Nm, iz1 = (iz + 1 === Nm ? 0 : iz + 1) * N2;
+      const y0 = iy * Nm, z0 = iz * N2, tx = 1 - dx, ty = 1 - dy, tz = 1 - dz;
+      const c000 = z0 + y0 + ix, c100 = z0 + y0 + ix1, c010 = z0 + iy1 + ix, c110 = z0 + iy1 + ix1;
+      const c001 = iz1 + y0 + ix, c101 = iz1 + y0 + ix1, c011 = iz1 + iy1 + ix, c111 = iz1 + iy1 + ix1;
+      const w000 = tx * ty * tz, w100 = dx * ty * tz, w010 = tx * dy * tz, w110 = dx * dy * tz;
+      const w001 = tx * ty * dz, w101 = dx * ty * dz, w011 = tx * dy * dz, w111 = dx * dy * dz;
+      acc[q] = gx[c000] * w000 + gx[c100] * w100 + gx[c010] * w010 + gx[c110] * w110 + gx[c001] * w001 + gx[c101] * w101 + gx[c011] * w011 + gx[c111] * w111;
+      acc[q + 1] = gy[c000] * w000 + gy[c100] * w100 + gy[c010] * w010 + gy[c110] * w110 + gy[c001] * w001 + gy[c101] * w101 + gy[c011] * w011 + gy[c111] * w111;
+      acc[q + 2] = gz[c000] * w000 + gz[c100] * w100 + gz[c010] * w010 + gz[c110] * w110 + gz[c001] * w001 + gz[c101] * w101 + gz[c011] * w011 + gz[c111] * w111;
+      pos[j + 3] = rho[c000] * w000 + rho[c100] * w100 + rho[c010] * w010 + rho[c110] * w110 + rho[c001] * w001 + rho[c101] * w101 + rho[c011] * w011 + rho[c111] * w111;
+    }
+    const T6 = performance.now();
+    tm.dep = T1 - T0; tm.fft1 = T2 - T1; tm.kloop = T3 - T2; tm.fft2 = T4 - T3; tm.grad = T5 - T4; tm.interp = T6 - T5;
+  }
+
+  /* Smoothed density for the renderer: the CIC mesh downsampled by 2 with a centred [1 2 1]/4 kernel (a plain
+     2×2×2 block average would alias with the particle lattice and miss small displacements), then a periodic
+     [1 4 6 4 1]/16 blur per axis (σ ≈ 3 h⁻¹ Mpc in all). Texel i sits at x = i L/G. Encoded as log₁₀(ρ/ρ̄)
+     in bytes, 0 → 10^LO, 255 → 10^(LO+SPAN); drawn as a volumetric glow and used to colour the particles. */
+  const VLO = -1.5, VSPAN = 4.5;
+  function smoothField() {
+    const { Nm, rho } = S, G = Nm >> 1, G2 = G * G, G3 = G2 * G, N2 = Nm * Nm;
+    if (!S.sfA) { S.sfA = new Float32Array(G3); S.sfB = new Float32Array(G3); S.sfW = new Int32Array(5 * G); S.sfT1 = new Float32Array(N2 * G); S.sfT2 = new Float32Array(Nm * G2); }
+    const A = S.sfA, B = S.sfB, W = S.sfW, T1 = S.sfT1, T2 = S.sfT2;
+    for (let i = 0; i < G; i++) for (let d = -2; d <= 2; d++) W[5 * i + d + 2] = ((i + d) % G + G) % G;
+    // downsample x
+    for (let r = 0; r < N2; r++) {
+      const b = r * Nm, o = r * G;
+      T1[o] = 0.25 * rho[b + Nm - 1] + 0.5 * rho[b] + 0.25 * rho[b + 1];
+      for (let i = 1; i < G; i++) { const c = b + 2 * i; T1[o + i] = 0.25 * rho[c - 1] + 0.5 * rho[c] + 0.25 * rho[c + 1]; }
+    }
+    // downsample y
+    for (let z = 0; z < Nm; z++) for (let j = 0; j < G; j++) {
+      const ym = (2 * j - 1 + Nm) % Nm, y0 = 2 * j, yp = 2 * j + 1, zb = z * Nm * G, o = z * G2 + j * G;
+      const rm = zb + ym * G, r0 = zb + y0 * G, rp = zb + yp * G;
+      for (let i = 0; i < G; i++) T2[o + i] = 0.25 * T1[rm + i] + 0.5 * T1[r0 + i] + 0.25 * T1[rp + i];
+    }
+    // downsample z
+    for (let k = 0; k < G; k++) {
+      const zm = ((2 * k - 1 + Nm) % Nm) * G2, z0 = 2 * k * G2, zp = (2 * k + 1) * G2, o = k * G2;
+      for (let j = 0; j < G2; j++) A[o + j] = 0.25 * T2[zm + j] + 0.5 * T2[z0 + j] + 0.25 * T2[zp + j];
+    }
+    const c0 = 6 / 16, c1 = 4 / 16, c2 = 1 / 16;
+    // x
+    for (let r = 0; r < G2; r++) { const b = r * G; for (let x = 0; x < G; x++) { const w = 5 * x; B[b + x] = c0 * A[b + x] + c1 * (A[b + W[w + 1]] + A[b + W[w + 3]]) + c2 * (A[b + W[w]] + A[b + W[w + 4]]); } }
+    // y
+    for (let z = 0; z < G; z++) { const zb = z * G2; for (let y = 0; y < G; y++) { const w = 5 * y, o = zb + y * G, m1 = zb + W[w + 1] * G, p1 = zb + W[w + 3] * G, m2 = zb + W[w] * G, p2 = zb + W[w + 4] * G; for (let x = 0; x < G; x++) A[o + x] = c0 * B[o + x] + c1 * (B[m1 + x] + B[p1 + x]) + c2 * (B[m2 + x] + B[p2 + x]); } }
+    // z
+    for (let z = 0; z < G; z++) { const w = 5 * z, o = z * G2, m1 = W[w + 1] * G2, p1 = W[w + 3] * G2, m2 = W[w] * G2, p2 = W[w + 4] * G2; for (let j = 0; j < G2; j++) B[o + j] = c0 * A[o + j] + c1 * (A[m1 + j] + A[p1 + j]) + c2 * (A[m2 + j] + A[p2 + j]); }
+    // encode, and measure the spread of log ρ (sets the display contrast while the web is still faint)
+    const k = 255 / VSPAN, out = new Uint8Array(G3);
+    let s1 = 0, s2 = 0, mx = 0;
+    for (let i = 0; i < G3; i++) {
+      const v = B[i] > 1e-4 ? B[i] : 1e-4, l = Math.log10(v);
+      s1 += l; s2 += l * l; if (v > mx) mx = v;
+      let q = (l - VLO) * k; q = q < 0 ? 0 : q > 255 ? 255 : q;
+      out[i] = q + 0.5;
+    }
+    const m = s1 / G3;
+    S.stats.lsig = Math.sqrt(Math.max(0, s2 / G3 - m * m)); S.stats.smax = mx;
+    S.vol = out; S.volG = G;
+  }
+
+  /* Friends-of-friends halo finder (linking length b = 0.2 × mean spacing). Candidates are particles whose
+     CIC density exceeds a low cut; a spatial hash on cells of size ≥ b finds neighbours; union–find links them. */
+  function fof() {
+    const { pos, np, L, Np } = S;
+    const t0 = performance.now();
+    const b = 0.2 * L / Np, b2 = b * b, M = Math.floor(L / b), invc = M / L, hL = 0.5 * L, MM = M * M;
+    if (!S.fofCand) {
+      S.fofCand = new Int32Array(np); S.fofKeys = new Float64Array(np); S.fofSp = new Int32Array(np); S.fofSk = new Int32Array(np);
+      S.fofPar = new Int32Array(np); S.fofCnt = new Int32Array(np); S.fofHid = new Int32Array(np);
+    }
+    const cand = S.fofCand, keys = S.fofKeys, sp = S.fofSp, sk = S.fofSk, par = S.fofPar, cnt = S.fofCnt, hid = S.fofHid;
+    const cut = S.P.fofCut || 3;
+    let nc = 0;
+    for (let p = 0; p < np; p++) if (pos[4 * p + 3] > cut) cand[nc++] = p;
+    const res = { n: 0, halos: new Float32Array(0), hmf: null, maxN: 0, ms: 0, nc };
+    if (nc < 2) return res;
+    for (let i = 0; i < nc; i++) {
+      const j = 4 * cand[i];
+      let cx = (pos[j] * invc) | 0, cy = (pos[j + 1] * invc) | 0, cz = (pos[j + 2] * invc) | 0;
+      if (cx >= M) cx -= M; if (cy >= M) cy -= M; if (cz >= M) cz -= M;
+      keys[i] = ((cz * M + cy) * M + cx) * 262144 + i;
+    }
+    const ks = keys.subarray(0, nc); ks.sort();
+    for (let i = 0; i < nc; i++) { const v = ks[i], key = Math.floor(v / 262144); sp[i] = cand[v - key * 262144]; sk[i] = key; par[i] = i; }
+    let cap = 1; while (cap < 2 * nc) cap <<= 1;
+    if (!S.fofHk || S.fofHk.length < cap) { S.fofHk = new Int32Array(cap); S.fofHs = new Int32Array(cap); }
+    const hk = S.fofHk, hs = S.fofHs, msk = cap - 1;
+    hk.fill(-1, 0, cap);
+    for (let i = 0; i < nc; i++) {
+      if (i && sk[i] === sk[i - 1]) continue;
+      let h = Math.imul(sk[i], 2654435761) >>> 0 & msk;
+      while (hk[h] !== -1) h = (h + 1) & msk;
+      hk[h] = sk[i]; hs[h] = i;
+    }
+    const find = (i) => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; };
+    for (let i = 0; i < nc; i++) {
+      const pi = 4 * sp[i], xi = pos[pi], yi = pos[pi + 1], zi = pos[pi + 2], key = sk[i];
+      const cx = key % M, cy = ((key / M) | 0) % M, cz = (key / MM) | 0;
+      for (let dz = -1; dz <= 1; dz++) {
+        let zz = cz + dz; if (zz < 0) zz += M; else if (zz >= M) zz -= M;
+        for (let dy = -1; dy <= 1; dy++) {
+          let yy = cy + dy; if (yy < 0) yy += M; else if (yy >= M) yy -= M;
+          for (let dx = -1; dx <= 1; dx++) {
+            let xx = cx + dx; if (xx < 0) xx += M; else if (xx >= M) xx -= M;
+            const nk = (zz * M + yy) * M + xx;
+            let h = Math.imul(nk, 2654435761) >>> 0 & msk, st = -1;
+            while (hk[h] !== -1) { if (hk[h] === nk) { st = hs[h]; break; } h = (h + 1) & msk; }
+            if (st < 0) continue;
+            for (let jj = st; jj < nc && sk[jj] === nk; jj++) {
+              if (jj <= i) continue;
+              const q = 4 * sp[jj];
+              let ddx = pos[q] - xi; if (ddx > hL) ddx -= L; else if (ddx < -hL) ddx += L;
+              let ddy = pos[q + 1] - yi; if (ddy > hL) ddy -= L; else if (ddy < -hL) ddy += L;
+              let ddz = pos[q + 2] - zi; if (ddz > hL) ddz -= L; else if (ddz < -hL) ddz += L;
+              if (ddx * ddx + ddy * ddy + ddz * ddz < b2) {
+                const ra = find(i), rb = find(jj);
+                if (ra !== rb) { if (ra < rb) par[rb] = ra; else par[ra] = rb; }
+              }
+            }
+          }
+        }
+      }
+    }
+    cnt.fill(0, 0, nc);
+    for (let i = 0; i < nc; i++) { const r = find(i); par[i] = r; cnt[r]++; }
+    // halos with ≥ NMIN members: centre (periodic mean), size
+    const NMIN = 10, mp = S.C.rhoM * L * L * L / np;
+    let nh = 0;
+    hid.fill(-1, 0, nc);
+    const hx = [], hy = [], hz = [], hn = [], rx = [], ry = [], rz = [];
+    for (let i = 0; i < nc; i++) {
+      const r = par[i]; if (cnt[r] < NMIN) continue;
+      let h = hid[r];
+      const pi = 4 * sp[i];
+      if (h < 0) { h = hid[r] = nh++; hx.push(0); hy.push(0); hz.push(0); hn.push(cnt[r]); rx.push(pos[pi]); ry.push(pos[pi + 1]); rz.push(pos[pi + 2]); }
+      let dx = pos[pi] - rx[h]; if (dx > hL) dx -= L; else if (dx < -hL) dx += L;
+      let dy = pos[pi + 1] - ry[h]; if (dy > hL) dy -= L; else if (dy < -hL) dy += L;
+      let dz = pos[pi + 2] - rz[h]; if (dz > hL) dz -= L; else if (dz < -hL) dz += L;
+      hx[h] += dx; hy[h] += dy; hz[h] += dz;
+      // flag the particle: ρ + 10⁴ × mass class (1…30, 0.1 dex from 10 members)
+      const cls = Math.max(1, Math.min(30, 1 + Math.floor(10 * Math.log10(cnt[r] / NMIN))));
+      pos[pi + 3] = Math.min(pos[pi + 3], 9990) + 1e4 * cls;
+    }
+    const order = [];
+    for (let h = 0; h < nh; h++) {
+      const n = hn[h];
+      let x = rx[h] + hx[h] / n, y = ry[h] + hy[h] / n, z = rz[h] + hz[h] / n;
+      x -= L * Math.floor(x / L); y -= L * Math.floor(y / L); z -= L * Math.floor(z / L);
+      order.push([n, x, y, z]);
+    }
+    order.sort((u, v) => v[0] - u[0]);
+    const top = Math.min(order.length, 96), halos = new Float32Array(4 * top);
+    for (let i = 0; i < top; i++) { halos[4 * i] = order[i][1]; halos[4 * i + 1] = order[i][2]; halos[4 * i + 2] = order[i][3]; halos[4 * i + 3] = order[i][0] * mp; }
+    // mass function: counts per 0.2 dex from 20 members
+    const lm0 = Math.log10(20 * mp), nbin = 14, hmf = new Float32Array(nbin);
+    for (let h = 0; h < order.length; h++) { const n = order[h][0]; if (n < 20) break; const bb = Math.floor((Math.log10(n * mp) - lm0) / 0.2); if (bb >= 0 && bb < nbin) hmf[bb]++; }
+    res.n = nh; res.halos = halos; res.hmf = hmf; res.lm0 = lm0; res.maxN = order.length ? order[0][0] : 0; res.mp = mp; res.ms = performance.now() - t0;
+    return res;
+  }
+
+  function kick(K) { const { mom, acc } = S; for (let i = 0, n = mom.length; i < n; i++) mom[i] += acc[i] * K; }
+  function drift(Dr) {
+    const { pos, mom, L, np } = S;
+    for (let p = 0, j = 0, q = 0; p < np; p++, j += 4, q += 3) {
+      for (let c = 0; c < 3; c++) {
+        let v = pos[j + c] + mom[q + c] * Dr;
+        if (v < 0) v += L; else if (v >= L) v -= L;
+        if (!(v >= 0 && v < L)) v = ((v % L) + L) % L || 0;
+        pos[j + c] = v;
+      }
+    }
+  }
+
+  function step() {
+    const { sched, C } = S, k = S.k;
+    const a0 = sched[k], a1 = sched[k + 1], ah = 0.5 * (a0 + a1);
+    const t0 = performance.now();
+    kick(C.kick(a0, ah));
+    drift(C.drift(a0, a1));
+    forces();
+    smoothField();
+    kick(C.kick(ah, a1));
+    S.k = k + 1;
+    if (!isFinite(S.stats.drms) || !isFinite(S.stats.rmax)) { post({ type: 'nan', k: S.k }); S = null; return; }
+    S.fof = a1 > 0.07 ? fof() : null;
+    S.stats.ms = performance.now() - t0;
+    emit();
+  }
+
+  function emit() {
+    let buf = S.pool.pop();
+    if (!buf || buf.byteLength !== S.pos.byteLength) buf = new ArrayBuffer(S.pos.byteLength);
+    const out = new Float32Array(buf);
+    out.set(S.pos);
+    S.produced = S.k + 1;
+    const f = S.fof;
+    const halos = f ? f.halos : null;
+    const vol = S.vol; S.vol = null;
+    const tr = [buf]; if (halos) tr.push(halos.buffer); if (vol) tr.push(vol.buffer);
+    post({ type: 'snap', k: S.k, a: S.sched[S.k], buf: out, vol, volG: S.volG, pk: S.pk.slice(), pkK: S.pkK.slice(), stats: Object.assign({}, S.stats, { tm: S.tm ? Object.assign({}, S.tm) : null }),
+      fof: f ? { n: f.n, maxN: f.maxN, mp: f.mp, hmf: f.hmf, lm0: f.lm0, ms: f.ms, nc: f.nc } : null, halos }, tr);
+  }
+
+  function pump() {
+    timer = 0;
+    if (!S || busy) return;
+    if (S.k >= S.sched.length - 1) return;
+    if (S.produced - S.consumed >= S.P.ahead) return;
+    busy = true;
+    try { step(); if (!S) { busy = false; return; } } catch (e) { post({ type: 'error', msg: String(e && e.stack || e) }); S = null; busy = false; return; }
+    busy = false;
+    timer = setTimeout(pump, 0);
+  }
+
+  self.onmessage = (e) => {
+    const m = e.data;
+    try {
+      if (m.cmd === 'init') { init(m.P); if (!timer) timer = setTimeout(pump, 0); }
+      else if (m.cmd === 'ack' && S) {
+        S.consumed = Math.max(S.consumed, m.k + 1);
+        if (m.buf && S.pool.length < 4) S.pool.push(m.buf);
+        if (!timer) timer = setTimeout(pump, 0);
+      }
+    } catch (err) { post({ type: 'error', msg: String(err && err.stack || err) }); }
+  };
+}
+/*@worker-end*/
+
+/* =====================================================================================
+   Page
+   ===================================================================================== */
+const NOTES = `
+<p>This cube is a piece of the universe 294 million parsecs across, almost a billion light-years. It holds <strong>262,144 particles of dark matter</strong>, each weighing about four trillion suns, roughly the mass of a few Milky Way halos. Your browser is computing their mutual gravity right now, from 50 million years after the Big Bang to today.</p>
+<p>At the start the cube is almost perfectly smooth. Its density varies by only a few percent, a faint pattern of ripples left over from inflation and frozen into the oldest light. Gravity makes those ripples grow. A region that starts a little denser pulls a little harder, gathers more matter, and pulls harder still.</p>
+<p>Matter drains out of the <em>voids</em>, collapses into thin <em>walls</em>, slides along the walls into <em>filaments</em>, and pours down the filaments into dense knots called <em>halos</em>. A halo glows gold once it has collapsed to roughly 200 times the average density. These are the groups and clusters of galaxies: gas later cools and sinks into them and lights up as stars.</p>
+<p>Near the end, dark energy takes over the expansion. Structure still grows, but at about half its earlier pace, and the pattern is set. What remains is the <strong>cosmic web</strong>, the same pattern telescopes find when they map millions of galaxies. The blue glow is the dark matter itself, smoothed; each golden point in a cluster is a lump of dark matter as heavy as a big galaxy's halo.</p>
+<h4>Try this</h4>
+<ul>
+<li>Press <strong>Fly through</strong> (<kbd>V</kbd>) to glide from cluster to cluster along the filaments. Labels name each cluster you pass and its distance.</li>
+<li>Press <strong>Biggest cluster</strong> (<kbd>K</kbd>) to zoom into the heaviest halo in a 70 h⁻¹ Mpc slice and see the filaments that feed it.</li>
+<li>Drag the <strong>Redshift</strong> slider to see any moment instantly in the Zel’dovich preview, then press <strong>N-body</strong> and watch the fuzzy prediction snap into tight halos.</li>
+<li>Raise <strong>σ₈</strong> to 1.1 for a lumpier universe, or drop <strong>Ωm</strong> to 0.15 and watch the web freeze early.</li>
+</ul>`;
+
+const SCIENCE = `
+<h4>What is simulated</h4>
+<p>A periodic cube of side L = 200 h⁻¹ Mpc holding N = 64³ collisionless dark-matter particles (48³ on phones), evolved from redshift z = 49 to z = 0 in a flat ΛCDM universe. Positions x are comoving, so the overall expansion is divided out.</p>
+<h4>Equations of motion</h4>
+<p>With momentum p = a² dx/dt and time in units of 1/H₀, every particle obeys</p>
+<span class="eq">dx/da = p / (a³ E),&nbsp;&nbsp; dp/da = −∇Φ / (a E)</span>
+<span class="eq">E(a) = H/H₀ = √(Ω<sub>m</sub> a<sup>−3</sup> + Ω<sub>Λ</sub>)</span>
+<p>The peculiar potential Φ solves the comoving Poisson equation, sourced only by the density contrast δ = ρ/ρ̄ − 1 (ρ̄ is the comoving mean density):</p>
+<span class="eq">∇²Φ = 4πG ρ̄ δ / a = <sup>3</sup>⁄<sub>2</sub> Ω<sub>m</sub> H₀² δ / a</span>
+<p>(equivalently 4πG a² ρ̄<sub>phys</sub> δ). The code solves ∇²φ = <sup>3</sup>⁄<sub>2</sub> Ω<sub>m</sub> δ on the mesh and uses Φ = φ/a, so the kick is dp/da = −∇φ / (a² E).</p>
+<p>Time steps use kick–drift–kick leapfrog in the scale factor, with the exact drift and kick integrals ∫da/(a³E) and ∫da/(a²E): Δln a = 0.05 until a = 0.2, then Δa = 0.01, 127 steps in all.</p>
+<h4>The particle-mesh method</h4>
+<p>Each step spreads the particle mass onto a 128³ mesh (96³ on phones) with cloud-in-cell (CIC) weights. A real-to-complex FFT (mixed radix 4, 2 and 3, written for this page) turns the density into Fourier modes, and</p>
+<span class="eq">φ<sub>k</sub> = −<sup>3</sup>⁄<sub>2</sub> Ω<sub>m</sub> δ<sub>k</sub> / (k² W<sub>CIC</sub>(k))</span>
+<span class="eq">W<sub>CIC</sub>(k) = ∏<sub>i</sub> sinc²(k<sub>i</sub>Δ/2)</span>
+<p>An inverse FFT gives φ on the mesh, a four-point finite difference gives the force, and the same CIC weights carry the force back to each particle. The deck shows the measured power spectrum P(k) against linear theory P<sub>lin</sub>(k) D²(a): large scales grow exactly as D², small scales break away as halos form.</p>
+<h4>Initial conditions and the instant preview</h4>
+<p>A Gaussian random field with P(k) ∝ k<sup>n<sub>s</sub></sup> T²(k), using the Eisenstein &amp; Hu no-wiggle transfer function (similar to the BBKS form), normalised to σ₈. Particles start on a lattice q and are displaced with the Zel’dovich approximation:</p>
+<span class="eq">x = q + D(a) ψ(q),&nbsp;&nbsp; ψ<sub>k</sub> = i k δ<sub>k</sub> / k²</span>
+<span class="eq">p = a² E(a) f(a) D(a) ψ(q)</span>
+<span class="eq">D(a) ∝ E(a) ∫<sub>0</sub><sup>a</sup> da′ / (a′E)³</span>
+<span class="eq">f = d ln D / d ln a ≈ Ω<sub>m</sub>(a)<sup>0.55</sup></span>
+<p>The Zel’dovich preview draws the same formula on the GPU for any redshift, with density 1/|det(I + D ∂ψ/∂q)|. It is exact until streams of particles cross; after that particles sail through the walls instead of being held there. To keep the preview readable, ψ is smoothed with a 3.2 h⁻¹ Mpc Gaussian once streams begin to cross (the “truncated” Zel’dovich approximation).</p>
+<h4>Halos</h4>
+<p>After every step a friends-of-friends finder links particles closer than 0.2 of the mean spacing (Davis et al. 1985). Groups found this way enclose roughly 200 times the mean density. Groups of 10 or more particles (≥ 2.6 × 10¹³ h⁻¹ M☉ at full resolution) glow gold, and their abundance is compared with the Sheth–Tormen mass function.</p>
+<h4>Parameters</h4>
+<p>Ω<sub>m</sub> = 0.31, Ω<sub>Λ</sub> = 0.69, h = 0.68, Ω<sub>b</sub> = 0.049 (in the transfer function only), n<sub>s</sub> = 0.965, σ₈ = 0.81, T<sub>CMB</sub> = 2.7255 K. Particle mass m = ρ̄<sub>m</sub>L³/N = 2.6 × 10¹² h⁻¹ M☉ (6.2 × 10¹² on phones). Cosmic age follows t(a) = 2/(3H₀√Ω<sub>Λ</sub>) asinh(√(Ω<sub>Λ</sub>/Ω<sub>m</sub>) a<sup>3/2</sup>), 13.7 Gyr today. Dark energy overtakes matter at z = (Ω<sub>Λ</sub>/Ω<sub>m</sub>)<sup>1/3</sup> − 1 ≈ 0.31.</p>
+<h4>Honest simplifications</h4>
+<ul>
+<li>Dark matter only: no gas, stars or feedback. Gold marks where galaxy groups and clusters would form.</li>
+<li>Gravity is softened at the mesh scale (about 2 h⁻¹ Mpc), so halos are fuzzy balls with no inner structure, and individual galaxies are not resolved.</li>
+<li>The box misses waves longer than 200 h⁻¹ Mpc, and one box is one random sample, so its biggest clusters can be rarer or commoner than average.</li>
+<li>Zel’dovich starts leave small transients; second-order (2LPT) starts would reduce them.</li>
+<li>Drawing: each particle is a soft sprite sized like an SPH kernel, h ∝ (m/ρ)<sup>1/3</sup>, and brighter where denser. The blue glow is a ray-marched volume of the mesh density, smoothed to about 3 h⁻¹ Mpc and drawn on a log scale; it also sets the particle colours, which removes shot noise from single particles. Early on each particle gets a random sub-lattice offset to hide the starting grid, and the contrast of both layers is stretched to follow the growing clumpiness, so the faint early web stays visible.</li>
+<li>Gold deepens with halo mass: pale for groups of 10–30 particles, deep gold above about 4 × 10¹⁴ h⁻¹ M☉. A particle flashes white as it joins a halo.</li>
+<li>The playback clock is not linear in time. Redshift 49 to 3 passes in about 6 s, and the web-building epoch from z = 3 to today gets about 34 s.</li>
+</ul>
+<span class="cite">Zel’dovich, Ya. B. (1970). Gravitational instability: an approximate theory for large density perturbations. A&amp;A 5, 84.</span>
+<span class="cite">Peebles, P. J. E. (1980). The Large-Scale Structure of the Universe. Princeton University Press.</span>
+<span class="cite">Bardeen, J. M., Bond, J. R., Kaiser, N. &amp; Szalay, A. S. (1986). The statistics of peaks of Gaussian random fields. ApJ 304, 15.</span>
+<span class="cite">Bond, J. R., Kofman, L. &amp; Pogosyan, D. (1996). How filaments of galaxies are woven into the cosmic web. Nature 380, 603.</span>
+<span class="cite">Springel, V. et al. (2005). Simulations of the formation, evolution and clustering of galaxies and quasars. Nature 435, 629.</span>
+<span class="cite">Planck Collaboration (2020). Planck 2018 results. VI. Cosmological parameters. A&amp;A 641, A6.</span>
+<span class="cite">Eisenstein, D. J. &amp; Hu, W. (1998). Baryonic features in the matter transfer function. ApJ 496, 605.</span>
+<span class="cite">Sheth, R. K. &amp; Tormen, G. (1999). Large-scale bias and the peak background split. MNRAS 308, 119.</span>`;
+
+const ch = Cosmos.chapter({ id: 'cosmic-web', notes: NOTES, science: SCIENCE });
+const U = Cosmos.util, F = Cosmos.fmt, M4 = Cosmos.mat4;
+const small = window.matchMedia('(max-width: 760px)').matches;
+const Q = new URLSearchParams(location.search);
+const CFG = {
+  Np: +Q.get('np') || (small ? 48 : 64),
+  Nm: +Q.get('nm') || (small ? 96 : 128),
+  L: 200, zi: 49, h: 0.68, ns: 0.965, Ob: 0.049, ahead: small ? 28 : 26,
+  maxDpr: 1.5,
+  dlna: +Q.get('dlna') || 0.05, damax: +Q.get('damax') || 0.01,
+};
+const params = { seed: +Q.get('seed') || 20240, s8: 0.81, Om: 0.31 };
+const LIB = cosmoLib();
+let COSMO = LIB.make({ Om: params.Om, h: CFG.h, ns: CFG.ns, Ob: CFG.Ob, s8: params.s8 });
+COSMO.sigG2 = COSMO.sigG(2);
+
+/* ----------------------------------------------------------------------------- GL */
+const canvas = ch.canvas('cw-gl');
+canvas.classList.add('cz-grab');
+ch.stage.classList.add('cz-grab');
+const gl = Cosmos.gl.context(canvas, { antialias: false });
+if (!gl) { ch.fatal('This chapter needs WebGL2, which this browser does not provide.'); return; }
+const HDR_FMT = gl.ext.floatRT ? { internal: gl.RGBA16F, type: gl.HALF_FLOAT } : { internal: gl.RGBA8, type: gl.UNSIGNED_BYTE };
+if (!gl.ext.floatRT) console.info('cosmic-web: no float render targets; using 8-bit fallback');
+canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); ch.fatal('The graphics context was lost (the GPU was reset or ran out of memory). Reload the page to continue.'); });
+const labels = Cosmos.h('div', { class: 'cw-labels' });
+ch.stage.append(labels);
+
+const PART_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec4 aPrev;
+layout(location=1) in vec4 aCur;
+layout(location=2) in vec3 aPsi;
+layout(location=3) in vec3 aTd;
+layout(location=4) in vec3 aTo;
+layout(location=5) in vec3 aPsiS;
+layout(location=6) in vec3 aTdS;
+layout(location=7) in vec3 aToS;
+uniform mat4 uView, uProj;
+uniform float uS, uD, uMix, uL, uNp, uOff, uPx, uSize, uMaxPx, uGain, uColor, uFogN, uFogF, uNear, uHaze, uStride, uCopyGain, uDepthCue, uCamDist, uTza, uJit, uAdapt, uKern, uKmin, uKmax, uProf, uVoidB, uSlab, uCon, uLam;
+uniform vec3 uC, uShift;
+uniform vec3 uShifts[26];
+uniform float uCopies, uVolOn, uSmoothW, uHaloHi, uVolOff;
+uniform highp sampler3D uVolA, uVolB;
+out vec3 vCol;
+vec3 wrapd(vec3 d) { return d - uL * floor(d / uL + 0.5); }
+vec3 hash3(uvec3 v) {   // PCG3D (Jarzynski & Olano 2020)
+  v = v * 1664525u + 1013904223u;
+  v.x += v.y * v.z; v.y += v.z * v.x; v.z += v.x * v.y;
+  v ^= v >> 16u;
+  v.x += v.y * v.z; v.y += v.z * v.x; v.z += v.x * v.y;
+  return vec3(v >> 8u) / 16777216.0;
+}
+// linear-light palette: violet voids → blue walls/filaments → (white by accumulation) → gold halos
+vec3 ramp(float lr) {
+  vec3 cVoid = vec3(0.060, 0.030, 0.300);
+  vec3 cWall = vec3(0.110, 0.130, 0.820);
+  vec3 cFil  = vec3(0.200, 0.400, 1.000);
+  vec3 cHalo = vec3(1.000, 0.520, 0.140);
+  vec3 c = mix(cVoid, cWall, smoothstep(-0.8, 0.15, lr));
+  c = mix(c, cFil, smoothstep(0.15, 1.0, lr));
+  c = mix(c, vec3(0.62, 0.72, 1.0), smoothstep(1.2, 2.0, lr));
+  return mix(c, cHalo, smoothstep(2.05, 2.55, lr));
+}
+void main() {
+  int id = gl_VertexID * int(uStride);
+  int N = int(uNp);
+  ivec3 ijk = ivec3(id % N, (id / N) % N, id / (N * N));
+  float dq = uL / uNp;
+  vec3 q = (vec3(ijk) + uOff) * dq;
+  // Zel'dovich preview: raw ψ early, Gaussian-truncated ψ once streams start to cross
+  float ts = uTza * smoothstep(0.12, 0.6, uD);
+  vec3 psi = mix(aPsi, aPsiS, ts);
+  vec3 td = mix(aTd, aTdS, ts), to = mix(aTo, aToS, ts);
+  vec3 xz = q + uD * psi;
+  mat3 J = mat3(1.0) + uD * mat3(td.x, to.x, to.y, to.x, td.y, to.z, to.y, to.z, td.z);
+  float rz = 1.0 / max(abs(determinant(J)), 0.004);
+  vec3 dn = wrapd(aCur.xyz - aPrev.xyz);
+  vec3 xn = aPrev.xyz + uS * dn;
+  // snapshot w = CIC density + 10⁴ × FoF halo class (0 = not in a halo)
+  float cP = floor(aPrev.w * 1e-4), cC = floor(aCur.w * 1e-4);
+  float rn = max(mix(aPrev.w - 1e4 * cP, aCur.w - 1e4 * cC, uS), 1e-3);
+  float inHalo = mix(step(0.5, cP), step(0.5, cC), uS);
+  float cls = mix(cP, cC, uS);
+  float ignite = (cC > 0.5 && cP < 0.5) ? 4.0 * uS * (1.0 - uS) : 0.0;
+  vec3 x = xz + uMix * wrapd(xn - xz);
+  float lr0 = mix(log(rz), log(rn), uMix) * 0.4342945;
+  x += (hash3(uvec3(ijk) + uvec3(7u, 131u, 1031u)) - 0.5) * dq * max(uJit, 1.0 - smoothstep(0.3, 1.1, lr0));   // hides the starting lattice (early, and in voids)
+  // brightness and colour follow the smoothed density field (σ ≈ 3 h⁻¹ Mpc), which is free of particle shot noise
+  float lrS = lr0;
+  if (uVolOn > 0.5) { vec3 tc = x / uL + uVolOff; lrS = mix(texture(uVolA, tc).r, texture(uVolB, tc).r, uS) * 4.5 - 1.5; }
+  float lr = mix(lr0, max(lrS, lr0 - 0.6), uSmoothW * uMix);
+  vec3 w = wrapd(x - uC) / uL + (uCopies > 0.5 ? uShifts[gl_InstanceID] : uShift);
+  vec4 v = uView * vec4(w, 1.0);
+  float dep = -v.z;
+  gl_Position = uProj * v;
+  float halo = mix(smoothstep(2.1, 2.7, lr), inHalo, uMix);
+  // adaptive smoothing (as in SPH renderers): kernel ∝ (m/ρ)^(1/3), flux per particle conserved
+  float hs = clamp(uKern * exp(-0.7675 * lr * uAdapt), uKmin, uKmax);
+  float hcl = smoothstep(3.0, 15.0, cls) * inHalo * uMix;   // 0 for small groups … 1 for rich clusters (≳ 4 × 10¹⁴ M☉/h)
+  hs *= 1.0 + 0.35 * hcl * uHaloHi;
+  float px = uSize * uPx / max(dep, 1e-4) * (1.0 + uHaze) * hs;
+  float g = uGain * uCopyGain / (hs * hs);
+  if (uCopies > 0.5) g *= 1.3 - 0.45 * length(uShifts[gl_InstanceID]);
+  if (px < 1.5) { g *= (px / 1.5) * (px / 1.5); px = 1.5; }
+  px = min(px, uMaxPx);
+  g *= smoothstep(uNear * 0.3, uNear, dep);
+  float r = length(v.xyz);
+  g *= 1.0 - smoothstep(uFogN, uFogF, r);
+  g *= mix(1.0, exp(-max(0.0, dep - (uCamDist - 0.55)) / uLam), uDepthCue);
+  float bright = mix(uVoidB, 1.0, smoothstep(-0.5 * uCon, 1.2 * uCon, lr)) * (1.0 + halo * (0.12 + 1.4 * hcl * uHaloHi) + 3.5 * ignite * uMix);
+  // optional slab: keep a slice of the given thickness around the orbit target, facing the camera
+  g *= 1.0 - smoothstep(uSlab * 0.5, uSlab * 0.5 + 0.04, abs(dep - uCamDist));
+  // halo colour by mass: small groups a pale warm white, rich clusters deep gold; a white flash as a particle joins
+  vec3 hcol = mix(vec3(0.95, 0.66, 0.42), vec3(1.0, 0.50, 0.12), mix(0.35, hcl, uHaloHi));
+  hcol = mix(hcol, vec3(1.0, 0.93, 0.80), clamp(ignite * uMix * 1.5, 0.0, 1.0));
+  vec3 col = uColor > 0.5 ? mix(ramp(min(lr, 1.99)), hcol, halo) : vec3(0.22, 0.38, 1.0) * mix(0.6, 1.0, smoothstep(0.0, 2.0, lr));
+  if (uCopies > 0.5) col = mix(col, vec3(0.3, 0.42, 1.0) * dot(col, vec3(0.3, 0.5, 0.2)) * 1.6, 0.6);
+  vCol = col * bright * g;
+  gl_PointSize = px;
+  if (dep < 1e-4 || g <= 0.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; }
+}`;
+const PART_FS = `#version 300 es
+precision mediump float;
+in vec3 vCol; out vec4 o; uniform float uProf, uStar;
+void main() {
+  vec2 p = gl_PointCoord * 2.0 - 1.0; float r2 = dot(p, p);
+  if (r2 > 1.0) discard;
+  float g = (exp(-r2 * uProf) - exp(-uProf)) * uProf / (1.0 - exp(-uProf) * (1.0 + uProf)) * 0.238;
+  // star-like: a sharp core in a soft glow (both normalised to the same total flux)
+  float st = 0.55 * (exp(-r2 * 26.0) * 26.0 * 0.238) + 0.45 * ((exp(-r2 * 3.0) - exp(-3.0)) * 3.0 / (1.0 - exp(-3.0) * 4.0) * 0.238);
+  g = mix(g, st, uStar);
+  o = vec4(vCol * g, 1.0);
+}`;
+const LINE_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aP;
+uniform mat4 uView, uProj;
+void main() { gl_Position = uProj * uView * vec4(aP, 1.0); }`;
+const LINE_FS = `#version 300 es
+precision mediump float; uniform vec3 uCol; out vec4 o; void main() { o = vec4(uCol, 1.0); }`;
+const DOWN_FS = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o; uniform sampler2D uT; uniform vec2 uTx;
+void main() {
+  vec3 s = texture(uT, vUv).rgb * 4.0;
+  s += texture(uT, vUv - uTx).rgb + texture(uT, vUv + uTx).rgb;
+  s += texture(uT, vUv + vec2(uTx.x, -uTx.y)).rgb + texture(uT, vUv - vec2(uTx.x, -uTx.y)).rgb;
+  o = vec4(s / 8.0, 1.0);
+}`;
+const UP_FS = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o; uniform sampler2D uT; uniform vec2 uTx; uniform float uK;
+void main() {
+  vec2 h = uTx;
+  vec3 s = texture(uT, vUv + vec2(-2.0 * h.x, 0.0)).rgb + texture(uT, vUv + vec2(2.0 * h.x, 0.0)).rgb;
+  s += texture(uT, vUv + vec2(0.0, -2.0 * h.y)).rgb + texture(uT, vUv + vec2(0.0, 2.0 * h.y)).rgb;
+  s += 2.0 * (texture(uT, vUv + vec2(-h.x, h.y)).rgb + texture(uT, vUv + vec2(h.x, h.y)).rgb + texture(uT, vUv + vec2(-h.x, -h.y)).rgb + texture(uT, vUv + vec2(h.x, -h.y)).rgb);
+  o = vec4(s / 12.0 * uK, 1.0);
+}`;
+const COMP_FS = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+uniform sampler2D uHdr, uBloom; uniform float uExp, uBloomK, uTime, uGrain, uFade, uTone; uniform vec2 uRes;
+float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+void main() {
+  vec3 c = texture(uHdr, vUv).rgb * uExp + texture(uBloom, vUv).rgb * uBloomK;
+  c *= uFade;
+  c = vec3(1.0) - exp(-c * uTone);
+  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  c = mix(vec3(l), c, 1.08);
+  c = pow(max(c, 0.0), vec3(1.0 / 2.2));
+  vec2 q = (vUv - 0.5) * vec2(uRes.x / uRes.y, 1.0);
+  c *= 1.0 - 0.38 * smoothstep(0.35, 1.05, length(q));
+  vec3 bg = vec3(0.020, 0.024, 0.047) + vec3(0.010, 0.012, 0.03) * (1.0 - smoothstep(0.0, 0.9, length(q)));
+  c = bg + c * (1.0 - bg);
+  c += (hash(gl_FragCoord.xy + fract(uTime * 7.13) * 91.7) - 0.5) * uGrain;
+  o = vec4(c, 1.0);
+}`;
+
+/* volumetric glow: ray-march the smoothed log-density field (periodic 3D texture) inside the box */
+const VOL_FS = `#version 300 es
+precision highp float; precision highp sampler3D;
+in vec2 vUv; out vec4 o;
+uniform sampler3D uVolA, uVolB;
+uniform mat4 uInvVP; uniform vec3 uEye, uFwd, uC;
+uniform float uS, uL, uFogN, uFogF, uNear, uCamDist, uSlab, uDepthCue, uLam, uGain, uStretch, uT, uSteps, uColor, uVolOff;
+float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+vec3 pal(float l) {
+  vec3 c = mix(vec3(0.16, 0.07, 0.62), vec3(0.20, 0.36, 1.00), smoothstep(0.1, 0.9, l));
+  c = mix(c, vec3(0.70, 0.78, 1.00), smoothstep(1.1, 1.8, l));
+  return mix(c, vec3(1.00, 0.62, 0.26), smoothstep(1.9, 2.5, l));
+}
+void main() {
+  vec2 ndc = vUv * 2.0 - 1.0;
+  vec4 a = uInvVP * vec4(ndc, -1.0, 1.0), b = uInvVP * vec4(ndc, 1.0, 1.0);
+  vec3 rd = normalize(b.xyz / b.w - a.xyz / a.w), ro = uEye;
+  vec3 inv = 1.0 / (rd + vec3(1e-7));
+  vec3 ta = (vec3(-0.5) - ro) * inv, tb = (vec3(0.5) - ro) * inv, tn = min(ta, tb), tx = max(ta, tb);
+  float t0 = max(max(tn.x, tn.y), max(tn.z, 0.0)), t1 = min(min(tx.x, tx.y), min(tx.z, uFogF));
+  float cf = max(dot(rd, uFwd), 1e-3);
+  if (uSlab < 1.5) { float h = uSlab * 0.5 + 0.04; t0 = max(t0, (uCamDist - h) / cf); t1 = min(t1, (uCamDist + h) / cf); }
+  if (t1 <= t0) { o = vec4(0.0, 0.0, 0.0, 1.0); return; }
+  float dt = (t1 - t0) / uSteps, j = hash(gl_FragCoord.xy + fract(uT * 3.17) * 97.0);
+  vec3 acc = vec3(0.0);
+  for (int i = 0; i < 128; i++) {
+    if (float(i) >= uSteps) break;
+    float t = t0 + (float(i) + j) * dt;
+    vec3 tc = uC + ro + rd * t + uVolOff;
+    float l = mix(texture(uVolA, tc).r, texture(uVolB, tc).r, uS) * 4.5 - 1.5;
+    float ls = l * uStretch;                               // contrast follows the current clumpiness
+    float e = smoothstep(-0.05, 0.75, ls) * exp2(2.2 * min(ls, 2.2));
+    float dep = t * cf;
+    float g = 1.0 - smoothstep(uFogN, uFogF, t);
+    g *= smoothstep(uNear * 0.5, uNear * 3.0, dep);
+    g *= mix(1.0, exp(-max(0.0, dep - (uCamDist - 0.55)) / uLam), uDepthCue);
+    g *= 1.0 - smoothstep(uSlab * 0.5, uSlab * 0.5 + 0.04, abs(dep - uCamDist));
+    acc += (uColor > 0.5 ? pal(ls) : vec3(0.22, 0.38, 1.0)) * (e * g);
+  }
+  o = vec4(acc * dt * uGain, 1.0);
+}`;
+const COPY_FS = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o; uniform sampler2D uT; uniform float uK;
+void main() { o = vec4(texture(uT, vUv).rgb * uK, 1.0); }`;
+
+let progs;
+try {
+  progs = {
+    part: Cosmos.gl.program(gl, PART_VS, PART_FS),
+    line: Cosmos.gl.program(gl, LINE_VS, LINE_FS),
+    down: Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, DOWN_FS),
+    up: Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, UP_FS),
+    comp: Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, COMP_FS),
+    vol: Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, VOL_FS),
+    copy: Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, COPY_FS),
+  };
+} catch (e) { ch.fatal('A graphics shader failed to compile on this device.', e); return; }
+const fsq = Cosmos.gl.quad(gl);
+
+/* particle buffers */
+const COPY_STRIDE = 4;
+const SHIFTS = new Float32Array(78);
+{ let n = 0; for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (let k = -1; k <= 1; k++) { if (!i && !j && !k) continue; SHIFTS[n++] = i; SHIFTS[n++] = j; SHIFTS[n++] = k; } }
+const R = { np: 0, Np: 0, off: 0.25, psi: null, tens: null, snap: [null, null], vao: [null, null], cvao: [null, null], cur: 0, ready: false };
+function allocParticles(np) {
+  [R.psi, R.tens, R.snap[0], R.snap[1]].forEach((b) => b && gl.deleteBuffer(b));
+  R.vao.forEach((v) => v && gl.deleteVertexArray(v)); R.cvao.forEach((v) => v && gl.deleteVertexArray(v));
+  R.psi = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, R.psi); gl.bufferData(gl.ARRAY_BUFFER, np * 24, gl.STATIC_DRAW);
+  R.tens = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, R.tens); gl.bufferData(gl.ARRAY_BUFFER, np * 48, gl.STATIC_DRAW);
+  for (let i = 0; i < 2; i++) { R.snap[i] = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, R.snap[i]); gl.bufferData(gl.ARRAY_BUFFER, np * 16, gl.DYNAMIC_DRAW); }
+  for (let i = 0; i < 2; i++) {
+    const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+    const attr = (loc, buf, n, stride, off) => { gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, stride, off); };
+    attr(0, R.snap[i], 4, 16, 0); attr(1, R.snap[1 - i], 4, 16, 0);
+    attr(2, R.psi, 3, 24, 0); attr(5, R.psi, 3, 24, 12);
+    attr(3, R.tens, 3, 48, 0); attr(4, R.tens, 3, 48, 12); attr(6, R.tens, 3, 48, 24); attr(7, R.tens, 3, 48, 36);
+    gl.bindVertexArray(null);
+    R.vao[i] = vao;
+    // periodic copies: every COPY_STRIDE-th particle, same buffers with a longer stride
+    const cv = gl.createVertexArray(); gl.bindVertexArray(cv);
+    const S = COPY_STRIDE;
+    attr(0, R.snap[i], 4, 16 * S, 0); attr(1, R.snap[1 - i], 4, 16 * S, 0);
+    attr(2, R.psi, 3, 24 * S, 0); attr(5, R.psi, 3, 24 * S, 12);
+    attr(3, R.tens, 3, 48 * S, 0); attr(4, R.tens, 3, 48 * S, 12); attr(6, R.tens, 3, 48 * S, 24); attr(7, R.tens, 3, 48 * S, 36);
+    gl.bindVertexArray(null);
+    R.cvao[i] = cv;
+  }
+  R.np = np;
+}
+/* smoothed density volumes (prev/cur snapshot), R8 log-encoded, periodic */
+const VOL = { G: 0, tex: [null, null], ready: false, lsig: 0.05 };
+function allocVol(G) {
+  VOL.tex.forEach((t) => t && gl.deleteTexture(t));
+  for (let i = 0; i < 2; i++) {
+    const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_3D, t);
+    gl.texImage3D(gl.TEXTURE_3D, 0, gl.R8, G, G, G, 0, gl.RED, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    for (const w of [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T, gl.TEXTURE_WRAP_R]) gl.texParameteri(gl.TEXTURE_3D, w, gl.REPEAT);
+    VOL.tex[i] = t;
+  }
+  gl.bindTexture(gl.TEXTURE_3D, null);
+  VOL.G = G;
+}
+allocVol(CFG.Nm >> 1);
+function uploadVol(i, data, G) {
+  if (!data) return;
+  if (VOL.G !== G) allocVol(G);
+  gl.bindTexture(gl.TEXTURE_3D, VOL.tex[i]);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texSubImage3D(gl.TEXTURE_3D, 0, 0, 0, 0, G, G, G, gl.RED, gl.UNSIGNED_BYTE, data);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+  gl.bindTexture(gl.TEXTURE_3D, null);
+}
+
+/* cube edges */
+const boxVao = gl.createVertexArray();
+{
+  const v = [];
+  const c = [-0.5, 0.5];
+  for (const a of c) for (const b of c) { v.push(-0.5, a, b, 0.5, a, b, a, -0.5, b, a, 0.5, b, a, b, -0.5, a, b, 0.5); }
+  gl.bindVertexArray(boxVao);
+  const bb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(v), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+  gl.bindVertexArray(null);
+}
+
+/* render targets */
+const T = { w: 0, h: 0, hdr: null, levels: [] };
+function makeTargets() {
+  const w = canvas.width, h = canvas.height;
+  if (T.w === w && T.h === h) return;
+  const del = (t) => { if (t) { gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fbo); } };
+  del(T.hdr); T.levels.forEach(del); T.levels = [];
+  T.w = w; T.h = h;
+  const mk = (ww, hh) => Cosmos.gl.target(gl, { w: Math.max(1, ww), h: Math.max(1, hh), internal: HDR_FMT.internal, format: gl.RGBA, type: HDR_FMT.type, filter: 'linear' });
+  T.hdr = mk(w, h);
+  del(T.vol); T.vol = mk(Math.ceil(w / 2), Math.ceil(h / 2));
+  let lw = w >> 1, lh = h >> 1;
+  for (let i = 0; i < 6 && lw > 4 && lh > 4; i++) { T.levels.push(mk(lw, lh)); lw >>= 1; lh >>= 1; }
+}
+
+/* ----------------------------------------------------------------------------- simulation driver */
+const WORKER_SRC = 'const cosmoLib = ' + cosmoLib.toString() + ';\n(' + workerMain.toString() + ')();';
+const WORKER_URL = URL.createObjectURL(new Blob([WORKER_SRC], { type: 'text/javascript' }));
+
+const sim = {
+  gen: 0, worker: null, ready: false, sched: [], queue: [], kPrev: 0, kCur: 0, s: 1, done: false,
+  a: 1 / (1 + CFG.zi), stats: { drms: 0, rmax: 0, ms: 0 }, pk: null, pkK: null, pk0: null, psiRms: 0,
+  started: 0, wallStart: 0, wallDone: 0, icMs: 0, stepMs: [],
+};
+const view = {
+  phase: 'boot',          // boot → intro → nbody (→ done) ; 'za' when the user scrubs the Zel'dovich preview
+  tPhase: 0, mix: 0, mixTarget: 1, D: 1, zaA: 1, fade: 0, speed: 1,
+  intro: true,
+};
+
+function startRun(opts = {}) {
+  sim.gen++;
+  if (sim.worker) sim.worker.terminate();
+  sim.ready = false; VOL.ready = false; sim.fof = null; sim.halos = null; SND.lastN = 0; STtab = null; hmfDirty = true; sim.queue.length = 0; sim.kPrev = sim.kCur = 0; sim.s = 1; sim.done = false; sim.pk = null; sim.pk0 = null; sim.stepMs = [];
+  COSMO = LIB.make({ Om: params.Om, h: CFG.h, ns: CFG.ns, Ob: CFG.Ob, s8: params.s8 });
+  COSMO.sigG2 = COSMO.sigG(2);
+  sim.a = 1 / (1 + CFG.zi);
+  const gen = sim.gen;
+  let w;
+  try { w = new Worker(WORKER_URL); } catch (e) { ch.fatal('This chapter needs Web Workers to run the simulation.', e); return; }
+  sim.worker = w;
+  w.onmessage = (e) => { if (gen === sim.gen) onWorker(e.data); };
+  w.onerror = (e) => { e.preventDefault && e.preventDefault(); if (gen === sim.gen) ch.fatal('The N-body worker stopped unexpectedly.', e.message || e); };
+  w.postMessage({ cmd: 'init', P: { seed: params.seed, Np: CFG.Np, Nm: CFG.Nm, L: CFG.L, Om: params.Om, h: CFG.h, ns: CFG.ns, Ob: CFG.Ob, s8: params.s8, zi: CFG.zi, ahead: CFG.ahead, dlna: CFG.dlna, damax: CFG.damax, fofCut: 8 } });
+  sim.wallStart = performance.now(); sim.wallDone = 0;
+  if (view.visit) { view.visit = null; if (visitBtn) visitBtn.setPressed(false); }
+  if (fly.on) setFly(false);                       // watch the new universe form from outside the box
+  view.Cbox = [CFG.L / 2, CFG.L / 2, CFG.L / 2]; view.userCam = false;
+  if (!copyT.value) cam.setDist(fitDist());
+  view.phase = 'boot'; view.tPhase = 0; view.intro = !!opts.intro; view.said = {}; view.saidBoot = !opts.intro;
+  if (!opts.intro) { view.fade = Math.min(view.fade, 0.25); }
+}
+
+function onWorker(m) {
+  if (m.type === 'ic') {
+    const np = CFG.Np ** 3;
+    if (R.np !== np) allocParticles(np);
+    R.Np = CFG.Np; R.off = m.off;
+    gl.bindBuffer(gl.ARRAY_BUFFER, R.psi); gl.bufferSubData(gl.ARRAY_BUFFER, 0, m.psi);
+    gl.bindBuffer(gl.ARRAY_BUFFER, R.tens); gl.bufferSubData(gl.ARRAY_BUFFER, 0, m.tens);
+    sim.sched = m.sched; sim.psiRms = m.psiRms; sim.icMs = m.icMs;
+    R.ready = true;
+    // the Zel'dovich fields are all the intro needs; the N-body joins when its first snapshot lands
+    if (view.phase === 'boot') { view.phase = view.intro ? 'intro' : 'wait'; view.tPhase = 0; view.mix = 0; view.D = view.intro ? 1 : COSMO.D(sim.sched[0]); }
+    return;
+  }
+  if (m.type === 'snap') {
+    if (m.k === 0) {
+      for (let i = 0; i < 2; i++) { gl.bindBuffer(gl.ARRAY_BUFFER, R.snap[i]); gl.bufferSubData(gl.ARRAY_BUFFER, 0, m.buf); uploadVol(i, m.vol, m.volG); }
+      VOL.ready = !!m.vol; VOL.lsig = m.stats.lsig || 0.02;
+      sim.kPrev = sim.kCur = 0; sim.s = 1; sim.ready = true;
+      sim.stats = m.stats; sim.pk = m.pk; sim.pkK = m.pkK; sim.pk0 = m.pk;
+      sim.worker.postMessage({ cmd: 'ack', k: 0, buf: m.buf.buffer }, [m.buf.buffer]);
+      if (view.phase === 'wait') { view.phase = 'nbody'; view.tPhase = 0; view.mix = 1; view.D = COSMO.D(sim.sched[0]); }
+      pkDirty = true;
+      return;
+    }
+    sim.queue.push(m);
+    return;
+  }
+  if (m.type === 'nan') { restart('The calculation went unstable, so it restarted'); return; }
+  if (m.type === 'error') ch.fatal('The N-body engine hit an error.', m.msg);
+}
+
+function consumeNext() {
+  const m = sim.queue.shift();
+  // upload into the slot holding the older snapshot, which then becomes "cur"
+  const slotPrevOld = R.cur;            // vao[cur]: prev = snap[cur], cur = snap[1-cur]
+  gl.bindBuffer(gl.ARRAY_BUFFER, R.snap[slotPrevOld]); gl.bufferSubData(gl.ARRAY_BUFFER, 0, m.buf);
+  uploadVol(slotPrevOld, m.vol, m.volG);
+  VOL.lsigPrev = VOL.lsig; VOL.lsig = m.stats.lsig || VOL.lsig;
+  R.cur = 1 - R.cur;                    // now prev = old cur, cur = new data
+  sim.kPrev = sim.kCur; sim.kCur = m.k;
+  sim.stats = m.stats; sim.pk = m.pk; sim.pkK = m.pkK;
+  sim.fof = m.fof; sim.halos = m.halos; hmfDirty = true;
+  sim.stepMs.push(m.stats.ms); if (sim.stepMs.length > 20) sim.stepMs.shift();
+  sim.worker.postMessage({ cmd: 'ack', k: m.k, buf: m.buf.buffer }, [m.buf.buffer]);
+  pkDirty = true;
+  onNewStep(m);
+  soundOnStep(m);
+}
+
+/* display clock: seconds (at speed 1) spent reaching each scale factor, piecewise linear in ln a.
+   The nearly smooth early universe goes by quickly; the epoch when the web knits together gets the most time. */
+const CLOCK = [[0.02, 0], [0.1, 2.3], [0.25, 5.8], [0.5, 17], [0.77, 31], [1, 40]];
+function clockAt(a) {
+  const la = Math.log(Math.max(a, 1e-4));
+  for (let i = 1; i < CLOCK.length; i++) {
+    const l0 = Math.log(CLOCK[i - 1][0]), l1 = Math.log(CLOCK[i][0]);
+    if (la <= l1 || i === CLOCK.length - 1) return CLOCK[i - 1][1] + (CLOCK[i][1] - CLOCK[i - 1][1]) * U.clamp((la - l0) / (l1 - l0), 0, 1);
+  }
+  return 0;
+}
+/* display duration (s) of the interval ending at step k, at speed 1 */
+function stepDur(k) {
+  const s = sim.sched; if (!s.length || k <= 0) return 0.1;
+  return Math.max(0.02, clockAt(s[k]) - clockAt(s[k - 1]));
+}
+
+function advance(dt) {
+  if (!sim.ready) return;
+  const last = sim.sched.length - 1;
+  if (sim.kCur >= last && sim.s >= 1) { if (!sim.done) { sim.done = true; sim.wallDone = performance.now(); onReachedToday(); } return; }
+  // ease the playback rate down when the engine falls behind, instead of stalling
+  const want = U.clamp((sim.queue.length + sim.s) / 3, 0.2, 1);
+  sim.rate = (sim.rate || 1) + (want - (sim.rate || 1)) * Math.min(1, dt * 2.5);
+  let budget = dt * view.speed * sim.rate;
+  while (budget > 0) {
+    if (sim.s >= 1) {
+      if (!sim.queue.length) break;
+      consumeNext(); sim.s = 0;
+    }
+    const d = stepDur(sim.kCur);
+    const need = (1 - sim.s) * d;
+    if (budget >= need) { budget -= need; sim.s = 1; }
+    else { sim.s += budget / d; budget = 0; }
+    if (sim.kCur >= last && sim.s >= 1) break;
+  }
+  sim.a = sim.kCur === sim.kPrev ? sim.sched[sim.kCur] : U.lerp(sim.sched[sim.kPrev], sim.sched[sim.kCur], sim.s);
+}
+
+/* ----------------------------------------------------------------------------- camera */
+const cam = Cosmos.orbit(ch.stage, { dist: small ? 3.0 : 2.45, minDist: 0.35, maxDist: 7, theta: 0.72, phi: 1.12, autoRotate: 0.045 });
+const fly = { on: false, blend: 0, u: 0, pts: [], C: [100, 100, 100], Cbox: [100, 100, 100], speed: 1, yaw: 0, pitch: 0, look: [0, 0, -1], rngS: 7, visited: [], d0: [0, 0, -1] };
+function flyRand() { fly.rngS = (fly.rngS * 16807) % 2147483647; return fly.rngS / 2147483647; }
+function flyNext(last) {
+  // halo-guided: head for a massive halo ahead of us and pass just beside it, so the flight follows filaments
+  const hs = sim.halos, L = CFG.L;
+  let best = null, bestScore = -1e9;
+  if (hs && hs.length >= 32 && view.phase !== 'za' && view.phase !== 'intro') {
+    for (let i = 0; i < hs.length / 4; i++) {
+      const d = [0, 1, 2].map((c) => { let v = hs[4 * i + c] - last.p[c]; return v - L * Math.round(v / L); });
+      const dist = Math.hypot(d[0], d[1], d[2]);
+      if (dist < 28 || dist > 90) continue;
+      const cos = (d[0] * last.d[0] + d[1] * last.d[1] + d[2] * last.d[2]) / dist;
+      if (cos < 0.3) continue;
+      const abs = [0, 1, 2].map((c) => last.p[c] + d[c]);
+      let pen = 0;
+      for (const v of fly.visited) { const e = [0, 1, 2].map((c) => { let w = abs[c] - v[c]; return w - L * Math.round(w / L); }); if (Math.hypot(e[0], e[1], e[2]) < 15) pen += 3; }
+      const score = Math.log10(hs[4 * i + 3]) + 1.6 * cos - dist / 70 - Math.abs(d[1] / dist) * 0.8 - pen + flyRand() * 0.5;
+      if (score > bestScore) { bestScore = score; best = { d, dist, abs, m: hs[4 * i + 3] }; }
+    }
+  }
+  if (best) {
+    const dir = best.d.map((v) => v / best.dist);
+    let side = norm(cross(dir, [0, 1, 0]));
+    if (flyRand() < 0.5) side = side.map((v) => -v);
+    const off = 7 + 5 * flyRand();
+    const p = best.abs.map((v, c) => v + side[c] * off - dir[c] * 4);
+    fly.visited.push(best.abs); if (fly.visited.length > 12) fly.visited.shift();
+    const d = norm(p.map((v, c) => v - last.p[c]));
+    return { p, d, h: { abs: best.abs, m: best.m } };
+  }
+  let d = last.d.map((v) => v + (flyRand() - 0.5) * 1.1);
+  d[1] *= 0.45;
+  d = norm(d);
+  return { p: last.p.map((v, i) => v + 40 * d[i]), d };
+}
+function flyExtend() {
+  const P = fly.pts;
+  while (P.length < Math.floor(fly.u) + 5) {
+    if (!P.length) { P.push({ p: fly.Cbox.slice(), d: fly.d0.slice() }); continue; }
+    P.push(flyNext(P[P.length - 1]));
+  }
+}
+function crPoint(p0, p1, p2, p3, t) {  // centripetal Catmull–Rom (no cusps with uneven spacing)
+  const dd = (a, b) => Math.max(1e-3, Math.sqrt(Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2])));
+  const t0 = 0, t1 = t0 + dd(p0, p1), t2 = t1 + dd(p1, p2), t3 = t2 + dd(p2, p3), u = t1 + (t2 - t1) * t;
+  const lerp3 = (a, b, ta, tb) => a.map((v, i) => ((tb - u) * v + (u - ta) * b[i]) / (tb - ta));
+  const A1 = lerp3(p0, p1, t0, t1), A2 = lerp3(p1, p2, t1, t2), A3 = lerp3(p2, p3, t2, t3);
+  const B1 = lerp3(A1, A2, t0, t2), B2 = lerp3(A2, A3, t1, t3);
+  return lerp3(B1, B2, t1, t2);
+}
+function flyPos(u) {
+  flyExtend();
+  const i = Math.floor(u), t = u - i, P = fly.pts;
+  const g = (j) => j < 0 ? P[0].p.map((v, c) => 2 * v - P[1].p[c]) : P[Math.min(P.length - 1, j)].p;
+  return crPoint(g(i - 1), g(i), g(i + 1), g(i + 2), t);
+}
+function flySegLen(u) { flyExtend(); const i = Math.floor(u), P = fly.pts, a = P[i].p, b = P[i + 1].p; return Math.max(8, Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2])); }
+function setFly(on) {
+  if (on === fly.on) return;
+  fly.on = on;
+  if (on) {
+    if (view.visit) { view.visit = null; visitBtn && visitBtn.setPressed(false); }
+    fly.pts = []; fly.u = 0; fly.Cbox = view.Cbox.slice(); fly.C = fly.Cbox.slice(); fly.rngS = (params.seed * 7919 + (Date.now() & 1023)) % 2147483647 || 7;
+    fly.visited = []; fly.d0 = norm(cam.eye.map((v, i) => cam.target[i] - v)); fly.d0[1] *= 0.5; fly.d0 = norm(fly.d0);
+    flyExtend();
+    say('Fly-through', 'Drag to look around · scroll to change speed', 3600);
+  } else {
+    // re-centre the periodic box on the camera so leaving the flight is seamless
+    view.Cbox = fly.C.slice();
+  }
+  flyBtn && flyBtn.setPressed(on);
+  if (flyToggle) flyToggle.set(on);
+}
+view.Cbox = [CFG.L / 2, CFG.L / 2, CFG.L / 2];
+
+/* look-around while flying */
+{
+  let down = false, lx = 0, ly = 0;
+  ch.stage.addEventListener('pointerdown', (e) => { down = true; lx = e.clientX; ly = e.clientY; userActed(); });
+  window.addEventListener('pointerup', () => { down = false; });
+  ch.stage.addEventListener('pointermove', (e) => {
+    if (!down || !fly.on) return;
+    fly.yaw -= (e.clientX - lx) * 0.004; fly.pitch = U.clamp(fly.pitch - (e.clientY - ly) * 0.004, -1.2, 1.2); lx = e.clientX; ly = e.clientY;
+  });
+  ch.stage.addEventListener('wheel', (e) => { userActed(); if (fly.on) fly.speed = U.clamp(fly.speed * Math.exp(-e.deltaY * 0.0015), 0.2, 5); }, { passive: true });
+}
+let lastUserAct = -1e9;
+function userActed() { lastUserAct = performance.now(); view.userCam = true; }
+
+function norm(v) { const n = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / n, v[1] / n, v[2] / n]; }
+function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+function rotAround(v, axis, ang) { // Rodrigues
+  const c = Math.cos(ang), s = Math.sin(ang), k = norm(axis), d = k[0] * v[0] + k[1] * v[1] + k[2] * v[2], x = cross(k, v);
+  return [v[0] * c + x[0] * s + k[0] * d * (1 - c), v[1] * c + x[1] * s + k[1] * d * (1 - c), v[2] * c + x[2] * s + k[2] * d * (1 - c)];
+}
+
+const FLY_V = 7.5;   // h⁻¹ Mpc per second at speed 1
+const camState = { eye: [0, 0, 2], target: [0, 0, 0], C: [100, 100, 100], fog: 0, view: null, proj: null, dist: 2 };
+function updateCamera(dt) {
+  cam.update(dt);
+  const L = CFG.L;
+  fly.blend = U.clamp(fly.blend + (fly.on ? dt / 3.2 : -dt / 2.6), 0, 1);
+  const e = U.smoothstep(0, 1, fly.blend);
+  if (fly.on && fly.blend >= 1) fly.u += dt * fly.speed * FLY_V / flySegLen(fly.u);
+  const u = fly.on ? fly.u : 0;
+  let eye, target, C;
+  if (fly.on || fly.blend > 0) {
+    // flight position (absolute Mpc/h) and heading
+    const pos = fly.on ? flyPos(u) : fly.C;
+    const ahead = fly.on ? flyPos(u + 6 / flySegLen(u)) : fly.C.map((v, i) => v + fly.look[i]);
+    let dir = norm(ahead.map((v, i) => v - pos[i]));
+    const right = norm(cross(dir, [0, 1, 0]));
+    dir = rotAround(dir, [0, 1, 0], fly.yaw); dir = rotAround(dir, right, fly.pitch);
+    if (!fly.on || cam.dragging === false) { fly.yaw *= Math.pow(0.35, dt); fly.pitch *= Math.pow(0.35, dt); }
+    fly.look = dir;
+    if (fly.on) fly.C = pos;
+    // while blending in, the camera moves from its orbit spot to the flight start at the box centre
+    const orbitEye = cam.eye, orbitTarget = cam.target;
+    const flyEye = fly.on ? [0, 0, 0] : [0, 0, 0];
+    const flyTarget = dir.map((v) => v * 0.3);
+    eye = orbitEye.map((v, i) => U.lerp(v, flyEye[i], e));
+    target = orbitTarget.map((v, i) => U.lerp(v, flyTarget[i], e));
+    // wrap centre: the box centre while outside, then glued to the camera
+    if (fly.on) C = fly.blend >= 1 ? fly.C : fly.Cbox;
+    else C = view.Cbox;
+  } else {
+    eye = cam.eye; target = cam.target; C = view.Cbox;
+  }
+  camState.eye = eye; camState.target = target; camState.C = C;
+  camState.fog = e;
+  camState.dist = Math.hypot(eye[0] - target[0], eye[1] - target[1], eye[2] - target[2]);
+  const up = Math.abs(norm(target.map((v, i) => v - eye[i]))[1]) > 0.98 ? [0, 0, 1] : [0, 1, 0];
+  camState.view = M4.lookAt(eye, target, up);
+  const aspect = canvas.width / Math.max(1, canvas.height);
+  camState.fov = small ? 1.1 : 0.82;
+  const P = M4.perspective(camState.fov, aspect, 0.002, 50);
+  // lens shift: centre the cube in the part of the screen the panels leave free
+  const k = 1 - Math.exp(-dt * 3);
+  lens.x += (lens.tx * (1 - camState.fog * 0.6) - lens.x) * k; lens.y += (lens.ty * (1 - camState.fog * 0.6) - lens.y) * k;
+  P[8] -= lens.x; P[9] -= lens.y;
+  camState.proj = P;
+}
+const lens = { x: 0, y: 0, tx: 0, ty: 0, t: 0, fit: 0 };
+function fitDist() { return lens.fit || (small ? 3.0 : 2.45); }
+function computeLens() {
+  const W = window.innerWidth, H = window.innerHeight;
+  let left = 0, right = W, top = small ? 150 : 54, bottom = H - (small ? 52 : 58);
+  if (!document.body.classList.contains('cz-cinema')) {
+    const deck = document.querySelector('.cz-deck'), notes = document.querySelector('.cz-notes');
+    if (!small) {
+      if (deck && deck.classList.contains('cz-open')) right = deck.getBoundingClientRect().left - 8;
+      if (notes && !notes.classList.contains('cz-folded')) left = Math.min(W * 0.4, notes.getBoundingClientRect().right + 8);
+    } else {
+      if (deck && deck.classList.contains('cz-open')) bottom = deck.getBoundingClientRect().top;
+      else if (notes && getComputedStyle(notes).display !== 'none') bottom = notes.getBoundingClientRect().top;
+    }
+  } else { top = 0; bottom = H; }
+  lens.right = right; lens.left = left; lens.top = top; lens.bottom = bottom;
+  // orbit distance at which the cube (half-extent ≈ 0.8 box units on screen) just fills the free area
+  const fov = small ? 1.1 : 0.82, free = Math.max(160, Math.min(right - left, bottom - top) - 24);
+  lens.fit = U.clamp(0.8 * (H / 2) / (Math.tan(fov / 2) * free / 2), 1.2, 6);
+  if (!view.userCam && !fly.on && !view.visit && !copyT.value && /boot|intro|wait/.test(view.phase)) cam.setDist(lens.fit);
+  lens.tx = U.clamp(((left + right) / 2 - W / 2) / (W / 2), -0.4, 0.4);
+  lens.ty = U.clamp(-((top + bottom) / 2 - H / 2) / (H / 2), -0.5, 0.5);
+}
+
+/* ----------------------------------------------------------------------------- UI */
+const gTime = ch.ui.group('Time');
+const zSlider = gTime.slider({
+  id: 'cw-z', label: 'Redshift', min: 1 / (1 + CFG.zi), max: 1, value: 1 / (1 + CFG.zi), log: true,
+  format: (a) => 'z = ' + fmtZ(1 / a - 1),
+  hint: 'Drag to scrub the instant Zel’dovich preview to any moment. Press <b>N-body</b> to morph back to the simulation.',
+  onInput: (a) => { enterZA(a); },
+});
+const timeBtns = gTime.buttons([
+  { label: 'Pause', id: 'cw-play', onClick: () => ch.setPaused(!ch.paused) },
+  { label: 'Restart', id: 'cw-restart', onClick: () => restart() },
+  { label: 'New seed', id: 'cw-seed', onClick: () => newSeed() },
+]);
+ch.onPause((p) => timeBtns[0].setLabel(p ? 'Play' : 'Pause'));
+const engBtns = gTime.buttons([
+  { label: 'N-body', id: 'cw-eng-nb', pressed: true, title: 'The full particle-mesh gravity calculation', onClick: () => exitZA() },
+  { label: 'Zel’dovich preview', id: 'cw-eng-za', pressed: false, title: 'Linear theory, drawn instantly for any redshift', onClick: () => { if (view.phase === 'za') exitZA(); else enterZA(sim.a); } },
+]);
+const speedSl = gTime.slider({ id: 'cw-speed', label: 'Time speed', min: 0.25, max: 4, value: 1, log: true, format: (v) => v.toFixed(2) + '×', onInput: (v) => { view.speed = v; } });
+const gCos = ch.ui.group('Cosmology');
+const s8Sl = gCos.slider({ id: 'cw-s8', label: 'σ₈ (clumpiness today)', min: 0.5, max: 1.2, step: 0.01, value: params.s8, digits: 2, hint: 'Amplitude of the initial ripples. Restarts the run.', onChange: (v) => { params.s8 = v; restart('σ₈ = ' + v.toFixed(2)); } });
+const omSl = gCos.slider({ id: 'cw-om', label: 'Ωm (matter density)', min: 0.1, max: 0.5, step: 0.01, value: params.Om, digits: 2, hint: 'Flat universe: Ω<sub>Λ</sub> = 1 − Ω<sub>m</sub>. Restarts the run.', onChange: (v) => { params.Om = v; restart('Ωm = ' + v.toFixed(2) + ', ΩΛ = ' + (1 - v).toFixed(2)); } });
+const cosRo = gCos.readouts([{ id: 'seed', label: 'Seed' }, { id: 'mp', label: 'Particle mass' }]);
+
+const gRen = ch.ui.group('Render');
+let flyBtn = null, flyToggle = null;
+let visitBtn = null;
+[flyBtn, visitBtn] = gRen.buttons([
+  { label: 'Fly through', id: 'cw-fly', pressed: false, onClick: () => setFly(!fly.on) },
+  { label: 'Biggest cluster', id: 'cw-visit', pressed: false, title: 'Zoom in on the most massive halo', onClick: () => visitCluster(!view.visit) },
+]);
+const sizeSl = gRen.slider({ id: 'cw-size', label: 'Point size', min: 0.4, max: 2.5, value: 1, step: 0.01, format: (v) => v.toFixed(2) + '×' });
+const expSl = gRen.slider({ id: 'cw-exp', label: 'Brightness', min: 0.25, max: 4, value: 1, log: true, format: (v) => v.toFixed(2) + '×' });
+const bloomSl = gRen.slider({ id: 'cw-bloom', label: 'Bloom', min: 0, max: 2, value: 0.9, step: 0.01, format: (v) => v.toFixed(2) });
+const glowSl = gRen.slider({ id: 'cw-glow', label: 'Dark-matter glow', min: 0, max: 2, value: 1, step: 0.01, format: (v) => v.toFixed(2), hint: 'A volume rendering of the smoothed density field on the mesh, drawn beneath the particles.' });
+const slabSl = gRen.slider({ id: 'cw-slab', label: 'Slice thickness', min: 10, max: 200, value: 200, step: 1, format: (v) => v >= 199.5 ? 'whole box' : Math.round(v) + ' h⁻¹ Mpc', hint: 'Show only a slab facing you, like the thin slices in survey maps.' });
+const colT = gRen.toggle({ id: 'cw-col', label: 'Colour by density', value: true });
+const boxT = gRen.toggle({ id: 'cw-box', label: 'Box edges', value: true });
+const labT = gRen.toggle({ id: 'cw-labels', label: 'Label the biggest halos', value: true, onChange: (v) => { LAB.showHalos = v; } });
+const copyT = gRen.toggle({ id: 'cw-copies', label: 'Periodic copies (3 × 3 × 3)', value: false, hint: 'The box wraps around on itself. Neighbouring copies show that it tiles an endless universe.', onChange: (v) => { if (v && view.visit) visitCluster(false); cam.setDist(v ? 5.2 : fitDist()); userActed(); } });
+flyToggle = { set: () => {} };
+const legend = Cosmos.h('div', {}, Cosmos.h('div', { class: 'cw-ramp' }), Cosmos.h('div', { class: 'cw-ramp-lab', html: '<span>void 0.2</span><span>1</span><span>10</span><span>100</span><span>ρ/ρ̄ 1000</span>' }));
+gRen.html(legend);
+
+const gPk = ch.ui.group('Power spectrum');
+const pkCanvas = gPk.canvas(small ? 130 : 150);
+gPk.html(Cosmos.h('div', { class: 'cw-legend', html: '<span style="color:var(--era)"><i></i>simulation, now</span><span style="color:#979db2"><i class="d"></i>linear theory, now</span><span style="color:#5e6479"><i class="d"></i>at z = 49</span>' }));
+let pkDirty = true;
+
+const gHmf = ch.ui.group('Halo mass function');
+const hmfCanvas = gHmf.canvas(small ? 120 : 136);
+gHmf.html(Cosmos.h('div', { class: 'cw-legend', html: '<span style="color:#ffc46b"><i class="o"></i>friends-of-friends halos</span><span style="color:#979db2"><i class="d"></i>Sheth–Tormen</span>' }));
+let hmfDirty = true;
+
+const gRo = ch.ui.group('Engine');
+const ro = gRo.readouts([
+  { id: 'step', label: 'Step' }, { id: 'ms', label: 'Compute / step' },
+  { id: 's8', label: 'σ₈ sim · linear' }, { id: 'rmax', label: 'Peak ρ/ρ̄ (cell)' },
+  { id: 'mesh', label: 'Mesh · cell' }, { id: 'mode', label: 'Engine' },
+  { id: 'nh', label: 'Halos ≥ 10 particles' }, { id: 'fofms', label: 'Halo finder' },
+]);
+
+const hud = {
+  z: ch.hud.add('Redshift', 'z = 49'),
+  a: ch.hud.add('Scale factor', ''),
+  t: ch.hud.add('Cosmic age', ''),
+  box: ch.hud.add('Box', CFG.L + ' h⁻¹ Mpc'),
+  n: ch.hud.add('Particles', F.num(CFG.Np ** 3) + ' (' + CFG.Np + '³)'),
+  halo: ch.hud.add('Largest halo', '—'),
+  d: ch.hud.add('δ rms', '—'),
+};
+
+const caption = Cosmos.h('div', { class: 'cw-caption' }, Cosmos.h('small'), Cosmos.h('b'));
+document.body.append(caption);
+let capT = 0;
+function say(kicker, line, ms = 4200) {
+  caption.firstChild.textContent = kicker; caption.lastChild.textContent = line;
+  caption.classList.add('on'); clearTimeout(capT);
+  if (ms) capT = setTimeout(() => caption.classList.remove('on'), ms);
+}
+
+function fmtZ(z) { return z >= 9.95 ? z.toFixed(1) : z >= 0.995 ? z.toFixed(2) : z.toFixed(3); }
+
+function enterZA(a) {
+  if (!R.ready) return;
+  if (view.phase !== 'za') {
+    view.prevPhase = view.phase === 'za' ? view.prevPhase : view.phase;
+    view.phase = 'za';
+    say('Zel’dovich approximation', 'Linear theory, drawn instantly for any moment', 3200);
+  }
+  view.zaA = a;
+  engBtns[0].setPressed(false); engBtns[1].setPressed(true);
+  userActed();
+}
+function exitZA() {
+  if (view.phase !== 'za') return;
+  view.phase = 'nbody';
+  engBtns[0].setPressed(true); engBtns[1].setPressed(false);
+  say('Particle-mesh N-body', 'Back to the full gravitational calculation', 3000);
+}
+const VISIT_SLAB = 70;
+/* zoom in on the most massive halo: re-centre the periodic box on it (hidden by a quick fade) and dolly in */
+function visitCluster(on) {
+  const hs = sim.halos;
+  if (on && (!hs || hs.length < 4 || view.phase === 'intro' || view.phase === 'boot')) { ch.toast('No halos have formed yet'); return; }
+  if (on) {
+    if (fly.on) setFly(false);
+    if (copyT.value) copyT.set(false);
+    if (view.phase === 'za') exitZA();
+    const m = hs[3];
+    view.visit = { x: hs[0], y: hs[1], z: hs[2], m };
+    view.Cbox = [hs[0], hs[1], hs[2]];
+    view.fade = Math.min(view.fade, 0.15);
+    cam.setDist(small ? 0.95 : 0.78);
+    const mw = m / COSMO.h / 1.3e12;
+    say('Most massive halo · ' + F.sci(m, 2) + ' M☉/h', 'The mass of about ' + F.num(Math.round(mw / 100) * 100) + ' Milky Way halos, fed by the filaments around it', 5200);
+  } else {
+    view.visit = null;
+    view.Cbox = [CFG.L / 2, CFG.L / 2, CFG.L / 2];
+    view.fade = Math.min(view.fade, 0.15);
+    cam.setDist(fitDist());
+  }
+  visitBtn && visitBtn.setPressed(!!view.visit);
+  userActed();
+}
+function restart(msg) {
+  startRun({ intro: false });
+  say('A new universe', msg || 'Restarting at z = ' + CFG.zi, 3600);
+}
+function newSeed() {
+  params.seed = (Math.random() * 1e6) | 0;
+  restart('Seed ' + params.seed + ' · a different patch of sky');
+}
+
+ch.onKey('r', () => restart(), 'Restart the simulation');
+ch.onKey('g', () => newSeed(), 'New random seed');
+ch.onKey('v', () => setFly(!fly.on), 'Fly through');
+ch.onKey('b', () => boxT.set(!boxT.value), 'Box edges');
+ch.onKey('l', () => labT.set(!labT.value, true), 'Halo labels');
+ch.onKey('k', () => visitCluster(!view.visit), 'Zoom to the biggest cluster');
+ch.onKey('z', () => { if (view.phase === 'za') exitZA(); else enterZA(sim.a); }, 'Zel’dovich preview / N-body');
+
+/* ----------------------------------------------------------------------------- P(k) chart */
+function drawPk() {
+  const c = pkCanvas, dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.round(c.clientWidth * dpr), H = Math.round(c.clientHeight * dpr);
+  if (!W || !H) return;
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  const x = c.getContext('2d');
+  x.clearRect(0, 0, W, H);
+  const pl = 34 * dpr, pr = 8 * dpr, pt = 20 * dpr, pb = 18 * dpr;
+  const kNp = Math.PI * CFG.Np / CFG.L;
+  const k0 = 2 * Math.PI / CFG.L * 0.9, k1 = kNp * 1.25, P0 = 1e-2, P1 = 1e5;
+  const tx = (k) => pl + (Math.log(k / k0) / Math.log(k1 / k0)) * (W - pl - pr);
+  const ty = (p) => H - pb - U.clamp(Math.log(p / P0) / Math.log(P1 / P0), -0.02, 1.02) * (H - pt - pb);
+  x.font = `${9.5 * dpr}px "JetBrains Mono", monospace`;
+  x.strokeStyle = 'rgba(236,230,214,0.07)'; x.fillStyle = '#5e6479'; x.lineWidth = 1;
+  x.textAlign = 'right'; x.textBaseline = 'middle';
+  for (let e = -2; e <= 5; e++) { const y = ty(Math.pow(10, e)); x.beginPath(); x.moveTo(pl, y); x.lineTo(W - pr, y); x.stroke(); if (e % 2 === 0) x.fillText('10' + F.sup(e), pl - 4 * dpr, y); }
+  x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+  [0.05, 0.1, 0.2, 0.5, 1].forEach((k) => { if (k < k0 || k > k1) return; const X = tx(k); x.beginPath(); x.moveTo(X, pt); x.lineTo(X, H - pb); x.stroke(); x.fillText(String(k), X, H - 5 * dpr); });
+  x.textAlign = 'left'; x.fillText('P(k)  [h⁻³ Mpc³]', 2 * dpr, 10 * dpr);
+  x.textAlign = 'right'; x.fillText('k [h Mpc⁻¹]', W - pr, 10 * dpr);
+  // beyond the particle Nyquist frequency the lattice, not the universe, sets the power
+  x.fillStyle = 'rgba(236,230,214,0.035)'; x.fillRect(tx(kNp), pt, W - pr - tx(kNp), H - pt - pb);
+  const a = view.phase === 'za' ? view.zaA : view.phase === 'intro' ? aOfD(view.D) : sim.a;
+  const lin = (aa, col, dash) => {
+    x.strokeStyle = col; x.lineWidth = 1.2 * dpr; x.setLineDash(dash); x.beginPath();
+    for (let i = 0; i <= 60; i++) { const k = k0 * Math.pow(k1 / k0, i / 60); const X = tx(k), Y = ty(COSMO.Plin(k, aa)); i ? x.lineTo(X, Y) : x.moveTo(X, Y); }
+    x.stroke(); x.setLineDash([]);
+  };
+  lin(sim.sched[0] || 0.02, 'rgba(94,100,121,0.7)', [2 * dpr, 3 * dpr]);
+  lin(a, '#979db2', [4 * dpr, 3 * dpr]);
+  const curve = (pk, kk, col, lw) => {
+    if (!pk || !kk) return; x.strokeStyle = col; x.lineWidth = lw * dpr; x.beginPath(); let st = false;
+    for (let i = 0; i < pk.length; i++) { if (!(pk[i] > 0) || !(kk[i] > 0) || kk[i] > kNp * 1.2) continue; const X = tx(kk[i]), Y = ty(pk[i]); st ? x.lineTo(X, Y) : x.moveTo(X, Y); st = true; }
+    x.stroke();
+  };
+  curve(sim.pk0, sim.pkK, 'rgba(127,168,255,0.35)', 1.2);
+  if (view.phase === 'nbody') curve(sim.pk, sim.pkK, '#7fa8ff', 1.8);
+}
+
+/* ----------------------------------------------------------------------------- halo mass function */
+let STtab = null;   // σ(M) at z = 0 on a log grid, for the Sheth–Tormen prediction
+function stTable() {
+  if (STtab) return STtab;
+  const lm = [], sg = [];
+  for (let l = 12.6; l <= 15.9; l += 0.1) { lm.push(l); sg.push(COSMO.sigmaM(Math.pow(10, l))); }
+  STtab = { lm, sg };
+  return STtab;
+}
+function stDndlog(lm10, a) {   // Sheth & Tormen (1999): dn/dlog10 M in h³ Mpc⁻³
+  const t = stTable(), i = Math.max(1, Math.min(t.lm.length - 2, Math.round((lm10 - 12.6) / 0.1)));
+  const D = COSMO.D(a);
+  const s0 = Math.exp(Cosmos.util.lerp(Math.log(t.sg[i - 1]), Math.log(t.sg[i + 1]), (lm10 - t.lm[i - 1]) / (t.lm[i + 1] - t.lm[i - 1])));
+  const dlns = (Math.log(t.sg[i + 1]) - Math.log(t.sg[i - 1])) / ((t.lm[i + 1] - t.lm[i - 1]) * Math.LN10);
+  const sig = s0 * D, nu = 1.686 / sig, A = 0.3222, aa = 0.707, pp = 0.3, an2 = aa * nu * nu;
+  const f = A * Math.sqrt(2 * aa / Math.PI) * (1 + Math.pow(an2, -pp)) * nu * Math.exp(-an2 / 2);
+  const M = Math.pow(10, lm10);
+  return Math.LN10 * (COSMO.rhoM / M) * f * Math.abs(dlns);
+}
+function drawHmf() {
+  const c = hmfCanvas, dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.round(c.clientWidth * dpr), H = Math.round(c.clientHeight * dpr);
+  if (!W || !H) return;
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  const x = c.getContext('2d');
+  x.clearRect(0, 0, W, H);
+  const pl = 34 * dpr, pr = 8 * dpr, pt = 20 * dpr, pb = 18 * dpr;
+  const mpart = COSMO.rhoM * Math.pow(CFG.L, 3) / Math.pow(CFG.Np, 3);
+  const m0 = Math.min(13.4, Math.floor((Math.log10(20 * mpart) - 0.1) * 5) / 5), m1 = Math.max(15.6, m0 + 2.2), y0 = -7, y1 = -3;
+  const tx = (l) => pl + (l - m0) / (m1 - m0) * (W - pl - pr);
+  const ty = (l) => H - pb - U.clamp((l - y0) / (y1 - y0), -0.03, 1.03) * (H - pt - pb);
+  x.font = `${9.5 * dpr}px "JetBrains Mono", monospace`;
+  x.strokeStyle = 'rgba(236,230,214,0.08)'; x.fillStyle = '#5e6479'; x.lineWidth = 1;
+  x.textAlign = 'right'; x.textBaseline = 'middle';
+  for (let e = y0; e <= y1; e++) { const Y = ty(e); x.beginPath(); x.moveTo(pl, Y); x.lineTo(W - pr, Y); x.stroke(); x.fillText('10' + F.sup(e), pl - 4 * dpr, Y); }
+  x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+  for (let l = Math.ceil(m0); l <= Math.floor(m1); l++) { const X = tx(l); x.beginPath(); x.moveTo(X, pt); x.lineTo(X, H - pb); x.stroke(); x.fillText('10' + F.sup(l), X, H - 5 * dpr); }
+  x.textAlign = 'left'; x.fillText('dn/dlog₁₀M  [h³ Mpc⁻³]', 2 * dpr, 10 * dpr);
+  x.textAlign = 'right'; x.fillText('M [M☉/h]', W - pr, 10 * dpr);
+  const a = view.phase === 'za' ? view.zaA : sim.a;
+  if (a > 0.12) {
+    x.strokeStyle = '#979db2'; x.lineWidth = 1.2 * dpr; x.setLineDash([4 * dpr, 3 * dpr]); x.beginPath();
+    let st = false;
+    for (let l = m0; l <= m1 + 1e-6; l += 0.05) { const v = stDndlog(l, a); if (!(v > 0)) continue; const X = tx(l), Y = ty(Math.log10(v)); st ? x.lineTo(X, Y) : x.moveTo(X, Y); st = true; }
+    x.stroke(); x.setLineDash([]);
+  }
+  const f = sim.fof;
+  if (f && f.hmf && view.phase !== 'za') {
+    const V = Math.pow(CFG.L, 3);
+    x.fillStyle = '#ffc46b'; x.strokeStyle = 'rgba(255,196,107,0.55)'; x.lineWidth = 1 * dpr;
+    for (let b = 0; b < f.hmf.length; b++) {
+      const n = f.hmf[b]; if (!n) continue;
+      const l = f.lm0 + 0.2 * (b + 0.5), v = n / (V * 0.2), e = Math.sqrt(n) / (V * 0.2);
+      const X = tx(l), Y = ty(Math.log10(v));
+      x.beginPath(); x.moveTo(X, ty(Math.log10(Math.max(v - e, v * 0.05)))); x.lineTo(X, ty(Math.log10(v + e))); x.stroke();
+      x.beginPath(); x.arc(X, Y, 2.3 * dpr, 0, 7); x.fill();
+    }
+  }
+}
+
+/* ----------------------------------------------------------------------------- scene labels */
+const mkLab = (cls) => { const e = Cosmos.h('div', { class: 'cw-lab ' + cls }); labels.append(e); return e; };
+const LAB = { halos: [0, 1, 2].map(() => ({ el: mkLab('halo'), x: 0, y: 0, on: false, pos: null, m: 0 })), scale: mkLab('scale'), showHalos: true,
+  fly: [0, 1].map(() => ({ el: mkLab('halo'), x: 0, y: 0, on: false, key: null })) };
+function haloKind(m) { return m >= 5e14 ? 'rich cluster' : m >= 1e14 ? 'cluster' : 'group'; }
+function placeLab(hl, p, txt, dt) {
+  const k = hl.on ? 1 - Math.exp(-dt * 6) : 1;
+  hl.x += (p[0] - hl.x) * k; hl.y += (p[1] - hl.y) * k; hl.on = true;
+  if (hl.el.textContent !== txt) { hl.el.textContent = txt; hl.w = hl.el.offsetWidth; }
+  const right = lens.right || canvas.clientWidth, left = lens.left || 0, lw = hl.w || 150;
+  const fitR = hl.x + 14 + lw < right - 8, fitL = hl.x - 14 - lw > left + 8;
+  if ((!fitR && !fitL) || hl.x < left + 4 || hl.x > right - 4 || hl.y < (small ? (lens.top || 60) + 30 : 128) || hl.y > (lens.bottom || canvas.clientHeight - 60) - 20) { hl.el.classList.remove('on'); return false; }
+  const flip = !fitR;
+  hl.el.classList.toggle('flip', flip);
+  hl.el.style.transform = flip ? `translate(${(hl.x - 14 - lw).toFixed(1)}px, ${(hl.y - 9).toFixed(1)}px)` : `translate(${(hl.x + 14).toFixed(1)}px, ${(hl.y - 9).toFixed(1)}px)`;
+  hl.el.classList.add('on');
+  return true;
+}
+function projectW(w, vp) {   // world → CSS px
+  const X = vp[0] * w[0] + vp[4] * w[1] + vp[8] * w[2] + vp[12], Y = vp[1] * w[0] + vp[5] * w[1] + vp[9] * w[2] + vp[13];
+  const Wc = vp[3] * w[0] + vp[7] * w[1] + vp[11] * w[2] + vp[15];
+  if (Wc <= 0.01) return null;
+  return [(X / Wc * 0.5 + 0.5) * canvas.clientWidth, (1 - (Y / Wc * 0.5 + 0.5)) * canvas.clientHeight, Wc];
+}
+function updateLabels(dt) {
+  if (!camState.view) return;
+  const vp = M4.multiply(camState.proj, camState.view), L = CFG.L, C = camState.C;
+  const orbit = camState.fog < 0.3;
+  // scale bar: the lowest roughly-horizontal box edge
+  const showScale = orbit && boxT.value && R.ready;
+  if (showScale) {
+    let best = null;
+    const E = [-0.5, 0.5];
+    for (const a of E) for (const b of E) {
+      for (const ax of [0, 2]) {
+        const p0 = ax === 0 ? [-0.5, a, b] : [a, b, -0.5], p1 = ax === 0 ? [0.5, a, b] : [a, b, 0.5];
+        const s0 = projectW(p0, vp), s1 = projectW(p1, vp); if (!s0 || !s1) continue;
+        const my = (s0[1] + s1[1]) / 2, slope = Math.abs(s1[1] - s0[1]) / (Math.abs(s1[0] - s0[0]) + 1);
+        if (slope < 0.9 && (!best || my > best.my)) best = { my, mx: (s0[0] + s1[0]) / 2, ang: Math.atan2(s1[1] - s0[1], s1[0] - s0[0]) };
+      }
+    }
+    if (best) {
+      let ang = best.ang; if (ang > Math.PI / 2) ang -= Math.PI; if (ang < -Math.PI / 2) ang += Math.PI;
+      LAB.scale.textContent = CFG.L + ' h⁻¹ Mpc  ·  ' + Math.round(CFG.L / COSMO.h) + ' Mpc';
+      LAB.scale.style.transform = `translate(${best.mx}px, ${best.my + 14}px) translate(-50%, -50%) rotate(${ang}rad)`;
+    }
+    LAB.scale.classList.toggle('on', !!best);
+  } else LAB.scale.classList.remove('on');
+  // in flight: name the next clusters the path steers past
+  const inFly = fly.on && camState.fog > 0.85 && LAB.showHalos;
+  LAB.fly.forEach((hl, j) => {
+    const P = fly.pts, pt = inFly && !(small && j) ? P[Math.floor(fly.u) + 1 + j] : null;
+    if (!pt || !pt.h) { hl.el.classList.remove('on'); hl.on = false; return; }
+    const d = pt.h.abs.map((v, c) => { const e = v - C[c]; return e - L * Math.round(e / L); });
+    const dist = Math.hypot(d[0], d[1], d[2]);
+    const p = dist > 5 && dist < 85 ? projectW(d.map((v) => v / L), vp) : null;
+    if (!p) { hl.el.classList.remove('on'); hl.on = false; return; }
+    if (hl.key !== pt) { hl.key = pt; hl.on = false; }
+    placeLab(hl, p, haloKind(pt.h.m) + ' · ' + F.sci(pt.h.m, 1) + ' M☉/h · ' + Math.round(dist / COSMO.h) + ' Mpc', dt);
+  });
+  // most massive halos
+  const hs = sim.halos, a = sim.a;
+  const want = LAB.showHalos && orbit && view.phase !== 'za' && hs && hs.length >= 4 && a > 0.45 && view.phase !== 'intro';
+  LAB.halos.forEach((hl, i) => {
+    if (!want || hs.length < 4 * (i + 1)) { hl.el.classList.remove('on'); return; }
+    const hx = hs[4 * i], hy = hs[4 * i + 1], hz = hs[4 * i + 2], m = hs[4 * i + 3];
+    const w = [hx - C[0], hy - C[1], hz - C[2]].map((d) => (d - L * Math.floor(d / L + 0.5)) / L);
+    const p = projectW(w, vp);
+    if (!p) { hl.el.classList.remove('on'); return; }
+    placeLab(hl, p, (i === 0 ? 'most massive · ' : '') + F.sci(m, 2) + ' M☉/h', dt);
+  });
+}
+
+/* ----------------------------------------------------------------------------- sound */
+// A drone whose filter opens as the universe clumps (δ rms), and soft chimes as new halos ignite.
+const SND = { on: false, ctx: null, drone: null, filt: null, dg: null, bus: null, lastN: 0, t: 0 };
+function soundInit() {
+  const ctx = ch.sound.ensure(); if (!ctx) return;
+  SND.ctx = ctx;
+  if (SND.bus) return;
+  SND.bus = ctx.createGain(); SND.bus.gain.value = 0.9; SND.bus.connect(ch.sound.out);
+  // echo for the chimes
+  const dl = ctx.createDelay(1.5), fb = ctx.createGain(), lp = ctx.createBiquadFilter();
+  dl.delayTime.value = 0.37; fb.gain.value = 0.38; lp.type = 'lowpass'; lp.frequency.value = 2400;
+  dl.connect(lp).connect(fb).connect(dl); lp.connect(SND.bus);
+  SND.echo = dl;
+  // drone
+  SND.filt = ctx.createBiquadFilter(); SND.filt.type = 'lowpass'; SND.filt.frequency.value = 180; SND.filt.Q.value = 2.5;
+  SND.dg = ctx.createGain(); SND.dg.gain.value = 0;
+  SND.filt.connect(SND.dg).connect(SND.bus);
+  SND.drone = [[55, 'sine', 0.5], [82.6, 'triangle', 0.22], [110.3, 'sawtooth', 0.05], [164.4, 'sine', 0.08]].map(([f, type, g]) => {
+    const o = ctx.createOscillator(), gg = ctx.createGain(); o.type = type; o.frequency.value = f; gg.gain.value = g;
+    const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 0.05 + Math.random() * 0.08; lg.gain.value = f * 0.004;
+    lfo.connect(lg).connect(o.frequency); lfo.start();
+    o.connect(gg).connect(SND.filt); o.start(); return o;
+  });
+}
+const PENTA = [220, 261.63, 293.66, 329.63, 392, 440, 523.25, 587.33, 659.25];
+function chime(massLog, when) {
+  if (!SND.ctx || !SND.on) return;
+  const ctx = SND.ctx, t0 = ctx.currentTime + (when || 0);
+  const idx = Math.max(0, Math.min(PENTA.length - 1, Math.round((15.2 - massLog) * 4 + Math.random() * 1.5)));
+  const f = PENTA[idx] * (massLog > 14.8 ? 0.5 : 1);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.07, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0005, t0 + 3.2);
+  [[1, 1], [2.76, 0.25], [5.4, 0.08]].forEach(([m, a]) => { const o = ctx.createOscillator(), og = ctx.createGain(); o.frequency.value = f * m; og.gain.value = a; o.connect(og).connect(g); o.start(t0); o.stop(t0 + 3.4); });
+  g.connect(SND.bus); g.connect(SND.echo);
+}
+function soundTick(dt) {
+  if (!SND.on || !SND.ctx || !SND.dg) return;
+  const ctx = SND.ctx, now = ctx.currentTime;
+  const clump = view.phase === 'nbody' ? sim.stats.drms : COSMO.sigG2 * view.D;
+  const level = ch.paused ? 0.02 : 0.05 + 0.07 * U.smoothstep(0, 1.6, clump);
+  SND.dg.gain.setTargetAtTime(level, now, 0.4);
+  SND.filt.frequency.setTargetAtTime(160 + 1500 * U.smoothstep(0, 1.8, clump) + (fly.on ? 250 : 0), now, 0.6);
+}
+function soundOnStep(m) {
+  if (!SND.on || !m.fof) { if (m.fof) SND.lastN = m.fof.n; return; }
+  const born = m.fof.n - SND.lastN; SND.lastN = m.fof.n;
+  if (born <= 0) return;
+  const d = stepDur(sim.kCur) / Math.max(0.25, view.speed);
+  const hs = m.halos, n = Math.min(3, born);
+  for (let i = 0; i < n; i++) {
+    const j = hs && hs.length ? Math.floor(Math.random() * Math.min(hs.length / 4, 40)) : 0;
+    const lm = hs && hs.length ? Math.log10(hs[4 * j + 3]) : 13.8;
+    chime(lm, Math.random() * Math.min(1.5, d));
+  }
+}
+ch.onSound((on) => { SND.on = on; if (on) soundInit(); if (SND.dg && SND.ctx) SND.dg.gain.setTargetAtTime(on ? 0.05 : 0, SND.ctx.currentTime, 0.3); });
+
+/* ----------------------------------------------------------------------------- events */
+function onNewStep(m) {
+  const z = 1 / m.a - 1, said = view.said || (view.said = {});
+  const stamp = 'z = ' + fmtZ(z) + ' · ' + F.time(COSMO.age(m.a) * 3.156e16);
+  const once = (k, cond, line, ms) => { if (!said[k] && cond) { said[k] = true; say(stamp, line, ms || 4600); return true; } return false; };
+  once('grow', z < 12 && z > 6, 'Regions a fraction of a percent denser pull in their surroundings');
+  once('halo', m.fof && m.fof.n > 0, 'The first massive halos collapse and ignite');
+  once('web', z < 1.7, 'Walls and filaments knit into a web');
+  const aDE = Math.cbrt(COSMO.Om / COSMO.OL), zDE = 1 / aDE - 1;
+  once('de', z < zDE, 'Dark energy now outweighs matter. Growth slows and the pattern is set', 5200);
+}
+function onReachedToday() {
+  say('z = 0 · ' + COSMO.age(1).toFixed(2) + ' billion years', 'Today’s cosmic web', 5200);
+  if (!view.noAutoFly && performance.now() - lastUserAct > 6000 && !fly.on) setTimeout(() => { if (sim.done && !fly.on && !view.visit && performance.now() - lastUserAct > 6000) { setFly(true); if (!small) ch.foldNotes(true); } }, 3500);
+}
+
+/* ----------------------------------------------------------------------------- frame */
+let time = 0, hudAcc = 0;
+const DI = () => COSMO.D(1 / (1 + CFG.zi));
+ch.loop((dt, t) => {
+  time += dt;
+  const rdt = Math.min(1 / 15, dt || 1 / 60);
+  Cosmos.gl.fit(canvas, CFG.maxDpr);
+  makeTargets();
+
+  // phases
+  view.tPhase += dt;
+  if (view.phase === 'intro') {
+    // today (linear theory) → rewind to z = 49
+    const hold = 2.3, rew = 2.7, Di = DI();
+    if (view.tPhase < 0.05) say('Linear theory · today', 'The cosmic web, as the Zel’dovich approximation draws it', 3000);
+    if (view.tPhase < hold) view.D = 1;
+    else {
+      const u = U.smoothstep(0, 1, (view.tPhase - hold) / rew);
+      view.D = Math.exp(U.lerp(Math.log(1), Math.log(Di), u));
+      if (!view.saidRewind) { view.saidRewind = true; say('Rewinding 13.7 billion years', 'Back to z = 49, when the universe was smooth', 3400); }
+    }
+    view.mix = 0;
+    if (view.tPhase > hold + rew && sim.ready) { view.phase = 'nbody'; view.mix = 1; view.tPhase = 0; say('z = 49 · 49 million years', 'Gravity takes over. This is now a full N-body calculation.', 4800); }
+  } else if (view.phase === 'wait') {
+    view.mix = 0; view.D = COSMO.D(sim.sched[0] || 0.02);
+  } else if (view.phase === 'nbody') {
+    advance(dt);
+    // gentle directed dolly-in while the web forms, until the viewer takes the camera
+    if (!fly.on && !view.visit && performance.now() - lastUserAct > 8000 && !view.userCam) cam.setDist(fitDist() * U.lerp(1.02, 0.9, U.smoothstep(0.05, 0.7, sim.a)));
+    const Dn = COSMO.D(sim.a);
+    view.D = view.mix < 1 ? U.lerp(view.D, Dn, 1 - Math.exp(-rdt * 3.5)) : Dn;
+    view.mix = Math.min(1, view.mix + rdt / 1.6);
+  } else if (view.phase === 'za') {
+    view.D = COSMO.D(view.zaA);
+    view.mix = Math.max(0, view.mix - rdt / 1.2);
+  }
+  view.fade = Math.min(1, view.fade + rdt / (view.phase === 'boot' ? 1e9 : 0.8));
+  if (view.phase === 'boot' && view.tPhase > 0.6 && !view.saidBoot) { view.saidBoot = true; say('z = ' + CFG.zi, 'Laying down ' + F.num(CFG.Np ** 3) + ' particles on a Gaussian random field', 0); }
+  if (view.phase !== 'za' && view.phase !== 'boot') zSlider.set(view.phase === 'intro' ? aOfD(view.D) : sim.a);
+
+  lens.t += rdt; if (lens.t > 0.25) { lens.t = 0; computeLens(); }
+  updateCamera(rdt);
+  render();
+
+  hudAcc += dt || 1 / 60;
+  if (hudAcc > 0.12) { hudAcc = 0; updateHud(); }
+  if (pkDirty) { pkDirty = false; drawPk(); }
+  if (hmfDirty) { hmfDirty = false; drawHmf(); }
+  updateLabels(rdt);
+  soundTick(rdt);
+}, { always: true });
+
+function aOfD(D) { // invert D(a) by bisection on log a
+  let lo = Math.log(1e-3), hi = 0;
+  for (let i = 0; i < 30; i++) { const m = 0.5 * (lo + hi); if (COSMO.D(Math.exp(m)) < D) lo = m; else hi = m; }
+  return Math.exp(0.5 * (lo + hi));
+}
+
+function updateHud() {
+  if (pkCanvas.clientWidth !== pkCanvas._lw) { pkCanvas._lw = pkCanvas.clientWidth; pkDirty = true; }
+  if (hmfCanvas.clientWidth !== hmfCanvas._lw) { hmfCanvas._lw = hmfCanvas.clientWidth; hmfDirty = true; }
+  const a = view.phase === 'za' ? view.zaA : view.phase === 'intro' ? aOfD(view.D) : sim.a;
+  const z = 1 / a - 1;
+  hud.z.set('z = ' + fmtZ(Math.max(0, z)));
+  hud.a.set('a = ' + a.toFixed(3));
+  hud.t.set(F.time(COSMO.age(a) * 3.156e16));
+  const mCell = COSMO.rhoM * Math.pow(CFG.L / CFG.Nm, 3);
+  if (view.phase === 'nbody') {
+    hud.halo.set(sim.fof && sim.fof.maxN ? F.sci(sim.fof.maxN * sim.fof.mp, 2) + ' M☉/h' : '—');
+    hud.d.set(sim.stats.drms.toFixed(2) + ' · R = 2 h⁻¹ Mpc');
+  } else {
+    hud.halo.set('—');
+    hud.d.set((COSMO.sigG2 * COSMO.D(a)).toFixed(2) + ' · linear');
+  }
+  ro.step.set(sim.kCur + ' / ' + Math.max(0, sim.sched.length - 1));
+  const ms = sim.stepMs.length ? sim.stepMs.reduce((p, v) => p + v, 0) / sim.stepMs.length : sim.stats.ms;
+  ro.ms.set(ms ? Math.round(ms) + ' ms' : '—');
+  ro.s8.set(sim.stats.s8 ? sim.stats.s8.toFixed(3) + ' · ' + (params.s8 * COSMO.D(view.phase === 'za' ? view.zaA : sim.a)).toFixed(3) : '—');
+  ro.rmax.set(sim.stats.rmax ? F.num(sim.stats.rmax, 0) : '—');
+  ro.mesh.set(CFG.Nm + '³ · ' + (CFG.L / CFG.Nm).toFixed(2) + ' h⁻¹ Mpc');
+  ro.mode.set(view.phase === 'za' ? 'Zel’dovich' : view.phase === 'intro' ? 'Preview' : 'PM N-body');
+  ro.nh.set(sim.fof ? F.num(sim.fof.n) : '—');
+  ro.fofms.set(sim.fof ? Math.round(sim.fof.ms) + ' ms' : '—');
+  cosRo.seed.set(String(params.seed));
+  cosRo.mp.set(F.sci(COSMO.rhoM * Math.pow(CFG.L, 3) / CFG.Np ** 3, 2) + ' M☉/h');
+  if (view.phase === 'za') pkDirty = true;
+}
+
+/* ----------------------------------------------------------------------------- render */
+const TUNE = { smoothW: 0.6, volGain: 0.12, volSig: 0.5, volFly: 1.4, volAtt: 0.5, gain: 0.06, tone: 1.15, bloomK: 0.22, box: 1, adapt: 1, kern: 2.2, kmin: 0.35, kmax: 3.2, prof: 3.0, voidB: 0.22, lam0: 0.4, lam1: 1.5,
+  fly: { kern: 1.5, kmin: 0.5, kmax: 1.6, prof: 5.0, gain: 1.9, voidB: 0.3 } };
+function contrastK() {   // brightness contrast follows the current clumpiness, so early structure is visible
+  const sig = COSMO.sigG2 * view.D;
+  // the truncated Zel'dovich field is smoother than σ(2 h⁻¹ Mpc) suggests, so stretch its contrast harder at mid redshift
+  const za = (1 - view.mix) * (1 - U.smoothstep(0.55, 1.0, view.D));
+  return U.clamp(sig / 1.3 * (1 - 0.55 * za), 0.12, 1);
+}
+function slabW() {
+  let t = slabSl.value;
+  if (view.visit) t = Math.min(t, VISIT_SLAB);              // a slice through the cluster, so its filaments read clearly
+  return t >= CFG.L * 0.999 ? 100 : U.lerp(t / CFG.L, 100, camState.fog);
+}
+function render() {
+  const w = canvas.width, h = canvas.height;
+  // particles → HDR
+  T.hdr.bind();
+  gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  if (!(R.ready && view.phase !== 'boot')) {
+    // initial conditions still computing: show the empty box, turning slowly
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+    gl.useProgram(progs.line);
+    const k = 0.5 + 0.5 * Math.sin(time * 2.2);
+    Cosmos.gl.uniforms(gl, progs.line, { uView: camState.view, uProj: camState.proj, uCol: [0.05 + 0.03 * k, 0.07 + 0.04 * k, 0.16 + 0.08 * k] });
+    gl.bindVertexArray(boxVao); gl.drawArrays(gl.LINES, 0, 24); gl.bindVertexArray(null);
+    gl.disable(gl.BLEND);
+  }
+  if (R.ready && view.phase !== 'boot') {
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.disable(gl.DEPTH_TEST);
+    const p = progs.part; gl.useProgram(p);
+    const Np = R.Np, L = CFG.L;
+    const pxPerWorld = h / (2 * Math.tan(camState.fov / 2));
+    const radius = 0.62 / Np; // world units (sprite diameter = 1.24 lattice spacings × kernel factor)
+    const haze = 0.0 * (1 - U.smoothstep(0.03, 0.2, view.D));
+    const size = sizeSl.value;
+    // brightness: keep the mean projected column independent of Np, point size and haze
+    const fe = camState.fog, fk = U.smoothstep(0.55, 1, fe), FT = TUNE.fly;
+    const gain = TUNE.gain * (64 / Np) / (size * size * (1 + haze) * (1 + haze)) * U.lerp(1, FT.gain, fk) * U.lerp(1.3, 1, view.mix) * (1 + 0.8 * (1 - view.mix) * (1 - U.smoothstep(0.55, 1.0, view.D)) * U.smoothstep(0.1, 0.3, view.D));
+    const fogF = Math.exp(U.lerp(Math.log(60), Math.log(0.47), fe));
+    Cosmos.gl.uniforms(gl, p, {
+      uView: camState.view, uProj: camState.proj, uS: sim.s, uD: view.D, uMix: view.mix, uL: L, uNp: Np, uOff: R.off,
+      uPx: pxPerWorld * radius, uSize: size, uMaxPx: U.lerp(26, 18, fk) * (h / 900), uGain: gain, uColor: colT.value ? 1 : 0,
+      uFogN: fogF * 0.3, uFogF: fogF, uNear: U.lerp(0.01, 0.04, fk),
+      uHaze: haze, uStride: 1, uCopyGain: 1, uDepthCue: 1 - fe, uCamDist: camState.dist,
+      uC: camState.C, uShift: [0, 0, 0], uTza: 1, uAdapt: TUNE.adapt,
+      uKern: U.lerp(TUNE.kern, FT.kern, fk), uKmin: U.lerp(TUNE.kmin, FT.kmin, fk), uKmax: U.lerp(TUNE.kmax, FT.kmax, fk), uProf: U.lerp(TUNE.prof, FT.prof, fk),
+      uVoidB: U.lerp(TUNE.voidB, FT.voidB, fk), uSlab: slabW(), uCon: contrastK(), uStar: fk, uCopies: 0, uLam: TUNE.lamF || (TUNE.lam0 + (TUNE.lam1 - TUNE.lam0) * U.smoothstep(0.35, 0.95, contrastK())),
+      uJit: Math.max(1 - U.smoothstep(0.35, 0.9, view.D), 0.7 * (1 - view.mix)),
+      uVolOn: VOL.ready ? 1 : 0, uSmoothW: TUNE.smoothW, uHaloHi: 1, uVolOff: VOL.G ? 0.5 / VOL.G : 0,
+      uVolA: { tex: VOL.tex[R.cur], unit: 4 }, uVolB: { tex: VOL.tex[1 - R.cur], unit: 5 },
+    });
+    gl.bindVertexArray(R.vao[R.cur]);
+    gl.drawArrays(gl.POINTS, 0, R.np);
+    const copyA = copyT.value ? 1 - fe : 0;
+    if (copyA > 0.01) {
+      Cosmos.gl.uniforms(gl, p, { uCopies: 1, uShifts: SHIFTS, uStride: COPY_STRIDE, uCopyGain: 0.075 * COPY_STRIDE * copyA, uSlab: 100, uDepthCue: 0 });
+      gl.bindVertexArray(R.cvao[R.cur]);
+      gl.drawArraysInstanced(gl.POINTS, 0, Math.floor(R.np / COPY_STRIDE), 26);
+      Cosmos.gl.uniforms(gl, p, { uCopies: 0, uStride: 1, uCopyGain: 1, uDepthCue: 1 - fe });
+    }
+    gl.bindVertexArray(null);
+    // box edges
+    const boxA = (boxT.value ? 1 : 0) * (1 - camState.fog);
+    if (boxA > 0.01) {
+      gl.useProgram(progs.line);
+      Cosmos.gl.uniforms(gl, progs.line, { uView: camState.view, uProj: camState.proj, uCol: [0.022 * boxA * TUNE.box, 0.03 * boxA * TUNE.box, 0.06 * boxA * TUNE.box] });
+      gl.bindVertexArray(boxVao); gl.drawArrays(gl.LINES, 0, 24); gl.bindVertexArray(null);
+    }
+    gl.disable(gl.BLEND);
+    // volumetric dark-matter glow (N-body only: it is the simulation's own smoothed density)
+    const vk = glowSl.value * view.mix * (VOL.ready ? 1 : 0);
+    if (vk > 0.005) {
+      const inv = M4.invert(M4.multiply(camState.proj, camState.view)) || M4.invert(M4.perspective(1, 1, 0.1, 10));
+      const fwd = norm(camState.target.map((v, i) => v - camState.eye[i]));
+      const lsig = U.lerp(VOL.lsigPrev || VOL.lsig, VOL.lsig, sim.s);
+      T.vol.bind();
+      gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.useProgram(progs.vol);
+      Cosmos.gl.uniforms(gl, progs.vol, {
+        uVolA: { tex: VOL.tex[R.cur], unit: 4 }, uVolB: { tex: VOL.tex[1 - R.cur], unit: 5 },
+        uInvVP: inv, uEye: camState.eye, uFwd: fwd, uC: camState.C.map((v) => v / L), uS: sim.s, uL: L,
+        uFogN: fogF * 0.3, uFogF: fogF, uNear: U.lerp(0.01, 0.04, fk), uCamDist: camState.dist, uSlab: slabW(),
+        uDepthCue: 1 - fe, uLam: TUNE.lam0 + (TUNE.lam1 - TUNE.lam0) * U.smoothstep(0.35, 0.95, contrastK()),
+        uGain: TUNE.volGain * vk * U.lerp(1, TUNE.volFly, fk) * Math.pow(U.clamp(TUNE.volSig / Math.max(lsig, 1e-3), 1, 14) / 1.6, -TUNE.volAtt), uStretch: U.clamp(TUNE.volSig / Math.max(lsig, 1e-3), 1, 14),
+        uT: time, uSteps: small ? 56 : 80, uColor: colT.value ? 1 : 0, uVolOff: VOL.G ? 0.5 / VOL.G : 0,
+      });
+      fsq();
+      T.hdr.bind();
+      gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+      gl.useProgram(progs.copy);
+      Cosmos.gl.uniforms(gl, progs.copy, { uT: T.vol.tex, uK: 1 });
+      fsq();
+      gl.disable(gl.BLEND);
+    }
+  }
+  // bloom chain
+  const lv = T.levels;
+  gl.useProgram(progs.down);
+  let src = T.hdr;
+  for (let i = 0; i < lv.length; i++) {
+    lv[i].bind();
+    Cosmos.gl.uniforms(gl, progs.down, { uT: src.tex, uTx: [0.5 / src.w, 0.5 / src.h] });
+    fsq(); src = lv[i];
+  }
+  gl.useProgram(progs.up);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  for (let i = lv.length - 1; i > 0; i--) {
+    lv[i - 1].bind();
+    Cosmos.gl.uniforms(gl, progs.up, { uT: lv[i].tex, uTx: [0.5 / lv[i].w, 0.5 / lv[i].h], uK: 0.9 });
+    fsq();
+  }
+  gl.disable(gl.BLEND);
+  // composite
+  Cosmos.gl.screen(gl);
+  gl.useProgram(progs.comp);
+  Cosmos.gl.uniforms(gl, progs.comp, {
+    uHdr: T.hdr.tex, uBloom: lv[0].tex, uExp: expSl.value, uBloomK: bloomSl.value * TUNE.bloomK, uTone: TUNE.tone, uTime: time, uGrain: 0.035, uFade: view.phase === 'boot' ? 1 : view.fade, uRes: [w, h],
+  });
+  fsq();
+}
+
+ch.onResize(() => { pkDirty = true; });
+document.addEventListener('visibilitychange', () => { /* rAF already stops; the worker idles once its look-ahead buffer is full */ });
+
+Cosmos.debug.state = () => ({
+  phase: view.phase, z: +(1 / sim.a - 1).toFixed(3), a: +sim.a.toFixed(4), step: sim.kCur, steps: sim.sched.length - 1, queued: sim.queue.length,
+  tm: sim.stats.tm, fofMs: sim.fof ? Math.round(sim.fof.ms) : null,
+  msPerStep: sim.stepMs.length ? Math.round(sim.stepMs.reduce((p, v) => p + v, 0) / sim.stepMs.length) : null,
+  drms: +sim.stats.drms.toFixed(4), lsig: sim.stats.lsig != null ? +sim.stats.lsig.toFixed(4) : null, smax: sim.stats.smax != null ? +sim.stats.smax.toFixed(1) : null, vol: VOL.ready, rhoMax: +sim.stats.rmax.toFixed(1), D: +view.D.toFixed(4), mix: +view.mix.toFixed(2),
+  fly: fly.on, np: R.np, mesh: CFG.Nm, seed: params.seed, s8: params.s8, Om: params.Om, psiRms: +sim.psiRms.toFixed(3), icMs: Math.round(sim.icMs),
+  pk: sim.pk && Array.from(sim.pk).map((v, i) => [+sim.pkK[i].toFixed(4), +v.toFixed(1), +COSMO.Plin(sim.pkK[i], sim.a).toFixed(1)]),
+});
+Cosmos.debug.ui = { zSlider, speedSl, s8Sl, omSl, sizeSl, expSl, bloomSl, glowSl, slabSl, colT, boxT, labT, copyT }; Cosmos.debug.visit = visitCluster;
+Cosmos.debug.tune = TUNE; Cosmos.debug.ch = ch; Cosmos.debug.setFly = setFly; Cosmos.debug.sim = sim; Cosmos.debug.view = view; Cosmos.debug.fly = fly; Cosmos.debug.cam = cam;
+
+startRun({ intro: true });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Template · Cosmogenesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="cosmos.css">
+<style>
+  /* chapter-specific styles go here; use the shared tokens (--era, --star, --dust, --line, --f-*) */
+</style>
+</head>
+<body>
+<script src="cosmos.js"></script>
+<script>
+(function () {
+'use strict';
+// Template: a GPU shader field + a CPU particle overlay, demonstrating every shared API.
+const ch = Cosmos.chapter({
+  id: 'inflation',                     // must match an id in Cosmos.CHAPTERS
+  notes: `<p>Story tab: two or three short paragraphs in plain language.</p>`,
+  science: `<h4>Model</h4><p>The real equations.</p><span class="eq">ρ̇ + 3H(ρ + p) = 0</span><span class="cite">Guth, A. (1981). Phys. Rev. D 23, 347.</span>`,
+});
+const canvas = ch.canvas('gl');
+const gl = Cosmos.gl.context(canvas);
+if (!gl) { ch.fatal('This chapter needs WebGL2.'); return; }
+const prog = Cosmos.gl.program(gl, Cosmos.gl.FS_VERT, `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o; uniform float uT; uniform vec2 uRes; uniform vec3 uEra; uniform float uScale;
+void main(){ vec2 p=(vUv-.5)*uRes/uRes.y*uScale; float v=sin(p.x*3.+uT)*sin(p.y*3.-uT*.7)+.5*sin(length(p)*6.-uT*1.3);
+  o=vec4(mix(vec3(.02,.025,.05), uEra, .5+.5*v)*.6,1.); }`);
+const draw = Cosmos.gl.quad(gl);
+const era = Cosmos.util.rgbf(ch.meta.accent);
+
+const g = ch.ui.group('Field');
+const scale = g.slider({ id: 'scale', label: 'Scale', min: 0.5, max: 4, step: 0.01, value: 1.5, hint: 'Zoom of the pattern.' });
+const speed = g.slider({ id: 'speed', label: 'Time rate', min: 1e-3, max: 10, value: 1, log: true });
+g.toggle({ id: 'inv', label: 'Invert', value: false, onChange: (v) => ch.toast(v ? 'Inverted' : 'Normal') });
+g.select({ id: 'mode', label: 'Mode', options: [{ value: 'a', label: 'Mode A' }, { value: 'b', label: 'Mode B' }], value: 'a' });
+const g2 = ch.ui.group('Readouts');
+const ro = g2.readouts([{ id: 'fps', label: 'Frame rate' }, { id: 't', label: 'Sim time' }]);
+const chart = g2.chart({ height: 90, series: [{ label: 'sin t' }, { label: 'cos t' }], yMin: -1, yMax: 1, yFormat: (v) => v.toFixed(1) });
+g2.buttons([{ label: 'Burst', kind: 'primary', onClick: () => ch.toast('Burst!') }, { label: 'Reset', onClick: () => chart.clear() }]);
+const hudT = ch.hud.add('Epoch', 't = 0');
+const hudN = ch.hud.add('Particles', '0');
+
+let simT = 0, acc = 0, frames = 0;
+ch.loop((dt, t) => {
+  Cosmos.gl.fit(canvas, 2);
+  simT += dt * speed.value;
+  Cosmos.gl.screen(gl);
+  gl.useProgram(prog);
+  Cosmos.gl.uniforms(gl, prog, { uT: simT, uRes: [canvas.width, canvas.height], uEra: era, uScale: scale.value });
+  draw();
+  frames++; acc += dt;
+  if (acc > 0.25) { ro.fps.set(Math.round(frames / acc) + ' fps'); ro.t.set(simT.toFixed(1) + ' s'); frames = 0; acc = 0; chart.push([Math.sin(simT), Math.cos(simT)]); hudT.set('t = ' + Cosmos.fmt.sci(1e-36 * Math.exp(simT), 2) + ' s'); hudN.set(Cosmos.fmt.num(12345)); }
+});
+Cosmos.debug.simTime = () => simT;
+})();
+</script>
+</body>
+</html>

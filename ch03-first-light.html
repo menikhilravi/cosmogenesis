@@ -1,0 +1,2194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>First Light · Cosmogenesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="cosmos.css">
+<style>
+  /* ---- chapter 03 · First Light ---- */
+  :root { --fl-cx: 50vw; --fl-cy: 50vh; --fl-x1: 100vw; --fl-y1: 100vh; --fl-planck-lo: #1b3a9a; --fl-planck-hi: #d8431c; }
+  .cz-stage > canvas.fl-layer { transition: opacity 1.1s var(--ease), transform 2.2s var(--ease), filter 2.2s var(--ease), border-radius 2.2s var(--ease); transform-origin: var(--fl-cx) var(--fl-cy); }
+  .cz-stage > canvas.fl-off { opacity: 0; pointer-events: none; }
+  .cz-stage > canvas.fl-shrink { transform: scale(.06); opacity: 0; filter: blur(3px) saturate(1.6); border-radius: 50%; }
+  .cz-stage > canvas.fl-return { transform: scale(1.6); opacity: 0; filter: blur(6px); }
+  .fl-ui { position: fixed; z-index: 12; pointer-events: none; transition: opacity .6s var(--ease); }
+  body.cz-cinema .fl-ui.fl-hide-cinema { opacity: 0 !important; }
+  /* captions */
+  .fl-cap { left: var(--fl-cx); top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 34px); transform: translateX(-50%); width: max(380px, min(660px, calc(2 * (var(--fl-cx) - 322px)))); text-align: center; opacity: 0; }
+  @media (max-width: 1260px) and (min-width: 761px) { .fl-cap { top: calc(var(--bar-h) + 104px); width: min(620px, calc(var(--fl-x1) - 48px)); } .fl-legend .fl-ramp, .fl-legend .fl-ticks, .fl-prog { width: 180px; } }
+  .fl-cap.on { opacity: 1; }
+  .fl-cap::before { content: ""; position: absolute; inset: -40px -60px; z-index: -1; background: radial-gradient(closest-side, rgba(5,6,12,.72), rgba(5,6,12,0)); }
+  .fl-cap small { display: block; font: 600 10.5px/1.3 var(--f-mono); letter-spacing: .2em; text-transform: uppercase; color: var(--era); margin-bottom: 8px; text-shadow: 0 1px 10px rgba(0,0,0,.9); }
+  .fl-cap span { display: block; font: italic 400 clamp(18px, 1.9vw, 25px)/1.28 var(--f-display); color: var(--star); text-shadow: 0 2px 22px rgba(0,0,0,.95), 0 0 2px rgba(0,0,0,.8); text-wrap: balance; }
+  /* bottom instrument strip */
+  .fl-strip { right: calc(100vw - var(--fl-x1) + 24px); bottom: calc(var(--foot-h) + env(safe-area-inset-bottom, 0px) + 18px); display: flex; gap: 26px; align-items: flex-end; font: 500 10.5px/1.2 var(--f-mono); color: var(--dust); letter-spacing: .04em; white-space: nowrap; text-shadow: 0 1px 8px rgba(0,0,0,.95); }
+  .fl-strip::before { content: ""; position: absolute; inset: -26px -40px -14px; z-index: -1; background: radial-gradient(closest-side, rgba(5,6,12,.72), rgba(5,6,12,0)); }
+  .fl-bar { display: grid; gap: 5px; justify-items: start; }
+  .fl-bar b { font-weight: 500; color: var(--star); }
+  .fl-bar i { display: block; height: 7px; border: 1px solid rgba(236,230,214,.75); border-top: 0; min-width: 2px; transition: width .25s linear; position: relative; }
+  .fl-bar i.fl-over::after { content: "→"; position: absolute; right: -14px; top: -6px; color: var(--era); font-style: normal; }
+  .fl-bar.fl-mfp i { border-color: var(--era); }
+  .fl-taphint { right: calc(100vw - var(--fl-x1) + 24px); top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 16px); text-align: right; font: 500 10.5px/1.5 var(--f-mono); letter-spacing: .04em; color: var(--dust); text-shadow: 0 1px 8px rgba(0,0,0,.95); transition: opacity .8s; }
+  .fl-taphint b { color: var(--era); }
+  .fl-taphint.fl-done { opacity: 0; }
+  /* colour legend */
+  .fl-legend { display: grid; gap: 5px; justify-items: center; }
+  .fl-legend .fl-ramp { width: 240px; height: 8px; border-radius: 1px; border: 1px solid var(--line-strong); }
+  .fl-legend .fl-ticks { width: 240px; display: flex; justify-content: space-between; color: var(--dust); }
+  .fl-legend .fl-ticks b { color: var(--star); font-weight: 500; }
+  .fl-ladder { width: 260px; height: 96px; display: block; transition: opacity .6s; opacity: 0; }
+  .fl-ladder.on { opacity: 1; }
+  .fl-prog { width: 240px; height: 1px; background: var(--line); position: relative; overflow: hidden; opacity: 0; transition: opacity .3s; }
+  .fl-prog.on { opacity: 1; }
+  .fl-prog i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--era); width: 0; }
+  /* loupe */
+  .fl-loupe { width: var(--fl-lw, 196px); height: var(--fl-lw, 196px); left: var(--fl-lx, 0px); top: var(--fl-ly, 0px); border-radius: 50%; border: 1px solid var(--line-strong); box-shadow: 0 0 0 5px rgba(5,6,12,.45), 0 12px 40px rgba(0,0,0,.5); }
+  .fl-loupe svg { position: absolute; inset: -1px; width: calc(100% + 2px); height: calc(100% + 2px); overflow: visible; }
+  .fl-loupe .fl-lt { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; font: 500 10px/1.2 var(--f-mono); color: var(--dust); letter-spacing: .06em; text-shadow: 0 1px 6px rgba(0,0,0,.95); }
+  .fl-loupe .fl-lt b { color: var(--star); font-weight: 500; }
+  .fl-loupe .fl-lt { background: rgba(5,6,12,.62); padding: 2px 6px; border-radius: 4px; }
+  .fl-shade { left: 0; top: 0; width: 520px; height: 200px; z-index: 11; opacity: 0; background: radial-gradient(ellipse 70% 62% at 22% 40%, rgba(5,6,12,.8), rgba(5,6,12,.45) 55%, rgba(5,6,12,0) 100%); }
+  @media (max-width: 760px) { .fl-shade { width: 100vw; height: 170px; } }
+  /* scene labels */
+  .fl-tag { position: fixed; z-index: 11; pointer-events: none; font: 500 10.5px/1.25 var(--f-mono); color: var(--star); letter-spacing: .03em; white-space: nowrap; text-shadow: 0 1px 8px rgba(0,0,0,1); opacity: 0; transition: opacity .5s; }
+  .fl-tag.on { opacity: .95; }
+  .fl-tag { background: rgba(5,6,12,.55); padding: 3px 7px; border-radius: 4px; }
+  .fl-tag::before { content: ""; position: absolute; left: -24px; top: 50%; width: 18px; height: 1px; background: rgba(236,230,214,.55); }
+  .fl-tag em { font: italic 400 13px/1 var(--f-display); color: var(--era); margin-left: 6px; }
+  .fl-tag.fl-flip::before { left: auto; right: -24px; }
+  .fl-tip { position: fixed; z-index: 13; pointer-events: none; font: 500 10.5px/1.35 var(--f-mono); color: var(--star); background: rgba(8,10,19,.82); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; white-space: nowrap; opacity: 0; transition: opacity .2s; font-variant-numeric: tabular-nums; }
+  .fl-tip.on { opacity: 1; }
+  .fl-tip b { font-weight: 600; }
+  /* stage call-to-action */
+  .fl-cta { position: fixed; z-index: 14; left: var(--fl-cx); bottom: calc(var(--foot-h) + env(safe-area-inset-bottom, 0px) + 64px); transform: translate(-50%, 8px); opacity: 0; pointer-events: none; transition: opacity .6s var(--ease), transform .6s var(--ease);
+    appearance: none; border: 1px solid var(--era); background: rgba(8,10,19,.6); color: var(--star); border-radius: 999px; padding: 10px 18px; cursor: pointer; font: 600 12px/1 var(--f-ui); letter-spacing: .02em; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+  .fl-cta.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  .fl-cta:hover { background: var(--era); color: var(--era-ink); }
+  .fl-cta small { font: 500 10px/1 var(--f-mono); color: var(--era); letter-spacing: .16em; margin-right: 8px; }
+  .fl-cta:hover small { color: var(--era-ink); }
+  /* deck bits */
+  .fl-acts .cz-btn { font-size: 11.5px; padding: 9px 8px; }
+  .fl-acts .cz-btn small { display: block; font: 600 9px/1 var(--f-mono); letter-spacing: .16em; opacity: .75; margin-bottom: 4px; }
+  .fl-key { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 500 10.5px/1.3 var(--f-mono); color: var(--dust); }
+  .fl-key span { display: inline-flex; align-items: center; gap: 6px; }
+  .fl-key i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .fl-big { font-size: 13px !important; padding: 11px 12px !important; }
+  @media (max-width: 760px) {
+    .fl-cap { top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 96px); width: calc(100vw - 32px); }
+    .fl-strip { bottom: calc(var(--foot-h) + env(safe-area-inset-bottom, 0px) + 126px); right: 14px; }
+    body.fl-deckopen .fl-strip, body.fl-deckopen .fl-loupe, body.fl-deckopen .cz-hud { opacity: 0 !important; }
+    .fl-cap span { font-size: 17px; }
+    .fl-strip { gap: 14px; font-size: 9.5px; }
+    .fl-legend .fl-ramp, .fl-legend .fl-ticks, .fl-prog, .fl-ladder { width: 180px; }
+    .fl-cta { bottom: calc(var(--foot-h) + env(safe-area-inset-bottom, 0px) + 172px); white-space: nowrap; }
+    .fl-taphint { display: none; }
+    .fl-loupe #fl-lbot { left: auto; right: 0; transform: none; text-align: right !important; font-size: 9.5px; }
+  }
+</style>
+</head>
+<body>
+<script src="cosmos.js"></script>
+<script>
+(function () {
+'use strict';
+/* =====================================================================
+   COSMOGENESIS · Chapter 03 · First Light
+   Act I  : recombination in a 2D box of plasma (Saha / Peebles, Thomson
+            scattering random walks, the fog lifting).
+   Act II : the last-scattering surface. A physically motivated analytic
+            TT spectrum, Gaussian a_lm with a fixed seed, spherical-harmonic
+            synthesis in a Blob worker, sphere / inside / Mollweide views,
+            and a sonification of the acoustic peaks.
+   ===================================================================== */
+const U = Cosmos.util, F = Cosmos.fmt;
+const SMALL = window.matchMedia('(max-width: 760px)').matches;
+const TAU = Math.PI * 2;
+
+/* ============================================================ PHYSICS */
+const PH = {
+  c: 299792458, Mpc: 3.0857e22, kB: 1.380649e-23, hbar: 1.054571817e-34, me: 9.1093837e-31, eV: 1.602176634e-19,
+  sigT: 6.6524587e-29, T0: 2.7255, ogh2: 2.4728e-5, Yp: 0.245, mH: 1.6735575e-27, rhoc: 1.87847e-26, yr: 3.15576e7, ly: 9.4607e15,
+};
+PH.orh2 = PH.ogh2 * (1 + 0.22711 * 3.046);       // photons + 3.046 massless neutrinos
+const FID = { obh2: 0.02237, och2: 0.1200, ns: 0.965, ok: 0, h: 0.674 };   // Planck 2018 (TT,TE,EE+lowE+lensing)
+
+function cosmo(p) {
+  const h = p.h || FID.h, obh2 = p.obh2, och2 = p.och2, ok = p.ok || 0;
+  const wm = obh2 + och2, Om = wm / (h * h), Or = PH.orh2 / (h * h), OL = 1 - Om - Or - ok;
+  const H0 = h * 3.2407793e-18;                    // s^-1
+  const H = (z) => { const a = 1 + z; return H0 * Math.sqrt(Math.max(1e-12, Or * a * a * a * a + Om * a * a * a + ok * a * a + OL)); };
+  const nH0 = (1 - PH.Yp) * obh2 * PH.rhoc / PH.mH;  // hydrogen nuclei today, m^-3
+  return { h, obh2, och2, ok, wm, Om, Or, OL, H0, H, nH0 };
+}
+/* case-B recombination coefficient (Pequignot et al. 1991) with the RECFAST fudge 1.14 */
+function alphaB(T) { const t = T / 1e4; return 1.14e-19 * 4.309 * Math.pow(t, -0.6166) / (1 + 0.6703 * Math.pow(t, 0.53)); }
+const B1 = 13.605693 * PH.eV, B2 = B1 / 4, LYA = 121.567e-9, L2S = 8.2245809;
+const thermal = (T) => Math.pow(PH.me * PH.kB * T / (TAU * PH.hbar * PH.hbar), 1.5);
+function sahaX(z, nH) {
+  const T = PH.T0 * (1 + z); const S = thermal(T) * Math.exp(-B1 / (PH.kB * T)) / nH;
+  if (S > 1e8) return 1;
+  return (-S + Math.sqrt(S * S + 4 * S)) / 2;
+}
+/* Peebles (1968) effective three-level atom, implicit in x_e, integrated in z */
+function recomb(cs, zmax, zmin, dz) {
+  const n = Math.round((zmax - zmin) / dz) + 1;
+  const xs = new Float64Array(n), xsaha = new Float64Array(n);
+  let x = sahaX(zmax, cs.nH0 * Math.pow(1 + zmax, 3));
+  for (let i = 0; i < n; i++) {
+    const z = zmax - i * dz, nH = cs.nH0 * Math.pow(1 + z, 3);
+    xsaha[i] = sahaX(z, nH);
+    if (i > 0) {
+      const T = PH.T0 * (1 + z), kT = PH.kB * T, Hz = cs.H(z), al = alphaB(T);
+      const beta = al * thermal(T) * Math.exp(-B2 / kT);
+      const n1s = Math.max(1e-30, (1 - x) * nH), K = LYA * LYA * LYA / (8 * Math.PI * Hz);
+      const Cr = (1 + K * L2S * n1s) / (1 + K * (L2S + beta) * n1s);
+      const dt = dz / ((1 + z) * Hz), bexp = beta * Math.exp(-(B1 - B2) / kT);
+      const a = dt * Cr * al * nH, b = 1 + dt * Cr * bexp, c = -(x + dt * Cr * bexp);
+      x = (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a);
+      if (!(x > 0)) x = 1e-6;
+    }
+    xs[i] = x;
+  }
+  return { xs, xsaha, zmax, zmin, dz, n };
+}
+
+/* ---- Act I tables (fiducial cosmology) ---- */
+const CS = cosmo(FID);
+const REC = (function () {
+  const zmax = 2000, zmin = 400, dz = 0.5;
+  const r = recomb(CS, zmax, zmin, dz);
+  const n = r.n;
+  // cosmic age at zmax by quadrature in a, then step down
+  let age0 = 0; { const N = 20000, a1 = 1 / (1 + zmax); for (let i = 0; i < N; i++) { const a = a1 * (i + 0.5) / N; age0 += (a1 / N) / (a * CS.H(1 / a - 1)); } }
+  const age = new Float64Array(n); age[0] = age0;
+  for (let i = 1; i < n; i++) { const z = zmax - (i - 0.5) * dz; age[i] = age[i - 1] + dz / ((1 + z) * CS.H(z)); }
+  // optical depth to z (from below) and visibility, with the freeze-out value held below zmin
+  const tau = new Float64Array(n), vis = new Float64Array(n);
+  let t = 0; const xlow = r.xs[n - 1];
+  { const N = 400; for (let k = 0; k < N; k++) { const z = zmin * (k + 0.5) / N; const ne = xlow * CS.nH0 * Math.pow(1 + z, 3); t += ne * PH.sigT * PH.c / ((1 + z) * CS.H(z)) * zmin / N; } }
+  for (let i = n - 1; i >= 0; i--) { const z = zmax - i * dz; const ne = r.xs[i] * CS.nH0 * Math.pow(1 + z, 3); const dtdz = ne * PH.sigT * PH.c / ((1 + z) * CS.H(z)); if (i < n - 1) t += dtdz * dz; tau[i] = t; vis[i] = dtdz * Math.exp(-t); }
+  let vmax = 0, zpk = 0; for (let i = 0; i < n; i++) if (vis[i] > vmax) { vmax = vis[i]; zpk = zmax - i * dz; }
+  for (let i = 0; i < n; i++) vis[i] /= vmax;
+  let zTau1 = 0; for (let i = n - 1; i > 0; i--) if (tau[i] < 1 && tau[i - 1] >= 1) { zTau1 = zmax - i * dz; break; }
+  return { zmax, zmin, dz, n, xe: r.xs, xs: r.xsaha, age, tau, vis, zVisPeak: zpk, zTau1 };
+})();
+function recIdx(z) { const f = U.clamp((REC.zmax - z) / REC.dz, 0, REC.n - 1.001); const i = f | 0; return [i, f - i]; }
+function recAt(arr, z) { const [i, t] = recIdx(z); return arr[i] * (1 - t) + arr[i + 1] * t; }
+function xeAt(z, saha) {
+  if (saha) { const n = CS.nH0 * Math.pow(1 + z, 3); return sahaX(z, n); }
+  const [i, t] = recIdx(z); return Math.exp(Math.log(REC.xe[i]) * (1 - t) + Math.log(REC.xe[i + 1]) * t);
+}
+const TofZ = (z) => PH.T0 * (1 + z);
+/** proper Thomson mean free path in metres */
+function mfpAt(z, xe) { return 1 / (Math.max(xe, 1e-12) * CS.nH0 * Math.pow(1 + z, 3) * PH.sigT); }
+
+/* ============================================= CMB TT SPECTRUM MODEL
+   A thin-shell projection of the tight-coupling solution (Hu & Sugiyama 1995):
+     Θ0+Ψ = ζ[-(A/5) cos(k r_s + φ) e^{-(k/k_D)^2} + (3/5) R T(k)]      (SW + acoustic, baryon-shifted)
+     Θ1   =  ζ (A/5) √(3/(1+R)) sin(k r_s + φ) e^{-(k/k_D)^2}            (Doppler)
+   A(k) blends the matter-era amplitude (1+3R) into the radiation-driven one as the potentials decay,
+   with (1+R)^{-1/4} WKB damping and an early-ISW boost. Projection with j_l^2 → 1/(2x√(x²-ν²)).
+   Nine constants below were calibrated once against Planck's best fit. */
+const KCAL = { eisw: 0.5, gphi: 0.5, phi0: 0.19869, Ginf: 3.95788, gpow: 1.75091, wD: 0.59146, fD: 1.03201, Aisw: 0.68271, norm: 0.93290, zs: 0.83795, sL: 0.06169 };
+const LMAX_SPEC = 2500;
+function background(p) {
+  const cs = cosmo(p);
+  const { obh2, wm, ok } = cs;
+  const g1 = 0.0783 * Math.pow(obh2, -0.238) / (1 + 39.5 * Math.pow(obh2, 0.763)), g2 = 0.560 / (1 + 21.1 * Math.pow(obh2, 1.81));
+  const zs = 1048 * (1 + 0.00124 * Math.pow(obh2, -0.738)) * (1 + g1 * Math.pow(wm, g2));   // Hu & Sugiyama (1996) fit
+  const Rf = 3 * obh2 / (4 * PH.ogh2);           // R = Rf · a
+  const HM = (z) => cs.H(z) * PH.Mpc / PH.c;      // H/c in Mpc^-1
+  let rs = 0; { const N = 1200, la0 = Math.log(1e-9), la1 = Math.log(1 / (1 + zs)); for (let i = 0; i < N; i++) { const la = la0 + (la1 - la0) * (i + 0.5) / N; const a = Math.exp(la); rs += (1 / Math.sqrt(3 * (1 + Rf * a))) / (a * HM(1 / a - 1)) * (la1 - la0) / N; } }
+  let chi = 0; { const N = 1500; for (let i = 0; i < N; i++) { const z = zs * (i + 0.5) / N; chi += zs / N / HM(z); } }
+  const DH = 299792.458 / (100 * cs.h);
+  let DM = chi; if (ok > 1e-8) DM = DH / Math.sqrt(ok) * Math.sinh(Math.sqrt(ok) * chi / DH); else if (ok < -1e-8) DM = DH / Math.sqrt(-ok) * Math.sin(Math.sqrt(-ok) * chi / DH);
+  const Rs = Rf / (1 + zs);
+  // Silk damping with this cosmology's own recombination history
+  const rec = recomb(cs, 3000, 600, 2);
+  let kd2 = 0; { const N = 1500, la0 = Math.log(1 / (1 + 1e6)), la1 = Math.log(1 / (1 + zs)); for (let i = 0; i < N; i++) { const la = la0 + (la1 - la0) * (i + 0.5) / N; const a = Math.exp(la), z = 1 / a - 1; let xe = 1; if (z < 3000) xe = rec.xs[U.clamp(Math.round((3000 - z) / 2), 0, rec.n - 1)]; const ne = xe * cs.nH0 / (a * a * a); const lam = 1 / (ne * PH.sigT * a) / PH.Mpc; const R = Rf * a; kd2 += (la1 - la0) / N / (a * HM(z)) * lam / (6 * (1 + R)) * (R * R / (1 + R) + 16 / 15); } }
+  const kD = 1 / Math.sqrt(kd2);
+  const rstar = (PH.orh2 / wm) * (1 + zs);
+  // age today (for readouts)
+  let age = 0; { const N = 3000; for (let i = 0; i < N; i++) { const a = (i + 0.5) / N; age += (1 / N) / (a * cs.H(1 / a - 1)); } }
+  return { cs, zs, rs, DM, chi, theta: rs / DM, lA: Math.PI * DM / rs, Rs, kD, rstar, zeq: wm / PH.orh2 - 1, OL: cs.OL, age: age / PH.yr };
+}
+function Tbbks(k, wm) { const q = k / wm, x = 2.34 * q; return (x < 1e-6 ? 1 : Math.log(1 + x) / x) * Math.pow(1 + 3.89 * q + Math.pow(16.1 * q, 2) + Math.pow(5.46 * q, 3) + Math.pow(6.71 * q, 4), -0.25); }
+/* returns {D: Float64Array(LMAX+1) in µK², bg, peaks[], troughs[]} */
+function spectrum(p) {
+  const K = KCAL, bg = background(p);
+  const As = 2.1e-9, ns = p.ns, tau = 0.054;
+  const { rs, DM, Rs, kD, rstar } = bg, wm = bg.cs.wm;
+  const phi = K.phi0 * Math.PI * Math.pow(rstar / 0.3, 0.1), kDe = kD * K.fD;
+  const NK = 2500, k1 = 0.02, dk1 = k1 / 1000, dk2 = 4e-4, kmax = k1 + 1500 * dk2;
+  const A = new Float64Array(NK), B = new Float64Array(NK);
+  for (let i = 0; i < NK; i++) {
+    const k = i < 1000 ? (i + 0.5) * dk1 : k1 + (i - 1000) * dk2;
+    const Tk = Tbbks(k, wm), w = Math.pow(1 - Tk, K.gpow);
+    const Aosc = ((1 + 3 * Rs) * (1 - w) + K.Ginf * w) / 5 * Math.pow(1 + Rs, -0.25) * Math.pow(rstar / 0.3211, K.eisw * (1 - Tk));
+    const damp = Math.exp(-((k / kDe) * (k / kDe)));
+    const ph = k * rs + phi * Math.pow(1 - Tk, K.gphi);
+    const S0 = -Aosc * Math.cos(ph) * damp + 0.6 * Rs * Tk * K.zs;
+    const S1 = Aosc * Math.sqrt(3 / (1 + Rs)) * Math.sin(ph) * damp;
+    const D2 = As * Math.pow(k / 0.05, ns - 1);
+    A[i] = D2 * S0 * S0; B[i] = D2 * S1 * S1 * K.wD;
+  }
+  const look = (arr, k) => { let f; if (k < k1) { f = k / dk1 - 0.5; if (f < 0) return arr[0]; } else { f = 1000 + (k - k1) / dk2; if (f >= NK - 1) return 0; } const i = f | 0, t = f - i; return arr[i] * (1 - t) + arr[i + 1] * t; };
+  const T2 = (PH.T0 * 1e6) * (PH.T0 * 1e6), e2t = Math.exp(-2 * tau), iswA = K.Aisw * Math.pow(Math.max(0, bg.OL) / 0.685, 2) * As / 25;
+  const one = (l) => {
+    const nu = l + 0.5, kl = nu / DM; let s = 0, u = 0;
+    for (let it = 0; it < 5000; it++) {
+      const du = Math.min(0.04, 0.004 / (kl * (Math.sinh(u) + 0.02)));
+      const um = u + du * 0.5, ch = Math.cosh(um), th = Math.tanh(um), k = kl * ch;
+      if (k > kmax || ch > 60) break;
+      s += du * (look(A, k) + look(B, k) * th * th) / (ch * ch);
+      u += du;
+    }
+    const reion = e2t + (1 - e2t) * Math.exp(-(l / 12) * (l / 12));
+    return K.norm * T2 * (s * reion + iswA * Math.exp(-l / 8)) * l * (l + 1) / (nu * nu);
+  };
+  const ls = []; for (let l = 2; l <= 40; l++) ls.push(l); for (let l = 46; l <= LMAX_SPEC + 10; l += 8) ls.push(l);
+  const ds = ls.map(one);
+  const raw = new Float64Array(LMAX_SPEC + 1);
+  let j = 0;
+  for (let l = 2; l <= LMAX_SPEC; l++) {
+    while (j < ls.length - 2 && ls[j + 1] < l) j++;
+    const t = (l - ls[j]) / (ls[j + 1] - ls[j]);
+    const p0 = ds[Math.max(0, j - 1)], p1 = ds[j], p2 = ds[j + 1], p3 = ds[Math.min(ds.length - 1, j + 2)];
+    raw[l] = Math.max(0, 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t));
+  }
+  // lensing-like smoothing (Gaussian in ℓ, σ = sL·ℓ)
+  const D = new Float64Array(LMAX_SPEC + 1);
+  for (let l = 2; l <= LMAX_SPEC; l++) {
+    const sg = K.sL * l; if (sg < 1) { D[l] = raw[l]; continue; }
+    // Gaussian weights by recurrence: w_d = q^(d²), so no exp() in the inner loop
+    const r = Math.ceil(2.5 * sg), q = Math.exp(-1 / (2 * sg * sg)), q2 = q * q;
+    let s = raw[l], w = 1, wd = 1, ratio = q;
+    for (let d = 1; d <= r; d++) {
+      wd *= ratio; ratio *= q2;
+      const a = l - d, b = l + d;
+      if (a >= 2) { s += wd * raw[a]; w += wd; }
+      if (b <= LMAX_SPEC) { s += wd * raw[b]; w += wd; }
+    }
+    D[l] = s / w;
+  }
+  const peaks = [], troughs = [];
+  for (let l = 60; l < LMAX_SPEC; l++) {
+    if (D[l] > D[l - 1] && D[l] >= D[l + 1]) { const last = peaks[peaks.length - 1]; if (last && l - last.l < 0.55 * bg.lA) { if (D[l] > last.D) { last.l = l; last.D = D[l]; } } else peaks.push({ l, D: D[l] }); }
+    else if (D[l] < D[l - 1] && D[l] <= D[l + 1]) { const last = troughs[troughs.length - 1]; if (last && l - last.l < 0.55 * bg.lA) { if (D[l] < last.D) { last.l = l; last.D = D[l]; } } else troughs.push({ l, D: D[l] }); }
+  }
+  return { D, bg, peaks, troughs };
+}
+
+/* approximate binned Planck 2018 TT bandpowers (µK²), for comparison only */
+const PLANCK = [
+  [4, 890, 420], [9, 820, 230], [16, 760, 150], [25, 880, 105], [40, 1170, 62], [65, 1650, 46], [100, 2450, 44], [140, 3850, 48],
+  [180, 5020, 52], [220, 5720, 54], [262, 5150, 48], [310, 3620, 38], [360, 2180, 30], [412, 1690, 25], [470, 2020, 24], [537, 2560, 24],
+  [600, 2210, 22], [672, 1840, 20], [740, 2190, 20], [812, 2530, 22], [900, 1960, 19], [1000, 1220, 15], [1128, 1280, 14], [1250, 910, 12],
+  [1420, 860, 12], [1600, 520, 10], [1800, 360, 10], [2000, 245, 9], [2300, 130, 8],
+];
+
+/* Planck-style diverging colour map (deep blue → cream white → orange-red) */
+const CMAP_STOPS = [
+  [0.00, [10, 18, 92]], [0.13, [18, 52, 180]], [0.28, [52, 128, 232]], [0.41, [150, 205, 245]], [0.50, [252, 244, 228]],
+  [0.58, [255, 214, 150]], [0.70, [255, 160, 64]], [0.83, [232, 76, 28]], [1.00, [118, 10, 12]],
+];
+function cmapRGB(t) {
+  t = U.clamp(t, 0, 1);
+  for (let i = 1; i < CMAP_STOPS.length; i++) {
+    const [t1, c1] = CMAP_STOPS[i]; const [t0, c0] = CMAP_STOPS[i - 1];
+    if (t <= t1) { const f = (t - t0) / (t1 - t0); const s = f * f * (3 - 2 * f) * 0.35 + f * 0.65; return [0, 1, 2].map((k) => c0[k] + (c1[k] - c0[k]) * s); }
+  }
+  return CMAP_STOPS[CMAP_STOPS.length - 1][1].slice();
+}
+
+/* ============================================================ TEXT */
+const FIDBG = background(FID);
+const nfmt = (x, d = 0) => F.num(x, d);
+const NOTES = `
+<p>For its first 380,000 years the universe was a glowing fog, as hot as the surface of a star. Every electron roamed free. A photon could travel only a short way before an electron knocked it in a new direction, so light zig-zagged and got nowhere. The white scribbles are the paths of single photons. Each one bounces hundreds of times and ends up close to where it started.</p>
+<p>Space keeps stretching and the plasma cools. Near 3,000 K, electrons finally settle onto protons and make hydrogen. Each capture throws off a small flash. With the free electrons gone, light stops bouncing, the fog lifts, and the photons fly off in straight lines. They are still flying. We call them the cosmic microwave background.</p>
+<p><strong>Act II</strong> shows that light as it reaches us now. It comes from a shell around every observer, the surface of last scattering, cooled by expansion to 2.7255 K. Its temperature varies by a few parts in 100,000. Those hot and cold spots are sound waves, caught at the moment the fog lifted.</p>
+<p><strong>Try this:</strong></p>
+<ul>
+<li>Tap the plasma to fire a flash of light. In the fog it only diffuses into a small glow. After recombination it races outward as a ring.</li>
+<li>Watch the labelled photon. Count its bounces, then read the redshift of its very last one.</li>
+<li>In Act II, press <em>Closed</em> or <em>Open</em>. A flat universe gives spots about a degree across. A closed one makes them bigger, an open one smaller.</li>
+<li>Press <em>Hear the Big Bang</em> and move the baryon slider. Then pick <em>As COBE saw it</em>, or tap a peak on the spectrum to see only the spots that peak makes.</li>
+</ul>`;
+
+const SCIENCE = `
+<h4>Recombination: the Saha equation</h4>
+<p>In equilibrium, ionisation and capture balance:</p>
+<span class="eq">x<sub>e</sub><sup>2</sup> / (1 − x<sub>e</sub>) = (1/n<sub>H</sub>) (m<sub>e</sub>kT / 2πħ<sup>2</sup>)<sup>3/2</sup> e<sup>−13.6 eV / kT</sup></span>
+<p>with n<sub>H</sub> = (1 − Y<sub>p</sub>) η n<sub>γ</sub>, η = 6.1 × 10<sup>−10</sup>, n<sub>γ</sub> = 411 cm<sup>−3</sup> (1+z)<sup>3</sup>, T = 2.7255 K (1+z) and Y<sub>p</sub> = 0.245. Saha puts half the hydrogen neutral at z ≈ 1,370, where kT is only 0.32 eV. There are 1.6 billion photons per baryon, so the rare photons in the Wien tail keep hydrogen ionised long after kT falls below 13.6 eV.</p>
+<h4>The Peebles bottleneck</h4>
+<p>A capture straight to the ground state emits a photon that ionises the next atom. Real recombination goes through n = 2 and escapes only by the slow two-photon decay (Λ<sub>2s</sub> = 8.22 s<sup>−1</sup>) or by Lyman-α photons redshifting out of the line:</p>
+<span class="eq">−dx<sub>e</sub>/dt = C [α<sub>B</sub> n<sub>H</sub> x<sub>e</sub><sup>2</sup> − β (1 − x<sub>e</sub>) e<sup>−hν<sub>α</sub>/kT</sup>]</span>
+<span class="eq">C = (1 + KΛ<sub>2s</sub>n<sub>1s</sub>) / (1 + K(Λ<sub>2s</sub> + β) n<sub>1s</sub>),  K = λ<sub>α</sub><sup>3</sup> / 8πH</span>
+<p>Here β = α<sub>B</sub>(m<sub>e</sub>kT/2πħ<sup>2</sup>)<sup>3/2</sup>e<sup>−3.4 eV/kT</sup> and α<sub>B</sub> is the case-B coefficient (Péquignot fit, times the RECFAST factor 1.14). The chapter integrates this implicitly. Half-ionisation slips to z ≈ 1,270 and a residue of x<sub>e</sub> ≈ 3 × 10<sup>−4</sup> freezes out. The deck plots both curves.</p>
+<h4>Thomson scattering and the fog</h4>
+<span class="eq">σ<sub>T</sub> = (8π/3) r<sub>e</sub><sup>2</sup> = 6.652 × 10<sup>−29</sup> m<sup>2</sup>,  λ<sub>mfp</sub> = 1 / (n<sub>e</sub>σ<sub>T</sub>)</span>
+<p>Between bounces a photon travels one mean free path λ. After N random bounces it has wandered only about √N λ from its start, which is why the flash you fire in the fog stays a small glow. The same diffusion smears out the smallest sound waves (Silk damping, below). The labelled photon on screen records the redshift of its own last bounce, a single draw from the visibility function.</p>
+<p>The proper mean free path is about 2,600 light-years at z = 1,500, 49,000 at z = 1,090 and 4.6 million at z = 800, which is larger than the Hubble radius then (1.0 million light-years). Scattering angles follow the dipole law 1 + cos<sup>2</sup>θ. The optical depth back to us reaches 1 at z<sub>*</sub> ≈ ${nfmt(REC.zTau1)}, and the visibility function τ′e<sup>−τ</sup> peaks at z ≈ ${nfmt(REC.zVisPeak)}, when the universe was about ${nfmt(Math.round(recAt(REC.age, 1090) / PH.yr / 1000))},000 years old.</p>
+<h4>Sound in the plasma</h4>
+<p>Before recombination, photons and baryons move as one fluid with sound speed c<sub>s</sub> = c / √(3(1 + R)), where R = 3ρ<sub>b</sub>/4ρ<sub>γ</sub> = ${FIDBG.Rs.toFixed(2)} at z<sub>*</sub>. Each Fourier mode is a driven oscillator:</p>
+<span class="eq">[(1 + R) Θ<sub>0</sub>′]′ + (k<sup>2</sup>/3) Θ<sub>0</sub> = −(k<sup>2</sup>/3)(1 + R) Ψ</span>
+<span class="eq">⇒  Θ<sub>0</sub> + Ψ = (Ψ/3)[(1 + 3R) cos kr<sub>s</sub> − 3R]</span>
+<p>Gravity shifts the zero point, so compressions (odd peaks) beat rarefactions (even peaks). The more baryons, the bigger the asymmetry. The sound horizon is r<sub>s</sub> = ∫c<sub>s</sub>dt/a ≈ ${FIDBG.rs.toFixed(0)} Mpc (comoving) at z<sub>*</sub>, and 147 Mpc at the baryon drag epoch. Seen from ${(FIDBG.DM / 1000).toFixed(1)} Gpc away it subtends</p>
+<span class="eq">θ<sub>*</sub> = r<sub>s</sub> / D<sub>M</sub> ≈ ${FIDBG.theta.toFixed(4)} rad = ${(FIDBG.theta * 180 / Math.PI).toFixed(3)}°,  ℓ<sub>A</sub> = π/θ<sub>*</sub> ≈ ${nfmt(FIDBG.lA)}</span>
+<p>Radiation driving shifts the phases, so the peaks sit near ℓ ≈ ℓ<sub>A</sub>(n − φ): 220, 530, 810. Photon diffusion erases small scales (Silk damping), with k<sub>D</sub><sup>−2</sup> = ∫dη [R<sup>2</sup>/(1+R) + 16/15] / [6(1+R)n<sub>e</sub>σ<sub>T</sub>a], giving k<sub>D</sub> ≈ ${FIDBG.kD.toFixed(2)} Mpc<sup>−1</sup>. Curvature changes D<sub>M</sub>: rays converge in a closed universe (Ω<sub>k</sub> &lt; 0), so the same ruler looks bigger.</p>
+<h4>The model on screen</h4>
+<span class="eq">D<sub>ℓ</sub> = ℓ(ℓ+1)C<sub>ℓ</sub>/2π ≈ T<sub>0</sub><sup>2</sup> ∫du Δ<sub>ζ</sub><sup>2</sup>(k) [S<sub>0</sub><sup>2</sup> + S<sub>1</sub><sup>2</sup> tanh<sup>2</sup>u] / cosh<sup>2</sup>u</span>
+<span class="eq">k = (ℓ + ½) cosh u / D<sub>M</sub></span>
+<p>S<sub>0</sub> is the effective temperature Θ<sub>0</sub> + Ψ above and S<sub>1</sub> the Doppler term. This thin-shell projection replaces j<sub>ℓ</sub><sup>2</sup>(x) by its average 1/(2x√(x<sup>2</sup> − ν<sup>2</sup>)). Potential decay uses the BBKS transfer function, with radiation driving, early and late ISW, reionisation (τ = 0.054) and a lensing-like smoothing. Eleven shape constants were fixed once by matching Planck's best fit. The result follows the measured spectrum to about 10% up to ℓ ≈ 2,000 and responds to each slider in the right direction, but it is not a Boltzmann code. h = 0.674 stays fixed and Ω<sub>Λ</sub> = 1 − Ω<sub>m</sub> − Ω<sub>r</sub> − Ω<sub>k</sub>.</p>
+<p>The sky is a Gaussian random field: a<sub>ℓm</sub> are drawn from a fixed seed with ⟨|a<sub>ℓm</sub>|<sup>2</sup>⟩ = C<sub>ℓ</sub>, and ΔT = Σ a<sub>ℓm</sub>Y<sub>ℓm</sub> is summed with the stable Legendre recurrence and an FFT over m, up to ℓ = 511 on a 1024 × 512 grid (ℓ = 767 on 2048 × 1024 if you ask for it), in a worker thread. Moving a slider rescales the same a<sub>ℓm</sub>, so the spots morph instead of reshuffling. The colours span ±300 µK around T<sub>0</sub> = 2.7255 K. The rms is about 100 µK, a few parts in 10<sup>5</sup>. Our motion adds a 3.36 mK dipole.</p>
+<h4>Filtering the sky</h4>
+<p><em>Show on the sky</em> multiplies every a<sub>ℓm</sub> by a window W<sub>ℓ</sub>, so the phases stay fixed and one sky splits into its scales. A telescope beam of full width θ<sub>FWHM</sub> acts as</p>
+<span class="eq">B<sub>ℓ</sub> = exp[−ℓ(ℓ+1)σ<sup>2</sup>/2],  σ = θ<sub>FWHM</sub> / √(8 ln 2)</span>
+<p>COBE's radiometers had a 7° beam, so they saw only ℓ ≲ 20: the Sachs–Wolfe plateau, where waves were too long to have oscillated before last scattering. WMAP's 13′ W-band beam resolved the first peaks, and Planck's 5′ maps reach ℓ ≈ 2,000. The band-pass options keep one peak at a time. The first peak alone draws spots about 180°/ℓ<sub>1</sub> ≈ 0.8° across. The colour scale switches to about ±2.6σ of each filtered map.</p>
+<h4>What is scaled for the screen</h4>
+<p>Act I is a 2D box roughly 1.4 million light-years across at z = 1,500. It holds about one photon per two baryons instead of 1.6 billion per baryon. Particle and photon motion runs much faster than the cosmic clock. The sound-wave density contrast is exaggerated thousands of times. Helium (8% of nuclei) is drawn already neutral, since its electrons were captured between z ≈ 2,500 and 1,700. The orange glow marks where light scatters. The radiation itself never disappears; it streams freely and still fills space today.</p>
+<h4>Hearing it</h4>
+<p>The first-peak mode had half a wavelength equal to the sound horizon: about ${nfmt(Math.round(FIDBG.rs / (1 + FIDBG.zs) * 3.2616e6 / 1e4) * 1e4)} light-years at the time, a full wavelength near a million light-years, and a period of about two million years. The button plays the peaks as a fundamental with overtones 2, 3, 4… at their measured strengths, shifted up 53 octaves (a factor of 9 × 10<sup>15</sup>) into the range of a cello.</p>
+<span class="cite">Peebles, P. J. E. (1968). Recombination of the primeval plasma. ApJ 153, 1.</span>
+<span class="cite">Penzias, A. A. & Wilson, R. W. (1965). A measurement of excess antenna temperature at 4080 Mc/s. ApJ 142, 419.</span>
+<span class="cite">Peebles, P. J. E. & Yu, J. T. (1970). Primeval adiabatic perturbation in an expanding universe. ApJ 162, 815.</span>
+<span class="cite">Sunyaev, R. A. & Zel'dovich, Ya. B. (1970). Small-scale fluctuations of relic radiation. Ap&amp;SS 7, 3.</span>
+<span class="cite">Smoot, G. F. et al. (1992). Structure in the COBE differential microwave radiometer first-year maps. ApJ 396, L1.</span>
+<span class="cite">Hu, W. & Sugiyama, N. (1995). Anisotropies in the cosmic microwave background: an analytic approach. ApJ 444, 489.</span>
+<span class="cite">Seager, S., Sasselov, D. D. & Scott, D. (1999). A new calculation of the recombination epoch. ApJ 523, L1.</span>
+<span class="cite">Fixsen, D. J. (2009). The temperature of the cosmic microwave background. ApJ 707, 916.</span>
+<span class="cite">Planck Collaboration (2020). Planck 2018 results. VI. Cosmological parameters. A&amp;A 641, A6.</span>`;
+
+/* ============================================================ CHAPTER + UI */
+const ch = Cosmos.chapter({ id: 'first-light', notes: NOTES, science: SCIENCE, notesFolded: true });
+const h = Cosmos.h;
+const ERA = U.rgbf(ch.meta.accent);
+
+/* ---- stage layers ---- */
+const cv1 = ch.canvas('fl-a1'); cv1.classList.add('fl-layer');
+const cv2 = ch.canvas('fl-a2'); cv2.classList.add('fl-layer', 'fl-off');
+
+/* ---- overlays ---- */
+const capEl = h('div', { class: 'fl-ui fl-cap fl-hide-cinema' }, h('small'), h('span'));
+const strip1 = h('div', { class: 'fl-ui fl-strip fl-hide-cinema' },
+  h('div', { class: 'fl-bar fl-mfp' }, h('span', { html: 'mean free path <b id="fl-mfp">—</b>' }), h('i', { id: 'fl-mfp-bar' })),
+  h('div', { class: 'fl-bar' }, h('span', { html: '<b>100,000</b> light-years' }), h('i', { id: 'fl-ly-bar' })));
+const strip2 = h('div', { class: 'fl-ui fl-strip fl-hide-cinema', style: { opacity: '0' } },
+  h('canvas', { class: 'fl-ladder', id: 'fl-ladder', width: 480, height: 150 }),
+  h('div', { class: 'fl-legend' },
+    h('div', { class: 'fl-prog', id: 'fl-prog' }, h('i')),
+    h('canvas', { class: 'fl-ramp', id: 'fl-ramp', width: 256, height: 8 }),
+    h('div', { class: 'fl-ticks', id: 'fl-ticks' }, h('span', { text: '−300' }), h('b', { text: 'ΔT  µK' }), h('span', { text: '+300' }))));
+const shadeEl = h('div', { class: 'fl-ui fl-shade fl-hide-cinema' });
+const tapHint = h('div', { class: 'fl-ui fl-taphint fl-hide-cinema', id: 'fl-taphint', html: '<b>tap</b> the plasma<br>to fire a flash of light' });
+const loupeEl = h('div', { class: 'fl-ui fl-loupe fl-hide-cinema', style: { opacity: '0' } });
+loupeEl.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">
+  <circle cx="50" cy="50" r="50" fill="none" stroke="rgba(236,230,214,.18)" stroke-width=".4"/>
+  <g id="fl-lmoon"><circle cx="72" cy="30" r="3" fill="none" stroke="rgba(236,230,214,.8)" stroke-width=".5" stroke-dasharray="1.2 1"/></g>
+  <line x1="50" y1="46.5" x2="50" y2="48.8" stroke="rgba(236,230,214,.5)" stroke-width=".35"/><line x1="50" y1="51.2" x2="50" y2="53.5" stroke="rgba(236,230,214,.5)" stroke-width=".35"/>
+  <line x1="46.5" y1="50" x2="48.8" y2="50" stroke="rgba(236,230,214,.5)" stroke-width=".35"/><line x1="51.2" y1="50" x2="53.5" y2="50" stroke="rgba(236,230,214,.5)" stroke-width=".35"/>
+  <g id="fl-lbar"><line x1="36" y1="84" x2="46" y2="84" stroke="#ece6d6" stroke-width=".7"/><line x1="36" y1="82.6" x2="36" y2="85.4" stroke="#ece6d6" stroke-width=".5"/><line x1="46" y1="82.6" x2="46" y2="85.4" stroke="#ece6d6" stroke-width=".5"/></g>
+</svg>
+<div class="fl-lt" id="fl-ltop" style="top:-20px">LOUPE · <b>8°</b> FIELD</div>
+<div class="fl-lt" id="fl-lbot" style="bottom:-34px;text-align:center"><span id="fl-lkey"><b>1°</b> bar · dashed ring = full Moon</span><br><span id="fl-lspot">spots ≈ 0.8°</span></div>`;
+const tipEl = h('div', { class: 'fl-tip' });
+const obsTag = h('div', { class: 'fl-tag fl-hide-cinema', html: 'you are here <em>13.8 billion years later</em>' });
+const ctaEl = h('button', { class: 'fl-cta', type: 'button', html: '<small>ACT II</small>See this light today →' });
+const tags = [0, 1, 2].map(() => h('div', { class: 'fl-ui fl-tag fl-hide-cinema' }));
+document.body.append(shadeEl, capEl, strip1, strip2, tapHint, loupeEl, tipEl, ctaEl, obsTag, ...tags);
+const $ = (id) => document.getElementById(id);
+
+/* colour ramp */
+(function () { const c = $('fl-ramp'), x = c.getContext('2d'), im = x.createImageData(256, 8); for (let i = 0; i < 256; i++) { const [r, g, b] = cmapRGB(i / 255); for (let j = 0; j < 8; j++) { const o = (j * 256 + i) * 4; im.data[o] = r; im.data[o + 1] = g; im.data[o + 2] = b; im.data[o + 3] = 255; } } x.putImageData(im, 0, 0); })();
+
+/* ---- captions ---- */
+let capTimer = 0;
+function caption(small, big, ms) {
+  clearTimeout(capTimer);
+  capEl.firstChild.textContent = small || ''; capEl.lastChild.innerHTML = big || '';
+  capEl.classList.add('on');
+  if (ms) capTimer = setTimeout(() => capEl.classList.remove('on'), ms);
+}
+function captionOff() { clearTimeout(capTimer); capEl.classList.remove('on'); }
+
+/* ---- scene tags (hairline annotations) ---- */
+const tagState = tags.map(() => ({ until: 0, x: 0, y: 0 }));
+function tag(x, y, html, ms = 2600) {
+  let k = tagState.findIndex((s) => s.until < performance.now()); if (k < 0) k = 0;
+  const s = tagState[k]; s.until = performance.now() + ms; s.x = x; s.y = y;
+  const el = tags[k]; el.innerHTML = html; placeTag(el, x, y); el.classList.add('on');
+  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), ms);
+}
+function tagsOff() { tags.forEach((t) => t.classList.remove('on')); }
+/* put a tag to the right of (x, y), or flip it to the left if it would run off the screen */
+function placeTag(el, x, y) {
+  const w = el.offsetWidth || 200, flip = x + 30 + w > innerWidth - 8 && x - 30 - w > 8;
+  el.classList.toggle('fl-flip', flip);
+  el.style.left = (flip ? x - 26 - w : x + 26) + 'px'; el.style.top = (y - 7) + 'px';
+}
+/* true if a tag at (x, y), about w px wide, would sit under the chrome or a caption */
+const notesEl = document.querySelector('.cz-notes');
+function tagBlocked(x, y, w) {
+  const bx0 = x + 18, bx1 = x + 30 + w, by0 = y - 14, by1 = y + 16;
+  for (const el of [notesEl, strip1, capEl, document.querySelector('.cz-hud')]) {
+    if (!el || (el === capEl && !capEl.classList.contains('on'))) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width && bx1 > r.left && bx0 < r.right && by1 > r.top && by0 < r.bottom) return true;
+  }
+  return false;
+}
+
+/* ---- layout: the free area of the stage (not covered by deck) ---- */
+const deckEl = document.querySelector('.cz-deck');
+const LAY = { W: innerWidth, H: innerHeight, x0: 0, x1: innerWidth, y0: 54, y1: innerHeight - 58, cx: innerWidth / 2, cy: innerHeight / 2, small: SMALL, deck: false };
+let layKey = '';
+function updateLayout() {
+  const W = innerWidth, H = innerHeight, small = window.matchMedia('(max-width: 760px)').matches;
+  const open = deckEl.classList.contains('cz-open') && !document.body.classList.contains('cz-cinema');
+  const r = open ? deckEl.getBoundingClientRect() : null;
+  const bar = small ? 50 : 54, foot = small ? 52 : 58;
+  let x1 = W, y1 = H - foot;
+  if (open && !small) x1 = r.left - 8;
+  if (open && small) y1 = r.top - 6;
+  Object.assign(LAY, { W, H, x0: 0, x1, y0: bar, y1, cx: x1 / 2, cy: (bar + y1) / 2, small, deck: open });
+  document.body.classList.toggle('fl-deckopen', open && small);
+  const nr = notesEl && notesEl.getBoundingClientRect();
+  LAY.notes = nr && nr.width && !document.body.classList.contains('cz-cinema') ? [nr.left, nr.top, nr.right, nr.bottom].map(Math.round) : null;
+  const key = [W, H, x1, y1].map(Math.round).join(',');
+  if (key !== layKey) {
+    layKey = key; const rs = document.documentElement.style;
+    rs.setProperty('--fl-cx', Math.round(LAY.cx) + 'px'); rs.setProperty('--fl-cy', Math.round(LAY.cy) + 'px');
+    rs.setProperty('--fl-x1', Math.round(x1) + 'px'); rs.setProperty('--fl-y1', Math.round(y1) + 'px');
+    const lw = small ? 112 : (W < 1100 ? 150 : 188);
+    rs.setProperty('--fl-lw', lw + 'px');
+    LAY.loupe = small ? { x: W - lw - 14, y: bar + 64, w: lw } : { x: x1 - lw - 30, y: y1 - lw - 96, w: lw };
+    if (!small && H < 640) LAY.loupe.y = bar + 40;
+    rs.setProperty('--fl-lx', LAY.loupe.x + 'px'); rs.setProperty('--fl-ly', LAY.loupe.y + 'px');
+  }
+}
+updateLayout();
+
+/* ---- HUD ---- */
+const hud = [ch.hud.add('Epoch', '—'), ch.hud.add('Plasma', '—'), ch.hud.add('Light', '—'), ch.hud.add('Atoms', '—')];
+const hudLabel = (i, s) => { const e = hud[i].el.firstChild; if (e.textContent !== s) e.textContent = s; };
+
+/* ============================================================ DECK */
+const gJ = ch.ui.group('Journey');
+const actBtns = gJ.buttons([
+  { label: 'I', id: 'fl-act1', onClick: () => goAct(1) },
+  { label: 'II', id: 'fl-act2', onClick: () => goAct(2) },
+]);
+gJ.el.querySelector('.cz-btns').classList.add('fl-acts');
+actBtns[0].el.innerHTML = '<small>ACT I</small>The fog lifts';
+actBtns[1].el.innerHTML = '<small>ACT II</small>The oldest light';
+
+/* ---- Act I controls ---- */
+const A1 = { z: 1500, playing: true, speed: 1, saha: false, fog: true, trails: true, parts: true, sound: true };
+const g1 = ch.ui.group('Cosmic clock');
+const ro1 = g1.readouts([
+  { id: 'z', label: 'Redshift z' }, { id: 'T', label: 'Temperature' }, { id: 'age', label: 'Cosmic age' },
+  { id: 'xe', label: 'Free electrons xₑ' }, { id: 'mfp', label: 'Mean free path' }, { id: 'wien', label: 'Peak wavelength' },
+]);
+const zSlider = g1.slider({ id: 'fl-z', label: 'Redshift (drag to scrub time)', min: 1600, max: 700, step: 1, value: 1500,
+  format: (v) => 'z = ' + F.num(v), hint: 'Left is earlier and hotter. Dragging back above z ≈ 1,400 re-ionises the gas.',
+  onInput: (v) => { A1.z = v; A1.scrubbing = true; setPlaying(false); } , onChange: () => { A1.scrubbing = false; } });
+const clockBtns = g1.buttons([
+  { label: 'Replay', kind: 'primary', id: 'fl-replay', onClick: () => replay1() },
+  { label: 'Hold clock', id: 'fl-hold', onClick: () => setPlaying(!A1.playing) },
+]);
+g1.slider({ id: 'fl-speed', label: 'Clock rate', min: 0.25, max: 4, value: 1, log: true, format: (v) => v.toFixed(2) + '×', onInput: (v) => { A1.speed = v; } });
+function setPlaying(p) { A1.playing = p; clockBtns[1].setLabel(p ? 'Hold clock' : 'Run clock'); clockBtns[1].setPressed(!p); }
+
+const g2 = ch.ui.group('Recombination');
+const xeCanvas = g2.canvas(150);
+g2.toggle({ id: 'fl-peebles', label: 'Peebles three-level atom', value: true, hint: 'Off: pure Saha equilibrium, which recombines too early and too completely.', onChange: (v) => { A1.saha = !v; drawXe(); } });
+g2.html(h('div', { class: 'fl-key', html: '<span><i style="background:#cfe0ff"></i>electron</span><span><i style="background:#ff7a4a"></i>proton</span><span><i style="background:#ffe6b8;box-shadow:0 0 6px #ffd9a0"></i>hydrogen</span><span><i style="background:#c9b8ff"></i>helium</span><span><i style="background:#9d7bff"></i>Lyman-α</span>' }));
+
+const g3 = ch.ui.group('Layers');
+g3.toggle({ id: 'fl-fog', label: 'Scattering glow', value: true, onChange: (v) => { A1.fog = v; } });
+g3.toggle({ id: 'fl-trails', label: 'Photon paths', value: true, onChange: (v) => { A1.trails = v; } });
+g3.toggle({ id: 'fl-parts', label: 'Electrons, protons, atoms', value: true, onChange: (v) => { A1.parts = v; } });
+g3.toggle({ id: 'fl-waves', label: 'Sound waves', value: true, hint: 'The photon–baryon fluid rings with acoustic waves until the atoms form.', onChange: (v) => { A1.sound = v; } });
+
+/* ---- Act II controls ---- */
+const A2 = { view: 'outside', params: Object.assign({}, FID), loupe: true, grid: false, cut: false, relief: false, dipole: false, fg: false, lmax: SMALL ? 383 : 511, seed: 7, filter: 'all', bandL: 220, range: 300 };
+const g4 = ch.ui.group('Hear the Big Bang');
+const hearBtn = g4.buttons([{ label: 'Hear the Big Bang', kind: 'primary', id: 'fl-hear', onClick: () => toggleHear() }])[0];
+hearBtn.el.classList.add('fl-big');
+const ro4 = g4.readouts([{ id: 'per', label: 'Real period' }, { id: 'pitch', label: 'Played at' }]);
+g4.note('The acoustic peaks form a harmonic series. Each overtone is played at the strength of its peak, 53 octaves higher.');
+
+const g5 = ch.ui.group('Cosmology');
+const pSl = {};
+pSl.ok = g5.slider({ id: 'fl-ok', label: 'Curvature Ω<sub>k</sub>', min: -0.3, max: 0.3, step: 0.005, value: 0, format: (v) => (v > 0 ? '+' : '') + v.toFixed(3) + (Math.abs(v) < 0.003 ? ' flat' : v < 0 ? ' closed' : ' open'),
+  hint: 'Geometry bends the light rays. Flat space gives ~1° spots.', onInput: (v) => { OKG.on = false; setParam('ok', v); } });
+const okBtns = g5.buttons([
+  { label: 'Closed', id: 'fl-closed', title: 'Glide to Ωk = −0.25', onClick: () => glideOk(-0.25) },
+  { label: 'Flat', id: 'fl-flat', title: 'Glide to Ωk = 0', onClick: () => glideOk(0) },
+  { label: 'Open', id: 'fl-open', title: 'Glide to Ωk = +0.25', onClick: () => glideOk(0.25) },
+]);
+const OKG = { on: false, t: 0, from: 0, to: 0 };
+function glideOk(to) { OKG.on = true; OKG.t = 0; OKG.from = A2.params.ok; OKG.to = to; if (act !== 2) goAct(2); }
+function stepGlide(dt) {
+  if (!OKG.on) return; OKG.t = Math.min(1, OKG.t + dt / 2.2); const e = OKG.t < 0.5 ? 2 * OKG.t * OKG.t : 1 - Math.pow(-2 * OKG.t + 2, 2) / 2;
+  const v = OKG.from + (OKG.to - OKG.from) * e; pSl.ok.set(v); setParam('ok', v); if (OKG.t >= 1) OKG.on = false;
+}
+pSl.obh2 = g5.slider({ id: 'fl-ob', label: 'Baryons Ω<sub>b</sub>h²', min: 0.005, max: 0.05, step: 0.0001, value: FID.obh2, format: (v) => v.toFixed(4), hint: 'Heavier fluid: odd peaks (compressions) grow.', onInput: (v) => setParam('obh2', v) });
+pSl.och2 = g5.slider({ id: 'fl-oc', label: 'Dark matter Ω<sub>c</sub>h²', min: 0.05, max: 0.25, step: 0.001, value: FID.och2, format: (v) => v.toFixed(3), hint: 'Less dark matter: more radiation driving, taller peaks.', onInput: (v) => setParam('och2', v) });
+pSl.ns = g5.slider({ id: 'fl-ns', label: 'Spectral index n<sub>s</sub>', min: 0.8, max: 1.2, step: 0.001, value: FID.ns, format: (v) => v.toFixed(3), hint: 'Tilt of the primordial ripples: n<sub>s</sub> < 1 favours large scales.', onInput: (v) => setParam('ns', v) });
+// labels contain sub tags: re-render them as HTML
+Object.values(pSl).forEach((s) => { const sp = s.el.querySelector('.cz-label span'); sp.innerHTML = sp.textContent; });
+g5.buttons([
+  { label: 'Planck 2018', id: 'fl-planck', onClick: () => resetParams() },
+  { label: 'New sky', id: 'fl-seed', title: 'Draw a new set of random phases (G)', onClick: () => newSky() },
+]);
+
+const g6 = ch.ui.group('Angular power spectrum');
+const specCanvas = g6.canvas(SMALL ? 150 : 172);
+specCanvas.style.cursor = 'crosshair';
+const FILTERS = [
+  { value: 'all', label: 'Every scale the map holds', toast: 'The full sky, every scale the map resolves' },
+  { value: 'cobe', label: 'As COBE saw it · 7° beam, 1992', toast: 'COBE’s 7° beam: the first map of the ripples (Smoot et al. 1992)' },
+  { value: 'wmap', label: 'As WMAP saw it · 13′ beam, 2003', toast: 'WMAP resolved the first peak for the first time' },
+  { value: 'sw', label: 'Only ℓ < 30 · Sachs–Wolfe plateau', toast: 'Only the largest scales: waves too long to have oscillated yet' },
+  { value: 'p1', label: 'Only the first acoustic peak', toast: 'Only the first peak: every spot is about a degree across' },
+  { value: 'p2', label: 'Only the second peak and finer', toast: 'Only the finer ripples: the rarefaction and the next compression' },
+  { value: 'band', label: 'The band you tapped on the chart', toast: '' },
+];
+const filterSel = g6.select({ id: 'fl-filter', label: 'Show on the sky', value: 'all', options: FILTERS,
+  hint: 'Same random phases, filtered: watch one sky separate into its scales. Tap the spectrum to pick any band.',
+  onChange: (v) => { A2.filter = v; const f = FILTERS.find((x) => x.value === v); if (f && f.toast) ch.toast(f.toast); requestMap(); drawSpec(); } });
+const ro6 = g6.readouts([{ id: 'l1', label: 'First peak ℓ₁' }, { id: 'D1', label: 'Its height' }, { id: 'th', label: 'Angle θ*' }, { id: 'lA', label: 'Acoustic ℓA' }, { id: 'rs', label: 'Sound horizon' }, { id: 'DM', label: 'Distance D_M' }, { id: 'R', label: 'Baryon load R*' }, { id: 'zs', label: 'Last scattering z*' }]);
+
+const g7 = ch.ui.group('Geometry');
+const geoCanvas = g7.canvas(96);
+
+const g8 = ch.ui.group('View');
+const viewBtns = g8.buttons([
+  { label: 'Outside', id: 'fl-v-out', pressed: true, onClick: () => setView('outside') },
+  { label: 'Inside', id: 'fl-v-in', pressed: false, onClick: () => setView('inside') },
+  { label: 'Mollweide', id: 'fl-v-moll', pressed: false, onClick: () => setView('moll') },
+]);
+g8.toggle({ id: 'fl-loupe', label: 'Loupe (8° field)', value: A2.loupe, onChange: (v) => { A2.loupe = v; } });
+g8.toggle({ id: 'fl-dip', label: 'Our motion (3.36 mK dipole)', value: false, hint: 'The raw sky before the 370 km/s Doppler dipole is removed.', onChange: (v) => { A2.dipole = v; if (v) ch.toast('Our motion through the CMB: +3.36 mK ahead, −3.36 mK behind'); } });
+g8.toggle({ id: 'fl-fg', label: 'Milky Way foreground', value: false, hint: 'Illustrative microwave glow of our galaxy along the equator.', onChange: (v) => { A2.fg = v; } });
+g8.toggle({ id: 'fl-cut', label: 'Cutaway (outside view)', value: false, hint: 'Open the shell to see the observer at its centre.', onChange: (v) => { A2.cut = v; if (v && CAM.view !== 'outside') setView('outside'); } });
+g8.toggle({ id: 'fl-grid', label: 'Graticule', value: false, onChange: (v) => { A2.grid = v; } });
+g8.toggle({ id: 'fl-relief', label: 'Relief', value: false, hint: 'Hot spots raised, cold spots sunk.', onChange: (v) => { A2.relief = v; } });
+g8.select({ id: 'fl-res', label: 'Map resolution', value: String(A2.lmax), options: [{ value: '255', label: 'ℓ ≤ 255 · 512 × 256' }, { value: '383', label: 'ℓ ≤ 383 · 1024 × 512' }, { value: '511', label: 'ℓ ≤ 511 · 1024 × 512' }, { value: '767', label: 'ℓ ≤ 767 · 2048 × 1024 (slower)' }], onChange: (v) => { A2.lmax = +v; requestMap(); } });
+
+const act1Groups = [g1, g2, g3], act2Groups = [g4, g5, g6, g7, g8];
+function showGroups(act) {
+  act1Groups.forEach((g) => { g.el.style.display = act === 1 ? '' : 'none'; });
+  act2Groups.forEach((g) => { g.el.style.display = act === 2 ? '' : 'none'; });
+  actBtns[0].setPressed(act === 1); actBtns[1].setPressed(act === 2);
+  requestAnimationFrame(() => { if (act === 2) { drawSpec(); drawGeo(); } else drawXe(); });
+}
+
+/* ============================================================ ACT I · THE FOG LIFTS */
+const gl1 = Cosmos.gl.context(cv1, { alpha: false });
+if (!gl1) { ch.fatal('This chapter needs WebGL2, which this browser or device does not provide.'); return; }
+const GLK = Cosmos.gl;
+const DPR1 = SMALL ? 2 : 1.5;
+
+const NOISE_GLSL = `
+float hash12(vec2 p){ vec3 p3=fract(vec3(p.xyx)*.1031); p3+=dot(p3,p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }
+float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); vec2 u=f*f*(3.-2.*f);
+  return mix(mix(hash12(i),hash12(i+vec2(1,0)),u.x), mix(hash12(i+vec2(0,1)),hash12(i+vec2(1,1)),u.x), u.y); }
+float fbm(vec2 p){ float s=0., a=.5; for(int i=0;i<5;i++){ s+=a*vnoise(p); p=mat2(1.6,1.2,-1.2,1.6)*p+17.1; a*=.5; } return s; }`;
+
+const P1 = {
+  fade: GLK.program(gl1, GLK.FS_VERT, `#version 300 es
+precision mediump float; uniform float uA; out vec4 o; void main(){ o=vec4(0.,0.,0.,uA); }`),
+  seg: GLK.program(gl1, `#version 300 es
+layout(location=0) in vec2 aC; layout(location=1) in vec4 aSeg; layout(location=2) in vec4 aCol;
+uniform vec2 uRes; out vec3 vCol; out float vY;
+void main(){ vec2 a=aSeg.xy, b=aSeg.zw, d=b-a; float len=length(d);
+  vec2 t = len>1e-3 ? d/len : vec2(1.,0.); vec2 n=vec2(-t.y,t.x); float w=aCol.w;
+  vec2 p = mix(a,b,aC.x) + t*(aC.x*2.-1.)*w*.7 + n*aC.y*w;
+  vCol=aCol.rgb; vY=aC.y; vec2 q=p/uRes*2.-1.; gl_Position=vec4(q.x,-q.y,0.,1.); }`, `#version 300 es
+precision mediump float; in vec3 vCol; in float vY; out vec4 o;
+void main(){ float f=1.-vY*vY; o=vec4(vCol*f*f,1.); }`),
+  pts: GLK.program(gl1, `#version 300 es
+layout(location=0) in vec4 aP; layout(location=1) in vec4 aC;
+uniform vec2 uRes; uniform float uDpr; out vec4 vC; flat out float vT;
+void main(){ vec2 q=aP.xy/uRes*2.-1.; gl_Position=vec4(q.x,-q.y,0.,1.); gl_PointSize=max(1.,aP.z*uDpr); vC=aC; vT=aP.w; }`, `#version 300 es
+precision mediump float; in vec4 vC; flat in float vT; out vec4 o;
+void main(){ vec2 p=gl_PointCoord*2.-1.; float r=length(p); if(r>1.) discard; float a;
+  if(vT<.5) a=exp(-r*r*4.5);
+  else if(vT<1.5) a=exp(-pow((r-.74)/.13,2.)) + .25*exp(-r*r*6.);
+  else if(vT<2.5) a=exp(-r*r*4.)*.7 + exp(-pow((r-.62)/.08,2.))*.12;
+  else a=exp(-r*r*14.)+.22*exp(-r*r*2.5);
+  o=vec4(vC.rgb*vC.a*a,1.); }`),
+  fog: GLK.program(gl1, GLK.FS_VERT, `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+uniform sampler2D uTrail; uniform vec2 uRes; uniform float uT, uFog, uGlow, uWaves, uTrailK; uniform vec3 uCol;
+uniform vec4 uW[6]; uniform float uWC[6];
+${NOISE_GLSL}
+void main(){ vec2 px=vec2(vUv.x, 1.-vUv.y)*uRes;
+  float d=0.; for(int i=0;i<6;i++) d += uW[i].w*cos(dot(uW[i].xy,px)+uW[i].z)*uWC[i];
+  vec2 q=px*.0026+vec2(uT*.014,-uT*.009);
+  vec2 warp=vec2(fbm(q+vec2(3.1,1.7)), fbm(q+vec2(8.3,2.8)));
+  float n=fbm(q*1.3+warp*1.6+vec2(-uT*.01,uT*.012));
+  float r=1.-abs(2.*fbm(px*.0075+warp*2.2-vec2(uT*.02,uT*.013))-1.); r=r*r*r;
+  float t=n*n*1.5+r*.55;
+  float dens=uFog*(.07+1.35*pow(t,1.5))*(1.-uWaves*d);
+  vec3 fog=uCol*max(dens,0.)*uGlow;
+  vec3 tr=texture(uTrail,vUv).rgb*uTrailK;
+  o=vec4(fog+tr,1.); }`),
+  down: GLK.program(gl1, GLK.FS_VERT, `#version 300 es
+precision mediump float; in vec2 vUv; out vec4 o; uniform sampler2D uTex; uniform vec2 uTexel;
+void main(){ vec2 e=uTexel; o=vec4((texture(uTex,vUv+vec2(-e.x,-e.y)).rgb+texture(uTex,vUv+vec2(e.x,-e.y)).rgb+texture(uTex,vUv+vec2(-e.x,e.y)).rgb+texture(uTex,vUv+vec2(e.x,e.y)).rgb)*.25,1.); }`),
+  blur: GLK.program(gl1, GLK.FS_VERT, `#version 300 es
+precision mediump float; in vec2 vUv; out vec4 o; uniform sampler2D uTex; uniform vec2 uDir;
+void main(){ vec3 c=texture(uTex,vUv).rgb*.227;
+  c+=(texture(uTex,vUv+uDir*1.385).rgb+texture(uTex,vUv-uDir*1.385).rgb)*.316;
+  c+=(texture(uTex,vUv+uDir*3.231).rgb+texture(uTex,vUv-uDir*3.231).rgb)*.0703; o=vec4(c,1.); }`),
+  final: GLK.program(gl1, GLK.FS_VERT, `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o; uniform sampler2D uScene, uBloom; uniform float uExpo, uBloomK, uT; uniform vec2 uRes;
+float hash(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
+void main(){ vec3 c=texture(uScene,vUv).rgb+texture(uBloom,vUv).rgb*uBloomK;
+  c=1.-exp(-c*uExpo);
+  float v=length((vUv-.5)*vec2(uRes.x/uRes.y,1.)); c*=1.-.42*smoothstep(.45,1.15,v);
+  c*=1.-.42*smoothstep(.8,1.,vUv.y)-.3*smoothstep(.16,0.,vUv.y);
+  c+=(hash(vUv*uRes+fract(uT)*91.)-.5)*(1.6/255.);
+  o=vec4(c,1.); }`),
+};
+const quad1 = GLK.quad(gl1);
+
+/* ---- render targets ---- */
+let RT1 = null;
+function makeTarget(gl, w, hh) {
+  const opts = [{ internal: gl.RGBA16F, type: gl.HALF_FLOAT }, { internal: gl.RGBA8, type: gl.UNSIGNED_BYTE }];
+  for (const o of opts) { try { return GLK.target(gl, { w, h: hh, internal: o.internal, type: o.type, format: gl.RGBA, filter: 'linear' }); } catch (e) { /* try next */ } }
+  throw new Error('No renderable colour format');
+}
+function freeTarget(gl, t) { if (!t) return; gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fbo); }
+function ensureRT1() {
+  GLK.fit(cv1, DPR1);
+  const w = cv1.width, hh = cv1.height;
+  if (RT1 && RT1.w === w && RT1.h === hh) return;
+  if (RT1) ['trail', 'scene', 'half', 'q1', 'q2'].forEach((k) => freeTarget(gl1, RT1[k]));
+  const qw = Math.max(1, w >> 2), qh = Math.max(1, hh >> 2);
+  RT1 = { w, h: hh, trail: makeTarget(gl1, w, hh), scene: makeTarget(gl1, w, hh), half: makeTarget(gl1, w >> 1, hh >> 1), q1: makeTarget(gl1, qw, qh), q2: makeTarget(gl1, qw, qh) };
+  RT1.trail.bind(); gl1.clearColor(0, 0, 0, 1); gl1.clear(gl1.COLOR_BUFFER_BIT);
+}
+
+/* ---- geometry buffers ---- */
+const NP = SMALL ? 1100 : 2600, NE = NP, NHE = Math.round(NP * 0.0816), NG = SMALL ? 700 : 1500, NLY = 180, NFL = 256;
+const MAXSEG = NG * 9 + NLY * 2 + 3 * 120 * 7 + 64, MAXPTS = NP * 3 + NE + NHE * 2 + NFL * 2 + NG * 2 + 3 * 120 + 64;
+const segData = new Float32Array(MAXSEG * 8), ptData = new Float32Array(MAXPTS * 8);
+let nSeg = 0, nPts = 0;
+const vaoSeg = gl1.createVertexArray(), vaoPts = gl1.createVertexArray();
+const segBuf = gl1.createBuffer(), ptBuf = gl1.createBuffer(), cornerBuf = gl1.createBuffer();
+gl1.bindVertexArray(vaoSeg);
+gl1.bindBuffer(gl1.ARRAY_BUFFER, cornerBuf); gl1.bufferData(gl1.ARRAY_BUFFER, new Float32Array([0, -1, 1, -1, 0, 1, 1, 1]), gl1.STATIC_DRAW);
+gl1.enableVertexAttribArray(0); gl1.vertexAttribPointer(0, 2, gl1.FLOAT, false, 0, 0);
+gl1.bindBuffer(gl1.ARRAY_BUFFER, segBuf); gl1.bufferData(gl1.ARRAY_BUFFER, segData.byteLength, gl1.DYNAMIC_DRAW);
+gl1.enableVertexAttribArray(1); gl1.vertexAttribPointer(1, 4, gl1.FLOAT, false, 32, 0); gl1.vertexAttribDivisor(1, 1);
+gl1.enableVertexAttribArray(2); gl1.vertexAttribPointer(2, 4, gl1.FLOAT, false, 32, 16); gl1.vertexAttribDivisor(2, 1);
+gl1.bindVertexArray(vaoPts);
+gl1.bindBuffer(gl1.ARRAY_BUFFER, ptBuf); gl1.bufferData(gl1.ARRAY_BUFFER, ptData.byteLength, gl1.DYNAMIC_DRAW);
+gl1.enableVertexAttribArray(0); gl1.vertexAttribPointer(0, 4, gl1.FLOAT, false, 32, 0);
+gl1.enableVertexAttribArray(1); gl1.vertexAttribPointer(1, 4, gl1.FLOAT, false, 32, 16);
+gl1.bindVertexArray(null);
+
+function seg(x0, y0, x1, y1, r, g, b, w) {
+  if (nSeg >= MAXSEG) return; const o = nSeg++ * 8;
+  segData[o] = x0; segData[o + 1] = y0; segData[o + 2] = x1; segData[o + 3] = y1; segData[o + 4] = r; segData[o + 5] = g; segData[o + 6] = b; segData[o + 7] = w;
+}
+function pt(x, y, size, type, r, g, b, a) {
+  if (nPts >= MAXPTS || a < 0.004) return; const o = nPts++ * 8;
+  ptData[o] = x; ptData[o + 1] = y; ptData[o + 2] = size; ptData[o + 3] = type; ptData[o + 4] = r; ptData[o + 5] = g; ptData[o + 6] = b; ptData[o + 7] = a;
+}
+
+/* ---- particle state ---- */
+const rnd = U.rng(20240380);
+const gauss = () => U.gauss(rnd);
+const px = new Float32Array(NP), py = new Float32Array(NP), pHd = new Float32Array(NP), pSp = new Float32Array(NP), pDep = new Float32Array(NP), pOrb = new Float32Array(NP);
+const pState = new Uint8Array(NP), pEl = new Int32Array(NP);
+const ex = new Float32Array(NE), ey = new Float32Array(NE), eHd = new Float32Array(NE), eSp = new Float32Array(NE), eDep = new Float32Array(NE), eT = new Float32Array(NE), eR0 = new Float32Array(NE), eA0 = new Float32Array(NE);
+const eState = new Uint8Array(NE), eP = new Int32Array(NE);
+const hx = new Float32Array(NHE), hy = new Float32Array(NHE), hHd = new Float32Array(NHE), hDep = new Float32Array(NHE);
+const gx = new Float32Array(NG), gy = new Float32Array(NG), gdx = new Float32Array(NG), gdy = new Float32Array(NG), gs = new Float32Array(NG), gE = new Float32Array(NG), gDep = new Float32Array(NG);
+const lx = new Float32Array(NLY), ly = new Float32Array(NLY), ldx = new Float32Array(NLY), ldy = new Float32Array(NLY), lLife = new Float32Array(NLY);
+const fx = new Float32Array(NFL), fy = new Float32Array(NFL), fAge = new Float32Array(NFL).fill(9), fKind = new Uint8Array(NFL);
+let nBound = 0, flHead = 0, lyHead = 0, boxW = LAY.W, boxH = LAY.H;
+const WAVES = []; const uW = new Float32Array(24), uWC = new Float32Array(6);
+const S1 = { tAc: 0, coupling: 1, lam: 3, fog: 1, T: 4000, xe: 1, nCapt: 0, lastTag: 0, lyaTagged: false, recTagged: 0, events: 0, clockT: 0, ended: false, endT: 0 };
+
+function planckSample() { // photon energy x = hν/kT, crude Planck sampling (sum of 3 exponentials ≈ gamma(3))
+  let s = 0; for (let k = 0; k < 3; k++) s -= Math.log(1 - rnd() * 0.999999); return U.clamp(s / 2.7, 0.35, 2.4);
+}
+function initAct1() {
+  boxW = LAY.W; boxH = LAY.H;
+  for (let i = 0; i < NP; i++) { px[i] = rnd() * boxW; py[i] = rnd() * boxH; pHd[i] = rnd() * TAU; pSp[i] = 0.5 + rnd(); pDep[i] = rnd(); pState[i] = 0; pEl[i] = -1; pOrb[i] = rnd() * TAU; }
+  for (let i = 0; i < NE; i++) { ex[i] = rnd() * boxW; ey[i] = rnd() * boxH; eHd[i] = rnd() * TAU; eSp[i] = 0.45 + rnd() * 1.1; eDep[i] = rnd(); eState[i] = 0; eP[i] = -1; }
+  for (let i = 0; i < NHE; i++) { hx[i] = rnd() * boxW; hy[i] = rnd() * boxH; hHd[i] = rnd() * TAU; hDep[i] = rnd(); }
+  for (let i = 0; i < NG; i++) { gx[i] = rnd() * boxW; gy[i] = rnd() * boxH; const a = rnd() * TAU; gdx[i] = Math.cos(a); gdy[i] = Math.sin(a); gs[i] = rnd() * 3; gE[i] = planckSample(); gDep[i] = Math.pow(rnd(), 1.4); }
+  lLife.fill(0); fAge.fill(9); nBound = 0;
+  for (let k = 0; k < NT; k++) spawnTracer(k);
+  fpLife.fill(0);
+  WAVES.length = 0;
+  for (let k = 0; k < 6; k++) {
+    const lam = 340 + rnd() * 300, kk = TAU / lam, dir = rnd() * TAU, amp = k < 3 ? 11 + rnd() * 5 : 3 + rnd() * 3;
+    WAVES.push({ kx: kk * Math.cos(dir), ky: kk * Math.sin(dir), ph: rnd() * TAU, amp, k: kk, w: 150 * kk, off: rnd() * TAU });
+  }
+}
+/* bind a fraction of atoms immediately (used on replay / big jumps) */
+function settleBound(target) {
+  while (nBound < target) { const p = findFree(pState, NP); if (p < 0) break; const e = findFree(eState, NE); if (e < 0) break; bindPair(e, p, false); }
+}
+function findFree(st, n) { let i = (rnd() * n) | 0; for (let k = 0; k < n; k++) { if (st[i] === 0) return i; i++; if (i === n) i = 0; } return -1; }
+function bindPair(e, p, animate) {
+  if (animate) {
+    eState[e] = 1; eP[e] = p; eT[e] = 0; pState[p] = 1;
+    let dx = ex[e] - px[p], dy = ey[e] - py[p];
+    if (dx > boxW / 2) dx -= boxW; else if (dx < -boxW / 2) dx += boxW; if (dy > boxH / 2) dy -= boxH; else if (dy < -boxH / 2) dy += boxH;
+    eR0[e] = Math.min(60, Math.hypot(dx, dy)); eA0[e] = Math.atan2(dy, dx);
+  } else { eState[e] = 2; eP[e] = p; pState[p] = 2; pEl[p] = e; }
+  nBound++;
+}
+
+/* tap the plasma: fire a flash of light */
+cv1.addEventListener('pointerdown', (e) => {
+  if (act !== 1 || trans || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  userTouchedAct1 = true; firePulse(e.clientX, e.clientY);
+});
+
+/* spatial grid of free electrons for nearest-neighbour captures */
+const CELL = 36; let gridW = 1, gridH = 1, gridHead = new Int32Array(1), gridNext = new Int32Array(NE);
+function buildGrid() {
+  gridW = Math.max(1, Math.ceil(boxW / CELL)); gridH = Math.max(1, Math.ceil(boxH / CELL));
+  if (gridHead.length < gridW * gridH) gridHead = new Int32Array(gridW * gridH);
+  gridHead.fill(-1, 0, gridW * gridH);
+  for (let i = 0; i < NE; i++) { if (eState[i] !== 0) continue; const cx = U.clamp((ex[i] / CELL) | 0, 0, gridW - 1), cy = U.clamp((ey[i] / CELL) | 0, 0, gridH - 1); const c = cy * gridW + cx; gridNext[i] = gridHead[c]; gridHead[c] = i; }
+}
+function nearestFreeElectron(x, y) {
+  const cx = (x / CELL) | 0, cy = (y / CELL) | 0; let best = -1, bd = 1e18;
+  for (let r = 0; r <= 2 && best < 0; r++) for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
+    if (Math.max(Math.abs(i), Math.abs(j)) !== r) continue;
+    const gx_ = ((cx + i) % gridW + gridW) % gridW, gy_ = ((cy + j) % gridH + gridH) % gridH;
+    for (let e = gridHead[gy_ * gridW + gx_]; e >= 0; e = gridNext[e]) { if (eState[e] !== 0) continue; const d = (ex[e] - x) * (ex[e] - x) + (ey[e] - y) * (ey[e] - y); if (d < bd) { bd = d; best = e; } }
+  }
+  return best >= 0 ? best : findFree(eState, NE);
+}
+function flash(x, y, kind) { const k = flHead; flHead = (flHead + 1) % NFL; fx[k] = x; fy[k] = y; fAge[k] = 0; fKind[k] = kind; }
+function emitLya(x, y) { const k = lyHead; lyHead = (lyHead + 1) % NLY; const a = rnd() * TAU; lx[k] = x; ly[k] = y; ldx[k] = Math.cos(a); ldy[k] = Math.sin(a); lLife[k] = 1; }
+
+/* the cosmic clock: fast through the fully ionised era, slow through recombination */
+function clockRate(z) { return 36 + 44 * U.smoothstep(1250, 1350, z) + 14 * (1 - U.smoothstep(950, 1050, z)); }
+/* comoving screen scale: 1 px ≈ 1,000 ly (proper) at z = 1500 */
+const PX_PER_COMOVING_LY = 2.6 / (2596 * 1501);
+const lamScreen = (z, xe) => mfpAt(z, xe) / PH.ly * (1 + z) * PX_PER_COMOVING_LY;
+
+/* blackbody colour LUT: 1000 K … 6500 K */
+const BB = new Float32Array(3 * 112); for (let i = 0; i < 112; i++) { const c = U.blackbody(1000 + i * 50); BB[i * 3] = c[0]; BB[i * 3 + 1] = c[1]; BB[i * 3 + 2] = c[2]; }
+const bbIdx = (T) => U.clamp(Math.round((T - 1000) / 50), 0, 111) * 3;
+
+function flowAt(x, y, out) {
+  let vx = 0, vy = 0;
+  for (let k = 0; k < WAVES.length; k++) { const w = WAVES[k]; const s = Math.sin(w.kx * x + w.ky * y + w.ph) * w.amp * w.w * Math.sin(w.w * S1.tAc + w.off); vx += s * w.kx / w.k; vy += s * w.ky / w.k; }
+  out[0] = -vx; out[1] = -vy;
+}
+const FLOW = [0, 0];
+
+function stepAct1(dt, tNow) {
+  // box resize → rescale positions
+  if (Math.abs(LAY.W - boxW) > 1 || Math.abs(LAY.H - boxH) > 1) {
+    const sx = LAY.W / boxW, sy = LAY.H / boxH;
+    for (let i = 0; i < NP; i++) { px[i] *= sx; py[i] *= sy; } for (let i = 0; i < NE; i++) { ex[i] *= sx; ey[i] *= sy; }
+    for (let i = 0; i < NHE; i++) { hx[i] *= sx; hy[i] *= sy; } for (let i = 0; i < NG; i++) { gx[i] *= sx; gy[i] *= sy; }
+    for (let i = 0; i < NT * TRV; i++) { trX[i] *= sx; trY[i] *= sy; } for (let i = 0; i < NFP * NPULSE; i++) { fpX[i] *= sx; fpY[i] *= sy; }
+    boxW = LAY.W; boxH = LAY.H;
+  }
+  // clock
+  if (A1.playing && !A1.scrubbing) {
+    if (A1.z > 800) { A1.z = Math.max(800, A1.z - clockRate(A1.z) * A1.speed * dt); zSlider.set(A1.z); }
+    else if (!S1.ended) { S1.ended = true; S1.endT = tNow; }
+  }
+  const z = A1.z, T = TofZ(z), xe = xeAt(z, A1.saha);
+  const lam = lamScreen(z, xe);
+  S1.T = T; S1.xe = xe; S1.lam = lam;
+  S1.fog = 1 - Math.exp(-20 / lam);
+  S1.coupling = U.smoothstep(0.03, 0.35, xe);
+  const cpl = A1.sound ? S1.coupling : 0;
+  S1.tAc += dt * cpl;
+  // captures / ionisations towards the equilibrium bound fraction
+  const target = Math.round((1 - xe) * NP);
+  const cap = Math.max(2, Math.round(NP * 0.012));
+  if (target > nBound) {
+    buildGrid();
+    let k = Math.min(cap, target - nBound);
+    while (k-- > 0) { const p = findFree(pState, NP); if (p < 0) break; const e = nearestFreeElectron(px[p], py[p]); if (e < 0) break; bindPair(e, p, true); }
+  } else if (target < nBound) {
+    let k = Math.min(cap, nBound - target);
+    while (k-- > 0) {
+      let p = (rnd() * NP) | 0, found = -1; for (let q = 0; q < NP; q++) { if (pState[p] === 2) { found = p; break; } p = (p + 1) % NP; }
+      if (found < 0) break; const e = pEl[found];
+      pState[found] = 0; pEl[found] = -1; nBound--;
+      if (e >= 0) { eState[e] = 0; eP[e] = -1; ex[e] = px[found] + Math.cos(pOrb[found]) * 4; ey[e] = py[found] + Math.sin(pOrb[found]) * 4; eHd[e] = pOrb[found]; }
+      flash(px[found], py[found], 1);
+    }
+  }
+  const tempF = Math.sqrt(T / 4000);
+  const vE = 24 * tempF, vP = 5.5 * tempF;
+  const sq = Math.sqrt(dt);
+  // protons + atoms
+  for (let i = 0; i < NP; i++) {
+    flowAt(px[i], py[i], FLOW);
+    const v = pState[i] === 2 ? vP * 0.7 : vP;
+    pHd[i] += gauss() * 1.6 * sq;
+    let x = px[i] + (Math.cos(pHd[i]) * v * pSp[i] + FLOW[0] * cpl) * dt, y = py[i] + (Math.sin(pHd[i]) * v * pSp[i] + FLOW[1] * cpl) * dt;
+    if (x < 0) x += boxW; else if (x >= boxW) x -= boxW; if (y < 0) y += boxH; else if (y >= boxH) y -= boxH;
+    px[i] = x; py[i] = y;
+    if (pState[i] === 2) pOrb[i] += dt * (7 + (i % 5));
+  }
+  // electrons
+  for (let i = 0; i < NE; i++) {
+    const st = eState[i];
+    if (st === 0) {
+      flowAt(ex[i], ey[i], FLOW);
+      eHd[i] += gauss() * 3.2 * sq;
+      let x = ex[i] + (Math.cos(eHd[i]) * vE * eSp[i] + FLOW[0] * cpl) * dt, y = ey[i] + (Math.sin(eHd[i]) * vE * eSp[i] + FLOW[1] * cpl) * dt;
+      if (x < 0) x += boxW; else if (x >= boxW) x -= boxW; if (y < 0) y += boxH; else if (y >= boxH) y -= boxH;
+      ex[i] = x; ey[i] = y;
+    } else if (st === 1) {
+      const p = eP[i]; eT[i] += dt / 0.5;
+      const s = Math.min(1, eT[i]), r = eR0[i] * (1 - s) * (1 - s) + 3.2 * s, a = eA0[i] + 6 * s * s;
+      ex[i] = px[p] + Math.cos(a) * r; ey[i] = py[p] + Math.sin(a) * r;
+      if (eT[i] >= 1) {
+        eState[i] = 2; pState[p] = 2; pEl[p] = i; pOrb[p] = a;
+        flash(px[p], py[p], 0); emitLya(px[p], py[p]); S1.events++;
+        onCaptureEvent(px[p], py[p], pDep[p]);
+      }
+    } else {
+      const p = eP[i]; ex[i] = px[p] + Math.cos(pOrb[p]) * 3.2; ey[i] = py[p] + Math.sin(pOrb[p]) * 3.2;
+    }
+  }
+  // helium (neutral throughout)
+  for (let i = 0; i < NHE; i++) {
+    flowAt(hx[i], hy[i], FLOW); hHd[i] += gauss() * 1.2 * sq;
+    let x = hx[i] + (Math.cos(hHd[i]) * vP * 0.5 + FLOW[0] * cpl) * dt, y = hy[i] + (Math.sin(hHd[i]) * vP * 0.5 + FLOW[1] * cpl) * dt;
+    if (x < 0) x += boxW; else if (x >= boxW) x -= boxW; if (y < 0) y += boxH; else if (y >= boxH) y -= boxH;
+    hx[i] = x; hy[i] = y;
+  }
+  for (let k = 0; k < NFL; k++) if (fAge[k] < 9) fAge[k] += dt;
+}
+
+function onCaptureEvent(x, y, dep) {
+  Sound.ping(x / Math.max(1, boxW));
+  const now = performance.now();
+  if (act !== 1 || trans) return;
+  if (x < 40 || x > LAY.x1 - 220 || y < LAY.y0 + 120 || y > LAY.y1 - 90) return;
+  const vis = Math.exp(-dep * 40 / Math.max(S1.lam, 1));
+  if (vis < 0.55 || tagBlocked(x, y, 240)) return;
+  if (!S1.lyaTagged && S1.events > 3) { S1.lyaTagged = true; S1.lastTag = now; tag(x, y, 'Lyman-α photon <em>121.6 nm</em>', 2600); return; }
+  if (now - S1.lastTag > 3800 && S1.recTagged < 5) { S1.lastTag = now; S1.recTagged++; tag(x, y, 'e⁻ + p⁺ → H + γ <em>13.6 eV</em>', 2400); }
+}
+
+/* ---- tracer photons: a few photons whose whole path is kept, so the random walk is legible ---- */
+const NT = SMALL ? 3 : 5, TRV = SMALL ? 700 : 900;
+const trX = new Float32Array(NT * TRV), trY = new Float32Array(NT * TRV), trHead = new Int32Array(NT), trLen = new Int32Array(NT);
+const trN = new Float64Array(NT), trZ = new Float32Array(NT), trOut = new Uint8Array(NT), trFade = new Float32Array(NT);
+function trPush(k, x, y) { const i = trHead[k]; trX[k * TRV + i] = x; trY[k * TRV + i] = y; trHead[k] = (i + 1) % TRV; if (trLen[k] < TRV) trLen[k]++; }
+function spawnTracer(k) {
+  const fx = LAY.x1 - LAY.x0, fy = LAY.y1 - LAY.y0;
+  const x = k === 0 ? LAY.x0 + fx * (0.34 + 0.06 * rnd()) : LAY.x0 + fx * (0.12 + 0.76 * rnd());
+  const y = k === 0 ? LAY.y0 + fy * (0.55 + 0.08 * rnd()) : LAY.y0 + fy * (0.3 + 0.55 * rnd());
+  gx[k] = x; gy[k] = y; gDep[k] = 0; gE[k] = 1.6; trLen[k] = 0; trHead[k] = 0; trN[k] = 0; trZ[k] = A1.z; trOut[k] = 0; trFade[k] = 1;
+  trPush(k, x, y);
+}
+/* ---- light pulses fired by a tap: diffusion in the fog, a ring once it clears ---- */
+const NFP = SMALL ? 72 : 120, NPULSE = 3;
+const fpX = new Float32Array(NFP * NPULSE), fpY = new Float32Array(NFP * NPULSE), fpDx = new Float32Array(NFP * NPULSE), fpDy = new Float32Array(NFP * NPULSE), fpS = new Float32Array(NFP * NPULSE), fpLife = new Float32Array(NFP * NPULSE);
+let pulseHead = 0, pulsesFired = 0;
+function firePulse(x, y) {
+  const base = pulseHead * NFP; pulseHead = (pulseHead + 1) % NPULSE; pulsesFired++;
+  const lam = Math.max(0.6, S1.lam);
+  for (let i = 0; i < NFP; i++) { const a = (i + 0.5 * rnd()) / NFP * TAU, k = base + i; fpX[k] = x; fpY[k] = y; fpDx[k] = Math.cos(a); fpDy[k] = Math.sin(a); fpS[k] = -lam * Math.log(1 - rnd() * 0.99999); fpLife[k] = 1; }
+  flash(x, y, 0); Sound.ping(x / Math.max(1, boxW));
+  const msg = S1.fog > 0.6 ? 'a flash of light <em>trapped: it can only diffuse</em>' : S1.fog > 0.2 ? 'a flash of light <em>starting to escape</em>' : 'a flash of light <em>free streaming at c</em>';
+  tag(x, y, msg, 3400);
+}
+
+/* tracer paths are drawn straight into the scene (not the fading trail buffer) */
+const tsegData = new Float32Array(NT * (TRV + 2) * 8); let nTSeg = 0;
+const vaoTS = gl1.createVertexArray(), tsegBuf = gl1.createBuffer();
+gl1.bindVertexArray(vaoTS);
+gl1.bindBuffer(gl1.ARRAY_BUFFER, cornerBuf); gl1.enableVertexAttribArray(0); gl1.vertexAttribPointer(0, 2, gl1.FLOAT, false, 0, 0);
+gl1.bindBuffer(gl1.ARRAY_BUFFER, tsegBuf); gl1.bufferData(gl1.ARRAY_BUFFER, tsegData.byteLength, gl1.DYNAMIC_DRAW);
+gl1.enableVertexAttribArray(1); gl1.vertexAttribPointer(1, 4, gl1.FLOAT, false, 32, 0); gl1.vertexAttribDivisor(1, 1);
+gl1.enableVertexAttribArray(2); gl1.vertexAttribPointer(2, 4, gl1.FLOAT, false, 32, 16); gl1.vertexAttribDivisor(2, 1);
+gl1.bindVertexArray(null);
+function buildTracerSegs(dt) {
+  nTSeg = 0;
+  for (let k = 0; k < NT; k++) {
+    if (trOut[k]) trFade[k] = Math.max(0, trFade[k] - dt / 2.5);
+    const fade = trFade[k], len = trLen[k]; if (!A1.trails || fade <= 0.01 || len < 1) continue;
+    const start = (trHead[k] - len + TRV) % TRV, base = k * TRV, lead = k === 0;
+    const cg = lead ? 0.9 : 0.8, cb = lead ? 0.74 : 0.56, gain = (lead ? 1.3 : 0.75) * fade, wdt = lead ? 0.95 : 0.7;
+    let ax = trX[base + start], ay = trY[base + start];
+    for (let j = 1; j <= len; j++) {
+      let qx, qy;
+      if (j < len) { const idx = base + (start + j) % TRV; qx = trX[idx]; qy = trY[idx]; }
+      else { if (trOut[k]) break; qx = gx[k]; qy = gy[k]; }
+      if (ax === ax && qx === qx) {           // NaN marks a wrap across the box edge
+        const a = gain * (0.12 + 0.88 * Math.pow(j / len, 1.3)), o = nTSeg++ * 8;
+        tsegData[o] = ax; tsegData[o + 1] = ay; tsegData[o + 2] = qx; tsegData[o + 3] = qy;
+        tsegData[o + 4] = a; tsegData[o + 5] = cg * a; tsegData[o + 6] = cb * a; tsegData[o + 7] = wdt;
+      }
+      ax = qx; ay = qy;
+    }
+  }
+}
+/* the lead tracer carries a live label */
+const leadTag = h('div', { class: 'fl-ui fl-tag fl-hide-cinema' });
+document.body.append(leadTag);
+let leadClock = 0;
+function updateLeadTag(dt) {
+  const x = gx[0], y = gy[0];
+  const lw = leadTag.offsetWidth || 200, flip = x + 30 + lw > LAY.x1 - 8;
+  const on = act === 1 && !trans && A1.trails && !trOut[0] && trLen[0] > 0 && x > 20 && x < LAY.x1 - 20 && y > LAY.y0 && y < LAY.y1 && !tagBlocked(flip ? x - 60 - lw : x, y, lw);
+  leadTag.classList.toggle('on', on);
+  leadClock += dt;
+  if (!on) return;
+  leadTag.classList.toggle('fl-flip', flip);
+  leadTag.style.left = (flip ? x - 26 - lw : x + 26) + 'px'; leadTag.style.top = (y - 7) + 'px';
+  if (leadClock < 0.1) return; leadClock = 0;
+  const html = S1.fog > 0.35 ? 'one photon <em>' + F.num(trN[0]) + ' scatterings</em>' : 'one photon <em>last scattered at z = ' + F.num(Math.round(trZ[0])) + '</em>';
+  if (leadTag._h !== html) { leadTag._h = html; leadTag.innerHTML = html; }
+}
+
+/* photons: Thomson random walk with the 1 + cos²θ phase function */
+function scatterDir(dx, dy, out) {
+  let th; do { th = rnd() * TAU; } while (rnd() * 2 > 1 + Math.cos(th) * Math.cos(th));
+  const c = Math.cos(th), sn = Math.sin(th); out[0] = dx * c - dy * sn; out[1] = dx * sn + dy * c;
+}
+const DIR = [0, 0];
+function stepPhotons(dt) {
+  const lam = Math.max(0.6, S1.lam), speed = SMALL ? 200 : 260, stepLen = speed * dt;
+  const T = S1.T, clear = 1 - S1.fog, bright = Math.pow(T / 4091, 1.0) * (1 + 2.2 * clear);
+  const depthK = 40 / Math.max(lam, 1), maxS = 10, segK = 1 - 0.25 * clear;
+  for (let i = 0; i < NG; i++) {
+    const isT = i < NT;
+    if (isT && trOut[i]) { if (S1.fog > 0.6) spawnTracer(i); else continue; }
+    let x = gx[i], y = gy[i], dx = gdx[i], dy = gdy[i], s = gs[i], rem = stepLen, n = 0;
+    const vis = Math.exp(-gDep[i] * depthK);
+    const ci = bbIdx(T * (0.78 + 0.22 * gE[i]));
+    const I = 0.2 * bright * (0.55 + 0.45 * gE[i]) * vis;
+    const r = BB[ci] * I, g = BB[ci + 1] * I, b = BB[ci + 2] * I;
+    while (rem > 1e-4 && n < maxS) {
+      const l = Math.min(s, rem); const nx = x + dx * l, ny = y + dy * l;
+      if (!isT && A1.trails && I > 0.002) seg(x, y, nx, ny, r * segK, g * segK, b * segK, 0.75);
+      x = nx; y = ny; rem -= l; s -= l; n++;
+      if (s <= 1e-5) {
+        scatterDir(dx, dy, DIR); dx = DIR[0]; dy = DIR[1];
+        s = -lam * Math.log(1 - rnd() * 0.99999);
+        if (isT) { trPush(i, x, y); trN[i]++; trZ[i] = A1.z; }
+      }
+    }
+    if (x < 0 || x >= boxW || y < 0 || y >= boxH) {
+      if (isT) {
+        trPush(i, x, y);
+        if (S1.fog < 0.3) { trOut[i] = 1; gx[i] = x; gy[i] = y; continue; }   // free: it leaves the box for good
+        trPush(i, NaN, NaN);
+      }
+      if (x < 0) x += boxW; else if (x >= boxW) x -= boxW; if (y < 0) y += boxH; else if (y >= boxH) y -= boxH;
+      if (isT) trPush(i, x, y);
+    }
+    gx[i] = x; gy[i] = y; gdx[i] = dx; gdy[i] = dy; gs[i] = s;
+    if (isT) { if (A1.trails) { pt(x, y, 9, 3, 1, 0.95, 0.85, 1.6); pt(x, y, 22, 0, 1, 0.8, 0.55, 0.22); } }
+    else if (A1.trails) pt(x, y, 4 + 3 * clear, 3, 1, 0.5 + 0.5 * BB[ci + 1], 0.3 + 0.7 * BB[ci + 2], Math.min(2.2, I * (8 + 10 * clear)));
+  }
+  // tap pulses
+  for (let k = 0; k < NFP * NPULSE; k++) {
+    if (fpLife[k] <= 0) continue;
+    let x = fpX[k], y = fpY[k], dx = fpDx[k], dy = fpDy[k], s = fpS[k], rem = stepLen, n = 0;
+    const a = Math.pow(fpLife[k], 0.6), I = (0.8 + 0.7 * clear) * a;
+    while (rem > 1e-4 && n < maxS) {
+      const l = Math.min(s, rem); const nx = x + dx * l, ny = y + dy * l;
+      seg(x, y, nx, ny, 0.6 * I, 0.85 * I, 1.0 * I, 0.95);
+      x = nx; y = ny; rem -= l; s -= l; n++;
+      if (s <= 1e-5) { scatterDir(dx, dy, DIR); dx = DIR[0]; dy = DIR[1]; s = -lam * Math.log(1 - rnd() * 0.99999); }
+    }
+    fpX[k] = x; fpY[k] = y; fpDx[k] = dx; fpDy[k] = dy; fpS[k] = s; fpLife[k] -= dt / 4.5;
+    if (x < -20 || x > boxW + 20 || y < -20 || y > boxH + 20) fpLife[k] = 0;
+    pt(x, y, 6, 3, 0.7, 0.88, 1.0, 2.0 * a);
+  }
+  // Lyman-alpha photons: violet streaks that fade as they redshift out of the line
+  for (let k = 0; k < NLY; k++) {
+    if (lLife[k] <= 0) continue;
+    const x0 = lx[k], y0 = ly[k]; lx[k] += ldx[k] * stepLen; ly[k] += ldy[k] * stepLen; lLife[k] -= dt / 0.9;
+    const a = Math.max(0, lLife[k]); if (A1.trails) seg(x0, y0, lx[k], ly[k], 0.62 * a * 0.5, 0.42 * a * 0.5, 1.0 * a * 0.5, 0.8);
+  }
+}
+
+function drawPointsAct1() {
+  const depthK = 40 / Math.max(S1.lam, 1);
+  if (A1.parts) {
+    for (let i = 0; i < NP; i++) {
+      const v = Math.exp(-pDep[i] * depthK) * (0.5 + 0.5 * (1 - pDep[i] * 0.6));
+      if (pState[i] === 2) {
+        pt(px[i], py[i], 10, 2, 1.0, 0.84, 0.6, 0.32 * v);
+        pt(px[i], py[i], 2.6, 0, 1.0, 0.6, 0.4, 0.9 * v);
+      } else pt(px[i], py[i], 3.3, 0, 1.0, 0.40, 0.20, 0.95 * v);
+    }
+    for (let i = 0; i < NE; i++) {
+      const st = eState[i]; const dep = st === 0 ? eDep[i] : pDep[eP[i]];
+      const v = Math.exp(-dep * depthK) * (0.5 + 0.5 * (1 - dep * 0.6));
+      if (st === 0) pt(ex[i], ey[i], 2.2, 0, 0.75, 0.85, 1.0, 0.95 * v);
+      else if (st === 1) pt(ex[i], ey[i], 2.8, 0, 0.9, 0.95, 1.0, 1.2 * v);
+      else pt(ex[i], ey[i], 1.7, 0, 0.8, 0.88, 1.0, 0.75 * v);
+    }
+    for (let i = 0; i < NHE; i++) { const v = Math.exp(-hDep[i] * depthK); pt(hx[i], hy[i], 11, 2, 0.74, 0.66, 1.0, 0.3 * v); pt(hx[i], hy[i], 3, 0, 0.85, 0.8, 1.0, 0.7 * v); }
+  }
+  for (let k = 0; k < NFL; k++) {
+    const a = fAge[k]; if (a > 0.7) continue; const s = a / 0.7;
+    if (fKind[k] === 0) { pt(fx[k], fy[k], 5 + 20 * s, 1, 1.0, 0.86, 0.58, 1.0 * (1 - s) * (1 - s)); if (s < 0.3) pt(fx[k], fy[k], 9, 3, 1.0, 0.95, 0.85, 2.2 * (1 - s / 0.3)); }
+    else pt(fx[k], fy[k], 5 + 24 * s, 1, 0.55, 0.7, 1.0, 1.1 * (1 - s) * (1 - s));
+  }
+}
+
+function renderAct1(tNow, dt) {
+  ensureRT1();
+  const gl = gl1, W = boxW, H = boxH;
+  gl.disable(gl.DEPTH_TEST);
+  // 1. trails: fade, then add this frame's photon segments
+  RT1.trail.bind(); gl.enable(gl.BLEND);
+  gl.useProgram(P1.fade); gl.blendFunc(gl.ZERO, gl.ONE_MINUS_SRC_ALPHA);
+  GLK.uniforms(gl, P1.fade, { uA: 1 - Math.exp(-Math.max(dt, 1 / 240) / (0.2 + 0.75 * (1 - S1.fog) * (1 - S1.fog))) }); quad1();
+  gl.blendFunc(gl.ONE, gl.ONE);
+  if (nSeg) {
+    gl.useProgram(P1.seg); GLK.uniforms(gl, P1.seg, { uRes: [W, H] });
+    gl.bindBuffer(gl.ARRAY_BUFFER, segBuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, segData, 0, nSeg * 8);
+    gl.bindVertexArray(vaoSeg); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, nSeg); gl.bindVertexArray(null);
+  }
+  // 2. scene = fog + trails, then particles
+  RT1.scene.bind(); gl.disable(gl.BLEND);
+  const bb = fogColour(S1.T);
+  for (let k = 0; k < 6; k++) { const w = WAVES[k]; uW[k * 4] = w.kx; uW[k * 4 + 1] = w.ky; uW[k * 4 + 2] = w.ph; uW[k * 4 + 3] = w.amp * w.k; uWC[k] = Math.cos(w.w * S1.tAc + w.off); }
+  gl.useProgram(P1.fog);
+  GLK.uniforms(gl, P1.fog, { uTrail: RT1.trail.tex, uRes: [W, H], uT: tNow, uFog: A1.fog ? S1.fog : 0, uGlow: 1.05 * Math.pow(S1.T / 4091, 1.1), uWaves: A1.sound ? 1.4 : 0, uTrailK: 1, uCol: bb, uW: uW, uWC: uWC });
+  quad1();
+  if (nTSeg) {
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+    gl.useProgram(P1.seg); GLK.uniforms(gl, P1.seg, { uRes: [W, H] });
+    gl.bindBuffer(gl.ARRAY_BUFFER, tsegBuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, tsegData, 0, nTSeg * 8);
+    gl.bindVertexArray(vaoTS); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, nTSeg); gl.bindVertexArray(null);
+    gl.disable(gl.BLEND);
+  }
+  if (nPts) {
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+    gl.useProgram(P1.pts); GLK.uniforms(gl, P1.pts, { uRes: [W, H], uDpr: cv1.width / Math.max(1, W) });
+    gl.bindBuffer(gl.ARRAY_BUFFER, ptBuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, ptData, 0, nPts * 8);
+    gl.bindVertexArray(vaoPts); gl.drawArrays(gl.POINTS, 0, nPts); gl.bindVertexArray(null);
+    gl.disable(gl.BLEND);
+  }
+  // 3. bloom
+  RT1.half.bind(); gl.useProgram(P1.down); GLK.uniforms(gl, P1.down, { uTex: RT1.scene.tex, uTexel: [0.5 / RT1.w, 0.5 / RT1.h] }); quad1();
+  RT1.q1.bind(); GLK.uniforms(gl, P1.down, { uTex: RT1.half.tex, uTexel: [0.5 / RT1.half.w, 0.5 / RT1.half.h] }); quad1();
+  gl.useProgram(P1.blur);
+  for (let it = 0; it < 2; it++) {
+    RT1.q2.bind(); GLK.uniforms(gl, P1.blur, { uTex: RT1.q1.tex, uDir: [(1 + it) / RT1.q1.w, 0] }); quad1();
+    RT1.q1.bind(); GLK.uniforms(gl, P1.blur, { uTex: RT1.q2.tex, uDir: [0, (1 + it) / RT1.q1.h] }); quad1();
+  }
+  // 4. tone-map to screen
+  GLK.screen(gl); gl.useProgram(P1.final);
+  GLK.uniforms(gl, P1.final, { uScene: RT1.scene.tex, uBloom: RT1.q1.tex, uExpo: 1.0, uBloomK: 0.8, uT: tNow, uRes: [cv1.width, cv1.height] });
+  quad1();
+}
+
+/* incandescent palette that follows the blackbody trend, saturated for display */
+const FOGPAL = [[2000, [0.85, 0.20, 0.04]], [2500, [1.0, 0.32, 0.07]], [3000, [1.0, 0.46, 0.13]], [3600, [1.0, 0.52, 0.17]], [4200, [1.0, 0.57, 0.22]]];
+function fogColour(T) {
+  if (T <= FOGPAL[0][0]) return FOGPAL[0][1].slice();
+  for (let i = 1; i < FOGPAL.length; i++) if (T <= FOGPAL[i][0]) { const a = FOGPAL[i - 1], b = FOGPAL[i], f = (T - a[0]) / (b[0] - a[0]); return [0, 1, 2].map((k) => a[1][k] + (b[1][k] - a[1][k]) * f); }
+  return FOGPAL[FOGPAL.length - 1][1].slice();
+}
+function frameAct1(dt, tNow) {
+  nSeg = 0; nPts = 0;
+  stepAct1(dt, tNow);
+  stepPhotons(dt);
+  buildTracerSegs(dt);
+  drawPointsAct1();
+  updateLeadTag(dt);
+  renderAct1(tNow, dt);
+}
+
+/* ============================================================ ACT II · THE OLDEST LIGHT */
+const gl2 = Cosmos.gl.context(cv2, { alpha: false, antialias: true });
+if (!gl2) { ch.fatal('This chapter needs WebGL2, which this browser or device does not provide.'); return; }
+const DPR2 = SMALL ? 2 : 1.75;
+
+/* ---------------- spherical-harmonic synthesis worker ---------------- */
+function workerMain() {
+  let L = 0, seed = -1, idxOff = null, A = null, B = null, gre = null, gim = null;
+  function hash(a, b) { let h = (Math.imul(a, 374761393) + Math.imul(b, 668265263)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; h = Math.imul(h ^ (h >>> 15), 2246822519); h ^= h >>> 13; return ((h >>> 0) + 0.5) / 4294967296; }
+  function prep(LL, sd) {
+    if (LL === L && sd === seed) return;
+    L = LL; seed = sd;
+    const n = (L + 1) * (L + 2) / 2; idxOff = new Int32Array(L + 2); A = new Float64Array(n); B = new Float64Array(n); gre = new Float64Array(n); gim = new Float64Array(n);
+    let o = 0;
+    for (let m = 0; m <= L; m++) {
+      idxOff[m] = o;
+      for (let l = m; l <= L; l++) {
+        const i = o + l - m;
+        if (l >= m + 2) { A[i] = Math.sqrt((4 * l * l - 1) / (l * l - m * m)); B[i] = Math.sqrt(((l - 1) * (l - 1) - m * m) / (4 * (l - 1) * (l - 1) - 1)); }
+        // Gaussian a_lm phases from a hash of (seed, l, m): identical for every resolution
+        const k = l * 4099 + m, s0 = seed * 7919;
+        const u1 = hash(s0 + 1, k), u2 = hash(s0 + 2, k), u3 = hash(s0 + 3, k), u4 = hash(s0 + 4, k);
+        const r1 = Math.sqrt(-2 * Math.log(u1)), r2 = Math.sqrt(-2 * Math.log(u3));
+        if (m === 0) { gre[i] = r1 * Math.cos(2 * Math.PI * u2); gim[i] = 0; }
+        else { gre[i] = r1 * Math.cos(2 * Math.PI * u2) * Math.SQRT1_2; gim[i] = r2 * Math.cos(2 * Math.PI * u4) * Math.SQRT1_2; }
+      }
+      o += L - m + 1;
+    }
+  }
+  function fftInv(re, im, n, cosT, sinT) {
+    for (let i = 1, j = 0; i < n; i++) { let bit = n >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit; if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; } }
+    for (let len = 2; len <= n; len <<= 1) { const half = len >> 1, step = n / len; for (let i = 0; i < n; i += len) for (let k = 0; k < half; k++) { const c = cosT[k * step], s = sinT[k * step]; const a = i + k, b = a + half; const xr = re[b] * c - im[b] * s, xi = re[b] * s + im[b] * c; re[b] = re[a] - xr; im[b] = im[a] - xi; re[a] += xr; im[a] += xi; } }
+  }
+  self.onmessage = function (ev) {
+    const msg = ev.data; if (!msg || msg.type !== 'synth') return;
+    const t0 = Date.now(); const W = msg.W, H = msg.H, Cl = msg.Cl;
+    prep(msg.L, msg.seed);
+    const amp = new Float64Array(L + 1); for (let l = 0; l <= L; l++) amp[l] = Math.sqrt(Math.max(0, Cl[l] || 0));
+    const out = new Float32Array(W * H);
+    const cosT = new Float64Array(W / 2), sinT = new Float64Array(W / 2); for (let k = 0; k < W / 2; k++) { cosT[k] = Math.cos(2 * Math.PI * k / W); sinT[k] = Math.sin(2 * Math.PI * k / W); }
+    const reN = new Float64Array(W), imN = new Float64Array(W), reS = new Float64Array(W), imS = new Float64Array(W);
+    const FNr = new Float64Array(L + 1), FNi = new Float64Array(L + 1), FSr = new Float64Array(L + 1), FSi = new Float64Array(L + 1);
+    const n = (L + 1) * (L + 2) / 2, ar = new Float64Array(n), ai = new Float64Array(n);
+    for (let m = 0; m <= L; m++) { const o = idxOff[m]; for (let l = m; l <= L; l++) { ar[o + l - m] = gre[o + l - m] * amp[l]; ai[o + l - m] = gim[o + l - m] * amp[l]; } }
+    const s4pi = 1 / Math.sqrt(4 * Math.PI);
+    let sum2 = 0;
+    for (let j = 0; j < H / 2; j++) {
+      const th = (j + 0.5) * Math.PI / H, x = Math.cos(th), s = Math.sin(th);
+      let pmm = s4pi, mmax = L;
+      for (let m = 0; m <= L; m++) {
+        if (m > 0) { pmm *= -Math.sqrt((2 * m + 1) / (2 * m)) * s; if (Math.abs(pmm) < 1e-60) { mmax = m - 1; break; } }
+        const o = idxOff[m] - m; let p0 = pmm;
+        let Er = ar[o + m] * p0, Ei = ai[o + m] * p0, Or = 0, Oi = 0;
+        if (m < L) {
+          let p1 = x * Math.sqrt(2 * m + 3) * p0; Or = ar[o + m + 1] * p1; Oi = ai[o + m + 1] * p1;
+          let l = m + 2;
+          for (; l + 1 <= L; l += 2) { const p2 = A[o + l] * (x * p1 - B[o + l] * p0); Er += ar[o + l] * p2; Ei += ai[o + l] * p2; const p3 = A[o + l + 1] * (x * p2 - B[o + l + 1] * p1); Or += ar[o + l + 1] * p3; Oi += ai[o + l + 1] * p3; p0 = p2; p1 = p3; }
+          if (l <= L) { const p2 = A[o + l] * (x * p1 - B[o + l] * p0); Er += ar[o + l] * p2; Ei += ai[o + l] * p2; }
+        }
+        FNr[m] = Er + Or; FNi[m] = Ei + Oi; FSr[m] = Er - Or; FSi[m] = Ei - Oi;
+      }
+      reN.fill(0); imN.fill(0); reS.fill(0); imS.fill(0);
+      reN[0] = FNr[0]; reS[0] = FSr[0];
+      for (let m = 1; m <= mmax; m++) { reN[m] = FNr[m]; imN[m] = FNi[m]; reN[W - m] = FNr[m]; imN[W - m] = -FNi[m]; reS[m] = FSr[m]; imS[m] = FSi[m]; reS[W - m] = FSr[m]; imS[W - m] = -FSi[m]; }
+      fftInv(reN, imN, W, cosT, sinT); fftInv(reS, imS, W, cosT, sinT);
+      const rN = j * W, rS = (H - 1 - j) * W;
+      for (let i = 0; i < W; i++) { const a = reN[i], b = reS[i]; out[rN + i] = a; out[rS + i] = b; sum2 += (a * a + b * b) * s; }
+      if ((j & 15) === 15) self.postMessage({ type: 'progress', id: msg.id, f: (j + 1) / (H / 2) });
+    }
+    let wsum = 0; for (let j = 0; j < H / 2; j++) wsum += 2 * W * Math.sin((j + 0.5) * Math.PI / H);
+    self.postMessage({ type: 'map', id: msg.id, W, H, L, range: msg.range, data: out, rms: Math.sqrt(sum2 / wsum), ms: Date.now() - t0 }, [out.buffer]);
+  };
+}
+let worker = null;
+try { worker = new Worker(URL.createObjectURL(new Blob(['(' + workerMain.toString() + ')();'], { type: 'text/javascript' }))); }
+catch (e) { worker = null; }
+
+/* ---------------- map state ---------------- */
+const MAP = { busy: false, pending: null, id: 0, W: 0, H: 0, L: 0, data: null, rms: 0, ms: 0, mix: 1, cur: 0, have: false, progress: 0, lastDone: 0 };
+let SPEC = spectrum(A2.params);          // current model spectrum
+const SPEC_FID = SPEC;                    // Planck best-fit reference
+/* amplitude window W_ℓ applied to every a_ℓm: an instrument beam or a band-pass */
+function filterWin(l) {
+  const f = A2.filter, l1 = SPEC.peaks[0] ? SPEC.peaks[0].l : 220;
+  if (f === 'cobe' || f === 'wmap') { const fwhm = (f === 'cobe' ? 7 : 13 / 60) * Math.PI / 180, sg = fwhm / Math.sqrt(8 * Math.LN2); return Math.exp(-0.5 * l * (l + 1) * sg * sg); }
+  if (f === 'sw') return 1 - U.smoothstep(22, 40, l);
+  if (f === 'p1') return U.smoothstep(0.55 * l1, 0.72 * l1, l) * (1 - U.smoothstep(1.3 * l1, 1.55 * l1, l));
+  if (f === 'p2') return U.smoothstep(1.45 * l1, 1.75 * l1, l);
+  if (f === 'band') { const c = A2.bandL; return U.smoothstep(0.7 * c, 0.86 * c, l) * (1 - U.smoothstep(1.16 * c, 1.34 * c, l)); }
+  return 1;
+}
+function clFromSpec(spec, L) {
+  const Cl = new Float64Array(L + 1); let v = 0;
+  for (let l = 2; l <= L; l++) {
+    const tap = l < 0.82 * L ? 1 : 0.5 * (1 + Math.cos(Math.PI * (l - 0.82 * L) / (0.18 * L))), w = tap * filterWin(l);
+    Cl[l] = TAU * spec.D[l] / (l * (l + 1)) * w * w; v += (2 * l + 1) / (4 * Math.PI) * Cl[l];
+  }
+  MAP.predRms = Math.sqrt(v);
+  return Cl;
+}
+const NICE = [15, 20, 25, 30, 40, 50, 60, 80, 100, 120, 150, 200, 250, 300];
+function requestMap() {
+  const L = A2.lmax, W = L > 511 ? 2048 : L > 255 ? 1024 : 512, H = W / 2;
+  const Cl = clFromSpec(SPEC, L);
+  // colour range: Planck's ±300 µK for the full sky, about ±3σ for a filtered one (applied when the map arrives)
+  const range = A2.filter === 'all' ? 300 : (NICE.find((v) => v >= 2.6 * MAP.predRms) || 300);
+  MAP.pending = { type: 'synth', id: ++MAP.id, L, W, H, seed: A2.seed, Cl, range };
+  pumpMap();
+}
+function pumpMap() {
+  if (MAP.busy || !MAP.pending) return;
+  const job = MAP.pending; MAP.pending = null; MAP.busy = true; MAP.progress = 0;
+  if (worker) worker.postMessage(job, [job.Cl.buffer]);
+  else setTimeout(() => { ch.fatal('This chapter needs Web Workers to synthesise the sky map.'); }, 0);
+}
+if (worker) {
+  worker.onmessage = (ev) => {
+    const m = ev.data;
+    if (m.type === 'progress') { MAP.progress = m.f; return; }
+    if (m.type === 'map') { MAP.busy = false; MAP.progress = 1; MAP.lastDone = performance.now(); onMap(m); pumpMap(); }
+  };
+  worker.onerror = (e) => { e.preventDefault && e.preventDefault(); MAP.busy = false; ch.fatal('The sky-map worker failed to start.', e.message || e); };
+}
+
+/* ---------------- textures ---------------- */
+const mapTex = [null, null];
+function makeMapTex(W, H) {
+  const t = gl2.createTexture(); gl2.bindTexture(gl2.TEXTURE_2D, t);
+  gl2.texImage2D(gl2.TEXTURE_2D, 0, gl2.R16F, W, H, 0, gl2.RED, gl2.FLOAT, null);
+  gl2.texParameteri(gl2.TEXTURE_2D, gl2.TEXTURE_MIN_FILTER, gl2.LINEAR); gl2.texParameteri(gl2.TEXTURE_2D, gl2.TEXTURE_MAG_FILTER, gl2.LINEAR);
+  gl2.texParameteri(gl2.TEXTURE_2D, gl2.TEXTURE_WRAP_S, gl2.REPEAT); gl2.texParameteri(gl2.TEXTURE_2D, gl2.TEXTURE_WRAP_T, gl2.CLAMP_TO_EDGE);
+  return t;
+}
+function onMap(m) {
+  if (m.W !== MAP.W || m.H !== MAP.H) {
+    mapTex.forEach((t) => t && gl2.deleteTexture(t));
+    mapTex[0] = makeMapTex(m.W, m.H); mapTex[1] = makeMapTex(m.W, m.H);
+    MAP.W = m.W; MAP.H = m.H; MAP.have = false;
+  }
+  const next = MAP.have ? 1 - MAP.cur : MAP.cur;
+  gl2.bindTexture(gl2.TEXTURE_2D, mapTex[next]);
+  gl2.pixelStorei(gl2.UNPACK_ALIGNMENT, 1);
+  gl2.texSubImage2D(gl2.TEXTURE_2D, 0, 0, 0, m.W, m.H, gl2.RED, gl2.FLOAT, m.data);
+  if (!MAP.have) { gl2.bindTexture(gl2.TEXTURE_2D, mapTex[1 - next]); gl2.texSubImage2D(gl2.TEXTURE_2D, 0, 0, 0, m.W, m.H, gl2.RED, gl2.FLOAT, m.data); MAP.mix = 1; }
+  else MAP.mix = 0;
+  MAP.prev = MAP.cur; MAP.cur = next; MAP.have = true;
+  MAP.data = m.data; MAP.L = m.L; MAP.rms = m.rms; MAP.ms = m.ms; if (m.range) A2.range = m.range;
+}
+mapTex[0] = makeMapTex(4, 2); mapTex[1] = makeMapTex(4, 2); MAP.W = 4; MAP.H = 2;
+{ const z = new Float32Array(8); mapTex.forEach((t) => { gl2.bindTexture(gl2.TEXTURE_2D, t); gl2.texSubImage2D(gl2.TEXTURE_2D, 0, 0, 0, 4, 2, gl2.RED, gl2.FLOAT, z); }); }
+const cmapTex = (function () {
+  const d = new Uint8Array(256 * 4); for (let i = 0; i < 256; i++) { const c = cmapRGB(i / 255); d[i * 4] = c[0]; d[i * 4 + 1] = c[1]; d[i * 4 + 2] = c[2]; d[i * 4 + 3] = 255; }
+  const t = gl2.createTexture(); gl2.bindTexture(gl2.TEXTURE_2D, t);
+  gl2.texImage2D(gl2.TEXTURE_2D, 0, gl2.RGBA8, 256, 1, 0, gl2.RGBA, gl2.UNSIGNED_BYTE, d);
+  gl2.texParameteri(gl2.TEXTURE_2D, gl2.TEXTURE_MIN_FILTER, gl2.LINEAR); gl2.texParameteri(gl2.TEXTURE_2D, gl2.TEXTURE_MAG_FILTER, gl2.LINEAR);
+  gl2.texParameteri(gl2.TEXTURE_2D, gl2.TEXTURE_WRAP_S, gl2.CLAMP_TO_EDGE); gl2.texParameteri(gl2.TEXTURE_2D, gl2.TEXTURE_WRAP_T, gl2.CLAMP_TO_EDGE);
+  return t;
+})();
+
+/* ---------------- sphere mesh: (lon, lat, Mollweide auxiliary angle) ---------------- */
+const MESH = (function () {
+  const NLON = SMALL ? 256 : 448, NLAT = NLON / 2;
+  const nv = (NLON + 1) * (NLAT + 1), v = new Float32Array(nv * 3);
+  let o = 0;
+  for (let j = 0; j <= NLAT; j++) {
+    const lat = Math.PI / 2 - Math.PI * j / NLAT;
+    let th = lat; const ps = Math.PI * Math.sin(lat);   // solve 2θ + sin 2θ = π sin φ
+    if (Math.abs(Math.abs(lat) - Math.PI / 2) < 1e-9) th = lat; else for (let k = 0; k < 40; k++) { const f = 2 * th + Math.sin(2 * th) - ps; th -= f / (2 + 2 * Math.cos(2 * th)); }
+    for (let i = 0; i <= NLON; i++) { const lon = -Math.PI + TAU * i / NLON; v[o++] = lon; v[o++] = lat; v[o++] = th; }
+  }
+  const idx = new Uint32Array(NLON * NLAT * 6); let q = 0;
+  for (let j = 0; j < NLAT; j++) for (let i = 0; i < NLON; i++) { const a = j * (NLON + 1) + i, b = a + 1, c = a + NLON + 1, d = c + 1; idx[q++] = a; idx[q++] = c; idx[q++] = b; idx[q++] = b; idx[q++] = c; idx[q++] = d; }
+  const vao = gl2.createVertexArray(); gl2.bindVertexArray(vao);
+  const vb = gl2.createBuffer(); gl2.bindBuffer(gl2.ARRAY_BUFFER, vb); gl2.bufferData(gl2.ARRAY_BUFFER, v, gl2.STATIC_DRAW);
+  gl2.enableVertexAttribArray(0); gl2.vertexAttribPointer(0, 3, gl2.FLOAT, false, 0, 0);
+  const ib = gl2.createBuffer(); gl2.bindBuffer(gl2.ELEMENT_ARRAY_BUFFER, ib); gl2.bufferData(gl2.ELEMENT_ARRAY_BUFFER, idx, gl2.STATIC_DRAW);
+  gl2.bindVertexArray(null);
+  return { vao, count: idx.length };
+})();
+/* light rays from the inner surface to the observer (cutaway view) */
+const RAYS = (function () {
+  const n = 40, v = new Float32Array(n * 2 * 4), r = U.rng(99); let o = 0;
+  for (let i = 0; i < n; i++) { const zz = r() * 2 - 1, a = r() * TAU, s = Math.sqrt(1 - zz * zz); const d = [s * Math.cos(a), zz, s * Math.sin(a)];
+    v[o++] = d[0] * 0.995; v[o++] = d[1] * 0.995; v[o++] = d[2] * 0.995; v[o++] = 0; v[o++] = 0; v[o++] = 0; v[o++] = 0; v[o++] = 1 + r(); }
+  const vao = gl2.createVertexArray(); gl2.bindVertexArray(vao);
+  const b = gl2.createBuffer(); gl2.bindBuffer(gl2.ARRAY_BUFFER, b); gl2.bufferData(gl2.ARRAY_BUFFER, v, gl2.STATIC_DRAW);
+  gl2.enableVertexAttribArray(0); gl2.vertexAttribPointer(0, 4, gl2.FLOAT, false, 0, 0);
+  gl2.bindVertexArray(null);
+  return { vao, count: n * 2 };
+})();
+
+const SKY_GLSL = `
+uniform sampler2D uMapA, uMapB, uCmap; uniform float uMix, uRange, uDip, uFg; uniform vec3 uDipDir;
+float h31(vec3 p){ p=fract(p*.1031); p+=dot(p,p.zyx+31.32); return fract((p.x+p.y)*p.z); }
+float n3(vec3 p){ vec3 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+  return mix(mix(mix(h31(i),h31(i+vec3(1,0,0)),f.x),mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x),f.y),
+             mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x),mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x),f.y),f.z); }
+float fb3(vec3 p){ float s=0.,a=.5; for(int i=0;i<4;i++){ s+=a*n3(p); p=p*2.03+7.1; a*=.5; } return s; }
+float foreground(vec3 n){
+  float b=asin(clamp(n.y,-1.,1.)); float l=atan(n.x,n.z);
+  float core=exp(-l*l/.8);
+  float cl=fb3(n*vec3(16.,44.,16.)), fil=fb3(n*vec3(5.,12.,5.)+3.);
+  float disk=exp(-abs(b)/(.016+.022*core+.012*fil))*(.3+1.1*cl*cl)*(.3+.9*core);
+  float plume=exp(-abs(b)/.26)*max(fil-.42,0.)*2.4*(.35+.65*core);
+  vec3 c=vec3(cos(.314)*sin(-.52), sin(.314), cos(.314)*cos(-.52));
+  float a=acos(clamp(dot(n,c),-1.,1.)); float spur=exp(-pow((a-1.01)/.09,2.))*smoothstep(0.,.3,n.y)*max(fil-.3,0.)*1.6;
+  return 2400.*disk+420.*plume+160.*spur;
+}
+float skyT(vec2 uv, vec3 n){
+  float T=mix(texture(uMapA,uv).r, texture(uMapB,uv).r, uMix);
+  return T + uDip*3362.1*dot(n,uDipDir) + uFg*foreground(n);
+}
+vec3 cmap(float T){ return texture(uCmap, vec2(clamp(T/uRange*.5+.5,.002,.998),.5)).rgb; }`;
+
+const P2 = {
+  bg: GLK.program(gl2, GLK.FS_VERT, `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o; uniform vec2 uRes, uC; uniform float uR, uHalo, uT, uGlowB; uniform vec3 uEra, uGlowC;
+float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+void main(){ vec2 p=vUv*uRes; float r=length(p-uC);
+  vec3 c=vec3(.012,.014,.026)*(1.-.5*smoothstep(0.,max(uRes.x,uRes.y)*.8,length(p-uRes*.5)));
+  float g=exp(-max(r-uR,0.)/(uR*.12))*step(uR*.6,r); c+=uEra*g*.10*uHalo + uGlowC*uGlowB*g*.55;
+  c+=uEra*exp(-max(r-uR,0.)/(uR*.9))*.035*uHalo + uGlowC*uGlowB*exp(-max(r-uR,0.)/(uR*.5))*.22;
+  vec2 cell=floor(p/3.); float h=hash(cell); if(h>.9965){ float tw=.6+.4*sin(uT*.7+h*90.); c+=vec3(.55,.58,.7)*tw*(h-.9965)*170.*step(uR*1.02,r); }
+  o=vec4(c,1.); }`),
+  sphere: GLK.program(gl2, `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aLL;
+uniform mat4 uVP; uniform float uMorph, uMS, uMD, uRelief; uniform vec3 uCF, uCR, uCU; uniform vec2 uMP;
+uniform sampler2D uMapA, uMapB; uniform float uMix;
+out vec3 vN; out vec2 vLL; out vec3 vP;
+void main(){ float lon=aLL.x, lat=aLL.y, th=aLL.z;
+  vec3 n=vec3(cos(lat)*sin(lon), sin(lat), cos(lat)*cos(lon));
+  vec2 uv=vec2(lon/6.2831853, .5-lat/3.14159265);
+  float T=mix(textureLod(uMapA,uv,0.).r, textureLod(uMapB,uv,0.).r, uMix);
+  vec3 ps=n*(1.+uRelief*clamp(T/300.,-2.,2.)*.022);
+  vec2 m=vec2(-.90031632*lon*cos(th), 1.41421356*sin(th));
+  vec3 pf=uCF*uMD + uCR*(m.x*uMS+uMP.x) + uCU*(m.y*uMS+uMP.y);
+  vec3 p=mix(ps,pf,uMorph);
+  vN=n; vLL=vec2(lon,lat); vP=p; gl_Position=uVP*vec4(p,1.); }`, `#version 300 es
+precision highp float;
+in vec3 vN; in vec2 vLL; in vec3 vP; out vec4 o;
+${SKY_GLSL}
+uniform vec3 uEye, uEra, uGlowC, uRingC, uCutDir; uniform float uAniso, uGlowB, uInside, uMorph, uGrid, uCut, uRingR, uRingOn, uSat, uT, uVig; uniform vec2 uRes;
+void main(){ vec3 n=normalize(vN);
+  if(uCut>0. && uMorph<.01 && dot(n,uCutDir)>.74) discard;
+  vec2 uv=vec2(vLL.x/6.2831853, .5-vLL.y/3.14159265);
+  float T=skyT(uv,n);
+  vec3 col=cmap(T);
+  float lum=dot(col,vec3(.3,.59,.11)); col=mix(vec3(lum),col,uSat);
+  vec3 V=normalize(uEye-vP); float facing=dot(n,V);
+  if(uAniso<.999){
+    float mu=max(facing,0.);
+    float gran=.78+.5*fb3(n*11.+vec3(uT*.05,-uT*.03,uT*.04))+.18*fb3(n*37.-uT*.07);
+    vec3 g=uGlowC*uGlowB*(.5+.5*pow(mu,.55))*gran;
+    g+=uGlowC*uGlowB*pow(1.-mu,3.)*.35;
+    col=mix(g, col, uAniso);
+  }
+  float outside=(1.-uInside)*(1.-uMorph);
+  vec3 Ld=normalize(vec3(-.45,.55,.7));
+  float sh=facing>0. ? .8+.26*max(dot(n,Ld),0.) : .58;
+  col*=mix(1.,sh,outside);
+  float rim=pow(max(0.,1.-abs(facing)),2.5)*step(0.,facing)*outside;
+  col+=uEra*rim*.28*uAniso;
+  if(uGrid>0.){ vec2 d=vLL*(57.29578/30.); vec2 f=abs(fract(d+.5)-.5)/max(fwidth(d),1e-4); float g=1.-min(min(f.x,f.y),1.); col=mix(col,vec3(1.),g*.3*uGrid); }
+  if(uRingOn>0.){ float a=acos(clamp(dot(n,uRingC),-1.,1.)); float w=fwidth(a); float l=1.-smoothstep(0.,1.6*w,abs(a-uRingR)); col=mix(col,vec3(1.,.97,.9),l*.85*uRingOn); }
+  vec2 q=gl_FragCoord.xy/uRes; float vg=length((q-.5)*vec2(uRes.x/uRes.y,1.));
+  col*=clamp(1.-uVig*(.55*smoothstep(.45,1.1,vg)+.6*smoothstep(.78,1.,q.y)+.35*smoothstep(.14,0.,q.y)),0.,1.);
+  o=vec4(col,1.); }`),
+  dot: GLK.program(gl2, `#version 300 es
+uniform mat4 uVP; uniform float uSize; void main(){ gl_Position=uVP*vec4(0.,0.,0.,1.); gl_PointSize=uSize; }`, `#version 300 es
+precision mediump float; out vec4 o; uniform float uA;
+void main(){ vec2 p=gl_PointCoord*2.-1.; float r=length(p); if(r>1.) discard; float a=exp(-r*r*16.)+.35*exp(-r*r*3.); o=vec4(vec3(1.,.93,.8)*a*uA,1.); }`),
+  rays: GLK.program(gl2, `#version 300 es
+layout(location=0) in vec4 aP; uniform mat4 uVP; out float vS; out float vK;
+void main(){ vS=aP.w>0.5?1.:0.; vK=aP.w; gl_Position=uVP*vec4(aP.xyz,1.); }`, `#version 300 es
+precision mediump float; in float vS; in float vK; out vec4 o; uniform float uT, uA; uniform vec3 uEra;
+void main(){ float pulse=pow(fract(vS*1.5-uT*.35+vK*.13),6.); o=vec4((uEra*.5+vec3(.5,.45,.4)*pulse)*uA*(.25+.75*vS),1.); }`),
+  loupe: GLK.program(gl2, GLK.FS_VERT, `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o;
+${SKY_GLSL}
+uniform vec3 uLC, uLE1, uLE2; uniform float uTanH, uAniso, uSat; uniform vec2 uTexSize; uniform vec3 uGlowC; uniform float uGlowB;
+float bsample(sampler2D t, vec2 uv){ vec2 st=uv*uTexSize-.5; vec2 i=floor(st), f=fract(st);
+  vec2 w0=(1.-f)*(1.-f)*(1.-f)/6., w1=(4.-6.*f*f+3.*f*f*f)/6., w2=(1.+3.*f+3.*f*f-3.*f*f*f)/6., w3=f*f*f/6.;
+  vec2 s0=w0+w1, s1=w2+w3; vec2 f0=w1/s0, f1=w3/s1; vec2 t0=(i-.5+f0)/uTexSize, t1=(i+1.5+f1)/uTexSize;
+  return (texture(t,vec2(t0.x,t0.y)).r*s0.x+texture(t,vec2(t1.x,t0.y)).r*s1.x)*s0.y+(texture(t,vec2(t0.x,t1.y)).r*s0.x+texture(t,vec2(t1.x,t1.y)).r*s1.x)*s1.y; }
+void main(){ vec2 p=vUv*2.-1.; float r=length(p); if(r>1.) discard;
+  vec3 n=normalize(uLC+(p.x*uLE1+p.y*uLE2)*uTanH);
+  float lon=atan(n.x,n.z), lat=asin(clamp(n.y,-1.,1.));
+  vec2 uv=vec2(lon/6.2831853, .5-lat/3.14159265);
+  float T=mix(bsample(uMapA,uv), bsample(uMapB,uv), uMix) + uDip*3362.1*dot(n,uDipDir) + uFg*foreground(n);
+  vec3 col=cmap(T); float lum=dot(col,vec3(.3,.59,.11)); col=mix(vec3(lum),col,uSat);
+  col=mix(uGlowC*uGlowB,col,uAniso);
+  col*=1.-.35*smoothstep(.75,1.,r);
+  o=vec4(col,1.); }`),
+};
+const quad2 = GLK.quad(gl2);
+const DIPDIR = (function () { const l = 264.02 * Math.PI / 180, b = 48.25 * Math.PI / 180; return [Math.cos(b) * Math.sin(l), Math.sin(b), Math.cos(b) * Math.cos(l)]; })();
+const dotVao = gl2.createVertexArray();
+
+/* ---------------- camera ---------------- */
+const CAM = { yaw: 2.35, pitch: 0.28, d: 3.1, fovIn: 1.25, morph: 0, mS: 1, mPan: [0, 0], auto: 1, lastUser: -1e9, tweens: [], view: 'outside', dragging: false };
+const V3 = {
+  sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  norm: (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; }, scale: (a, s) => [a[0] * s, a[1] * s, a[2] * s],
+};
+const camF = () => [Math.cos(CAM.pitch) * Math.sin(CAM.yaw), Math.sin(CAM.pitch), Math.cos(CAM.pitch) * Math.cos(CAM.yaw)];
+const OUT_D = 3.1;
+/* scene box: SCN.room is headroom (px) cleared under a caption, SCN.shift the Mollweide oval's sideways offset (px) */
+const SCN = { room: 0, shift: 0, sshift: 0 };
+/* the sphere's radius (px) and sideways shift that keep it clear of the loupe on narrower screens */
+function sphereFit() {
+  const NR = LAY.notes;
+  const key = layKey + '|' + (A2.loupe ? 1 : 0) + '|' + Math.round(SCN.room) + '|' + (NR ? NR.join(',') : '');
+  if (sphereFit.key === key) return sphereFit.v;
+  const fw = LAY.x1 - LAY.x0, fh = LAY.y1 - LAY.y0 - SCN.room, cy = LAY.y0 + SCN.room + fh / 2, R0 = 0.42 * Math.min(fw, fh);
+  let best = { R: R0, sh: 0 };
+  const L = LAY.loupe;
+  if (A2.loupe && L && !LAY.small) {
+    const lr = L.w / 2 + 22, lx = L.x + L.w / 2, ly = L.y + L.w / 2;
+    best = { R: 0, sh: 0 };
+    for (let sh = 0; sh >= -0.25 * fw; sh -= 8) {
+      const cx = LAY.cx + sh;
+      let R = Math.min(R0, fw / 2 - Math.abs(sh) - 12, Math.hypot(cx - lx, cy - ly) - lr);
+      if (NR) { const qx = U.clamp(cx, NR[0], NR[2]), qy = U.clamp(cy, NR[1], NR[3]); R = Math.min(R, Math.hypot(cx - qx, cy - qy) / 0.9); }   // the notes card may clip at most 10%
+      if (R > best.R + 2) best = { R, sh };
+    }
+    if (best.R < 0.75 * R0) best.R = 0.75 * R0;
+  }
+  sphereFit.key = key; sphereFit.v = best; return best;
+}
+/* the largest Mollweide oval (semi-minor axis B, px) and sideways shift that stay clear of the loupe */
+function mollFit() {
+  const key = layKey + '|' + (A2.loupe ? 1 : 0) + '|' + Math.round(SCN.room);
+  if (mollFit.key === key) return mollFit.v;
+  const fw = LAY.x1 - LAY.x0, fh = LAY.y1 - LAY.y0 - SCN.room, cy = LAY.y0 + SCN.room + fh / 2;
+  const cap = (sh) => Math.max(10, Math.min(0.43 * fh, (0.47 * fw - Math.abs(sh)) / 2));
+  let best = { B: cap(0), shift: 0 };
+  const L = LAY.loupe;
+  if (A2.loupe && L && !LAY.small) {
+    const lr = L.w / 2 + 30, lx = L.x + L.w / 2, ly = L.y + L.w / 2;
+    const clear = (B, sh) => {
+      const A = 2 * B, cx = LAY.cx + sh, u = (lx - cx) / A, v = (ly - cy) / B;
+      if (u * u + v * v <= 1) return false;
+      for (let k = 0; k < 96; k++) { const a = k / 96 * TAU, dx = cx + A * Math.cos(a) - lx, dy = cy + B * Math.sin(a) - ly; if (dx * dx + dy * dy < lr * lr) return false; }
+      return true;
+    };
+    best = { B: 0, shift: 0 };
+    for (let sh = 0; sh >= -L.w; sh -= 12) {
+      let lo = 0, hi = cap(sh);
+      if (clear(hi, sh)) lo = hi; else for (let it = 0; it < 16; it++) { const m = (lo + hi) / 2; if (clear(m, sh)) lo = m; else hi = m; }
+      if (lo > best.B + 0.5) best = { B: lo, shift: sh };
+    }
+    if (best.B < 40) best = { B: cap(0), shift: 0 };
+  }
+  mollFit.key = key; mollFit.v = best; return best;
+}
+function camMatrices() {
+  const W = LAY.W, H = LAY.H, f = camF(), eye = V3.scale(f, -CAM.d);
+  const target = [eye[0] + f[0], eye[1] + f[1], eye[2] + f[2]];
+  const view = Cosmos.mat4.lookAt(eye, target, [0, 1, 0]);
+  const fh = LAY.y1 - LAY.y0 - SCN.room, cy = LAY.y0 + SCN.room + fh / 2;
+  const Rpx = sphereFit().R, cx = LAY.cx + SCN.sshift * (1 - CAM.morph);
+  const fovOut = 2 * Math.atan((1 / Math.sqrt(OUT_D * OUT_D - 1)) * (H / 2) / Math.max(60, Rpx));
+  const fov = U.lerp(CAM.fovIn, fovOut, U.smoothstep(0.25, 1.5, CAM.d));
+  const proj = Cosmos.mat4.perspective(fov, W / H, 0.005, 60);
+  const sx = (cx - W / 2) / (W / 2), sy = -(cy - H / 2) / (H / 2);
+  proj[8] -= sx; proj[9] -= sy;
+  const vp = Cosmos.mat4.multiply(proj, view);
+  const right = V3.norm(V3.cross(f, [0, 1, 0])), up = V3.cross(right, f);
+  // Mollweide plane scale so the oval fits the free area and misses the loupe
+  const th = Math.tan(fov / 2), kpx = 2 * th / H, mf = mollFit();
+  const sFit = mf.B * kpx / Math.SQRT2;
+  return { eye, f, right, up, view, proj, vp, fov, sFit, Rpx, cx, cy, kpx, mShift: (SCN.shift - SCN.sshift * (1 - CAM.morph)) * kpx, mollShift: mf.shift };
+}
+let CM = camMatrices();
+
+function tween(to, dur, ease) { CAM.tweens.push({ to, dur, t: 0, from: null, ease: ease || 'inout' }); }
+function stepTweens(dt) {
+  const tw = CAM.tweens[0]; if (!tw) return;
+  if (!tw.from) { tw.from = {}; for (const k in tw.to) { tw.from[k] = CAM[k]; if (k === 'yaw') { let d = tw.to.yaw - CAM.yaw; d = ((d + Math.PI) % TAU + TAU) % TAU - Math.PI; tw.to.yaw = CAM.yaw + d; } } }
+  tw.t = Math.min(1, tw.t + dt / tw.dur);
+  const e = tw.ease === 'out' ? 1 - Math.pow(1 - tw.t, 3) : tw.t < 0.5 ? 4 * tw.t * tw.t * tw.t : 1 - Math.pow(-2 * tw.t + 2, 3) / 2;
+  for (const k in tw.to) CAM[k] = tw.from[k] + (tw.to[k] - tw.from[k]) * e;
+  if (tw.t >= 1) { CAM.tweens.shift(); if (tw.done) tw.done(); }
+}
+function setView(v, instant) {
+  if (v === CAM.view && !CAM.tweens.length) return;
+  CAM.tweens.length = 0; const from = CAM.view; CAM.view = v;
+  viewBtns[0].setPressed(v === 'outside'); viewBtns[1].setPressed(v === 'inside'); viewBtns[2].setPressed(v === 'moll');
+  const T = instant ? 0.001 : 1;
+  if (v === 'outside') {
+    if (CAM.morph > 0) tween({ morph: 0, mS: 1 }, 1.3 * T);
+    tween({ d: OUT_D }, 1.7 * T);
+  } else if (v === 'inside') {
+    if (CAM.morph > 0) tween({ morph: 0, mS: 1 }, 1.3 * T);
+    if (CAM.d > 0.01) tween({ d: 0, fovIn: 1.25 }, 1.7 * T);
+    if (from === 'outside' && !instant) ch.toast('Inside the last-scattering surface: this is our sky');
+  } else if (v === 'moll') {
+    if (CAM.d > 0.01) tween({ d: 0, fovIn: 1.25 }, 1.5 * T);
+    tween({ yaw: 0, pitch: 0, fovIn: 1.25 }, 0.9 * T);
+    tween({ morph: 1 }, 1.6 * T);
+    CAM.mPan = [0, 0]; CAM.mS = 1;
+  }
+  CAM.lastUser = performance.now();
+}
+
+/* ---------------- input ---------------- */
+const ptrs = new Map(); let pinch0 = 0, lastX = 0, lastY = 0, velYaw = 0, velPitch = 0;
+function userTouched() { CAM.lastUser = performance.now(); }
+cv2.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]); try { cv2.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+  lastX = e.clientX; lastY = e.clientY; CAM.dragging = true; userTouched();
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); }
+});
+cv2.addEventListener('pointermove', (e) => {
+  if (!ptrs.has(e.pointerId)) { hover.x = e.clientX; hover.y = e.clientY; hover.on = true; return; }
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch0 > 0) zoomBy(pinch0 / d, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2); pinch0 = d; return; }
+  const dx = e.clientX - lastX, dy = e.clientY - lastY; lastX = e.clientX; lastY = e.clientY;
+  hover.x = e.clientX; hover.y = e.clientY; hover.on = e.pointerType === 'mouse';
+  if (CAM.tweens.length) return;
+  userTouched();
+  if (CAM.morph > 0.5) { const k = 2 * Math.tan(CM.fov / 2) / LAY.H; CAM.mPan[0] += dx * k; CAM.mPan[1] -= dy * k; CAM.mPan[0] = U.clamp(CAM.mPan[0], -3, 3); CAM.mPan[1] = U.clamp(CAM.mPan[1], -2, 2); return; }
+  const k = CAM.d > 1 ? 0.0055 : 1.1 * Math.tan(CM.fov / 2) / (LAY.H / 2);
+  const sgn = CAM.d > 1 ? 1 : -1;
+  velYaw = dx * k * sgn; velPitch = dy * k * sgn * (CAM.d > 1 ? 1 : -1) * -1;
+  CAM.yaw += velYaw; CAM.pitch = U.clamp(CAM.pitch + velPitch, -1.45, 1.45);
+});
+const ptrUp = (e) => { ptrs.delete(e.pointerId); if (!ptrs.size) CAM.dragging = false; pinch0 = 0; };
+cv2.addEventListener('pointerup', ptrUp); cv2.addEventListener('pointercancel', ptrUp);
+cv2.addEventListener('pointerleave', () => { hover.on = false; });
+cv2.addEventListener('wheel', (e) => { e.preventDefault(); zoomBy(Math.exp(e.deltaY * 0.0012), e.clientX, e.clientY); }, { passive: false });
+function zoomBy(f, x, y) {
+  userTouched(); if (CAM.tweens.length) return;
+  if (CAM.morph > 0.5) {
+    const s0 = CAM.mS, s1 = U.clamp(s0 / f, 0.6, 14);
+    // keep the point under the cursor fixed
+    const th = Math.tan(CM.fov / 2), k = 2 * th / LAY.H;
+    const qx = (x - CM.cx) * k, qy = -(y - CM.cy) * k;
+    const mx = (qx - CAM.mPan[0] - CM.mShift) / (s0 * CM.sFit), my = (qy - CAM.mPan[1]) / (s0 * CM.sFit);
+    CAM.mS = s1; CAM.mPan[0] = qx - CM.mShift - mx * s1 * CM.sFit; CAM.mPan[1] = qy - my * s1 * CM.sFit;
+  } else if (CAM.d > 1) CAM.d = U.clamp(CAM.d * f, 1.32, 7);
+  else CAM.fovIn = U.clamp(CAM.fovIn * f, 0.12, 1.75);
+}
+
+/* ---------------- hover pick ---------------- */
+const hover = { x: 0, y: 0, on: false, n: null, T: 0 };
+function pickDir(x, y) {
+  const inv = Cosmos.mat4.invert(CM.vp); if (!inv) return null;
+  const nx = (x / LAY.W) * 2 - 1, ny = 1 - (y / LAY.H) * 2;
+  const un = (z) => { const v = [nx, ny, z, 1], o = [0, 0, 0, 0]; for (let r = 0; r < 4; r++) o[r] = inv[r] * v[0] + inv[4 + r] * v[1] + inv[8 + r] * v[2] + inv[12 + r] * v[3]; return [o[0] / o[3], o[1] / o[3], o[2] / o[3]]; };
+  const p0 = un(-1), p1 = un(1), dir = V3.norm(V3.sub(p1, p0)), eye = CM.eye;
+  if (CAM.morph < 0.01) {
+    const b = V3.dot(eye, dir), c = V3.dot(eye, eye) - 1, disc = b * b - c; if (disc < 0) return null;
+    const s = Math.sqrt(disc); let t = -b - s; if (t < 0) t = -b + s; if (t < 0) return null;
+    return V3.norm([eye[0] + dir[0] * t, eye[1] + dir[1] * t, eye[2] + dir[2] * t]);
+  }
+  if (CAM.morph > 0.99) {
+    const f = CM.f, denom = V3.dot(dir, f); if (denom <= 1e-6) return null;
+    const t = (1 - V3.dot(eye, f)) / denom, q = [eye[0] + dir[0] * t, eye[1] + dir[1] * t, eye[2] + dir[2] * t];
+    const s = CAM.mS * CM.sFit, mx = (V3.dot(q, CM.right) - CAM.mPan[0] - CM.mShift) / s, my = (V3.dot(q, CM.up) - CAM.mPan[1]) / s;
+    if (Math.abs(my) > Math.SQRT2) return null;
+    const th = Math.asin(my / Math.SQRT2), lat = Math.asin(U.clamp((2 * th + Math.sin(2 * th)) / Math.PI, -1, 1));
+    const lon = -mx / (0.90031632 * Math.cos(th)); if (!isFinite(lon) || Math.abs(lon) > Math.PI) return null;
+    return [Math.cos(lat) * Math.sin(lon), Math.sin(lat), Math.cos(lat) * Math.cos(lon)];
+  }
+  return null;
+}
+function skyAt(n) {
+  if (!MAP.data) return 0;
+  const lon = Math.atan2(n[0], n[2]), lat = Math.asin(U.clamp(n[1], -1, 1));
+  const i = (((Math.floor(lon / TAU * MAP.W) % MAP.W) + MAP.W) % MAP.W), j = U.clamp(Math.floor((0.5 - lat / Math.PI) * MAP.H), 0, MAP.H - 1);
+  return MAP.data[j * MAP.W + i] + (A2.dipole ? 3362.1 * V3.dot(n, DIPDIR) : 0);
+}
+
+/* ---------------- render ---------------- */
+const TR2 = { aniso: 1, glowB: 0, glowT: 2970, sat: 1, range: 300, halo: 1, loupeA: 0 };
+function renderAct2(tNow, dt) {
+  GLK.fit(cv2, DPR2);
+  const gl = gl2, W = LAY.W, H = LAY.H;
+  CM = camMatrices();
+  GLK.screen(gl);
+  gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND);
+  // background halo
+  const cpx = [CM.cx * cv2.width / W, (H - CM.cy) * cv2.height / H];
+  const Rs = CAM.d > 1.05 ? (1 / Math.sqrt(CAM.d * CAM.d - 1)) / Math.tan(CM.fov / 2) * (cv2.height / 2) : 1e5;
+  gl.useProgram(P2.bg);
+  const glow = U.blackbody(Math.max(1000, TR2.glowT));
+  GLK.uniforms(gl, P2.bg, { uRes: [cv2.width, cv2.height], uC: cpx, uR: Rs, uHalo: TR2.halo * (1 - CAM.morph), uT: tNow, uEra: ERA, uGlowC: glow, uGlowB: TR2.glowB * (1 - TR2.aniso) });
+  quad2();
+  gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.clear(gl.DEPTH_BUFFER_BIT);
+  const reliefBase = A2.relief ? 1 : 0, breathe = Sound.hearing ? (0.5 + 0.5 * Math.sin(tNow * TAU * 0.55)) * 0.55 : 0;
+  const cutDir = V3.norm(CM.eye);
+  const ringC = LOUPE.c || cutDir;
+  const skyU = { uMapA: { tex: mapTex[MAP.prev != null ? MAP.prev : MAP.cur], unit: 0 }, uMapB: { tex: mapTex[MAP.cur], unit: 1 }, uCmap: { tex: cmapTex, unit: 2 }, uMix: MAP.mix, uRange: TR2.range, uDip: A2.dipole ? 1 : 0, uFg: A2.fg ? 1 : 0, uDipDir: DIPDIR };
+  gl.useProgram(P2.sphere);
+  GLK.uniforms(gl, P2.sphere, Object.assign({}, skyU, {
+    uVP: CM.vp, uMorph: CAM.morph, uMS: CAM.mS * CM.sFit, uMD: 1, uCF: CM.f, uCR: CM.right, uCU: CM.up, uMP: [CAM.mPan[0] + CM.mShift, CAM.mPan[1]],
+    uRelief: Math.max(reliefBase, breathe) * (1 - CAM.morph), uT: tNow, uEye: CM.eye, uEra: ERA, uGlowC: glow, uGlowB: TR2.glowB, uAniso: TR2.aniso, uSat: TR2.sat,
+    uInside: CAM.d < 1 ? 1 : 0, uRes: [cv2.width, cv2.height], uVig: (1 - U.smoothstep(0.6, 1.2, CAM.d)) * (1 - CAM.morph) * 0.9, uGrid: A2.grid ? 1 : 0, uCut: (A2.cut && CAM.d > 1.05) ? 1 : 0, uCutDir: cutDir,
+    uRingC: ringC, uRingR: LOUPE_R * Math.PI / 180, uRingOn: (A2.loupe && TR2.loupeA > 0.5 && CAM.morph < 0.01) ? 0.7 : 0,
+  }));
+  gl.bindVertexArray(MESH.vao); gl.drawElements(gl.TRIANGLES, MESH.count, gl.UNSIGNED_INT, 0); gl.bindVertexArray(null);
+  // observer + light rays inside the cutaway
+  if (A2.cut && CAM.d > 1.05 && CAM.morph < 0.01) {
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.depthMask(false);
+    gl.useProgram(P2.rays); GLK.uniforms(gl, P2.rays, { uVP: CM.vp, uT: tNow, uA: 0.55, uEra: ERA });
+    gl.bindVertexArray(RAYS.vao); gl.drawArrays(gl.LINES, 0, RAYS.count); gl.bindVertexArray(null);
+    gl.disable(gl.DEPTH_TEST);
+    gl.useProgram(P2.dot); GLK.uniforms(gl, P2.dot, { uVP: CM.vp, uSize: 26 * cv2.width / W, uA: 1 });
+    gl.bindVertexArray(dotVao); gl.drawArrays(gl.POINTS, 0, 1); gl.bindVertexArray(null);
+    gl.depthMask(true); gl.disable(gl.BLEND);
+  }
+  gl.disable(gl.DEPTH_TEST);
+  // loupe
+  if (TR2.loupeA > 0.01 && LOUPE.c && loupeOn()) {
+    const lw = LAY.loupe.w * cv2.width / W, lx = LAY.loupe.x * cv2.width / W, ly = cv2.height - (LAY.loupe.y + LAY.loupe.w) * cv2.height / H;
+    gl.viewport(Math.round(lx), Math.round(ly), Math.round(lw), Math.round(lw));
+    gl.useProgram(P2.loupe);
+    GLK.uniforms(gl, P2.loupe, Object.assign({}, skyU, { uLC: LOUPE.c, uLE1: LOUPE.e1, uLE2: LOUPE.e2, uTanH: Math.tan(LOUPE_R * Math.PI / 180), uAniso: TR2.aniso, uSat: TR2.sat, uTexSize: [MAP.W, MAP.H], uGlowC: glow, uGlowB: TR2.glowB }));
+    quad2();
+    GLK.screen(gl);
+  }
+}
+
+/* loupe centre and tangent basis */
+const LOUPE_R = 4;   // loupe radius in degrees
+const loupeOn = () => A2.loupe && !(LAY.small && (LAY.deck || capEl.classList.contains('on')));
+const LOUPE = { c: null, e1: [1, 0, 0], e2: [0, 1, 0] };
+function updateLoupe() {
+  let c = null;
+  if (hover.on && !CAM.dragging) { c = pickDir(hover.x, hover.y); hover.n = c; } else hover.n = null;
+  if (!c) {
+    if (CAM.morph > 0.99) c = pickDir(CM.cx + CM.mShift / CM.kpx, CM.cy);
+    else if (CAM.morph < 0.01) c = CAM.d > 1 ? V3.norm(CM.eye) : CM.f;
+  }
+  if (!c) return;
+  if (LOUPE.c) { const k = 0.35; c = V3.norm([LOUPE.c[0] + (c[0] - LOUPE.c[0]) * k, LOUPE.c[1] + (c[1] - LOUPE.c[1]) * k, LOUPE.c[2] + (c[2] - LOUPE.c[2]) * k]); }
+  LOUPE.c = c;
+  let e1 = V3.sub(CM.right, V3.scale(c, V3.dot(CM.right, c))); if (Math.hypot(...e1) < 1e-4) e1 = V3.cross([0, 1, 0], c);
+  e1 = V3.norm(e1); let e2 = V3.norm(V3.cross(c, e1)); if (V3.dot(e2, CM.up) < 0) e2 = V3.scale(e2, -1);
+  LOUPE.e1 = e1; LOUPE.e2 = e2;
+}
+
+/* ============================================================ DECK CHARTS */
+const CSSV = getComputedStyle(document.documentElement);
+const COL = { era: ch.meta.accent, star: '#ece6d6', dust: '#979db2', faint: '#5e6479', line: 'rgba(236,230,214,0.10)', mono: CSSV.getPropertyValue('--f-mono').trim() || 'monospace' };
+function prepCanvas(c) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1), W = Math.round(c.clientWidth * dpr), H = Math.round(c.clientHeight * dpr);
+  if (!W || !H) return null;
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  const x = c.getContext('2d'); x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, W, H); x.scale(dpr, dpr);
+  return { x, w: W / dpr, h: H / dpr };
+}
+
+/* ---- x_e(z) with the visibility function ---- */
+function drawXe() {
+  const C = prepCanvas(xeCanvas); if (!C) return;
+  const { x, w, h } = C, pl = 34, pr = 8, pt = 8, pb = 18;
+  const Z0 = 1600, Z1 = 700, X = (z) => pl + (Z0 - z) / (Z0 - Z1) * (w - pl - pr);
+  const Y = (v) => pt + (0.1 - Math.log10(Math.max(v, 1e-5))) / 4.1 * (h - pt - pb);
+  x.font = `10px ${COL.mono}`; x.textBaseline = 'middle'; x.textAlign = 'right'; x.lineWidth = 1;
+  [[1, '1'], [0.1, '0.1'], [0.01, '10⁻²'], [0.001, '10⁻³'], [0.0001, '10⁻⁴']].forEach(([v, s]) => { const y = Y(v); x.strokeStyle = COL.line; x.beginPath(); x.moveTo(pl, y); x.lineTo(w - pr, y); x.stroke(); x.fillStyle = COL.faint; x.fillText(s, pl - 5, y); });
+  x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+  [1500, 1300, 1100, 900, 700].forEach((z) => { x.fillStyle = COL.faint; x.fillText(String(z), U.clamp(X(z), pl + 10, w - pr - 12), h - 4); });
+  // visibility
+  x.beginPath(); x.moveTo(X(Z0), h - pb);
+  for (let z = Z0; z >= Z1; z -= 5) x.lineTo(X(z), h - pb - recAt(REC.vis, z) * (h - pt - pb) * 0.62);
+  x.lineTo(X(Z1), h - pb); x.closePath(); x.fillStyle = 'rgba(255,154,98,0.10)'; x.fill();
+  const zv = REC.zVisPeak; x.fillStyle = 'rgba(255,154,98,0.7)'; x.font = `9px ${COL.mono}`; x.textAlign = 'center';
+  x.fillText('visibility', X(zv), h - pb - 5);
+  // the labelled photon's own last scattering, once it is free
+  if (S1.fog < 0.35 && trN[0] > 0 && act === 1) {
+    const zl = trZ[0], vx = X(zl), vy = h - pb - recAt(REC.vis, zl) * (h - pt - pb) * 0.62;
+    x.strokeStyle = COL.star; x.lineWidth = 1; x.beginPath(); x.moveTo(vx, vy); x.lineTo(vx, h - pb); x.stroke();
+    x.fillStyle = COL.star; x.beginPath(); x.arc(vx, vy, 2.6, 0, TAU); x.fill();
+    x.textAlign = vx > w * 0.6 ? 'right' : 'left'; x.fillText('its last bounce', vx + (vx > w * 0.6 ? -5 : 5), vy - 5);
+  }
+  // curves
+  const curve = (fn, col, lw, dash) => { x.beginPath(); for (let z = Z0; z >= Z1; z -= 4) { const v = fn(z); z === Z0 ? x.moveTo(X(z), Y(v)) : x.lineTo(X(z), Y(v)); } x.strokeStyle = col; x.lineWidth = lw; x.setLineDash(dash || []); x.stroke(); x.setLineDash([]); };
+  curve((z) => xeAt(z, true), A1.saha ? COL.era : COL.dust, A1.saha ? 1.8 : 1, A1.saha ? null : [3, 3]);
+  curve((z) => xeAt(z, false), A1.saha ? COL.dust : COL.era, A1.saha ? 1 : 1.8, A1.saha ? [3, 3] : null);
+  x.textAlign = 'left'; x.font = `9.5px ${COL.mono}`;
+  x.fillStyle = A1.saha ? COL.era : COL.dust; x.fillText('Saha', X(1265) + 3, Y(xeAt(1265, true)) + 10);
+  x.fillStyle = A1.saha ? COL.dust : COL.era; x.fillText('Peebles', X(1060) + 5, Y(xeAt(1060, false)) - 6);
+  // now
+  const zn = A1.z, xn = xeAt(zn, A1.saha), xx = X(zn), yy = Y(xn);
+  x.strokeStyle = 'rgba(236,230,214,0.45)'; x.beginPath(); x.moveTo(xx, pt); x.lineTo(xx, h - pb); x.stroke();
+  x.fillStyle = COL.star; x.beginPath(); x.arc(xx, yy, 3.2, 0, TAU); x.fill();
+  x.fillStyle = COL.dust; x.textAlign = 'left'; x.fillText('xₑ', pl + 3, pt + 7);
+}
+
+/* ---- the angular power spectrum ---- */
+const SPEC_Y = { max: 6500 };
+function specX(l, pl, w) { const a = 0.2; return pl + (l < 30 ? a * Math.log(l / 2) / Math.log(15) : a + (1 - a) * (l - 30) / (LMAX_SPEC - 30)) * w; }
+function drawSpec() {
+  const C = prepCanvas(specCanvas); if (!C) return;
+  const { x, w, h } = C, pl = 40, pr = 8, pt = 10, pb = 18, pw = w - pl - pr, ph = h - pt - pb;
+  let mx = 0; for (let l = 2; l <= LMAX_SPEC; l += 4) mx = Math.max(mx, SPEC.D[l]);
+  const target = Math.max(6400, mx * 1.12); SPEC_Y.max += (target - SPEC_Y.max) * 0.25;
+  const X = (l) => specX(l, pl, pw), Y = (d) => pt + ph * (1 - d / SPEC_Y.max);
+  x.font = `10px ${COL.mono}`; x.lineWidth = 1;
+  // map band
+  if (MAP.L) { x.fillStyle = 'rgba(255,154,98,0.06)'; x.fillRect(X(2), pt, X(MAP.L) - X(2), ph); x.fillStyle = 'rgba(255,154,98,0.5)'; x.font = `9px ${COL.mono}`; x.textAlign = 'right'; x.textBaseline = 'bottom'; x.fillText('map ℓ ≤ ' + MAP.L, X(MAP.L) - 3, pt + ph - 3); }
+  // what the filtered map actually shows: W_ℓ² D_ℓ
+  if (A2.filter !== 'all' && MAP.L) {
+    x.beginPath(); x.moveTo(X(2), Y(0));
+    for (let l = 2; l <= MAP.L; l += (l < 40 ? 1 : 3)) { const wv = filterWin(l); x.lineTo(X(l), Y(SPEC.D[l] * wv * wv)); }
+    x.lineTo(X(MAP.L), Y(0)); x.closePath(); x.fillStyle = 'rgba(255,154,98,0.30)'; x.fill();
+  }
+  x.font = `10px ${COL.mono}`; x.textBaseline = 'middle'; x.textAlign = 'right';
+  const step = SPEC_Y.max > 12000 ? 4000 : 2000;
+  for (let d = 0; d <= SPEC_Y.max; d += step) { const y = Y(d); x.strokeStyle = COL.line; x.beginPath(); x.moveTo(pl, y); x.lineTo(w - pr, y); x.stroke(); x.fillStyle = COL.faint; x.fillText(d ? (d / 1000) + 'k' : '0', pl - 5, y); }
+  x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+  [2, 10, 30, 500, 1000, 1500, 2000].forEach((l) => { x.fillStyle = COL.faint; x.fillText(String(l), U.clamp(X(l), pl + 4, w - pr - 12), h - 4); });
+  x.strokeStyle = COL.line; x.beginPath(); x.moveTo(X(30), pt); x.lineTo(X(30), h - pb); x.stroke();
+  // fiducial
+  const path = (D) => { x.beginPath(); let first = true; for (let l = 2; l <= LMAX_SPEC; l += (l < 40 ? 1 : 6)) { const px_ = X(l), py_ = Y(D[l]); if (first) { x.moveTo(px_, py_); first = false; } else x.lineTo(px_, py_); } };
+  if (SPEC !== SPEC_FID) { path(SPEC_FID.D); x.strokeStyle = 'rgba(236,230,214,0.32)'; x.setLineDash([3, 3]); x.lineWidth = 1; x.stroke(); x.setLineDash([]); }
+  // data
+  x.strokeStyle = 'rgba(236,230,214,0.7)'; x.fillStyle = COL.star; x.lineWidth = 1;
+  PLANCK.forEach(([l, d, e]) => { const px_ = X(l); x.beginPath(); x.moveTo(px_, Y(d - e)); x.lineTo(px_, Y(d + e)); x.stroke(); x.beginPath(); x.arc(px_, Y(d), 1.7, 0, TAU); x.fill(); });
+  // model (with a soft glow)
+  path(SPEC.D); x.strokeStyle = 'rgba(255,154,98,0.25)'; x.lineWidth = 4; x.stroke(); x.strokeStyle = COL.era; x.lineWidth = 1.6; x.stroke();
+  // peaks
+  const pk = SPEC.peaks.slice(0, 6); x.font = `9px ${COL.mono}`; x.textAlign = 'center';
+  pk.forEach((p, i) => {
+    const lv = Sound.levels ? Sound.levels[i] || 0 : 0;
+    if (lv > 0.01) { x.fillStyle = `rgba(255,154,98,${0.12 + 0.5 * lv})`; x.fillRect(X(p.l) - 1.5, Y(p.D), 3, ph + pt - Y(p.D)); }
+    x.fillStyle = lv > 0.01 ? COL.star : COL.dust; x.fillText(String(i + 1), X(p.l), Y(p.D) - 7);
+  });
+  x.textBaseline = 'alphabetic'; x.font = `9.5px ${COL.mono}`;
+  x.textAlign = 'right'; x.fillStyle = COL.faint; x.fillText('ℓ', w - pr, h - 4);
+  x.fillStyle = 'rgba(236,230,214,0.75)'; x.fillText('● Planck 2018 (approx.)', w - pr - 2, pt + 9);
+  x.fillStyle = COL.era; x.fillText('— this model', w - pr - 2, pt + 21);
+  if (SPEC !== SPEC_FID) { x.fillStyle = 'rgba(236,230,214,0.45)'; x.fillText('- - best fit', w - pr - 2, pt + 33); }
+  x.save(); x.translate(10, pt + ph / 2); x.rotate(-Math.PI / 2); x.textAlign = 'center'; x.fillStyle = COL.dust; x.fillText('Dℓ  µK²', 0, 0); x.restore();
+  // hover: multipole → angle
+  if (SPEC_HOVER.l) {
+    const hl = SPEC_HOVER.l, hx = X(hl);
+    x.strokeStyle = 'rgba(236,230,214,0.5)'; x.lineWidth = 1; x.beginPath(); x.moveTo(hx, pt); x.lineTo(hx, pt + ph); x.stroke();
+    x.fillStyle = COL.star; x.font = `9.5px ${COL.mono}`; x.textAlign = hx < w * 0.55 ? 'left' : 'right';
+    x.fillText('ℓ ' + Math.round(hl) + ' · ' + (180 / hl < 10 ? (180 / hl).toFixed(2) : (180 / hl).toFixed(0)) + '° · tap', hx + (hx < w * 0.55 ? 5 : -5), pt + ph - 4);
+  }
+}
+const SPEC_HOVER = { l: 0 };
+function specL(px, pl, pw) { const f = (px - pl) / pw, a = 0.2; if (f <= 0) return 2; if (f < a) return 2 * Math.pow(15, f / a); return Math.min(LMAX_SPEC, 30 + (f - a) / (1 - a) * (LMAX_SPEC - 30)); }
+specCanvas.addEventListener('pointermove', (e) => { const r = specCanvas.getBoundingClientRect(); SPEC_HOVER.l = specL(e.clientX - r.left, 40, r.width - 48); drawSpec(); });
+specCanvas.addEventListener('pointerleave', () => { SPEC_HOVER.l = 0; drawSpec(); });
+specCanvas.addEventListener('click', (e) => {
+  const r = specCanvas.getBoundingClientRect(); let l = specL(e.clientX - r.left, 40, r.width - 48);
+  for (const p of SPEC.peaks) if (Math.abs(p.l - l) < 0.1 * p.l) { l = p.l; break; }
+  if (l < 26) { filterSel.set('sw', true); return; }
+  const Lm = MAP.L || A2.lmax;
+  if (l > 0.8 * Lm) { ch.toast('The sky map stops at ℓ = ' + Lm + ', so this is the finest band it holds'); l = 0.8 * Lm; }
+  A2.bandL = Math.round(l); A2.filter = 'band'; filterSel.set('band');
+  const opt = filterSel.input.querySelector('option[value="band"]'); if (opt) opt.textContent = 'Only ℓ ≈ ' + A2.bandL + ' · spots ≈ ' + (180 / A2.bandL).toFixed(2) + '°';
+  requestMap(); drawSpec();
+  if (!(l > 0.8 * Lm - 1)) ch.toast('Only ℓ ≈ ' + A2.bandL + ': spots about ' + (180 / A2.bandL).toFixed(2) + '° across');
+});
+
+/* ---- harmonic ladder shown while the chord plays ---- */
+function drawLadder(t) {
+  const c = $('fl-ladder'); c.classList.toggle('on', Sound.hearing); if (!Sound.hearing) return;
+  const C = prepCanvas(c); if (!C) return; const { x, w, h } = C;
+  const n = NPART, bw = w / n; x.font = `9px ${COL.mono}`; x.textAlign = 'center';
+  for (let i = 0; i < n; i++) {
+    const lv = Math.min(1, Sound.levels[i] || 0), bh = (h - 32) * lv, cx = bw * (i + 0.5);
+    const gr = x.createLinearGradient(0, h - 14 - bh, 0, h - 14); gr.addColorStop(0, 'rgba(255,214,160,0.95)'); gr.addColorStop(1, 'rgba(255,120,60,0.35)');
+    x.fillStyle = gr; x.fillRect(cx - bw * 0.22, h - 14 - bh, bw * 0.44, bh);
+    x.fillStyle = lv > 0.02 ? COL.star : COL.faint; x.fillText(i === 0 ? 'f' : (i + 1) + 'f', cx, h - 3);
+    if (lv > 0.02) { x.fillStyle = COL.dust; x.fillText(Math.round(Sound.f1 * (i + 1)), cx, h - 18 - bh); }
+  }
+}
+/* ---- geometry: why curvature changes the spot size ---- */
+function drawGeo() {
+  const C = prepCanvas(geoCanvas); if (!C) return;
+  const { x, w, h } = C;
+  const ok = A2.params.ok, th = SPEC.bg.theta, thF = SPEC_FID.bg.theta;
+  const ox = 22, oy = h / 2, rx = w - 46, half = h * 0.36;
+  // rays: quadratic curves from the observer to the ends of the ruler; bulge ∝ −Ωk
+  const bend = -ok * 2.2 * half;
+  x.lineWidth = 1.2;
+  [1, -1].forEach((s) => {
+    x.strokeStyle = 'rgba(255,154,98,0.9)'; x.beginPath(); x.moveTo(ox, oy);
+    x.quadraticCurveTo((ox + rx) / 2, oy - s * (half * 0.5 + bend), rx, oy - s * half); x.stroke();
+    x.strokeStyle = 'rgba(236,230,214,0.18)'; x.setLineDash([2, 3]); x.beginPath(); x.moveTo(ox, oy); x.lineTo(rx, oy - s * half); x.stroke(); x.setLineDash([]);
+  });
+  // ruler (the sound horizon on the last-scattering surface)
+  x.strokeStyle = COL.star; x.lineWidth = 2; x.beginPath(); x.moveTo(rx, oy - half); x.lineTo(rx, oy + half); x.stroke();
+  x.fillStyle = COL.star; x.beginPath(); x.arc(ox, oy, 3, 0, TAU); x.fill();
+  x.font = `9.5px ${COL.mono}`; x.fillStyle = COL.dust; x.textAlign = 'left'; x.textBaseline = 'middle';
+  x.fillText('r', rx + 7, oy - 5); x.font = `8px ${COL.mono}`; x.fillText('s', rx + 13, oy - 1); x.font = `9.5px ${COL.mono}`;
+  x.fillText(SPEC.bg.rs.toFixed(0) + ' Mpc', rx + 7, oy + 10);
+  x.fillText('us', ox - 14, oy + 14);
+  const kind = Math.abs(ok) < 0.003 ? 'flat' : ok < 0 ? 'closed · rays converge' : 'open · rays diverge';
+  x.fillStyle = COL.era; x.textAlign = 'center'; x.fillText('θ* = ' + (th * 180 / Math.PI).toFixed(3) + '°  ' + kind, (ox + rx) / 2, 9);
+  x.fillStyle = COL.faint; x.fillText('spots ' + (th / thF).toFixed(2) + '× the flat size', (ox + rx) / 2, h - 7);
+}
+
+/* ============================================================ SOUND */
+const NPART = 8, OCTAVES = 53;
+const Sound = {
+  ready: false, hearing: false, hearT0: 0, levels: new Float32Array(NPART), amps: new Float32Array(NPART), f1: 150, lastPing: 0, pingCount: 0,
+  /** fundamental of the acoustic series at decoupling (Hz, physical) */
+  physical(bg) { const cs = PH.c / Math.sqrt(3 * (1 + bg.Rs)); return cs * (1 + bg.zs) / (2 * bg.rs * PH.Mpc); },
+  retune() {
+    const nu = this.physical(SPEC.bg); this.f1 = nu * Math.pow(2, OCTAVES);
+    const pk = SPEC.peaks, d1 = pk[0] ? pk[0].D : 1;
+    for (let n = 0; n < NPART; n++) this.amps[n] = pk[n] ? Math.sqrt(Math.max(0, pk[n].D) / d1) : 0.12 / (n + 1);
+    ro4.per.set(F.num(1 / nu / PH.yr / 1e6, 1) + ' Myr');
+    ro4.pitch.set(F.num(this.f1, 0) + ' Hz · ' + noteName(this.f1));
+    if (!this.ready) return;
+    const t = this.ctx.currentTime;
+    for (let n = 0; n < NPART; n++) {
+      const f = this.f1 * (n + 1);
+      if (!this.hearing || t > this.hearT0 + 6) { this.oa[n].frequency.setTargetAtTime(f, t, 0.08); this.ob[n].frequency.setTargetAtTime(f * 1.0032, t, 0.08); this.bp[n].frequency.setTargetAtTime(f, t, 0.08); }
+      if (this.hearing && t > this.hearT0 + 1 + 0.9 * n) this.g[n].gain.setTargetAtTime(this.partialGain(n), t, 0.1);
+    }
+  },
+  partialGain(n) { return 0.16 * this.amps[n] / Math.pow(n + 1, 0.35); },
+  ensure() {
+    if (this.ready) return true;
+    const ctx = ch.sound.ensure(); if (!ctx) return false;
+    this.ctx = ctx;
+    this.bus = ctx.createGain(); this.bus.gain.value = 0.9; this.bus.connect(ch.sound.out);
+    // reverb from generated noise
+    const len = Math.round(ctx.sampleRate * 3.2), ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
+    this.rev = ctx.createConvolver(); this.rev.buffer = ir; this.revG = ctx.createGain(); this.revG.gain.value = 0.42; this.rev.connect(this.revG).connect(this.bus);
+    this.chord = ctx.createGain(); this.chord.gain.value = 0;
+    this.tone = ctx.createBiquadFilter(); this.tone.type = 'lowpass'; this.tone.frequency.value = 3200; this.tone.Q.value = 0.4;
+    this.chord.connect(this.tone); this.tone.connect(this.bus); this.tone.connect(this.rev);
+    const nb = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    this.noise = ctx.createBufferSource(); this.noise.buffer = nb; this.noise.loop = true;
+    this.oa = []; this.ob = []; this.g = []; this.bp = []; this.gn = [];
+    for (let n = 0; n < NPART; n++) {
+      const f = this.f1 * (n + 1);
+      const a = ctx.createOscillator(); a.type = 'sine'; a.frequency.value = f;
+      const b = ctx.createOscillator(); b.type = 'triangle'; b.frequency.value = f * 1.0032;
+      const bg = ctx.createGain(); bg.gain.value = 0.35;
+      const g = ctx.createGain(); g.gain.value = 0;
+      a.connect(g); b.connect(bg).connect(g); g.connect(this.chord);
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = 22;
+      const gn = ctx.createGain(); gn.gain.value = 0;
+      this.noise.connect(bp).connect(gn).connect(this.chord);
+      a.start(); b.start();
+      this.oa.push(a); this.ob.push(b); this.g.push(g); this.bp.push(bp); this.gn.push(gn);
+    }
+    this.noise.start();
+    this.ready = true; this.retune();
+    return true;
+  },
+  /* Act I: the plasma rings quietly until recombination silences it; captures chime */
+  plasma(level) {
+    if (!this.ready || this.hearing) return;
+    const t = this.ctx.currentTime;
+    this.chord.gain.setTargetAtTime(level, t, 0.25);
+    for (let n = 0; n < NPART; n++) { this.g[n].gain.setTargetAtTime(this.partialGain(n) * 0.8, t, 0.3); this.gn[n].gain.setTargetAtTime(0.5 * this.amps[n], t, 0.3); }
+  },
+  ping(pan) {
+    if (!ch.sound.enabled || !this.ready || act !== 1 || this.hearing) return;
+    const now = this.ctx.currentTime; if (now - this.lastPing < 0.07) return; this.lastPing = now;
+    const ratios = [4, 5, 6, 8, 10, 12], f = this.f1 * ratios[(this.pingCount++ * 7 + ((pan * 10) | 0)) % ratios.length];
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain(), p = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
+    o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.045, now + 0.01); g.gain.exponentialRampToValueAtTime(0.0005, now + 1.1);
+    o.connect(g); if (p) { p.pan.value = U.clamp(pan * 2 - 1, -0.9, 0.9); g.connect(p); p.connect(this.bus); p.connect(this.rev); } else { g.connect(this.bus); g.connect(this.rev); }
+    o.start(now); o.stop(now + 1.2);
+  },
+  startHear() {
+    if (!this.ensure()) { ch.toast('Sound is not available in this browser'); return; }
+    this.hearing = true; const t = this.ctx.currentTime; this.hearT0 = t;
+    this.chord.gain.cancelScheduledValues(t); this.chord.gain.setValueAtTime(this.chord.gain.value, t); this.chord.gain.linearRampToValueAtTime(0.85, t + 2.5);
+    this.tone.frequency.cancelScheduledValues(t); this.tone.frequency.setValueAtTime(900, t); this.tone.frequency.exponentialRampToValueAtTime(3600, t + 7);
+    for (let n = 0; n < NPART; n++) {
+      const f = this.f1 * (n + 1), t0 = t + 0.2 + 0.9 * n;
+      [this.oa[n], this.ob[n], this.bp[n]].forEach((node, k) => { const ff = k === 1 ? f * 1.0032 : f; node.frequency.cancelScheduledValues(t); node.frequency.setValueAtTime(ff * 2.6, t); node.frequency.exponentialRampToValueAtTime(ff, t + 6); });
+      this.g[n].gain.cancelScheduledValues(t); this.g[n].gain.setValueAtTime(0, t); this.g[n].gain.setValueAtTime(0, t0); this.g[n].gain.linearRampToValueAtTime(this.partialGain(n) * 1.25, t0 + 0.5); this.g[n].gain.setTargetAtTime(this.partialGain(n), t0 + 0.5, 0.6);
+      this.gn[n].gain.cancelScheduledValues(t); this.gn[n].gain.setValueAtTime(0, t); this.gn[n].gain.linearRampToValueAtTime(0.9 * this.amps[n], t0 + 1.2);
+    }
+  },
+  stopHear() {
+    if (!this.ready) { this.hearing = false; return; }
+    const t = this.ctx.currentTime; this.hearing = false; this.lastWant = null;
+    this.chord.gain.cancelScheduledValues(t); this.chord.gain.setValueAtTime(this.chord.gain.value, t); this.chord.gain.setTargetAtTime(0, t, 0.35);
+  },
+  /** per-frame: act-dependent levels and chart glow */
+  update() {
+    if (!this.ready) { this.levels.fill(0); return; }
+    const t = this.ctx.currentTime;
+    if (this.hearing) { for (let n = 0; n < NPART; n++) { const t0 = this.hearT0 + 0.2 + 0.9 * n; this.levels[n] = U.clamp((t - t0) / 0.5, 0, 1) * this.amps[n] * (0.75 + 0.25 * Math.sin(t * (2.1 + n * 0.7) + n)); } }
+    else this.levels.fill(0);
+    if (!this.hearing && t - (this.lastSet || 0) > 0.2) {
+      const want = (act === 1 && ch.sound.enabled && !ch.paused) ? 0.22 * S1.coupling * (A1.sound ? 1 : 0) : 0;
+      if (Math.abs(want - (this.lastWant == null ? -1 : this.lastWant)) > 0.003) { this.lastSet = t; this.lastWant = want; if (want > 0) this.plasma(want); else this.chord.gain.setTargetAtTime(0, t, 0.3); }
+    }
+  },
+};
+function noteName(f) { const n = Math.round(12 * Math.log2(f / 440)) + 57; const names = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B']; return names[((n % 12) + 12) % 12] + Math.floor(n / 12); }
+
+/* ============================================================ ORCHESTRATION */
+let act = 1, trans = null, specDirty = false, autoAdvanced = false, userTouchedAct1 = false;
+const capsI = [
+  { z: 1499, s: () => 'z = ' + F.num(A1.z) + ' · T = ' + F.num(Math.round(TofZ(A1.z) / 10) * 10) + ' K · ' + F.num(Math.round(recAt(REC.age, A1.z) / PH.yr / 1000)) + ',000 years', b: 'The universe is a glowing plasma. Light cannot travel far before an electron knocks it aside.', ms: 5200 },
+  { z: 1330, s: () => 'Recombination · T ≈ ' + F.num(Math.round(TofZ(A1.z) / 10) * 10) + ' K', b: 'Electrons begin to settle onto protons. Each capture makes an atom of hydrogen and a flash of light.', ms: 5200 },
+  { z: 1165, s: () => 'xₑ = ' + xeAt(A1.z, A1.saha).toFixed(2) + ' · free electrons disappearing', b: 'Fewer free electrons, fewer collisions. Each photon runs farther between bounces.', ms: 4600 },
+  { z: 1050, s: () => 'z ≈ ' + F.num(Math.round(REC.zTau1)) + ' · the last scattering', b: 'The fog lifts. For the first time, light flies in straight lines.', ms: 5200 },
+  { z: 880, s: () => 'Transparent · ' + F.num(Math.round(recAt(REC.age, A1.z) / PH.yr / 1000)) + ',000 years after the Big Bang', b: 'These photons will travel for 13.8 billion years. Some are reaching Earth right now.', ms: 6000 },
+];
+let capIdx = 0;
+
+function replay1() {
+  for (let i = 0; i < NE; i++) { eState[i] = 0; eP[i] = -1; }
+  for (let i = 0; i < NP; i++) { pState[i] = 0; pEl[i] = -1; }
+  nBound = 0; A1.z = 1500; zSlider.set(1500); setPlaying(true); A1.scrubbing = false;
+  for (let k = 0; k < NT; k++) spawnTracer(k);
+  settleBound(Math.round((1 - xeAt(1500, A1.saha)) * NP));
+  S1.ended = false; S1.lyaTagged = false; S1.recTagged = 0; S1.lastTag = performance.now(); capIdx = 0;
+  ctaEl.classList.remove('on');
+}
+function setParam(k, v) { A2.params[k] = v; specDirty = true; }
+function resetParams() { Object.assign(A2.params, FID); pSl.ok.set(FID.ok); pSl.obh2.set(FID.obh2); pSl.och2.set(FID.och2); pSl.ns.set(FID.ns); specDirty = true; ch.toast('Planck 2018 best fit'); }
+function newSky() { A2.seed = (A2.seed * 16807 + 11) % 2147483; requestMap(); ch.toast('A new random sky: same physics, different phases'); }
+function toggleHear() {
+  if (Sound.hearing) { Sound.stopHear(); hearBtn.setLabel('Hear the Big Bang'); hearBtn.setPressed(false); captionOff(); return; }
+  if (!ch.sound.enabled) { const b = document.querySelector('.cz-icon[title^="Sound"]'); if (b) b.click(); else ch.sound.set(true); }
+  if (act !== 2) goAct(2);
+  Sound.startHear();
+  if (!Sound.hearing) return;
+  hearBtn.setLabel('Stop the sound'); hearBtn.setPressed(true);
+  hearCaps = 0; hearClock = 0;
+}
+let hearCaps = 0, hearClock = 0;
+const HEAR_CAPS = [
+  { t: 0.3, s: () => 'Hear the Big Bang', b: 'Before the fog lifted, sound waves rang through the plasma. This is their chord.' },
+  { t: 5.2, s: () => 'Fundamental + overtones 2, 3, 4 …', b: 'The first peak is the wave that had just squeezed once. Each higher peak is an overtone.' },
+  { t: 10.5, s: () => 'Real period ≈ ' + F.num(1 / Sound.physical(SPEC.bg) / PH.yr / 1e6, 1) + ' million years · raised 53 octaves', b: 'Its compressions spanned about 430,000 light-years. Move the baryon slider and the timbre changes.' },
+];
+
+function goAct(n) {
+  if (n === act && !trans) return;
+  if (trans) finishTrans();
+  captionOff(); tagsOff(); tipEl.classList.remove('on'); ctaEl.classList.remove('on');
+  if (n === 2) {
+    act = 2; showGroups(2);
+    if (Sound.ready && !Sound.hearing) Sound.chord.gain.setTargetAtTime(0, Sound.ctx.currentTime, 0.4);
+    trans = { kind: '1to2', t: 0, stage: 0 };
+    cv2.style.transition = 'opacity 1.3s var(--ease) .75s'; cv2.classList.remove('fl-off'); setTimeout(() => { cv2.style.transition = ''; }, 2200);
+    cv1.classList.add('fl-shrink');
+    CAM.tweens.length = 0; CAM.view = 'outside'; viewBtns.forEach((b, i) => b.setPressed(i === 0));
+    CAM.d = 1.75; CAM.morph = 0; CAM.mS = 1; CAM.yaw = 2.2; CAM.pitch = 0.3; CAM.fovIn = 1.25;
+    tween({ d: OUT_D, yaw: 2.75 }, 4.2, 'out');
+    Object.assign(TR2, { aniso: 0, glowB: 1.05, glowT: 2970, sat: 0.3, halo: 0, loupeA: 0 });
+    strip1.style.opacity = '0'; strip2.style.opacity = '0'; loupeEl.style.opacity = '0'; tapHint.style.opacity = '0'; leadTag.classList.remove('on');
+  } else {
+    if (Sound.hearing) toggleHear();
+    act = 1; showGroups(1); shadeEl.style.opacity = '0'; shadeEl._o = 0;
+    trans = { kind: '2to1', t: 0 };
+    cv2.classList.add('fl-off');
+    cv1.style.transition = 'none'; cv1.classList.remove('fl-shrink', 'fl-off'); cv1.classList.add('fl-return');
+    void cv1.offsetWidth; cv1.style.transition = ''; cv1.classList.remove('fl-return');
+    strip2.style.opacity = '0'; loupeEl.style.opacity = '0'; strip1.style.opacity = '1'; tapHint.style.opacity = '';
+    if (A1.z <= 830) replay1();
+  }
+  setHudLabels();
+}
+function finishTrans() {
+  if (!trans) return;
+  if (trans.kind === '1to2') { CAM.tweens.length = 0; CAM.d = OUT_D; Object.assign(TR2, { aniso: 1, glowB: 0, sat: 1, halo: 1, loupeA: 1 }); cv1.classList.add('fl-off'); strip2.style.opacity = '1'; loupeEl.style.opacity = A2.loupe ? '1' : '0'; }
+  trans = null;
+}
+function stepTrans(dt) {
+  if (!trans) return;
+  trans.t += dt; const t = trans.t;
+  if (trans.kind === '1to2') {
+    if (trans.stage === 0 && t > 0.5) { trans.stage = 1; caption('z = ' + F.num(Math.round(REC.zTau1)) + ' · T = 2,970 K', 'This is the last-scattering surface: the wall of glowing fog that surrounds every observer.', 3400); }
+    if (trans.stage === 1 && t > 3.9) { trans.stage = 2; caption('Stretched 1,091 times by expansion', 'Its 2,970 K glow has cooled to 2.7255 K. It now shines in microwaves.', 3000); }
+    if (trans.stage === 2 && t > 7.0) { trans.stage = 3; caption('Contrast × 100,000', 'Raise the contrast and the frozen sound waves appear: ±300 millionths of a kelvin.', 4200); }
+    if (trans.stage === 3 && t > 11.4) { trans.stage = 4; caption('Drag to turn the sky · scroll to zoom', 'Try the curvature slider, or press <em>Hear the Big Bang</em>.', 4200); }
+    const u1 = U.smoothstep(3.6, 6.6, t);
+    TR2.glowT = Math.exp(Math.log(2970) * (1 - u1) + Math.log(2.7255) * u1);
+    TR2.glowB = 1.05 * Math.pow(TR2.glowT / 2970, 0.33);
+    const u2 = U.smoothstep(7.0, 9.8, t);
+    TR2.aniso = u2; TR2.sat = 0.3 + 0.7 * U.smoothstep(7.6, 10.4, t); TR2.halo = U.smoothstep(7.2, 10, t);
+    strip2.style.opacity = String(U.smoothstep(8, 9.5, t));
+    TR2.loupeA = U.smoothstep(9.6, 10.6, t); loupeEl.style.opacity = loupeOn() ? String(TR2.loupeA) : '0';
+    if (t > 2.4 && !cv1.classList.contains('fl-off')) cv1.classList.add('fl-off');
+    if (t > 11) trans = null;
+  } else if (t > 1.2) trans = null;
+}
+function setHudLabels() {
+  const L = act === 1 ? ['Epoch', 'Plasma', 'Light', 'Atoms'] : ['Sky', 'Spots', 'Map', 'Geometry'];
+  L.forEach((s, i) => hudLabel(i, s));
+}
+const fmtLy = (ly) => ly >= 1e6 ? F.num(ly / 1e6, ly < 1e7 ? 1 : 0) + ' million ly' : F.num(Math.round(ly / (ly < 1e4 ? 10 : 1000)) * (ly < 1e4 ? 10 : 1000)) + ' ly';
+
+let uiClock = 0, xeClock = 0;
+function updateOverlaysAct1(dt) {
+  uiClock += dt; xeClock += dt;
+  if (xeClock > 0.08) { xeClock = 0; drawXe(); }
+  if (uiClock < 0.1) return; uiClock = 0;
+  const z = A1.z, T = TofZ(z), xe = S1.xe, mfpLy = mfpAt(z, xe) / PH.ly, age = recAt(REC.age, z) / PH.yr;
+  ro1.z.set(F.num(z)); ro1.T.set(F.num(Math.round(T)) + ' K'); ro1.age.set(F.num(Math.round(age / 1000)) + ',000 yr');
+  ro1.xe.set(xe > 0.01 ? xe.toFixed(3) : xe.toExponential(2)); ro1.mfp.set(fmtLy(mfpLy)); ro1.wien.set((2.8978e-3 / T * 1e6).toFixed(2) + ' µm');
+  hud[0].set('z = ' + F.num(z) + ' · ' + F.num(Math.round(age / 1000)) + ',000 yr');
+  hud[1].set('T = ' + F.num(Math.round(T)) + ' K · xₑ = ' + (xe > 0.01 ? xe.toFixed(2) : xe.toExponential(1)));
+  hud[2].set('mean free path ' + fmtLy(mfpLy));
+  hud[3].set(F.num(nBound) + ' of ' + F.num(NP) + ' hydrogen formed');
+  const th = $('fl-taphint'); if (th && pulsesFired >= 2 && !th.classList.contains('fl-done')) th.classList.add('fl-done');
+  if (LAY.small && !S1.tapHinted && pulsesFired === 0 && performance.now() - T_START > 6500) { S1.tapHinted = true; ch.toast('Tap the plasma to fire a flash of light'); }
+  $('fl-mfp').textContent = fmtLy(mfpLy);
+  const maxW = Math.max(60, (LAY.x1 - LAY.x0) * 0.3), mw = S1.lam;
+  const bar = $('fl-mfp-bar'); bar.style.width = Math.min(mw, maxW).toFixed(1) + 'px'; bar.classList.toggle('fl-over', mw > maxW);
+  $('fl-ly-bar').style.width = (1e5 * (1 + z) * PX_PER_COMOVING_LY).toFixed(1) + 'px';
+  // story captions keyed to the clock
+  if (!trans && A1.playing && capIdx < capsI.length && z <= capsI[capIdx].z) { const c = capsI[capIdx++]; if (c.z >= z - 60) caption(c.s(), c.b, c.ms); }
+  // end of act → invitation (and one automatic advance)
+  if (S1.ended && !trans) {
+    const since = performance.now();
+    if (!ctaEl.classList.contains('on')) { ctaEl.classList.add('on'); S1.ctaAt = since; }
+    if (!autoAdvanced && !userTouchedAct1 && since - S1.ctaAt > 6000) { autoAdvanced = true; goAct(2); }
+  }
+}
+let ui2Clock = 0, specClock = 0;
+function updateOverlaysAct2(dt) {
+  ui2Clock += dt; specClock += dt;
+  if (specClock > (Sound.hearing ? 0.05 : 0.2)) { specClock = 0; drawSpec(); drawLadder(); }
+  // map progress + crossfade
+  const prog = $('fl-prog'); prog.classList.toggle('on', MAP.busy && performance.now() - MAP.lastDone > 150); prog.firstChild.style.width = (MAP.progress * 100).toFixed(0) + '%';
+  // range for the legend
+  const want = A2.dipole ? 3500 : A2.range; TR2.range += (want - TR2.range) * Math.min(1, dt * 4);
+  if (!trans) loupeEl.style.opacity = loupeOn() ? '1' : '0';
+  // darken behind the HUD when the sky fills the top-left corner
+  const shadeOn = CAM.morph < 0.5 && CAM.d < 2.35 ? 1 : 0;
+  if (shadeEl._o !== shadeOn) { shadeEl._o = shadeOn; shadeEl.style.opacity = String(shadeOn); }
+  if (ui2Clock < 0.12) return; ui2Clock = 0;
+  const tk = $('fl-ticks'); const lab = TR2.range > 1000 ? ['−' + (TR2.range / 1000).toFixed(1) + ' mK', 'ΔT', '+' + (TR2.range / 1000).toFixed(1) + ' mK'] : ['−' + Math.round(TR2.range), 'ΔT  µK', '+' + Math.round(TR2.range)];
+  if (tk.firstChild.textContent !== lab[0]) { tk.children[0].textContent = lab[0]; tk.children[1].textContent = lab[1]; tk.children[2].textContent = lab[2]; }
+  const p1 = SPEC.peaks[0] || { l: 0, D: 0 }, spotDeg = 180 / Math.max(1, p1.l);
+  hud[0].set('T₀ = 2.7255 K · colours ±' + (TR2.range > 1000 ? (TR2.range / 1000).toFixed(1) + ' mK' : Math.round(TR2.range) + ' µK'));
+  hud[1].set('ℓ₁ = ' + p1.l + ' · spots ≈ ' + spotDeg.toFixed(2) + '°');
+  hud[2].set(MAP.have ? 'ℓ ≤ ' + MAP.L + (A2.filter === 'all' ? '' : A2.filter === 'cobe' ? ' · COBE beam' : A2.filter === 'wmap' ? ' · WMAP beam' : ' · band-passed') + ' · rms ' + MAP.rms.toFixed(0) + ' µK · ' + MAP.ms + ' ms' : 'synthesising…');
+  const ok = A2.params.ok; hud[3].set('Ωk = ' + (ok > 0 ? '+' : '') + ok.toFixed(3) + ' ' + (Math.abs(ok) < 0.003 ? 'flat' : ok < 0 ? 'closed' : 'open') + ' · ΩΛ = ' + SPEC.bg.OL.toFixed(3));
+  $('fl-lspot').textContent = LAY.small ? 'spots ≈ ' + spotDeg.toFixed(2) + '°' : 'ℓ₁ = ' + p1.l + ' → spots ≈ 180°/ℓ₁ = ' + spotDeg.toFixed(2) + '°';
+  const lk = $('fl-lkey'), lkW = LAY.small ? '<b>1°</b> bar · ring = Moon' : '<b>1°</b> bar · dashed ring = full Moon'; if (lk._w !== lkW) { lk._w = lkW; lk.innerHTML = lkW; }
+  // loupe geometry: 1° bar and the Moon (0.52°) in SVG units (loupe radius = 50 units = 4°)
+  const u = 50 * Math.tan(Math.PI / 180) / Math.tan(LOUPE_R * Math.PI / 180);
+  const bar = document.querySelector('#fl-lbar'); if (bar) { const ls = bar.children; ls[0].setAttribute('x1', 50 - u / 2); ls[0].setAttribute('x2', 50 + u / 2); ls[1].setAttribute('x1', 50 - u / 2); ls[1].setAttribute('x2', 50 - u / 2); ls[2].setAttribute('x1', 50 + u / 2); ls[2].setAttribute('x2', 50 + u / 2); }
+  const moon = document.querySelector('#fl-lmoon circle'); if (moon) moon.setAttribute('r', (u * 0.26).toFixed(2));
+  // hover tooltip
+  if (hover.on && hover.n && !CAM.dragging && !trans) {
+    const n = hover.n, T = skyAt(n), l = ((Math.atan2(n[0], n[2]) * 180 / Math.PI) + 360) % 360, b = Math.asin(U.clamp(n[1], -1, 1)) * 180 / Math.PI;
+    tipEl.innerHTML = 'ΔT <b style="color:' + (T >= 0 ? '#ffb070' : '#8fc2ff') + '">' + (T >= 0 ? '+' : '−') + Math.abs(T).toFixed(0) + ' µK</b> · l ' + l.toFixed(1) + '° b ' + (b >= 0 ? '+' : '−') + Math.abs(b).toFixed(1) + '°';
+    tipEl.style.left = (hover.x + 16) + 'px'; tipEl.style.top = (hover.y + 14) + 'px'; tipEl.classList.add('on');
+  } else tipEl.classList.remove('on');
+  // observer label in the cutaway
+  const showObs = act === 2 && !trans && A2.cut && CAM.d > 1.05 && CAM.morph < 0.01 && !CAM.tweens.length;
+  if (showObs) { const m = CM.vp, w = m[15]; const sx = (m[12] / w * 0.5 + 0.5) * LAY.W, sy = (0.5 - m[13] / w * 0.5) * LAY.H; obsTag.style.left = (sx + 30) + 'px'; obsTag.style.top = (sy - 7) + 'px'; }
+  obsTag.classList.toggle('on', showObs);
+  // hearing captions
+  if (Sound.hearing && hearCaps < HEAR_CAPS.length && hearClock > HEAR_CAPS[hearCaps].t) { const c = HEAR_CAPS[hearCaps++]; caption(c.s(), c.b, 5000); }
+}
+function refreshSpectrum() {
+  specDirty = false;
+  SPEC = spectrum(A2.params);
+  const p1 = SPEC.peaks[0] || { l: 0, D: 0 }, bg = SPEC.bg;
+  ro6.l1.set(String(p1.l)); ro6.D1.set(F.num(Math.round(p1.D)) + ' µK²');
+  ro6.th.set((bg.theta * 180 / Math.PI).toFixed(3) + '°'); ro6.lA.set(String(Math.round(bg.lA)));
+  ro6.rs.set(bg.rs.toFixed(1) + ' Mpc'); ro6.DM.set((bg.DM / 1000).toFixed(2) + ' Gpc');
+  ro6.R.set(bg.Rs.toFixed(3)); ro6.zs.set(F.num(Math.round(bg.zs)));
+  drawSpec(); drawGeo(); Sound.retune(); requestMap();
+}
+
+/* ---- keys ---- */
+ch.onKey('1', () => goAct(1), 'Act I · the fog lifts');
+ch.onKey('2', () => goAct(2), 'Act II · the oldest light');
+ch.onKey('r', () => { if (act === 1) replay1(); else resetParams(); }, 'Replay (Act I) · Planck values (Act II)');
+ch.onKey('v', () => { if (act !== 2) goAct(2); const order = ['outside', 'inside', 'moll']; setView(order[(order.indexOf(CAM.view) + 1) % 3]); }, 'Cycle view: outside, inside, Mollweide');
+ch.onKey('b', () => toggleHear(), 'Hear the Big Bang');
+ch.onKey('g', () => newSky(), 'New random sky');
+ch.onKey('l', () => { A2.loupe = !A2.loupe; const t = document.getElementById('fl-loupe'); if (t) t.checked = A2.loupe; }, 'Toggle the loupe');
+ctaEl.addEventListener('click', () => { autoAdvanced = true; goAct(2); });
+[zSlider.input].forEach((el) => el.addEventListener('pointerdown', () => { userTouchedAct1 = true; }));
+['fl-replay', 'fl-hold', 'fl-speed'].forEach((id) => { const el = document.getElementById(id); if (el) el.addEventListener('pointerdown', () => { userTouchedAct1 = true; }); });
+ch.onSound((on) => { if (on) Sound.ensure(); else if (Sound.hearing) toggleHear(); });
+ch.onResize(() => { updateLayout(); drawXe(); drawSpec(); drawGeo(); });
+
+/* ---- local workaround: the shared help overlay can render its key list as "[object HTMLElement]" ---- */
+const HELP_KEYS = [['Space', 'Pause / play'], ['H', 'Hide the interface'], ['N', 'Field notes'], ['C', 'Controls'], ['M', 'Sound'], ['F', 'Fullscreen'], ['[ ]', 'Previous / next chapter'], ['?', 'This help'],
+  ['1', 'Act I · the fog lifts'], ['2', 'Act II · the oldest light'], ['R', 'Replay (Act I) · Planck values (Act II)'], ['V', 'Cycle view: outside, inside, Mollweide'], ['B', 'Hear the Big Bang'], ['G', 'New random sky'], ['L', 'Toggle the loupe']];
+new MutationObserver((muts) => {
+  for (const m of muts) for (const n of m.addedNodes) {
+    if (!n.classList || !n.classList.contains('cz-help')) continue;
+    const dl = n.querySelector('dl'); if (!dl || dl.textContent.indexOf('[object') < 0) continue;
+    dl.textContent = '';
+    HELP_KEYS.forEach(([k, d]) => { dl.append(h('dt', {}, h('kbd', { text: k })), h('dd', { style: { margin: 0 }, text: d })); });
+  }
+}).observe(document.body, { childList: true });
+
+/* ---- init ---- */
+initAct1();
+settleBound(Math.round((1 - xeAt(1500, false)) * NP));
+showGroups(1); setHudLabels(); setPlaying(true);
+strip1.style.opacity = '1';
+refreshSpectrum(); // fills readouts, charts, sound tuning, and the first map request
+drawXe();
+
+let lastNow = performance.now(), layoutClock = 0, lastSpecAt = 0;
+const T_START = performance.now();
+const PERF = { a1: 0, a2: 0 };
+ch.loop((dt, t) => {
+  const now = performance.now(), rdt = Math.min(0.1, (now - lastNow) / 1000); lastNow = now;
+  layoutClock += rdt; if (layoutClock > 0.25 || trans) { layoutClock = 0; updateLayout(); }
+  stepGlide(rdt);
+  if (specDirty && now - lastSpecAt > 60) { lastSpecAt = now; refreshSpectrum(); }
+  Sound.update();
+  stepTrans(rdt);
+  const show1 = act === 1 || (trans && trans.kind === '1to2' && trans.t < 2.4);
+  const show2 = act === 2 || (trans && trans.kind === '2to1');
+  const tA = performance.now();
+  if (show1 && !ch.paused) frameAct1(dt, t);
+  PERF.a1 = PERF.a1 * 0.95 + (performance.now() - tA) * 0.05;
+  if (act === 1) updateOverlaysAct1(dt);
+  if (show2) {
+    // make room under captions (desktop), and slide the Mollweide oval clear of the loupe
+    let roomT = 0;
+    if (act === 2 && capEl.classList.contains('on') && !LAY.small && (CAM.d > 1 || CAM.morph > 0.5)) {
+      const F = LAY.y1 - LAY.y0, cb = capEl.getBoundingClientRect().bottom;
+      roomT = U.clamp((cb + 14 - LAY.y0 - 0.08 * F) / 0.92, 0, 0.3 * F);
+    }
+    SCN.room += (roomT - SCN.room) * Math.min(1, rdt * 2.2);
+    SCN.shift += (mollFit().shift - SCN.shift) * Math.min(1, rdt * 3);
+    SCN.sshift += (sphereFit().sh - SCN.sshift) * Math.min(1, rdt * 3);
+    stepTweens(rdt);
+    if (!CAM.dragging && !CAM.tweens.length) {
+      CAM.yaw += velYaw; CAM.pitch = U.clamp(CAM.pitch + velPitch, -1.45, 1.45); velYaw *= 0.9; velPitch *= 0.9;
+      const idle = now - CAM.lastUser > 7000;
+      if (CAM.d > 1 && CAM.morph < 0.01) CAM.yaw += rdt * (idle ? 0.06 : 0.0) * (ch.paused ? 0 : 1);
+    }
+    MAP.mix = Math.min(1, MAP.mix + rdt / 0.3);
+    if (Sound.hearing) hearClock += rdt;
+    const tB = performance.now();
+    CM = camMatrices(); updateLoupe();
+    renderAct2(t, rdt);
+    PERF.a2 = PERF.a2 * 0.95 + (performance.now() - tB) * 0.05;
+    if (act === 2) updateOverlaysAct2(rdt);
+  }
+}, { always: true });
+
+Cosmos.debug.state = () => ({
+  act, transition: trans ? trans.kind + '@' + trans.t.toFixed(1) : null,
+  z: +A1.z.toFixed(1), T_K: Math.round(S1.T), xe: +S1.xe.toPrecision(3), mfp_ly: Math.round(mfpAt(A1.z, S1.xe) / PH.ly), mfp_px: +S1.lam.toFixed(1), fog: +S1.fog.toFixed(3), coupling: +S1.coupling.toFixed(3),
+  hydrogen: nBound, protons: NP, photons: NG, segments: nSeg, points: nPts,
+  map: { have: MAP.have, L: MAP.L, W: MAP.W, H: MAP.H, rms_uK: +MAP.rms.toFixed(1), ms: MAP.ms, busy: MAP.busy },
+  spectrum: { l1: SPEC.peaks[0] && SPEC.peaks[0].l, D1: SPEC.peaks[0] && Math.round(SPEC.peaks[0].D), peaks: SPEC.peaks.slice(0, 5).map((p) => p.l + ':' + Math.round(p.D)), theta_deg: +(SPEC.bg.theta * 180 / Math.PI).toFixed(4), rs_Mpc: +SPEC.bg.rs.toFixed(2), DM_Mpc: Math.round(SPEC.bg.DM), zstar: +SPEC.bg.zs.toFixed(1) },
+  filter: A2.filter, range_uK: Math.round(TR2.range), params: Object.assign({}, A2.params), cam: { view: CAM.view, d: +CAM.d.toFixed(2), yaw: +CAM.yaw.toFixed(2), pitch: +CAM.pitch.toFixed(2), morph: +CAM.morph.toFixed(2) },
+  cpu_ms: { act1: +PERF.a1.toFixed(2), act2: +PERF.a2.toFixed(2) },
+  fit: { sphereR: Math.round(sphereFit().R), sphereShift: Math.round(sphereFit().sh), ovalB: Math.round(mollFit().B), ovalShift: mollFit().shift, room: Math.round(SCN.room), Rpx: Math.round(CM.Rpx), lay: [LAY.x0, LAY.x1, LAY.y0, LAY.y1].map(Math.round), loupe: LAY.loupe },
+  sound: { ready: Sound.ready, hearing: Sound.hearing, f1_Hz: +Sound.f1.toFixed(1) },
+});
+Cosmos.debug.go = (n) => goAct(n);
+Cosmos.debug.skip = () => finishTrans();
+Cosmos.debug.set = (k, v) => { if (pSl[k]) { pSl[k].set(v); setParam(k, v); } };
+Cosmos.debug.z = (z) => { A1.z = z; zSlider.set(z); setPlaying(false); };
+console.info('[first-light] z* (τ = 1) = ' + REC.zTau1.toFixed(0) + ', visibility peak z = ' + REC.zVisPeak.toFixed(0) + ', first peak ℓ = ' + (SPEC.peaks[0] && SPEC.peaks[0].l));
+})();
+</script>
+</body>
+</html>
